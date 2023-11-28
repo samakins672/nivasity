@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Sign In - Nivasity</title>
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+
+  <!-- MDB -->
+  <link href="assets/css/mdb.css" rel="stylesheet" />
+  <!-- Select2 -->
+  <link href="assets/vendors/select2/select2.min.css" rel="stylesheet" />
+  <!-- Font Awesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
+  <link href="assets/css/style.css" rel="stylesheet">
+
+  <style>
+    .divider:after,
+    .divider:before {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: #eee;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container vh-100">
+    <!-- Bootstrap alert container -->
+    <div id="alertBanner"
+      class="alert alert-info text-center fw-bold alert-dismissible end-2 top-2 fade show position-fixed w-auto p-2 px-4"
+      role="alert" style="z-index: 1000; display: none;">
+      An error occurred during the AJAX request.
+    </div>
+
+    <div class="row d-flex align-items-center justify-content-center h-100">
+      <div class="d-none d-md-block col-md-8 col-lg-7 col-xl-6">
+        <img src="assets/images/clipart4.svg" class="img-fluid" alt="Phone image">
+      </div>
+      <div class="col-md-7 col-lg-5 col-xl-5 offset-xl-1 p-5 px-md-2">
+        <div class="w-50 mb-3 mx-auto">
+          <img src="assets/images/nivasity-manuals.png" class="img-fluid" alt="Phone image">
+        </div>
+
+        <ul class="nav nav-pills nav-justified mb-3" id="ex1" role="tablist">
+          <li class="nav-item" role="presentation">
+            <a class="nav-link fw-bold active" id="tab-login" data-mdb-toggle="pill" href="#pills-login" role="tab"
+              aria-controls="pills-login" aria-selected="true">Login</a>
+          </li>
+          <li class="nav-item" role="presentation">
+            <a class="nav-link fw-bold" id="tab-register" data-mdb-toggle="pill" href="#pills-register" role="tab"
+              aria-controls="pills-register" aria-selected="false">Sign Up</a>
+          </li>
+        </ul>
+
+        <!-- Pills navs -->
+        <div class="tab-content">
+          <div class="tab-pane fade show active" id="pills-login" role="tabpanel" aria-labelledby="tab-login">
+            <form id="login-form">
+              <input type="hidden" name="login" value="login">
+              <!-- Email input -->
+              <div class="form-outline mb-4">
+                <input type="email" name="email" class="form-control form-control-lg" required />
+                <label class="form-label" for="email">Email address</label>
+              </div>
+
+              <!-- Password input -->
+              <div class="form-outline mb-4">
+                <input type="password" name="password" class="form-control form-control-lg" required />
+                <label class="form-label" for="password">Password</label>
+              </div>
+
+              <div class="d-flex justify-content-around align-items-center mb-4">
+                <!-- Checkbox -->
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" value="" id="remember_me" />
+                  <label class="form-check-label" for="remember_me"> Remember me </label>
+                </div>
+                <a href="#!">Forgot password?</a>
+              </div>
+
+              <!-- Submit button -->
+              <button id="login" type="submit" class="btn btn-primary fw-bold btn-lg btn-block">Login</button>
+
+              <div class="divider d-flex align-items-center my-3">
+                <p class="text-center fw-bold mx-3 mb-0 text-muted">OR</p>
+              </div>
+
+              <a class="btn btn-lg btn-block fw-bold" href="#!" style="background-color: #f7f7f7" role="button">
+                Login with &nbsp; <img
+                  src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png"
+                  alt="Google Logo" class="google-logo" width="76" height="25">
+              </a>
+
+              <!-- <a class="btn btn-primary btn-lg btn-block" style="background-color: #3b5998" href="#!" role="button">
+                  <i class="fab fa-facebook-f me-2"></i>Continue with Facebook
+                </a>
+                <a class="btn btn-primary btn-lg btn-block" style="background-color: #55acee" href="#!" role="button">
+                  <i class="fab fa-twitter me-2"></i>Continue with Twitter</a> -->
+
+            </form>
+          </div>
+          <div class="tab-pane fade" id="pills-register" role="tabpanel" aria-labelledby="tab-register">
+            <form id="signup-form">
+              <input type="hidden" name="signup" value="signup" />
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="form-outline mb-4">
+                    <input type="text" name="first_name" class="form-control form-control-lg" required />
+                    <label class="form-label" for="first_name">First Name</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-outline mb-4">
+                    <input type="text" name="last_name" class="form-control form-control-lg" required />
+                    <label class="form-label" for="last_name">Last Name</label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-outline mb-4">
+                <input type="email" name="email" class="form-control form-control-lg" required />
+                <label class="form-label" for="email">Email address</label>
+              </div>
+
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="form-outline mb-3">
+                    <input type="number" name="phone" class="form-control form-control-lg" required />
+                    <label class="form-label" for="phone">Phone Number</label>
+                  </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-check-label fw-bold display-block-inline">Gender: &nbsp;</label><br />
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="gender" id="male" value="male" />
+                    <label class="form-check-label" for="male">Male</label>
+                  </div>
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="gender" id="female" value="female" />
+                    <label class="form-check-label" for="female">Female</label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group mb-4">
+                <select name="school" class="form-control form-control-lg searchable-select">
+                  <option value="0" disabled selected>Select your institution</option>
+                  <option value="1">Federal University of Agricuture, Abeokuta</option>
+                  <option value="2">University of Lagos</option>
+                  <option value="3">Obafemi Awolowo University</option>
+                  <option value="4">University of Ibadan</option>
+                </select>
+              </div>
+
+              <div class="d-flex justify-content-start mb-4">
+                <label class="form-check-label fw-bold display-block-inline">Academic Role: &nbsp;</label><br />
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="role" id="student" value="student" checked />
+                  <label class="form-check-label" for="student">Student</label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="role" id="hoc" value="hoc" data-toggle="tooltip"
+                    data-placement="top" title="You'll have to verify this role to use the account after sign up!" />
+                  <label class="form-check-label" for="hoc">HOC</label>
+                </div>
+                <!-- <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="role" id="lecturer" value="lecturer"
+                    data-toggle="tooltip" data-placement="top"
+                    title="You'll have to verify this role to use the account after sign up!" />
+                  <label class="form-check-label" for="lecturer">Lecturer</label>
+                </div> -->
+              </div>
+
+              <div class="row mb-4">
+                <div class="col-11">
+                  <div class="form-outline">
+                    <input type="password" id="password" name="password" class="form-control form-control-lg"
+                      onkeyup="checkPasswordStrength()" required="">
+                    <label class="form-label" for="password">Password</label>
+                  </div>
+                </div>
+                <div class="col-1 my-auto p-0 text-primary">
+                  <i class="fa fa-eye-slash toogle-password" aria-hidden="true"></i>
+                </div>
+              </div>
+              <div id="password-strength-status"></div>
+
+              <div class="form-outline mb-4">
+                <div class="form-check">
+                  <input type="checkbox" class="form-check-input" id="termsCheckbox" name="termsCheckbox"
+                    data-toggle="tooltip" data-placement="top" title="Give me a high-five!" required>
+                  <label class="form-check-label fw-bold" for="termsCheckbox">I've read the <a
+                      href="http://nivasity.com/terms-conditions.php">Terms and Conditions</a> </label>
+                </div>
+              </div>
+
+              <!-- Submit button -->
+              <button id="signup" type="submit" class="btn btn-primary fw-bold btn-lg btn-block" disabled>Sign
+                up</button>
+
+              <div class="divider d-flex align-items-center my-3">
+                <p class="text-center fw-bold mx-3 mb-0 text-muted">OR</p>
+              </div>
+
+              <a class="btn btn-lg btn-block fw-bold" href="#!" style="background-color: #f7f7f7" role="button">
+                Sign Up with &nbsp; <img
+                  src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png"
+                  alt="Google Logo" class="google-logo" width="76" height="25">
+              </a>
+              <!-- <a class="btn btn-primary btn-lg btn-block" style="background-color: #3b5998" href="#!" role="button">
+                  <i class="fab fa-facebook-f me-2"></i>Continue with Facebook
+                </a>
+                <a class="btn btn-primary btn-lg btn-block" style="background-color: #55acee" href="#!" role="button">
+                  <i class="fab fa-twitter me-2"></i>Continue with Twitter</a> -->
+
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Spinner Start -->
+    <div id="spinner"
+      class="show bg-white position-fixed translate-middle w-100 vh-100 top-50 start-50 d-flex align-items-center justify-content-center">
+      <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+        <span class="sr-only">Loading...</span>
+      </div>
+    </div>
+    <!-- Spinner End -->
+
+  </div>
+
+
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.1/mdb.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="assets/vendors/select2/select2.min.js"></script>
+
+  <!-- main js -->
+  <script src="assets/js/script.js"></script>
+
+  <!-- Initialize Bootstrap tooltips -->
+  <script>
+    $(document).ready(function () {
+      $('.searchable-select').select2();
+
+      $('[data-toggle="tooltip"]').tooltip();
+
+      $(".form-check-input").click(function () {
+        // Animate the checkbox's position with jQuery
+        $(this).animate({ marginTop: '-6px' }, 200, function () {
+          // After the animation, reset the position
+          $(this).animate({ marginTop: '3px' }, 200);
+        });
+      });
+
+      // toggle password visibility
+      $('.toogle-password').on('click', function () {
+        $(this).toggleClass('fa-eye-slash').toggleClass('fa-eye'); // toggle our classes for the eye icon
+        var input = $('#password');
+
+        if (input.attr("type") == "password") {
+          input.attr("type", "text");
+        } else {
+          input.attr("type", "password");
+        }
+      });
+
+      // Use AJAX to submit the login form
+      $('#login-form').submit(function (event) {
+        // Prevent the default form submission
+        event.preventDefault();
+
+        // Serialize the form data
+        var formData = $(this).serialize();
+
+        // Define login button
+        var button = $('#login');
+        var originalText = button.html();
+
+        // Display the spinner and disable the button
+        button.html('<div class="spinner-border text-white" style="width: 1.5rem; height: 1.5rem;" role="status"><span class="sr-only">Loading...</span>');
+        button.prop('disabled', true);
+
+        // Simulate an AJAX call using setTimeout
+        setTimeout(function () {
+          $.ajax({
+            type: 'POST',
+            url: 'model/user.php',
+            data: formData,
+            success: function (data) {
+              $('#alertBanner').html(data.message);
+
+              if (data.status == 'success') {
+                $('#alertBanner').removeClass('alert-info');
+                $('#alertBanner').removeClass('alert-danger');
+                $('#alertBanner').addClass('alert-success');
+                setTimeout(function () {
+                  // Redirect the browser to the specified page
+                  window.location.href = "store.html?loggedin";
+                }, 1000); // 1000 milliseconds (1 second) delay
+              } else {
+                $('#alertBanner').removeClass('alert-success');
+                $('#alertBanner').removeClass('alert-info');
+                $('#alertBanner').addClass('alert-danger');
+              }
+
+              // Automatically show and hide the alert after 5 seconds
+              $('#alertBanner').fadeIn();
+
+              setTimeout(function () {
+                $('#alertBanner').fadeOut();
+              }, 5000);
+
+              // AJAX call successful, stop the spinner and update button text
+              button.html(originalText);
+              button.prop("disabled", false);
+            }
+          });
+        }, 2000); // Simulated AJAX delay of 2 seconds
+      });
+
+      // Use AJAX to submit the signup form
+      $('#signup-form').submit(function (event) {
+        // Prevent the default form submission
+        event.preventDefault();
+
+        // Serialize the form data
+        var formData = $(this).serialize();
+
+        // Define login button
+        var button = $('#signup');
+        var originalText = button.html();
+
+        // Display the spinner and disable the button
+        button.html('<div class="spinner-border text-white" style="width: 1.5rem; height: 1.5rem;" role="status"><span class="sr-only">Loading...</span>');
+        button.prop('disabled', true);
+
+        $.ajax({
+          type: 'POST',
+          url: 'model/user.php',
+          data: formData,
+          success: function (data) {
+            // Check the response to determine if signup was successful
+            if (data.status === 'success') {
+              $('#pills-register').html('<div class="alert alert-primary text-center"><i class="fas fa-envelope h1"></i><br>' + data.message + ' </div>');
+            } else {
+              $('#alertBanner').html(data.message);
+
+              $('#alertBanner').removeClass('alert-success');
+              $('#alertBanner').removeClass('alert-info');
+              $('#alertBanner').addClass('alert-danger');
+
+              // Automatically show and hide the alert after 5 seconds
+              $('#alertBanner').fadeIn();
+
+              setTimeout(function () {
+                $('#alertBanner').fadeOut();
+              }, 5000);
+            }
+
+            // AJAX call successful, stop the spinner and update button text
+            button.html(originalText);
+            button.prop("disabled", false);
+          }
+        });
+      });
+
+    });
+  </script>
+  <script type="text/javascript">
+    // document.addEventListener('DOMContentLoaded', function () { window.setTimeout(document.querySelector('svg').classList.add('animated'), 1000); })
+  </script>
+</body>
+
+</html>
