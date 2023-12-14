@@ -18,6 +18,9 @@
   <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
   <link href="assets/css/style.css" rel="stylesheet">
 
+  <!-- main js -->
+  <script src="assets/js/main.js"></script>
+
   <style>
     .divider:after,
     .divider:before {
@@ -46,7 +49,9 @@
           </div>
           <form id="setup-form">
             <input type="hidden" name="setup">
-            <h4 class="text-secondary text-center mb-4">Let's get started <span class="text-primary">Blessing!</span>
+            <input type="hidden" id="user_id" name="user_id">
+            <h4 class="text-secondary text-center mb-4">Let's get started <span
+                class="text-primary first_name">Blessing!</span>
             </h4>
 
             <div class="row mb-3">
@@ -55,13 +60,8 @@
               </div>
               <div class="col-12 col-md-8">
                 <div class="form-group">
-                  <select name="year" class="form-control form-control-lg searchable-select" required>
-                    <option value="" disabled selected>Select an option</option>
-                    <option value="1">2020/2021</option>
-                    <option value="2">2021/2022</option>
-                    <option value="3">2022/2023</option>
-                    <option value="4">2023/2024</option>
-                  </select>
+                  <select id="admissionYear" name="year" class="form-control form-control-lg searchable-select"
+                    required></select>
                 </div>
               </div>
             </div>
@@ -72,19 +72,14 @@
               </div>
               <div class="col-12 col-md-8">
                 <div class="form-group">
-                  <select name="dept" class="form-control form-control-lg searchable-select" required>
-                    <option value="" disabled selected>Select an option</option>
-                    <option value="1">Mathematics</option>
-                    <option value="2">University of Lagos</option>
-                    <option value="3">Obafemi Awolowo University</option>
-                    <option value="4">University of Ibadan</option>
-                  </select>
+                  <select id="dept" name="dept" class="form-control form-control-lg searchable-select"
+                    required></select>
                 </div>
               </div>
             </div>
-            
+
             <div class="form-outline mb-3">
-              <input type="text" name="matricno" id="matricno" class="form-control form-control-lg" required/>
+              <input type="text" name="matricno" id="matricno" class="form-control form-control-lg" required />
               <label class="form-label" for="matricno">Matric Number</label>
             </div>
 
@@ -118,18 +113,57 @@
   <script src="assets/js/script.js"></script>
   <!-- Initialize Bootstrap tooltips -->
   <script>
-    function showAlert() {
-      // Automatically show and hide the alert after 5 seconds
-      $('#alertBanner').fadeIn();
+    // Get the verify parameter from the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const verify = urlParams.get('verify');
 
-      setTimeout(function () {
-        $('#alertBanner').fadeOut();
-      }, 5000);
+    // Check if the verify parameter is present
+    if (verify) {
+      $.ajax({
+        type: 'POST',
+        url: 'model/verify.php',
+        data: {verify: verify},
+        success: function (data) {
+          if (data.status == 'success') {
+            // Show alert for verified email address or perform other actions
+            showAlert();
+
+            // Get the select element
+            var dept = $('#dept');
+
+            // Iterate through the departments and add options
+            $.each(data.departments, function (index, department) {
+              // Append each department as an option to the select element
+              dept.append($('<option>', {
+                value: department.id,
+                text: department.name
+              }));
+            });
+
+            $('#user_id').val(data.user_id);
+            $('.first_name').html(data.first_name);
+
+            if (data.role == 'hoc') {
+              $('.searchable-select').select2({
+                tags: true
+              });
+            } else {
+              $('.searchable-select').select2();
+            }
+
+          } else {
+            window.location.href = 'https://www.nivasity.com';
+          }
+        }
+      });
+    } else {
+      window.location.href = 'https://www.nivasity.com';
     }
+
 
     $(document).ready(function () {
 
-      $('.searchable-select').select2();
+      getAdmissionYears();
 
       $('[data-toggle="tooltip"]').tooltip();
 
@@ -140,9 +174,6 @@
           $(this).animate({ marginTop: '3px' }, 200);
         });
       });
-
-      // Show alert for verified email address
-      showAlert();
 
       // Use AJAX to submit the setup form
       $('#setup-form').submit(function (event) {
@@ -190,9 +221,6 @@
       });
 
     });
-  </script>
-  <script type='text/javascript'>
-    document.addEventListener('DOMContentLoaded', function () { window.setTimeout(document.querySelector('svg').classList.add('animated'), 1000); })
   </script>
 </body>
 
