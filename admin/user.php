@@ -1,3 +1,9 @@
+<?php
+session_start();
+include('../model/config.php');
+include('../model/page_config.php');
+
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -20,170 +26,17 @@
   <!-- inject:css -->
   <link rel="stylesheet" href="../assets/css/dashboard/style.css">
   <!-- endinject -->
-  <link rel="shortcut icon" href="favicon.ico" />
+  <link rel="shortcut icon" href="../favicon.ico" />
 </head>
 
 <body>
   <div class="container-scroller">
-    <!-- partial:partials/_navbar.html -->
-    <nav class="navbar default-layout col-lg-12 col-12 p-0 fixed-top d-flex align-items-top flex-row">
-      <div class="text-center navbar-brand-wrapper d-flex align-items-center justify-content-start">
-        <div class="me-3">
-          <button class="navbar-toggler navbar-toggler align-self-center" type="button" data-bs-toggle="minimize">
-            <span class="icon-menu"></span>
-          </button>
-        </div>
-        <div>
-          <a class="navbar-brand brand-logo" href="index.html">
-            <img src="../assets/images/nivasity-manuals.png" alt="logo" />
-          </a>
-          <a class="navbar-brand brand-logo-mini" href="index.html">
-            <img src="../assets/images/nivasity-logo-tr.png" alt="logo" />
-          </a>
-        </div>
-      </div>
-      <div class="navbar-menu-wrapper d-flex align-items-top">
-        <ul class="navbar-nav">
-          <li class="nav-item font-weight-semibold d-none d-lg-block ms-0">
-            <h1 class="welcome-text">Good Morning, <span class="text-black fw-bold">John Doe</span></h1>
-          </li>
-        </ul>
-        <ul class="navbar-nav ms-auto">
-          <li class="nav-item d-none d-lg-block">
-            <div id="datepicker-popup" class="input-group date datepicker navbar-date-picker">
-              <span class="input-group-addon input-group-prepend border-right">
-                <span class="icon-calendar input-group-text calendar-icon"></span>
-              </span>
-              <input type="text" class="form-control">
-            </div>
-          </li>
-          <li class="nav-item me-5">
-            <form class="search-form" action="#">
-              <i class="icon-search"></i>
-              <input type="search" class="form-control" placeholder="Search Here" title="Search here">
-            </form>
-          </li>
-          <li class="nav-item dropdown">
-            <a class="nav-link count-indicator" id="countDropdown" href="#" data-bs-toggle="dropdown"
-              aria-expanded="false">
-              <i class="icon-bell"></i>
-              <span class="count"></span>
-            </a>
-            <div class="dropdown-menu dropdown-menu-right navbar-dropdown preview-list pb-0"
-              aria-labelledby="countDropdown">
-              <a class="dropdown-item py-3">
-                <p class="mb-0 font-weight-medium float-left">You have 7 unread mails </p>
-                <span class="badge badge-pill badge-primary float-right">View all</span>
-              </a>
-              <div class="dropdown-divider"></div>
-              <a class="dropdown-item preview-item">
-                <div class="preview-thumbnail">
-                  <img src="../assets/images/faces/face10.jpg" alt="image" class="img-sm profile-pic">
-                </div>
-                <div class="preview-item-content flex-grow py-2">
-                  <p class="preview-subject ellipsis font-weight-medium text-dark">Marian Garner </p>
-                  <p class="fw-light small-text mb-0"> The meeting is cancelled </p>
-                </div>
-              </a>
-              <a class="dropdown-item preview-item">
-                <div class="preview-thumbnail">
-                  <img src="../assets/images/faces/face12.jpg" alt="image" class="img-sm profile-pic">
-                </div>
-                <div class="preview-item-content flex-grow py-2">
-                  <p class="preview-subject ellipsis font-weight-medium text-dark">David Grey </p>
-                  <p class="fw-light small-text mb-0"> The meeting is cancelled </p>
-                </div>
-              </a>
-              <a class="dropdown-item preview-item">
-                <div class="preview-thumbnail">
-                  <img src="../assets/images/faces/face1.jpg" alt="image" class="img-sm profile-pic">
-                </div>
-                <div class="preview-item-content flex-grow py-2">
-                  <p class="preview-subject ellipsis font-weight-medium text-dark">Travis Jenkins </p>
-                  <p class="fw-light small-text mb-0"> The meeting is cancelled </p>
-                </div>
-              </a>
-            </div>
-          </li>
-          <li class="nav-item dropdown d-none d-lg-block user-dropdown">
-            <a class="nav-link" id="UserDropdown" href="#" data-bs-toggle="dropdown" aria-expanded="false">
-              <img class="img-xs rounded rounded-7" src="../assets/images/faces/face8.jpg" alt="Profile image"> </a>
-            <div class="dropdown-menu dropdown-menu-right navbar-dropdown" aria-labelledby="UserDropdown">
-              <div class="dropdown-header text-center">
-                <img class="img-md rounded rounded-7" src="../assets/images/faces/face8.jpg" alt="Profile image">
-                <p class="mb-1 mt-3 fw-bold">Samuel Akinyemi</p>
-                <p class="font-weight-semibold text-muted mb-0">ID: Samakins01</p>
-              </div>
-              <a class="dropdown-item" href="user.html"><i
-                  class="dropdown-item-icon mdi mdi-account-outline text-primary me-2"></i> My
-                Profile</a>
-              <a class="dropdown-item" href="notification.html"><i
-                  class="dropdown-item-icon icon-mail icon-lg text-primary me-2"></i>
-                Notification <span class="badge badge-pill badge-danger">1</span></a>
-              <a class="dropdown-item" href="faq.html"><i
-                  class="dropdown-item-icon mdi mdi-help-circle-outline text-primary me-2"></i>
-                FAQ</a>
-              <a class="dropdown-item" href="signin.html?logout"><i
-                  class="dropdown-item-icon mdi mdi-power text-primary me-2"></i>Sign Out</a>
-            </div>
-          </li>
-        </ul>
-        <button class="navbar-toggler navbar-toggler-right d-lg-none align-self-center" type="button"
-          data-bs-toggle="offcanvas">
-          <span class="mdi mdi-menu"></span>
-        </button>
-      </div>
-    </nav>
+    <!-- partial:partials/_navbar.php -->
+    <?php include('../partials/_navbar.php') ?>
     <!-- partial -->
     <div class="container-fluid page-body-wrapper">
-      <!-- partial:partials/_sidebar.html -->
-      <nav class="sidebar sidebar-offcanvas border-start border-2 border-secondary" id="sidebar">
-        <ul class="nav">
-          <li class="nav-item active">
-            <a class="nav-link bg-primary" href="javascript:;" data-bs-toggle="modal" data-bs-target="#addManual">
-              <i class="mdi mdi-plus menu-icon text-white"></i>
-              <span class="menu-title text-white fw-bold">New Manual</span>
-            </a>
-          </li>
-          <li class="nav-item nav-category">Dashboard & Profile</li>
-          <li class="nav-item">
-            <a class="nav-link" href="/admin">
-              <i class="mdi mdi-grid-large menu-icon"></i>
-              <span class="menu-title">Overview</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="notification.html">
-              <i class="icon-bell icon-lg menu-icon"></i>
-              <span class="menu-title">Notification</span><span
-                class="badge badge-pill badge-primary float-right">1</span>
-            </a>
-          </li>
-
-          <li class="nav-item">
-            <a class="nav-link" href="user.html">
-              <i class="mdi mdi-account-outline menu-icon"></i>
-              <span class="menu-title">Profile Settings</span>
-            </a>
-          </li>
-
-          <li class="nav-item nav-category">Support</li>
-          <li class="nav-item">
-            <a class="nav-link" href="support.html">
-              <i class="mdi mdi-help-circle-outline menu-icon"></i>
-              <span class="menu-title">Support Tickets</span>
-            </a>
-          </li>
-
-          <li class="nav-item nav-category">Sign out</li>
-          <li class="nav-item">
-            <a class="nav-link" href="signin.html?logout">
-              <i class="menu-icon mdi mdi-power"></i>
-              <span class="menu-title">Sign Out</span>
-            </a>
-          </li>
-        </ul>
-      </nav>
+      <!-- partial:partials/_sidebar_admin.php -->
+      <?php include('../partials/_sidebar_admin.php') ?>
       <!-- partial -->
       <div class="main-panel">
         <div class="content-wrapper">
@@ -502,15 +355,7 @@
         </div>
         <!-- content-wrapper ends -->
         <!-- partial:partials/_footer.html -->
-        <footer class="footer">
-          <div class="d-sm-flex justify-content-center justify-content-sm-between">
-            <span class="text-muted text-center text-sm-left d-block d-sm-inline-block">Premium <a
-                href="https://www.bootstrapdash.com/" target="_blank">Bootstrap admin template</a> from
-              BootstrapDash.</span>
-            <span class="float-none float-sm-right d-block mt-1 mt-sm-0 text-center">Copyright © 2021. All rights
-              reserved.</span>
-          </div>
-        </footer>
+        <?php include('../partials/_footer.php') ?>
         <!-- partial -->
       </div>
       <!-- main-panel ends -->

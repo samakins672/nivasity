@@ -1,11 +1,11 @@
 <nav class="navbar default-layout col-lg-12 col-12 p-0 fixed-top d-flex align-items-top flex-row">
   <div class="text-center navbar-brand-wrapper d-flex align-items-center justify-content-start">
     <div class="ms-md-0 ms-2">
-      <a class="navbar-brand brand-logo" href="index.html">
-        <img src="assets/images/nivasity-manuals.png" alt="logo" />
+      <a class="navbar-brand brand-logo" href="https://nivasity.com">
+        <img src="https://stage.nivasity.com/assets/images/nivasity-manuals.png" alt="logo" />
       </a>
-      <a class="navbar-brand brand-logo-mini" href="index.html">
-        <img src="assets/images/nivasity-logo-tr.png" alt="logo" />
+      <a class="navbar-brand brand-logo-mini" href="https://nivasity.com">
+        <img src="https://stage.nivasity.com/assets/images/nivasity-logo-tr.png" alt="logo" />
       </a>
     </div>
   </div>
@@ -31,12 +31,11 @@
       </li>
       <li class="nav-item dropdown d-none d-lg-block user-dropdown">
         <a class="nav-link" id="UserDropdown" href="#" data-bs-toggle="dropdown" aria-expanded="false">
-          <img class="img-xs rounded rounded-7" src="assets/images/faces/face8.jpg" alt="Profile image"> </a>
+          <img class="img-xs rounded rounded-7" src="https://stage.nivasity.com/assets/images/faces/face8.jpg" alt="Profile image"> </a>
         <div class="dropdown-menu dropdown-menu-right navbar-dropdown" aria-labelledby="UserDropdown">
           <div class="dropdown-header text-center">
-            <img class="img-md rounded rounded-7" src="assets/images/faces/face8.jpg" alt="Profile image">
+            <img class="img-md rounded rounded-7" src="https://stage.nivasity.com/assets/images/faces/face8.jpg" alt="Profile image">
             <p class="mb-1 mt-3 fw-bold"><?php echo $user_name?></p>
-            <p class="font-weight-semibold text-muted mb-0">ID: Samakins01</p>
           </div>
           <a class="dropdown-item" href="user.php"><i
               class="dropdown-item-icon mdi mdi-account-outline text-primary me-2"></i> My

@@ -239,7 +239,7 @@ include('model/page_config.php');
 
         </div>
         <!-- content-wrapper ends -->
-        <!-- partial:partials/_footer.html -->
+        <!-- partial:partials/_footer.php -->
         <?php include('partials/_footer.php') ?>
         <!-- partial -->
       </div>
