@@ -50,6 +50,7 @@
           <form id="setup-form">
             <input type="hidden" name="setup">
             <input type="hidden" id="user_id" name="user_id">
+            <input type="hidden" id="school_id" name="school_id">
             <h4 class="text-secondary text-center mb-4">Let's get started <span
                 class="text-primary first_name">Blessing!</span>
             </h4>
@@ -60,7 +61,7 @@
               </div>
               <div class="col-12 col-md-8">
                 <div class="form-group">
-                  <select id="admissionYear" name="year" class="form-control form-control-lg searchable-select"
+                  <select id="admissionYear" name="adm_year" class="form-control form-control-lg searchable-select"
                     required></select>
                 </div>
               </div>
@@ -79,8 +80,8 @@
             </div>
 
             <div class="form-outline mb-3">
-              <input type="text" name="matricno" id="matricno" class="form-control form-control-lg" required />
-              <label class="form-label" for="matricno">Matric Number</label>
+              <input type="text" name="matric_no" id="matric_no" class="form-control form-control-lg" required />
+              <label class="form-label" for="matric_no">Matric Number</label>
             </div>
 
             <!-- Submit button -->
@@ -125,9 +126,6 @@
         data: {verify: verify},
         success: function (data) {
           if (data.status == 'success') {
-            // Show alert for verified email address or perform other actions
-            showAlert();
-
             // Get the select element
             var dept = $('#dept');
 
@@ -142,6 +140,7 @@
 
             $('#user_id').val(data.user_id);
             $('.first_name').html(data.first_name);
+            $('#school_id').val(data.school_id);
 
             if (data.role == 'hoc') {
               $('.searchable-select').select2({
@@ -159,7 +158,6 @@
     } else {
       window.location.href = 'https://www.nivasity.com';
     }
-
 
     $(document).ready(function () {
 
@@ -200,9 +198,8 @@
                 $('#alertBanner').removeClass('alert-info');
                 $('#alertBanner').removeClass('alert-danger');
                 $('#alertBanner').addClass('alert-success');
-                // setTimeout(function () {
-                //   // $(".main-card").load("views/_vote.php?code=" + election_code + "&voter=" + data.voter);
-                // }, 1000);
+
+                window.location.href = 'signin.html';
               } else {
                 $('#alertBanner').removeClass('alert-success');
                 $('#alertBanner').removeClass('alert-info');

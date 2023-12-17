@@ -149,13 +149,7 @@
               </div>
 
               <div class="form-group mb-4">
-                <select name="school" class="form-control form-control-lg searchable-select">
-                  <option value="0" disabled selected>Select your institution</option>
-                  <option value="1">Federal University of Agricuture, Abeokuta</option>
-                  <option value="2">University of Lagos</option>
-                  <option value="3">Obafemi Awolowo University</option>
-                  <option value="4">University of Ibadan</option>
-                </select>
+                <select id="school" name="school" class="form-control form-control-lg searchable-select"></select>
               </div>
 
               <div class="d-flex justify-content-start mb-4">
@@ -250,6 +244,25 @@
   <!-- Initialize Bootstrap tooltips -->
   <script>
     $(document).ready(function () {
+      $.ajax({
+        type: 'GET',
+        url: 'model/getInfo.php',
+        data: {get_data: 'schools'},
+        success: function (data) {         
+          // Get the select element
+          var school_select = $('#school');
+
+          // Iterate through the departments and add options
+          $.each(data.schools, function (index, schools) {
+            // Append each department as an option to the select element
+            school_select.append($('<option>', {
+              value: schools.id,
+              text: schools.name
+            }));
+          });
+        }
+      });
+      
       $('.searchable-select').select2();
 
       $('[data-toggle="tooltip"]').tooltip();
@@ -302,12 +315,19 @@
               if (data.status == 'success') {
                 $('#alertBanner').removeClass('alert-info');
                 $('#alertBanner').removeClass('alert-danger');
+                $('#alertBanner').removeClass('alert-warning');
                 $('#alertBanner').addClass('alert-success');
                 setTimeout(function () {
                   // Redirect the browser to the specified page
                   window.location.href = "store.html?loggedin";
                 }, 1000); // 1000 milliseconds (1 second) delay
+              } else if (data.status == 'unverified') {
+                $('#alertBanner').removeClass('alert-danger');
+                $('#alertBanner').removeClass('alert-success');
+                $('#alertBanner').removeClass('alert-info');
+                $('#alertBanner').addClass('alert-warning');
               } else {
+                $('#alertBanner').removeClass('alert-warning');
                 $('#alertBanner').removeClass('alert-success');
                 $('#alertBanner').removeClass('alert-info');
                 $('#alertBanner').addClass('alert-danger');

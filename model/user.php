@@ -69,34 +69,32 @@ if (isset($_POST['signup'])) {
   }
 }
 
-// if (isset($_POST['setup'])) {
-//   $user_id = mysqli_real_escape_string($conn, $_POST['user_id']);
-//   $dept = mysqli_real_escape_string($conn, $_POST['dept']);
-//   $adm_year = mysqli_real_escape_string($conn, $_POST['adm_year']);
-//   $matric_no = mysqli_real_escape_string($conn, $_POST['matric_no']);
+if (isset($_POST['setup'])) {
+  $user_id = mysqli_real_escape_string($conn, $_POST['user_id']);
+  $dept = mysqli_real_escape_string($conn, $_POST['dept']);
+  $adm_year = mysqli_real_escape_string($conn, $_POST['adm_year']);
+  $matric_no = mysqli_real_escape_string($conn, $_POST['matric_no']);
+  $school_id = mysqli_real_escape_string($conn, $_POST['school_id']);
 
-//   $user_query = mysqli_query($conn, "SELECT * FROM user WHERE user_id = '$user_id'");
+  $user_query = mysqli_query($conn, "SELECT * FROM users WHERE matric_no = '$matric_no' AND school = '$school_id'");
+  
+  if (mysqli_num_rows($user_query) < 1) {
+    if (!is_numeric($dept)) {
+      mysqli_query($conn, "INSERT INTO depts_$school_id (name) VALUES ('$dept')");
+      $dept = mysqli_insert_id($conn);
+    }
 
-//   if (mysqli_num_rows($user_query) < 1) {
-//     $statusRes = "denied";
-//     $messageRes = "Your account is temporarily suspended. Contact our support team for help.";
-//   } else {
-//     // mysqli_query($conn, "INSERT INTO user (name, email, phone, picture, password, role) 
-//     //   VALUES ('$name', '$email', '$phone',  '$picture', '$password', 'super_admin')");
-
-//     if (mysqli_affected_rows($conn) < 1) {
-//       $statusRes = "failed";
-//       $messageRes = "Your account is temporarily suspended. Contact our support team for help.";
-//     } else {
-//       $_SESSION['nivas_userId'] = $user['id'];
-//       $_SESSION['nivas_userName'] = $user['name'];
-//       $_SESSION['nivas_userRole'] = $user['role'];
-
-//       $statusRes = "success";
-//       $messageRes = "Great news! You\'re one step away from completing your signup.We\'ve sent an account verification link to your email address. <br><br>Please check your inbox (and your spam folder, just in case) for an email from us. Click on the verification link to confirm your account and gain full access.";
-//     }
-//   }
-// }
+    mysqli_query($conn, "UPDATE users SET dept = '$dept', adm_year = '$adm_year', matric_no = '$matric_no', status = 'active' WHERE id = $user_id");
+    
+    if (mysqli_affected_rows($conn) >= 1) {
+      $statusRes = "success";
+      $messageRes = "Account successfully created!.";
+    }
+  } else {
+    $statusRes = "denied";
+    $messageRes = "Matric Number has been used by another user!";
+  }
+}
 
 if (isset($_POST['login'])) {
   $email = mysqli_real_escape_string($conn, $_POST['email']);
