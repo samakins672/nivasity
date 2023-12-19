@@ -32,11 +32,11 @@ if (isset($_POST['signup'])) {
     } else {
 
       // Generate a unique verification code
-      $verificationCode = generateVerificationCode();
+      $verificationCode = generateVerificationCode(12);
 
       // Check if the code already exists, regenerate if needed
-      while (!isCodeUnique($verificationCode, $conn)) {
-        $verificationCode = generateVerificationCode();
+      while (!isCodeUnique($verificationCode, $conn, 'verification_code')) {
+        $verificationCode = generateVerificationCode(12);
       }
 
       mysqli_query($conn, "INSERT INTO verification_code (user_id, code) VALUES ($user_id, '$verificationCode')");
@@ -116,6 +116,7 @@ if (isset($_POST['login'])) {
       $_SESSION['nivas_userId'] = $user['id'];
       $_SESSION['nivas_userName'] = $user['first_name'];
       $_SESSION['nivas_userRole'] = $user['role'];
+      $_SESSION['nivas_userSch'] = $user['school'];
 
       $statusRes = "success";
       $messageRes = "Great news! You've successfully logged into your account. Welcome back!";
@@ -124,6 +125,12 @@ if (isset($_POST['login'])) {
     $statusRes = "failed";
     $messageRes = "Oops! Login failed. Please make sure you've entered the correct username and password";
   }
+}
+
+if (isset($_POST['logout'])) {
+  session_start();
+  session_destroy();
+  session_unset();
 }
 
 $responseData = array(

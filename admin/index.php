@@ -3,6 +3,31 @@ session_start();
 include('../model/config.php');
 include('../model/page_config.php');
 
+if ($_SESSION['nivas_userRole'] == 'student') {
+  header('Location: ../store.php');
+  exit();
+}
+
+$t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals_$school_id WHERE user_id = $user_id"))[0];
+$t_manuals_sold = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(manual_id) FROM manuals_bought_$school_id WHERE seller = $user_id"))[0];
+$t_manuals_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM manuals_bought_$school_id WHERE seller = $user_id"))[0];
+$t_manuals_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM manuals_bought_$school_id WHERE seller = $user_id"))[0];
+$t_students = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM users WHERE school = $school_id AND dept = $user_dept"))[0];
+
+$open_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals_$school_id WHERE user_id = $user_id AND status = 'open'"))[0];
+$closed_manuals = $t_manuals - $open_manuals;
+
+$manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE user_id = $user_id ORDER BY `id` DESC");
+$manual_query2 = mysqli_query($conn, "SELECT manual_id, SUM(price) AS total_sales
+    FROM manuals_bought_$school_id
+    WHERE seller  = $user_id
+    GROUP BY manual_id
+    ORDER BY total_sales DESC
+    LIMIT 3");
+
+$transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM manuals_bought_$school_id WHERE seller = $user_id ORDER BY `created_at` DESC");
+$transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM manuals_bought_$school_id WHERE seller = $user_id ORDER BY `created_at` DESC");
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -27,6 +52,10 @@ include('../model/page_config.php');
   <!-- inject:css -->
   <link rel="stylesheet" href="../assets/css/dashboard/style.css">
   <!-- endinject -->
+
+  <!-- main js -->
+  <script src="../assets/js/main.js"></script>
+
   <link rel="shortcut icon" href="../favicon.ico" />
 </head>
 
@@ -48,15 +77,15 @@ include('../model/page_config.php');
                 <div class="d-sm-flex align-items-center justify-content-between border-bottom">
                   <ul class="nav nav-tabs" role="tablist">
                     <li class="nav-item">
-                      <a class="nav-link px-3 active ps-0" id="home-tab" data-bs-toggle="tab" href="#overview"
+                      <a class="nav-link px-3 active ps-0 fw-bold" id="home-tab" data-bs-toggle="tab" href="#overview"
                         role="tab" aria-controls="overview" aria-selected="true">Overview</a>
                     </li>
                     <li class="nav-item">
-                      <a class="nav-link px-3" id="profile-tab" data-bs-toggle="tab" href="#manuals" role="tab"
+                      <a class="nav-link px-3 fw-bold" id="profile-tab" data-bs-toggle="tab" href="#manuals" role="tab"
                         aria-selected="false">Manuals</a>
                     </li>
                     <li class="nav-item">
-                      <a class="nav-link px-3" id="contact-tab" data-bs-toggle="tab" href="#transactions" role="tab"
+                      <a class="nav-link px-3 fw-bold" id="contact-tab" data-bs-toggle="tab" href="#transactions" role="tab"
                         aria-selected="false">Transactions</a>
                     </li>
                   </ul>
@@ -67,26 +96,23 @@ include('../model/page_config.php');
                   <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview">
                     <div class="row flex-grow">
                       <div class="col-12 d-none d-md-block">
-                        <div class="statistics-details d-flex justify-content-between align-items-center mt-0 mt-md-2 mb-4">
+                        <div
+                          class="statistics-details d-flex justify-content-between align-items-center mt-0 mt-md-2 mb-4">
                           <div>
-                            <p class="statistics-title">Revenue Earned</p>
-                            <h3 class="rate-percentage">&#8358; 302,500</h3>
+                            <p class="statistics-title fw-bold">Revenue Earned</p>
+                            <h3 class="rate-percentage">&#8358; <?php echo $t_manuals_price ?></h3>
                           </div>
                           <div>
-                            <p class="statistics-title">Total Manuals</p>
-                            <h3 class="rate-percentage">12</h3>
+                            <p class="statistics-title fw-bold">Total Manuals</p>
+                            <h3 class="rate-percentage"><?php echo $t_manuals ?></h3>
                           </div>
                           <div>
-                            <p class="statistics-title">Weekly Revenue</p>
-                            <h3 class="rate-percentage">&#8358; 45,000</h3>
+                            <p class="statistics-title fw-bold">Total Sales</p>
+                            <h3 class="rate-percentage"><?php echo $t_manuals_sold ?></h3>
                           </div>
                           <div>
-                            <p class="statistics-title">Total Sales</p>
-                            <h3 class="rate-percentage">459</h3>
-                          </div>
-                          <div>
-                            <p class="statistics-title">Total Students</p>
-                            <h3 class="rate-percentage">4500</h3>
+                            <p class="statistics-title fw-bold">Total Students</p>
+                            <h3 class="rate-percentage"><?php echo $t_students ?></h3>
                           </div>
                         </div>
                       </div>
@@ -139,8 +165,8 @@ include('../model/page_config.php');
                                   <div>
                                     <h4 class="card-title card-title-dash">Best Selling Manuals</h4>
                                     <p class="card-subtitle card-subtitle-dash">You have <span
-                                        class="text-success fw-bold">13 open</span> manuals and <span
-                                        class="text-warning fw-bold">16 closed</span> manuals.</p>
+                                        class="text-success fw-bold"><?php echo $open_manuals ?> open</span> manuals and <span
+                                        class="text-warning fw-bold"><?php echo $closed_manuals ?> closed</span> manuals.</p>
                                   </div>
                                   <!-- <div>
                                     <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"><i
@@ -153,104 +179,45 @@ include('../model/page_config.php');
                                       <tr>
                                         <th>Name</th>
                                         <th>Total Amount</th>
-                                        <th>Availability</th>
                                         <th>Status</th>
                                       </tr>
                                     </thead>
                                     <tbody>
+                                      <?php
+                                      if (mysqli_num_rows($manual_query2)) {
+                                      while ($manual = mysqli_fetch_array($manual_query2)) {
+                                        $manual_id = $manual['manual_id'];
+
+                                        $manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE id = $manual_id"));
+                                        $manuals_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(manual_id) FROM manuals_bought_$school_id WHERE manual_id = $manual_id"))[0];
+
+                                        // Retrieve the status
+                                        $status = $manuals['status'];
+                                        ?>
                                       <tr>
                                         <td>
                                           <div class="d-flex ">
                                             <div>
-                                              <h6>Electro-magnetic Field (EEP 201)</h6>
-                                              <p>ID: <span class="fw-bold">X2I-WER</span></p>
+                                              <h6><span class="d-sm-none-2"><?php echo $manuals['title'] ?> -</span> <?php echo $manuals['course_code'] ?></h6>
+                                              <p class="d-sm-none-2">ID: <span class="fw-bold"><?php echo $manuals['code'] ?></span></p>
                                             </div>
                                           </div>
                                         </td>
                                         <td>
-                                          <h6 class="text-secondary">&#8358; 35,000</h6>
-                                          <p>Qty Sold: <span class="fw-bold">23</span></p>
+                                          <h6 class="text-secondary">&#8358; <?php echo $manual['total_sales'] ?></h6>
+                                          <p>Qty Sold: <span class="fw-bold"><?php echo $manuals_bought_cnt ?></span></p>
                                         </td>
-                                        <td>
-                                          <div>
-                                            <div
-                                              class="d-flex justify-content-between align-items-center mb-1 max-width-progress-wrap">
-                                              <p class="text-success">52%</p>
-                                              <p>23/40</p>
-                                            </div>
-                                            <div class="progress progress-md">
-                                              <div class="progress-bar bg-success" role="progressbar" style="width: 52%"
-                                                aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
-                                            </div>
-                                          </div>
-                                        </td>
-                                        <td>
-                                          <div class="badge badge-opacity-success">Open</div>
+                                        <td class="text-center">
+                                            <div class="badge <?php echo ($status == 'open') ? 'bg-success' : 'bg-danger'; ?>"> </div>
                                         </td>
                                       </tr>
-
-                                      <tr>
-                                        <td>
-                                          <div class="d-flex ">
-                                            <div>
-                                              <h6>Electro-magnetic Field (EEP 201)</h6>
-                                              <p>ID: <span class="fw-bold">X2I-WER</span></p>
-                                            </div>
-                                          </div>
-                                        </td>
-                                        <td>
-                                          <h6 class="text-secondary">&#8358; 35,000</h6>
-                                          <p>Qty Sold: <span class="fw-bold">23</span></p>
-                                        </td>
-                                        <td>
-                                          <div>
-                                            <div
-                                              class="d-flex justify-content-between align-items-center mb-1 max-width-progress-wrap">
-                                              <p class="text-success">52%</p>
-                                              <p>23/40</p>
-                                            </div>
-                                            <div class="progress progress-md">
-                                              <div class="progress-bar bg-success" role="progressbar" style="width: 52%"
-                                                aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
-                                            </div>
-                                          </div>
-                                        </td>
-                                        <td>
-                                          <div class="badge badge-opacity-danger">Closed</div>
-                                        </td>
-                                      </tr>
-
-                                      <tr>
-                                        <td>
-                                          <div class="d-flex ">
-                                            <div>
-                                              <h6>Electro-magnetic Field (EEP 201)</h6>
-                                              <p>ID: <span class="fw-bold">X2I-WER</span></p>
-                                            </div>
-                                          </div>
-                                        </td>
-                                        <td>
-                                          <h6 class="text-secondary">&#8358; 35,000</h6>
-                                          <p>Qty Sold: <span class="fw-bold">23</span></p>
-                                        </td>
-                                        <td>
-                                          <div>
-                                            <div
-                                              class="d-flex justify-content-between align-items-center mb-1 max-width-progress-wrap">
-                                              <p class="text-success">52%</p>
-                                              <p>23/40</p>
-                                            </div>
-                                            <div class="progress progress-md">
-                                              <div class="progress-bar bg-success" role="progressbar" style="width: 52%"
-                                                aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
-                                            </div>
-                                          </div>
-                                        </td>
-                                        <td>
-                                          <div class="badge badge-opacity-success">Open</div>
-                                        </td>
-                                      </tr>
-
+                                      <?php } } else { ?>
+                                        <tr>
+                                          <td colspan="3">
+                                          NO TRANSACTIONS YET!
+                                          </td>
+                                        </tr>                              
+                                      <?php } ?>
                                     </tbody>
                                   </table>
                                 </div>
@@ -268,102 +235,39 @@ include('../model/page_config.php');
                               </div>
                             </div>
                             <div class="mt-3">
+                            <?php
+                            if (mysqli_num_rows($transaction_query2)) {
+                            while ($transaction = mysqli_fetch_array($transaction_query2)) {
+                              $transaction_id = $transaction['ref_id'];
+                              $buyer_id = $transaction['buyer'];
+
+                              $buyer = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = $buyer_id"));
+
+                              $transactions_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(ref_id) FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id'"))[0];
+                              $transactions_bought_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id'"))[0];
+                              $created_at = mysqli_fetch_array(mysqli_query($conn, "SELECT created_at FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id' LIMIT 1"))[0];
+                              
+                              // Retrieve and format the due date
+                              $created_date = date('M j', strtotime($created_at));
+                              $created_time = date('h:m:s', strtotime($created_at));
+                              ?>
                               <div class="wrapper d-flex align-items-center justify-content-between py-2 border-bottom">
                                 <div class="d-flex">
-                                  <img class="img-sm rounded-10" src="../assets/images/faces/face1.jpg" alt="profile">
+                                  
                                   <div class="wrapper ms-3">
-                                    <p class="ms-1 mb-1 fw-bold">3 manuals bought by Toyosi</p>
-                                    <small class="text-secondary mb-0">&#8358; 4,900.00</small>
+                                    <p class="mb-1 fw-bold"><?php echo $transactions_bought_cnt ?> manuals bought by <span class="text-capitalize"><?php echo $buyer['first_name']?></span></p>
+                                    <p class="text-secondary mb-0 fw-bold">&#8358; <?php echo $transactions_bought_price ?></p>
                                   </div>
                                 </div>
-                                <div class="text-muted text-small">
-                                  Oct 21<br>08:34:52
+                                <div class="text-muted fw-bold">
+                                  <?php echo $created_date?><br><?php echo $created_time?>
                                 </div>
                               </div>
-                              <div class="wrapper d-flex align-items-center justify-content-between py-2 border-bottom">
-                                <div class="d-flex">
-                                  <img class="img-sm rounded-10" src="../assets/images/faces/face1.jpg" alt="profile">
-                                  <div class="wrapper ms-3">
-                                    <p class="ms-1 mb-1 fw-bold">3 manuals bought by Toyosi</p>
-                                    <small class="text-secondary mb-0">&#8358; 4,900.00</small>
-                                  </div>
-                                </div>
-                                <div class="text-muted text-small">
-                                  Oct 21<br>08:34:52
-                                </div>
-                              </div>
-                              <div class="wrapper d-flex align-items-center justify-content-between py-2 border-bottom">
-                                <div class="d-flex">
-                                  <img class="img-sm rounded-10" src="../assets/images/faces/face1.jpg" alt="profile">
-                                  <div class="wrapper ms-3">
-                                    <p class="ms-1 mb-1 fw-bold">3 manuals bought by Toyosi</p>
-                                    <small class="text-secondary mb-0">&#8358; 4,900.00</small>
-                                  </div>
-                                </div>
-                                <div class="text-muted text-small">
-                                  Oct 21<br>08:34:52
-                                </div>
-                              </div>
-                              <div class="wrapper d-flex align-items-center justify-content-between py-2 border-bottom">
-                                <div class="d-flex">
-                                  <img class="img-sm rounded-10" src="../assets/images/faces/face1.jpg" alt="profile">
-                                  <div class="wrapper ms-3">
-                                    <p class="ms-1 mb-1 fw-bold">3 manuals bought by Toyosi</p>
-                                    <small class="text-secondary mb-0">&#8358; 4,900.00</small>
-                                  </div>
-                                </div>
-                                <div class="text-muted text-small">
-                                  Oct 21<br>08:34:52
-                                </div>
-                              </div>
-                              <div class="wrapper d-flex align-items-center justify-content-between py-2 border-bottom">
-                                <div class="d-flex">
-                                  <img class="img-sm rounded-10" src="../assets/images/faces/face1.jpg" alt="profile">
-                                  <div class="wrapper ms-3">
-                                    <p class="ms-1 mb-1 fw-bold">3 manuals bought by Toyosi</p>
-                                    <small class="text-secondary mb-0">&#8358; 4,900.00</small>
-                                  </div>
-                                </div>
-                                <div class="text-muted text-small">
-                                  Oct 21<br>08:34:52
-                                </div>
-                              </div>
-                              <div class="wrapper d-flex align-items-center justify-content-between py-2 border-bottom">
-                                <div class="d-flex">
-                                  <img class="img-sm rounded-10" src="../assets/images/faces/face1.jpg" alt="profile">
-                                  <div class="wrapper ms-3">
-                                    <p class="ms-1 mb-1 fw-bold">3 manuals bought by Toyosi</p>
-                                    <small class="text-secondary mb-0">&#8358; 4,900.00</small>
-                                  </div>
-                                </div>
-                                <div class="text-muted text-small">
-                                  Oct 21<br>08:34:52
-                                </div>
-                              </div>
-                              <div class="wrapper d-flex align-items-center justify-content-between py-2 border-bottom">
-                                <div class="d-flex">
-                                  <img class="img-sm rounded-10" src="../assets/images/faces/face1.jpg" alt="profile">
-                                  <div class="wrapper ms-3">
-                                    <p class="ms-1 mb-1 fw-bold">3 manuals bought by Toyosi</p>
-                                    <small class="text-secondary mb-0">&#8358; 4,900.00</small>
-                                  </div>
-                                </div>
-                                <div class="text-muted text-small">
-                                  Oct 21<br>08:34:52
-                                </div>
-                              </div>
-                              <div class="wrapper d-flex align-items-center justify-content-between py-2 border-bottom">
-                                <div class="d-flex">
-                                  <img class="img-sm rounded-10" src="../assets/images/faces/face1.jpg" alt="profile">
-                                  <div class="wrapper ms-3">
-                                    <p class="ms-1 mb-1 fw-bold">3 manuals bought by Samuel</p>
-                                    <small class="text-secondary mb-0">&#8358; 4,900.00</small>
-                                  </div>
-                                </div>
-                                <div class="text-muted text-small">
-                                  Oct 21<br>08:34:52
-                                </div>
-                              </div>
+                              <?php } } else { ?>
+                                <div class="text-center py-2 border-bottom">
+                                  NO TRANSACTIONS YET!
+                                </div>                              
+                              <?php } ?>
                             </div>
                           </div>
                         </div>
@@ -377,9 +281,9 @@ include('../model/page_config.php');
                           <div class="card-body">
                             <div class="d-sm-flex justify-content-end">
                               <div>
-                                <button class="btn btn-primary btn-lg text-white mb-0 me-0"
-                                  type="button" data-bs-toggle="modal" data-bs-target="#addManual"><i
-                                    class="mdi mdi-book"></i>Add new manual</button>
+                                <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"
+                                  data-bs-toggle="modal" data-bs-target="#addManual"><i class="mdi mdi-book"></i>Add new
+                                  manual</button>
                               </div>
                             </div>
                             <div class="table-responsive  mt-1">
@@ -395,47 +299,69 @@ include('../model/page_config.php');
                                     <th>Action</th>
                                   </tr>
                                 </thead>
-                                <tbody>
-                                  <tr>
-                                    <td>
-                                      <div class="d-flex ">
-                                        <div>
-                                          <h6><span class="d-sm-none-2">Electro-magnetic Field -</span> EEP 201</h6>
-                                          <p class="d-sm-none-2">ID: <span class="fw-bold">X2I-WER</span></p>
+                                <tbody id="manual_tbody">
+                                <?php
+                                while ($manual = mysqli_fetch_array($manual_query)) {
+                                  $manual_id = $manual['id'];
+
+                                  $manuals_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(manual_id) FROM manuals_bought_$school_id WHERE manual_id = $manual_id"))[0];
+                                  $manuals_bought_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM manuals_bought_$school_id WHERE manual_id = $manual_id"))[0];
+
+                                  // Calculate the percentage and total sold/quantity text
+                                  $percentage_sold = ($manuals_bought_cnt / $manual['quantity']) * 100;
+                                  $sold_quantity_text = $manuals_bought_cnt . '/' . $manual['quantity'];
+
+                                  // Retrieve and format the due date
+                                  $due_date = date('j M, Y', strtotime($manual['due_date']));
+                                  // Retrieve the status
+                                  $status = $manual['status'];
+                                  ?>
+                                    <tr>
+                                      <td>
+                                        <div class="d-flex ">
+                                          <div>
+                                            <h6><span class="d-sm-none-2"><?php echo $manual['title'] ?> -</span> <?php echo $manual['course_code'] ?></h6>
+                                            <p class="d-sm-none-2">ID: <span class="fw-bold"><?php echo $manual['code'] ?></span></p>
+                                          </div>
                                         </div>
-                                      </div>
-                                    </td>
-                                    <td class="d-sm-none-2">
-                                      <h6>&#8358; 2,000</h6>
-                                    </td>
-                                    <td>
-                                      <h6 class="text-secondary">&#8358; 35,000</h6>
-                                      <p>Qty Sold: <span class="fw-bold">23</span></p>
-                                    </td>
-                                    <td class="d-sm-none-2">
-                                      <div>
-                                        <div
-                                          class="d-flex justify-content-between align-items-center mb-1 max-width-progress-wrap">
-                                          <p class="text-success">52%</p>
-                                          <p>23/40</p>
-                                        </div>
-                                        <div class="progress progress-md">
-                                          <div class="progress-bar bg-success" role="progressbar" style="width: 52%"
-                                            aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
-                                        </div>
-                                      </div>
-                                    </td>
-                                    <td class="d-sm-none-2">
-                                      <h6>23 Nov, 2023</h6>
-                                    </td>
-                                    <td>
-                                      <div class="badge badge-opacity-success">Open</div>
-                                    </td>
-                                    <td>
-                                      <button data-mdb-ripple-duration="0"
-                                        class="btn btn-md btn-primary mb-0 btn-block">View</button>
-                                    </td>
-                                  </tr>
+                                      </td>
+                                      <td class="d-sm-none-2">
+                                        <h6>&#8358; <?php echo $manual['price'] ?></h6>
+                                      </td>
+                                      <td>
+                                        <h6 class="text-secondary">&#8358; <?php echo $manuals_bought_price ?></h6>
+                                        <p>Qty Sold: <span class="fw-bold"><?php echo $manuals_bought_cnt ?></span></p>
+                                      </td>
+                                      <td class="d-sm-none-2">
+                                          <div>
+                                            <div class="d-flex justify-content-between align-items-center mb-1 max-width-progress-wrap">
+                                              <p class="text-success"><?php echo round($percentage_sold) . '%' ?></p>
+                                              <p><?php echo $sold_quantity_text ?></p>
+                                            </div>
+                                            <div class="progress progress-md">
+                                              <div class="progress-bar bg-success" role="progressbar" style="width: <?php echo $percentage_sold ?>%"
+                                                  aria-valuenow="<?php echo $percentage_sold ?>" aria-valuemin="0" aria-valuemax="100"></div>
+                                            </div>
+                                          </div>
+                                        </td>
+                                        <td class="d-sm-none-2">
+                                          <h6><?php echo $due_date ?></h6>
+                                        </td>
+                                        <td class="text-center">
+                                          <div class="badge <?php echo ($status == 'open') ? 'bg-success' : 'bg-danger'; ?>"> </div>
+                                        </td>
+                                        <td>
+                                          <button data-mdb-ripple-duration="0"
+                                            class="btn btn-md btn-primary mb-0 btn-block view-edit-manual"
+                                            data-toggle="modal" data-target="#editManual"
+                                            data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>"
+                                            data-course_code="<?php echo $manual['course_code']; ?>" data-price="<?php echo $manual['price']; ?>"
+                                            data-quantity="<?php echo $manual['quantity']; ?>"
+                                            data-due_date="<?php echo date('Y-m-d', strtotime($manual['due_date'])); ?>" 
+                                            data-bs-toggle="modal" data-bs-target="#addManual">Edit</button>
+                                          </td>
+                                        </tr>
+                                  <?php } ?>
                                 </tbody>
                               </table>
                             </div>
@@ -456,37 +382,60 @@ include('../model/page_config.php');
                                   <tr>
                                     <th class="d-sm-none-2">Transaction Id</th>
                                     <th>Student Details</th>
-                                    <th>Amount</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
                                     <th class="d-sm-none-2">Date & Time</th>
                                     <th class="d-sm-none-2">Status</th>
-                                    <th>Action</th>
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  <tr>
-                                    <td class="d-sm-none-2">
-                                      <h6 class="pl-3">#6YU1-2460-9E1Q</h6>
-                                    </td>
-                                    <td>
-                                      <h6>Samuel Akinyemi</h6>
-                                      <p>Matric no: <span class="fw-bold">190303003</span></p>
-                                    </td>
-                                    <td>
-                                      <h6 class="text-success">&#8358; 12,000</h6>
-                                    </td>
-                                    <td class="d-sm-none-2">
-                                      <h6>21 October, 2023</h6>
-                                      <p class="fw-bold">09:28:09</p>
-                                    </td>
-                                    <td class="d-sm-none-2">
-                                      <div class="badge badge-opacity-success">Successful</div>
-                                    </td>
-                                    <td>
-                                      <button data-mdb-ripple-duration="0"
-                                        class="btn btn-md btn-primary mb-0 btn-block">View</button>
-                                    </td>
-                                  </tr>
+                                <?php
+                                while ($transaction = mysqli_fetch_array($transaction_query)) {
+                                  $transaction_id = $transaction['ref_id'];
+                                  $buyer_id = $transaction['buyer'];
 
+                                  $buyer = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = $buyer_id"));
+
+                                  $transactions_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(ref_id) FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id'"))[0];
+                                  $transactions_bought_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id'"))[0];
+                                  $created_at = mysqli_fetch_array(mysqli_query($conn, "SELECT created_at FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id' LIMIT 1"))[0];
+                                  
+                                  // Retrieve and format the due date
+                                  $created_date = date('j M, Y', strtotime($created_at));
+                                  $created_time = date('h:m:s', strtotime($created_at));
+                                  // Retrieve the status
+                                  $status = mysqli_fetch_array(mysqli_query($conn, "SELECT status FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id' LIMIT 1"))[0];
+                                  $status_bg = 'danger';
+
+                                  if ($status == 'successful') {
+                                    $status_bg = 'success';
+                                  } else if ($status == 'pending') {
+                                    $status_bg = 'warning';
+                                  }
+                                  ?>
+                                    <tr>
+                                      <td class="d-sm-none-2">
+                                        <h6 class="pl-3">#<?php echo $transaction['ref_id'] ?></h6>
+                                      </td>
+                                      <td>
+                                        <h6 class="text-uppercase"><?php echo $buyer['first_name'] . ' ' . $buyer['last_name'] ?></h6>
+                                        <p>Matric no: <span class="fw-bold"><?php echo $buyer['matric_no'] ?></span></p>
+                                      </td>
+                                      <td>
+                                        <h6><?php echo $transactions_bought_cnt ?></h6>
+                                      </td>
+                                      <td>
+                                        <h6 class="text-success fw-bold">&#8358; <?php echo $transactions_bought_price ?></h6>
+                                      </td>
+                                      <td class="d-sm-none-2">
+                                        <h6><?php echo $created_date ?></h6>
+                                        <p class="fw-bold"><?php echo $created_time ?></p>
+                                      </td>
+                                      <td class="d-sm-none-2">
+                                        <div class="badge bg-<?php echo $status_bg ?>"><?php echo $status ?></div>
+                                      </td>
+                                    </tr>
+                                  <?php } ?>
                                 </tbody>
                               </table>
                             </div>
@@ -508,6 +457,7 @@ include('../model/page_config.php');
                         </button>
                       </div>
                       <form id="manual-form">
+                        <input type="hidden" name="manual_id" value="0">
                         <div class="modal-body">
                           <div class="form-outline mb-4">
                             <input type="text" name="title" class="form-control form-control-lg w-100" required="">
@@ -525,15 +475,16 @@ include('../model/page_config.php');
                               <div class="form-outline mb-4">
                                 <input type="number" name="price" class="form-control form-control-lg w-100"
                                   required="">
-                                <label class="form-label" for="price">Unit Place</label>
+                                <label class="form-label" for="price">Unit Price</label>
                               </div>
                             </div>
                           </div>
                           <div class="row">
                             <div class="col-md-6">
                               <div class="form-outline mb-4">
-                                <input type="number" name="qty" class="form-control form-control-lg w-100" required="">
-                                <label class="form-label" for="qty">Quantity</label>
+                                <input type="number" name="quantity" class="form-control form-control-lg w-100"
+                                  required="">
+                                <label class="form-label" for="quantity">Quantity</label>
                               </div>
                             </div>
                             <div class="col-md-6">
@@ -546,8 +497,7 @@ include('../model/page_config.php');
                           </div>
                         </div>
                         <div class="modal-footer">
-                          <button type="button" class="btn btn-lg btn-light"
-                            data-bs-dismiss="modal">Close</button>
+                          <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
                           <button id="manual_submit" type="submit" data-mdb-ripple-duration="0"
                             class="btn btn-lg btn-primary">Submit</button>
                         </div>
@@ -568,7 +518,7 @@ include('../model/page_config.php');
 
       <!-- Bootstrap alert container -->
       <div id="alertBanner"
-        class="alert alert-success text-center alert-dismissible end-2 top-2 fade show position-fixed w-auto p-2 px-4"
+        class="alert alert-info text-center fw-bold alert-dismissible end-2 top-2 fade show position-fixed w-auto p-2 px-4"
         role="alert" style="z-index: 5000; display: none;">
         An error occurred during the AJAX request.
       </div>
@@ -603,7 +553,31 @@ include('../model/page_config.php');
   <script>
     $(document).ready(function () {
       $('.btn').attr('data-mdb-ripple-duration', '0');
-      
+
+      $('#addManual').on('hidden.bs.modal', function () {
+        // Reset the form by setting its values to empty
+        $('#manual-form')[0].reset();
+      });
+
+      // Handle click event of View/Edit button
+      $('.view-edit-manual').on('click', function () {
+        // Get the manual details from the data- attributes
+        var manualId = $(this).data('manual_id');
+        var title = $(this).data('title');
+        var courseCode = $(this).data('course_code');
+        var price = $(this).data('price');
+        var quantity = $(this).data('quantity');
+        var dueDateISO = $(this).data('due_date');
+
+        // Set the values in the edit manual modal
+        $('#manual-form input[name="manual_id"]').val(manualId);
+        $('#manual-form input[name="title"]').val(title);
+        $('#manual-form input[name="course_code"]').val(courseCode);
+        $('#manual-form input[name="price"]').val(price);
+        $('#manual-form input[name="quantity"]').val(quantity);
+        $('#manual-form input[name="due_date"]').val(dueDateISO);
+      });
+
       // Use AJAX to submit the manual form
       $('#manual-form').submit(function (event) {
         event.preventDefault(); // Prevent the default form submission
@@ -620,7 +594,7 @@ include('../model/page_config.php');
         setTimeout(function () {
           $.ajax({
             type: 'POST',
-            url: 'model/user.php',
+            url: 'model/manuals.php',
             data: $('#manual-form').serialize(),
             success: function (data) {
               $('#alertBanner').html(data.message);
@@ -629,21 +603,16 @@ include('../model/page_config.php');
                 $('#alertBanner').removeClass('alert-info');
                 $('#alertBanner').removeClass('alert-danger');
                 $('#alertBanner').addClass('alert-success');
-                // setTimeout(function () {
-                //   // $(".main-card").load("views/_vote.php?code=" + election_code + "&voter=" + data.voter);
-                // }, 1000);
+
+                location.reload();
               } else {
                 $('#alertBanner').removeClass('alert-success');
                 $('#alertBanner').removeClass('alert-info');
                 $('#alertBanner').addClass('alert-danger');
               }
 
-              // Automatically show and hide the alert after 5 seconds
-              $('#alertBanner').fadeIn();
-
-              setTimeout(function () {
-                $('#alertBanner').fadeOut();
-              }, 5000);
+              // Show alert for verified email address
+              showAlert();
 
               // AJAX call successful, stop the spinner and update button text
               button.html(originalText);

@@ -1,5 +1,5 @@
 <?php
-function generateVerificationCode($length = 8) {
+function generateVerificationCode($length) {
     // Generate a random verification code of the specified length
     $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
     $code = '';
@@ -9,9 +9,9 @@ function generateVerificationCode($length = 8) {
     return $code;
 }
 
-function isCodeUnique($code, $conn) {
-    // Check if the code already exists in the verification_code table
-    $query = "SELECT COUNT(*) as count FROM verification_code WHERE code = ?";
+function isCodeUnique($code, $conn, $db_table) {
+    // Check if the code already exists in the table
+    $query = "SELECT COUNT(*) as count FROM $db_table WHERE code = ?";
     $stmt = $conn->prepare($query);
     $stmt->bind_param('s', $code);
     $stmt->execute();

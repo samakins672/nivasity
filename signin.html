@@ -242,7 +242,39 @@
   <script src="assets/js/script.js"></script>
 
   <!-- Initialize Bootstrap tooltips -->
-  <script>
+  <script>  
+    const urlParams = new URLSearchParams(window.location.search);
+    // Get the logout parameter from the URL
+    const logout = urlParams.get('logout');
+
+    // Check if the verify parameter is present
+    if (logout) {
+      $.ajax({
+        type: 'POST',
+        url: 'model/user.php',
+        data: { logout: 'logout' },
+        success: function (data) {
+          if (data.status == 'success') {
+            $('#alertBanner').html(data.message);
+
+            if (data.status == 'success') {
+              $('#alertBanner').removeClass('alert-info');
+              $('#alertBanner').removeClass('alert-danger');
+              $('#alertBanner').removeClass('alert-warning');
+              $('#alertBanner').addClass('alert-success');
+            }
+
+            // Automatically show and hide the alert after 5 seconds
+            $('#alertBanner').fadeIn();
+
+            setTimeout(function () {
+              $('#alertBanner').fadeOut();
+            }, 5000);
+          }
+        }
+      });
+    }
+
     $(document).ready(function () {
       $.ajax({
         type: 'GET',

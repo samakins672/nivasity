@@ -41,6 +41,7 @@
             pointBackgroundColor: ['#7A3B73', '#7A3B73', '#7A3B73', '#7A3B73','#7A3B73', '#7A3B73', '#7A3B73', '#7A3B73','#7A3B73', '#7A3B73', '#7A3B73', '#7A3B73','#7A3B73'],
               pointBorderColor: ['#fff','#fff','#fff','#fff','#fff','#fff','#fff','#fff','#fff','#fff','#fff','#fff','#fff',],
         }]
+        
       };
   
       var salesTopOptions = {
@@ -100,12 +101,40 @@
               backgroundColor: 'rgba(31, 59, 179, 1)',
           }
       }
+
       var salesTop = new Chart(graphGradient, {
-          type: 'line',
-          data: salesTopData,
-          options: salesTopOptions
+        type: 'line',
+        data: salesTopData,
+        options: salesTopOptions
       });
-      document.getElementById('performance-line-legend').innerHTML = salesTop.generateLegend();
+      
+      // Fetch data from PHP endpoint
+      $.ajax({
+        url: '../model/chart.php', // Replace with the actual URL of your PHP endpoint
+        method: 'GET',
+        dataType: 'json',
+        success: function (data) {
+          // Update chart data with the retrieved data
+          salesTopData.datasets[0].data = data.thisWeekSales;
+          salesTopData.datasets[1].data = data.lastWeekSales;
+
+          // Create or update the chart
+          if (salesTop) {
+            salesTop.data = salesTopData;
+            salesTop.update();
+          } else {
+            salesTop = new Chart(graphGradient, {
+              type: 'line',
+              data: salesTopData,
+              options: salesTopOptions
+            });
+            document.getElementById('performance-line-legend').innerHTML = salesTop.generateLegend();
+          }
+        },
+        error: function (xhr, status, error) {
+          console.error('Error fetching data from the server:', error);
+        }
+      });
     }
     if ($("#performaneLine-dark").length) {
       var graphGradient = document.getElementById("performaneLine-dark").getContext('2d');

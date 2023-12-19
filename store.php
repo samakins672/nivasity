@@ -3,7 +3,11 @@ session_start();
 include('model/config.php');
 include('model/page_config.php');
 
+$t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals_$school_id WHERE dept = $user_dept AND status = 'open'"))[0];
+
+$manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept = $user_dept AND status = 'open' ORDER BY `id` DESC");
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -11,7 +15,7 @@ include('model/page_config.php');
   <!-- Required meta tags -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <title>Dashboard - Nivasity</title>
+  <title>Store - Nivasity</title>
 
   <?php include('partials/_head.php') ?>
 </head>
@@ -59,19 +63,31 @@ include('model/page_config.php');
                     <div class="row">
                       <div class="col-lg-12 d-flex flex-column">
                         <div class="row flex-grow sortables">
+                          <?php
+                          while ($manual = mysqli_fetch_array($manual_query)) {
+                            $manual_id = $manual['id'];
+                            $seller_id = $manual['user_id'];
 
+                            $seller_q = mysqli_fetch_array(mysqli_query($conn, "SELECT first_name, last_name FROM users WHERE id = $seller_id"));
+                            $seller_fn = $seller_q['first_name'];
+                            $seller_ln = $seller_q['last_name'];
+
+                            // Retrieve and format the due date
+                            $due_date = date('j M, Y', strtotime($manual['due_date']));
+                            // Retrieve the status
+                            $status = $manual['status'];
+                          ?>
                           <div class="col-12 col-md-4 grid-margin stretch-card sortable-card">
                             <div class="card card-rounded shadow-sm">
                               <div class="card-body">
-                                <h4 class="card-title">Introduction to Mathematics <span class="text-secondary">- MAT
-                                    100</span></h4>
+                                <h4 class="card-title"><?php echo $manual['title'] ?> <span class="text-secondary">- <?php echo $manual['course_code'] ?></span></h4>
                                 <div class="media">
                                   <i class="mdi mdi-book icon-lg text-secondary d-flex align-self-start me-3"></i>
                                   <div class="media-body">
-                                    <h3 class="fw-bold price">₦ 8,000</h3>
+                                    <h3 class="fw-bold price">₦ <?php echo $manual['price'] ?></h3>
                                     <p class="card-text">
-                                      Due date:<span class="fw-bold text-danger due_date"> Fri, Dec 15</span><br>
-                                      <span class="text-secondary">Samuel Akinyemi (HOC)</span>
+                                      Due date:<span class="fw-bold text-danger due_date"> <?php echo $due_date ?></span><br>
+                                      <span class="text-secondary"><?php echo $seller_fn.' '. $seller_ln ?> (HOC)</span>
                                     </p>
                                   </div>
                                 </div>
@@ -80,7 +96,7 @@ include('model/page_config.php');
                                   <a href="javascript:;">
                                     <i class="mdi mdi-share-variant icon-md text-muted"></i>
                                   </a>
-                                  <button class="btn btn-outline-primary btn-lg m-0 cart-button" data-product-id="1">
+                                  <button class="btn btn-outline-primary btn-lg m-0 cart-button" data-product-id="<?php echo $manual['id'] ?>">
                                     Add to Cart
                                   </button>
                                 </div>
@@ -88,62 +104,7 @@ include('model/page_config.php');
                             </div>
                           </div>
 
-                          <div class="col-12 col-md-4 grid-margin stretch-card sortable-card">
-                            <div class="card card-rounded shadow-sm">
-                              <div class="card-body">
-                                <h4 class="card-title">Introduction to Mathematics <span class="text-secondary">- MAT
-                                    100</span></h4>
-                                <div class="media">
-                                  <i class="mdi mdi-book icon-lg text-secondary d-flex align-self-start me-3"></i>
-                                  <div class="media-body">
-                                    <h3 class="fw-bold price">₦ 8,000</h3>
-                                    <p class="card-text">
-                                      Due date:<span class="fw-bold text-danger due_date"> Fri, Dec 15</span><br>
-                                      <span class="text-secondary">Samuel Akinyemi (HOC)</span>
-                                    </p>
-                                  </div>
-                                </div>
-                                <hr>
-                                <div class="d-flex justify-content-between">
-                                  <a href="javascript:;">
-                                    <i class="mdi mdi-share-variant icon-md text-muted"></i>
-                                  </a>
-                                  <button class="btn btn-outline-primary btn-lg m-0 cart-button" data-product-id="2">
-                                    Add to Cart
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div class="col-12 col-md-4 grid-margin stretch-card sortable-card">
-                            <div class="card card-rounded shadow-sm">
-                              <div class="card-body">
-                                <h4 class="card-title">Introduction to Mathematics <span class="text-secondary">- MAT
-                                    100</span></h4>
-                                <div class="media">
-                                  <i class="mdi mdi-book icon-lg text-secondary d-flex align-self-start me-3"></i>
-                                  <div class="media-body">
-                                    <h3 class="fw-bold price">₦ 8,000</h3>
-                                    <p class="card-text">
-                                      Due date:<span class="fw-bold text-danger due_date"> Fri, Dec 15</span><br>
-                                      <span class="text-secondary">Samuel Akinyemi (HOC)</span>
-                                    </p>
-                                  </div>
-                                </div>
-                                <hr>
-                                <div class="d-flex justify-content-between">
-                                  <a href="javascript:;">
-                                    <i class="mdi mdi-share-variant icon-md text-muted"></i>
-                                  </a>
-                                  <button class="btn btn-outline-primary btn-lg m-0 cart-button" data-product-id="3">
-                                    Add to Cart
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
+                          <?php } ?>
                         </div>
                       </div>
                     </div>
