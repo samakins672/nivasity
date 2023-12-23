@@ -22,8 +22,8 @@ $admin_role = False;
 
 $date = date('Y-m-d');
 $_day = date('w');
-$day = jdDayOfWeek($_day - 1, 1);
-$short_day = jdDayOfWeek($_day - 1, 2);
+$day = date('l', strtotime("last sunday +$_day days"));
+$short_day = date('D', strtotime("last sunday +$_day days"));
 
 if (isset($_GET['loggedin'])) {
   date_default_timezone_set('Africa/Lagos');
