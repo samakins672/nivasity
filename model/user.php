@@ -129,8 +129,11 @@ if (isset($_POST['login'])) {
 
 if (isset($_POST['logout'])) {
   session_start();
-  session_destroy();
   session_unset();
+  session_destroy();
+  
+  $statusRes = "success";
+  $messageRes = "You have successfully logged out!";
 }
 
 $responseData = array(
