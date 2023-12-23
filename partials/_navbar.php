@@ -23,8 +23,7 @@
         </form>
       </li>
       <li class="nav-item dropdown d-md-none d-inline">
-        <a class="nav-link count-indicator mt-2" data-bs-toggle="tab" href="#cart" role="tab" aria-controls="cart"
-          aria-selected="false">
+        <a class="nav-link count-indicator mt-2 go-to-cart-button" data-bs-toggle="tab" href="javascript:;">
           <i class="mdi mdi-cart-outline"></i>
           <span class="count"></span>
         </a>

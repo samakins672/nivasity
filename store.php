@@ -3,6 +3,13 @@ session_start();
 include('model/config.php');
 include('model/page_config.php');
 
+// Simulate adding/removing the product to/from the cart
+if (!isset($_SESSION["nivas_cart$user_id"])) {
+  $_SESSION["nivas_cart$user_id"] = array();
+}
+$total_cart_items = count($_SESSION["nivas_cart$user_id"]);
+$total_cart_price = 0;
+
 $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals_$school_id WHERE dept = $user_dept AND status = 'open'"))[0];
 
 $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept = $user_dept AND status = 'open' ORDER BY `id` DESC");
@@ -43,7 +50,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                     </li>
                     <li class="nav-item">
                       <a class="nav-link px-3 fw-bold" id="cart-tab" data-bs-toggle="tab" href="#cart" role="tab"
-                        aria-selected="false">Shopping Cart (<span id="cart-count">0</span>)</a>
+                        aria-selected="false">Shopping Cart (<span id="cart-count"><?php echo $total_cart_items; ?></span>)</a>
                     </li>
                   </ul>
                 </div>
@@ -76,7 +83,15 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                             $due_date = date('j M, Y', strtotime($manual['due_date']));
                             // Retrieve the status
                             $status = $manual['status'];
-                          ?>
+
+                            // Check if the manual is already in the cart
+                            $is_in_cart = in_array($manual_id, $_SESSION["nivas_cart$user_id"]);
+
+                            // Update the Add to Cart button based on cart status
+                            $button_text = $is_in_cart ? 'Remove' : 'Add to Cart';
+                            $button_class = $is_in_cart ? 'btn-primary' : 'btn-outline-primary';
+
+                            ?>
                           <div class="col-12 col-md-4 grid-margin stretch-card sortable-card">
                             <div class="card card-rounded shadow-sm">
                               <div class="card-body">
@@ -94,15 +109,15 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                                 <hr>
                                 <div class="d-flex justify-content-between">
                                   <a href="javascript:;">
-                                    <i class="mdi mdi-share-variant icon-md text-muted"></i>
+                                    <i class="mdi mdi-share-variant icon-md text-muted" data-title="<?php echo $manual['title']; ?>" data-manual_id="<?php echo $manual['id']; ?>"></i>
                                   </a>
-                                  <button class="btn btn-outline-primary btn-lg m-0 cart-button" data-product-id="<?php echo $manual['id'] ?>">
-                                    Add to Cart
+                                  <button class="btn <?php echo $button_class; ?> btn-lg m-0 cart-button" data-product-id="<?php echo $manual['id']; ?>">
+                                    <?php echo $button_text; ?>
                                   </button>
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
 
                           <?php } ?>
                         </div>
@@ -111,73 +126,72 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                   </div>
                   <div class="tab-pane fade hide" id="cart" role="tabpanel" aria-labelledby="cart">
                     <div class="row flex-grow">
-                      <div class="col-12 grid-margin stretch-card">
+                      <div class="col-sm-8 grid-margin stretch-card">
                         <div class="card card-rounded shadow-sm">
                           <div class="card-body">
-                            <div class="d-sm-flex justify-content-end">
-                              <div>
-                                <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"
-                                  data-bs-toggle="modal" data-bs-target="#addManual"><i class="mdi mdi-book"></i>Add new
-                                  manual</button>
-                              </div>
-                            </div>
                             <div class="table-responsive  mt-1">
-                              <table class="table table-hover table-striped select-table datatable-opt">
+                              <table class="table table-hover table-striped select-table">
                                 <thead>
                                   <tr>
-                                    <th>Name</th>
-                                    <th class="d-sm-none-2">Unit Price</th>
-                                    <th>Revenue</th>
-                                    <th class="d-sm-none-2">Availability</th>
-                                    <th class="d-sm-none-2">Due Date</th>
-                                    <th>Status</th>
+                                    <th>Product</th>
+                                    <th>Price</th>
+                                    <th>Due Date</th>
                                     <th>Action</th>
                                   </tr>
                                 </thead>
                                 <tbody>
+                                <?php
+                                foreach ($_SESSION["nivas_cart$user_id"] as $cart_item_id) {
+                                  // Fetch details of the carted item based on $cart_item_id
+                                  $cart_item = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE id = $cart_item_id"));
+                                  
+                                  // Retrieve and format the due date
+                                  $due_date = date('j M, Y', strtotime($cart_item['due_date']));
+                                  $total_cart_price = $total_cart_price + $cart_item['price'];
+                                  ?>
                                   <tr>
                                     <td>
                                       <div class="d-flex ">
                                         <div>
-                                          <h6><span class="d-sm-none-2">Electro-magnetic Field -</span> EEP 201</h6>
-                                          <p class="d-sm-none-2">ID: <span class="fw-bold">X2I-WER</span></p>
+                                          <h6><?php echo $cart_item['course_code'] ?></h6>
+                                            <p>ID: <span class="fw-bold"><?php echo $cart_item['code'] ?></span></p>
+                                          </div>
                                         </div>
-                                      </div>
-                                    </td>
-                                    <td class="d-sm-none-2">
-                                      <h6>&#8358; 2,000</h6>
                                     </td>
                                     <td>
-                                      <h6 class="text-secondary">&#8358; 35,000</h6>
-                                      <p>Qty Sold: <span class="fw-bold">23</span></p>
-                                    </td>
-                                    <td class="d-sm-none-2">
-                                      <div>
-                                        <div
-                                          class="d-flex justify-content-between align-items-center mb-1 max-width-progress-wrap">
-                                          <p class="text-success">52%</p>
-                                          <p>23/40</p>
-                                        </div>
-                                        <div class="progress progress-md">
-                                          <div class="progress-bar bg-success" role="progressbar" style="width: 52%"
-                                            aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
-                                        </div>
-                                      </div>
-                                    </td>
-                                    <td class="d-sm-none-2">
-                                      <h6>23 Nov, 2023</h6>
+                                      <h6>&#8358; <?php echo $cart_item['price'] ?></h6>
                                     </td>
                                     <td>
-                                      <div class="badge badge-opacity-success">Open</div>
+                                      <h6><?php echo $due_date ?></h6>
                                     </td>
                                     <td>
-                                      <button data-mdb-ripple-duration="0"
-                                        class="btn btn-md btn-primary mb-0 btn-block">View</button>
+                                        <button class="btn btn-sm btn-outline-primary mb-0 btn-block remove-cart" data-cart_id="<?php echo $cart_item_id?>">Remove</button>
                                     </td>
                                   </tr>
+                                <?php } ?>
                                 </tbody>
                               </table>
                             </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-sm-4 grid-margin">
+                        <div class="card card-rounded shadow-sm">
+                          <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                              <div>
+                                <h4 class="card-title card-title-dash">Cart Summary</h4>
+                              </div>
+                            </div><hr>
+                            <div class="d-flex justify-content-between my-3 fw-bold">
+                              <p>Subtotal</p>
+                              <h3>₦ <?php echo $total_cart_price ?></h3>
+                            </div>
+                            <?php if($total_cart_price > 0): ?>
+                              <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart">CHECKOUT (₦ <?php echo $total_cart_price?>)</button>
+                            <?php else: ?>
+                              <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>
+                            <?php endif; ?>
                           </div>
                         </div>
                       </div>
@@ -248,10 +262,36 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
         sortCards(sortByValue);
       });
 
+      $('.go-to-cart-button').on('click', function () {
+          $('#cart-tab').tab('show');
+      });
+
+      $('.mdi-share-variant').on('click', function () {
+        var button = $(this);
+        var manual_id = button.data('manual_id');
+        var title = button.data('title');
+        var shareText = 'Check out "' + title + '" Manual! Get all the details and order now.';
+        var shareUrl = "https://nivasity.com/store.php?manual="+manual_id;
+
+        // Check if the Web Share API is available
+        if (navigator.share) {
+          navigator.share({
+            title: document.title,
+            text: shareText,
+            url: shareUrl,
+          })
+            .then(() => console.log('Shared successfully'))
+            .catch((error) => console.error('Error sharing:', error));
+        } else {
+          // Fallback for platforms that do not support Web Share API
+          // You can add specific share URLs for each platform here
+          alert('Web Share API not supported. You can manually share the link.');
+        }
+      });
+
       function sortCards(sortBy) {
         var $container = $('.sortables');
         var $cards = $container.children('.sortable-card');
-
 
         // Fade out the cards before sorting
         $cards.fadeOut(400, function () {
@@ -289,13 +329,38 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
       }
 
       // Add to Cart button click event
+      $('.remove-cart').on('click', function () {
+        var button = $(this);
+        var product_id = button.data('cart_id');
+
+        // Make AJAX request to PHP file
+        $.ajax({
+          type: 'POST',
+          url: 'model/cart.php', // Replace with your PHP file handling the cart logic
+          data: { product_id: product_id, action: 0 },
+          success: function (data) {
+            // Update the total number of carted products
+            $('#cart-count').text(data.total);
+
+            // Reload the cart table
+            reloadCartTable();
+            location.reload();
+          },
+          error: function () {
+            // Handle error
+            console.error('Error in AJAX request');
+          }
+        });
+      });
+
+      // Add to Cart button click event
       $('.cart-button').on('click', function () {
         var button = $(this);
         var product_id = button.data('product-id');
 
         // Toggle button appearance and text
         if (button.hasClass('btn-outline-primary')) {
-          button.toggleClass('btn-outline-primary btn-primary').text('Added');
+          button.toggleClass('btn-outline-primary btn-primary').text('Remove');
           action = 1;
         } else {
           button.toggleClass('btn-outline-primary btn-primary').text('Add to Cart');
@@ -312,7 +377,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
             $('#cart-count').text(data.total);
 
             // Reload the cart table
-            // reloadCartTable();
+            reloadCartTable();
           },
           error: function () {
             // Handle error
@@ -324,10 +389,11 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
       // Function to reload the cart table
       function reloadCartTable() {
         $.ajax({
-          type: 'GET',
+          type: 'POST',
           url: 'model/cart.php',
+          data: { reload_cart: 'reload_cart' },
           success: function (html) {
-            $('#cart-table-container').html(html);
+            $('#cart').html(html);
           },
           error: function () {
             // Handle error
