@@ -12,4 +12,8 @@
 <!-- inject:css -->
 <link rel="stylesheet" href="assets/css/dashboard/style.css">
 <!-- endinject -->
+
+<!-- Flutterwave Integration -->
+<script src="https://checkout.flutterwave.com/v3.js"></script>
+
 <link rel="shortcut icon" href="favicon.ico" />

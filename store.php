@@ -187,8 +187,23 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                               <p>Subtotal</p>
                               <h3>₦ <?php echo $total_cart_price ?></h3>
                             </div>
+                            <?php 
+                              // Assuming $transferAmount contains the transfer amount
+                              $transferAmount = $total_cart_price;
+
+                              if ($transferAmount <= 5000) {
+                                  $charge = 25;
+                              } elseif ($transferAmount <= 50000) {
+                                  $charge = 65;
+                              } else {
+                                  $charge = 150;
+                              }
+
+                              // Add the charge to the total
+                              $transferAmount += $charge;
+                            ?>
                             <?php if($total_cart_price > 0): ?>
-                              <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart">CHECKOUT (₦ <?php echo $total_cart_price?>)</button>
+                              <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-total_amount="<?php echo $total_cart_price ?>" data-transfer_amount="<?php echo $transferAmount ?>">CHECKOUT (₦ <?php echo $transferAmount ?>)</button>
                             <?php else: ?>
                               <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>
                             <?php endif; ?>
@@ -401,6 +416,53 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
           }
         });
       }
+
+      // Add to Cart button click event
+      $('.checkout-cart').on('click', function () {
+        amount = $(this).data('transfer_amount');
+        subaccount_amount = $(this).data('total_amount');
+
+        $.ajax({
+          url: 'model/getKey.php',
+          type: 'POST',
+          data: { getKey: 'get-Key'},
+          success: function (data) {
+            // This function runs after the AJAX request successfully retrieves the flw_pk
+            var flw_pk = data.flw_pk;
+
+            // Call FlutterwaveCheckout with the retrieved flw_pk
+            FlutterwaveCheckout({
+              public_key: flw_pk,
+              tx_ref: "titanic-48981487343MDI0NzMx",
+              amount: amount,
+              currency: "NGN",
+              subaccounts: [
+                {
+                  id: "RS_96A0AE6B6C1F9347B538451A1E4F6C0E",
+                  transaction_charge_type: "flat_subaccount",
+                  transaction_charge: subaccount_amount,
+                }
+              ],
+              payment_options: "card, banktransfer, ussd",
+              redirect_url: "https://glaciers.titanic.com/handle-flutterwave-payment",
+              meta: {
+                consumer_id: 23,
+                consumer_mac: "92a3-912ba-1192a",
+              },
+              customer: {
+                email: "akinyemisamuel170@gmail.com",
+                phone_number: "07048706198",
+                name: "Samuel Akinyemi",
+              },
+              customizations: {
+                title: "NIVASITY PAY",
+                description: "Student manual payment",
+                logo: "https://stage.nivasity.com/favicon.ico",
+              },
+            });
+          }
+        });
+      });
 
     });
   </script>

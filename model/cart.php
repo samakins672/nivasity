@@ -82,6 +82,20 @@ if (isset($_POST['product_id'])) {
                 </td>
             </tr>';
     }
+    
+    // Assuming $transferAmount contains the transfer amount
+    $transferAmount = $total_cart_price;
+
+    if ($transferAmount <= 5000) {
+        $charge = 25;
+    } elseif ($transferAmount <= 50000) {
+        $charge = 65;
+    } else {
+        $charge = 150;
+    }
+
+    // Add the charge to the total
+    $transferAmount += $charge;
 
     echo '
                             </tbody>
@@ -105,7 +119,7 @@ if (isset($_POST['product_id'])) {
 
     if ($total_cart_price > 0) {
         echo '
-                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-mdb-ripple-duration="0">CHECKOUT (₦ ' . $total_cart_price . ')</button>';
+                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-total_amount="'. $total_cart_price .'" data-transfer_amount="' . $transferAmount . '" data-mdb-ripple-duration="0" >CHECKOUT (₦ ' . $transferAmount . ')</button>';
     } else {
         echo '
                     <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>';
