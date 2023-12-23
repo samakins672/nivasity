@@ -418,7 +418,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
       }
 
       // Add to Cart button click event
-      $('.checkout-cart').on('click', function () {
+      $('#cart').on('click', '.checkout-cart', function() {
         amount = $(this).data('transfer_amount');
         subaccount_amount = $(this).data('total_amount');
 
