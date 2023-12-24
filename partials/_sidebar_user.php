@@ -37,7 +37,7 @@
     <?php if($admin_role):?>
     <li class="nav-item nav-category">Host Panel</li>
     <li class="nav-item">
-      <a class="nav-link" href="admin/">
+      <a class="nav-link" href="admin/" target="_blank">
         <i class="mdi mdi-grid-large menu-icon"></i>
         <span class="menu-title">Admin Dashboard</span>
       </a>

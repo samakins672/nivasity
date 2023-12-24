@@ -9,7 +9,25 @@ $user_id = $_SESSION['nivas_userId'];
 $school_id = $_SESSION['nivas_userSch'];
 $user_dept = $_SESSION['nivas_userDept'];
 
-if (isset($_POST['manual_id'])) {
+if (isset($_POST['close_manual'])) {
+  $manual_id = mysqli_real_escape_string($conn, $_POST['manual_id']);
+  $action = mysqli_real_escape_string($conn, $_POST['close_manual']);
+
+  $curr_status =  'closed';
+  if ($action == '1') {
+    $curr_status =  'open';
+  }
+
+  mysqli_query($conn, "UPDATE manuals_$school_id SET status = '$curr_status' WHERE id = $manual_id");
+
+  if (mysqli_affected_rows($conn) >= 1) {
+    $statusRes = "success";
+    $messageRes = "Manual successfully closed!";
+  } else {
+    $statusRes = "error";
+    $messageRes = "Internal Server Error.$curr_status Please $action try again$manual_id later!";
+  }
+} else if (isset($_POST['manual_id'])) {
   $manual_id = mysqli_real_escape_string($conn, $_POST['manual_id']);
   $title = mysqli_real_escape_string($conn, $_POST['title']);
   $course_code = mysqli_real_escape_string($conn, $_POST['course_code']);
@@ -40,16 +58,16 @@ if (isset($_POST['manual_id'])) {
     $statusRes = "error";
     $messageRes = "Internal Server Error. Please try again later!";
   }
-  
-  $responseData = array(
-    "status" => "$statusRes",
-    "message" => "$messageRes"
-  );
-  
-  // Set the appropriate headers for JSON response
-  header('Content-Type: application/json');
-  
-  // Encode the data as JSON and send it
-  echo json_encode($responseData);
 }
+
+$responseData = array(
+  "status" => "$statusRes",
+  "message" => "$messageRes"
+);
+
+// Set the appropriate headers for JSON response
+header('Content-Type: application/json');
+
+// Encode the data as JSON and send it
+echo json_encode($responseData);
 ?>

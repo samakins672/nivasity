@@ -71,9 +71,22 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                       <div class="col-lg-12 d-flex flex-column">
                         <div class="row flex-grow sortables">
                           <?php
+                          if (mysqli_num_rows($manual_query) > 0) {
+                          $count_row = mysqli_num_rows($manual_query);
+
                           while ($manual = mysqli_fetch_array($manual_query)) {
                             $manual_id = $manual['id'];
                             $seller_id = $manual['user_id'];
+
+                            // Check if the manual has been bought by the current user
+                            $is_bought_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM manuals_bought_$school_id WHERE manual_id = $manual_id AND buyer = $user_id");
+                            $is_bought_result = mysqli_fetch_assoc($is_bought_query);
+
+                            // If the manual has been bought, skip it
+                            if ($is_bought_result['count'] > 0) {
+                              $count_row = $count_row - 1;
+                              continue;
+                            }
 
                             $seller_q = mysqli_fetch_array(mysqli_query($conn, "SELECT first_name, last_name FROM users WHERE id = $seller_id"));
                             $seller_fn = $seller_q['first_name'];
@@ -81,8 +94,15 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
 
                             // Retrieve and format the due date
                             $due_date = date('j M, Y', strtotime($manual['due_date']));
+                            $due_date2 = date('Y-m-d', strtotime($manual['due_date']));
                             // Retrieve the status
                             $status = $manual['status'];
+                            $status_c = 'success';
+
+                            if ($date > $due_date2) {
+                              $status = 'disabled';
+                              $status_c = 'danger';
+                            }
 
                             // Check if the manual is already in the cart
                             $is_in_cart = in_array($manual_id, $_SESSION["nivas_cart$user_id"]);
@@ -101,25 +121,52 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                                   <div class="media-body">
                                     <h3 class="fw-bold price">₦ <?php echo $manual['price'] ?></h3>
                                     <p class="card-text">
-                                      Due date:<span class="fw-bold text-danger due_date"> <?php echo $due_date ?></span><br>
+                                      Due date:<span class="fw-bold text-<?php echo $status_c ?> due_date"> <?php echo $due_date ?></span><br>
                                       <span class="text-secondary"><?php echo $seller_fn.' '. $seller_ln ?> (HOC)</span>
                                     </p>
                                   </div>
                                 </div>
                                 <hr>
                                 <div class="d-flex justify-content-between">
-                                  <a href="javascript:;">
-                                    <i class="mdi mdi-share-variant icon-md text-muted" data-title="<?php echo $manual['title']; ?>" data-manual_id="<?php echo $manual['id']; ?>"></i>
-                                  </a>
-                                  <button class="btn <?php echo $button_class; ?> btn-lg m-0 cart-button" data-product-id="<?php echo $manual['id']; ?>">
-                                    <?php echo $button_text; ?>
-                                  </button>
+                                  <?php if($status != 'disabled'):?>
+                                    <a href="javascript:;">
+                                      <i class="mdi mdi-share-variant icon-md text-muted" data-title="<?php echo $manual['title']; ?>" data-manual_id="<?php echo $manual['id']; ?>"></i>
+                                    </a>
+                                    <button class="btn <?php echo $button_class; ?> btn-lg m-0 cart-button" data-product-id="<?php echo $manual['id']; ?>">
+                                      <?php echo $button_text; ?>
+                                    </button>
+                                  <?php else: ?>
+                                    <h4 class="fw-bold text-danger">Overdue !</h4>
+                                  <?php endif; ?>
                                   </div>
                                 </div>
                               </div>
                             </div>
 
-                          <?php } ?>
+                          <?php
+                              }
+                            if ($count_row == 0) { ?>
+                              <div class="col-12">
+                                  <div class="card card-rounded shadow-sm">
+                                    <div class="card-body">
+                                      <h5 class="card-title">All manuals have been bought</h5>
+                                      <p class="card-text">Check back later when your HOC uploads a new manual.</p>
+                                    </div>
+                                  </div>
+                              </div>
+                            <?php }
+                          } else {
+                              // Display a message when no manuals are found
+                              ?>
+                              <div class="col-12">
+                                  <div class="card card-rounded shadow-sm">
+                                    <div class="card-body">
+                                      <h5 class="card-title text-center">No manuals available.</h5>
+                                      <p class="card-text text-center">Check back later when your HOC uploads a new manual.</p>
+                                    </div>
+                                  </div>
+                              </div>
+                              <?php } ?>
                         </div>
                       </div>
                     </div>
@@ -130,7 +177,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                         <div class="card card-rounded shadow-sm">
                           <div class="card-body">
                             <div class="table-responsive  mt-1">
-                              <table class="table table-hover table-striped select-table">
+                              <table class="table table-hover select-table">
                                 <thead>
                                   <tr>
                                     <th>Product</th>
@@ -147,14 +194,26 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                                   
                                   // Retrieve and format the due date
                                   $due_date = date('j M, Y', strtotime($cart_item['due_date']));
-                                  $total_cart_price = $total_cart_price + $cart_item['price'];
+                                  $due_date2 = date('Y-m-d', strtotime($cart_item['due_date']));
+                                  // Retrieve the status
+                                  $status = $cart_item['status'];
+                                  $status_c = '';
+
+                                  if ($date > $due_date2 || $status == 'closed') {
+                                    $status = 'disabled';
+                                    $status_c = 'danger';
+                                  } else {
+                                    $total_cart_price = $total_cart_price + $cart_item['price'];
+                                  }
                                   ?>
                                   <tr>
                                     <td>
-                                      <div class="d-flex ">
+                                      <div class="d-flex">
                                         <div>
                                           <h6><?php echo $cart_item['course_code'] ?></h6>
-                                            <p>ID: <span class="fw-bold"><?php echo $cart_item['code'] ?></span></p>
+                                          <?php if($status_c == 'danger'): ?>
+                                            <p class="text-danger fw-bold">Item Overdue</p>
+                                          <?php endif; ?>
                                           </div>
                                         </div>
                                     </td>
@@ -162,7 +221,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                                       <h6>&#8358; <?php echo $cart_item['price'] ?></h6>
                                     </td>
                                     <td>
-                                      <h6><?php echo $due_date ?></h6>
+                                      <h6 class="text-<?php echo $status_c ?>"><?php echo $due_date ?></h6>
                                     </td>
                                     <td>
                                         <button class="btn btn-sm btn-outline-primary mb-0 btn-block remove-cart" data-cart_id="<?php echo $cart_item_id?>">Remove</button>
@@ -422,18 +481,25 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
         amount = $(this).data('transfer_amount');
         subaccount_amount = $(this).data('total_amount');
 
+        function generateUniqueID() {
+          const currentDate = new Date();
+          const uniqueID = `nivas_<?php echo $user_id ?>_${currentDate.getTime()}`;
+          return uniqueID;
+        }
+
+        const myUniqueID = generateUniqueID();
+
         $.ajax({
           url: 'model/getKey.php',
           type: 'POST',
           data: { getKey: 'get-Key'},
           success: function (data) {
-            // This function runs after the AJAX request successfully retrieves the flw_pk
             var flw_pk = data.flw_pk;
 
             // Call FlutterwaveCheckout with the retrieved flw_pk
             FlutterwaveCheckout({
               public_key: flw_pk,
-              tx_ref: "titanic-48981487343MDI0NzMx",
+              tx_ref: myUniqueID,
               amount: amount,
               currency: "NGN",
               subaccounts: [
@@ -444,7 +510,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                 }
               ],
               payment_options: "card, banktransfer, ussd",
-              redirect_url: "https://glaciers.titanic.com/handle-flutterwave-payment",
+              redirect_url: "https://stage.nivasity.com/model/handle-fw-payment.php",
               meta: {
                 consumer_id: 23,
                 consumer_mac: "92a3-912ba-1192a",

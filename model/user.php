@@ -46,7 +46,7 @@ if (isset($_POST['signup'])) {
       <br><br>
       Welcome to Nivasity! We're excited to have you on board. To ensure the security of your account and to provide you with the best experience, we kindly ask you to verify your email address.
       <br><br>
-      Click on the following link to verify your account: <a href='https://nivasity.com/setup.html?verify=$verificationCode'>Verify Account</a>
+      Click on the following link to verify your account: <a href='https://stage.nivasity.com/setup.html?verify=$verificationCode'>Verify Account</a>
       <br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://nivasity.com/setup.html?verify=$verificationCode
       <br><br>
       Thank you for choosing Nivasity. We look forward to serving you!

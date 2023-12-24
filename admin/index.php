@@ -296,7 +296,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                     <th class="d-sm-none-2">Availability</th>
                                     <th class="d-sm-none-2">Due Date</th>
                                     <th>Status</th>
-                                    <th>Action</th>
+                                    <th>Actions</th>
                                   </tr>
                                 </thead>
                                 <tbody id="manual_tbody">
@@ -310,11 +310,17 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                   // Calculate the percentage and total sold/quantity text
                                   $percentage_sold = ($manuals_bought_cnt / $manual['quantity']) * 100;
                                   $sold_quantity_text = $manuals_bought_cnt . '/' . $manual['quantity'];
-
+                                  
                                   // Retrieve and format the due date
                                   $due_date = date('j M, Y', strtotime($manual['due_date']));
+                                  $due_date2 = date('Y-m-d', strtotime($manual['due_date']));
                                   // Retrieve the status
                                   $status = $manual['status'];
+                                  $status_2 = $status;
+                                  
+                                  if ($date > $due_date2) {
+                                    $status = 'overdue';
+                                  }
                                   ?>
                                     <tr>
                                       <td>
@@ -351,14 +357,17 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                           <div class="badge <?php echo ($status == 'open') ? 'bg-success' : 'bg-danger'; ?>"> </div>
                                         </td>
                                         <td>
-                                          <button data-mdb-ripple-duration="0"
-                                            class="btn btn-md btn-primary mb-0 btn-block view-edit-manual"
-                                            data-toggle="modal" data-target="#editManual"
+                                          <button class="btn btn-md btn-primary mb-0 btn-block view-edit-manual"
                                             data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>"
                                             data-course_code="<?php echo $manual['course_code']; ?>" data-price="<?php echo $manual['price']; ?>"
                                             data-quantity="<?php echo $manual['quantity']; ?>"
                                             data-due_date="<?php echo date('Y-m-d', strtotime($manual['due_date'])); ?>" 
                                             data-bs-toggle="modal" data-bs-target="#addManual">Edit</button>
+                                          <?php if($status != 'overdue'): ?>
+                                            <button class="btn btn-md btn-<?php echo ($status_2 != 'open') ? 'success' : 'danger'; ?> mb-0 btn-block close-manual"
+                                              data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>" data-action="<?php echo ($status_2 != 'open') ? 1 : 0; ?>"
+                                                  data-bs-toggle="modal" data-bs-target="#closeManual"><?php echo ($status_2 != 'open') ? 'Open' : 'Close'; ?></button>
+                                          <?php endif; ?>
                                           </td>
                                         </tr>
                                   <?php } ?>
@@ -442,6 +451,34 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                           </div>
                         </div>
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Close Manual Modal -->
+                <div class="modal fade" id="closeManual" tabindex="-1" role="dialog" aria-labelledby="closeManualLabel"
+                  aria-hidden="true">
+                  <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h4 class="modal-title fw-bold" id="closeManualLabel">Change Manual Visibility</h4>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </button>
+                      </div>
+                      <form id="close-manual-form">
+                        <input type="hidden" name="close_manual" value="1">
+                        <input type="hidden" name="manual_id" value="0">
+                        <div class="modal-body">
+                          <div>
+                            <h4 class="lh-base">Are you sure you want to change <span class="manual_title text-primary">Manual Title</span> manual visibility before the due date?</h4>
+                          </div>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
+                          <button id="close_manual_submit" type="submit" data-mdb-ripple-duration="0"
+                            class="btn btn-lg btn-danger">Confirm</button>
+                        </div>
+                      </form>
                     </div>
                   </div>
                 </div>
@@ -596,6 +633,62 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
             type: 'POST',
             url: 'model/manuals.php',
             data: $('#manual-form').serialize(),
+            success: function (data) {
+              $('#alertBanner').html(data.message);
+
+              if (data.status == 'success') {
+                $('#alertBanner').removeClass('alert-info');
+                $('#alertBanner').removeClass('alert-danger');
+                $('#alertBanner').addClass('alert-success');
+
+                location.reload();
+              } else {
+                $('#alertBanner').removeClass('alert-success');
+                $('#alertBanner').removeClass('alert-info');
+                $('#alertBanner').addClass('alert-danger');
+              }
+
+              // Show alert for verified email address
+              showAlert();
+
+              // AJAX call successful, stop the spinner and update button text
+              button.html(originalText);
+              button.prop("disabled", false);
+            }
+          });
+        }, 2000); // Simulated AJAX delay of 2 seconds
+      });
+
+      // Handle click event of View/Edit button
+      $('.close-manual').on('click', function () {
+        // Get the manual details from the data- attributes
+        var manualId = $(this).data('manual_id');
+        var title = $(this).data('title');
+        var action = $(this).data('action');
+
+        // Set the values in the edit manual modal
+        $('#close-manual-form input[name="manual_id"]').val(manualId);
+        $('#close-manual-form input[name="close_manual"]').val(action);
+        $('.manual_title').html(title);
+      });
+      
+      $('#close-manual-form').submit(function (event) {
+        event.preventDefault(); // Prevent the default form submission
+
+        // Define manual button
+        var button = $('#close_manual_submit');
+        var originalText = button.html();
+
+        // Display the spinner and disable the button
+        button.html('<div class="spinner-border text-white" style="width: 1.5rem; height: 1.5rem;" role="status"><span class="sr-only"></span>');
+        button.prop('disabled', true);
+
+        // Simulate an AJAX call using setTimeout
+        setTimeout(function () {
+          $.ajax({
+            type: 'POST',
+            url: 'model/manuals.php',
+            data: $('#close-manual-form').serialize(),
             success: function (data) {
               $('#alertBanner').html(data.message);
 

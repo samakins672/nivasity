@@ -5,6 +5,7 @@ include('config.php');
 $user_id = $_SESSION['nivas_userId'];
 $school_id = $_SESSION['nivas_userSch'];
 $cart_ = "nivas_cart$user_id";
+$date = date('Y-m-d');
 
 // Get the product ID from the AJAX request
 if (isset($_POST['product_id'])) {
@@ -56,19 +57,32 @@ if (isset($_POST['product_id'])) {
     foreach ($_SESSION["nivas_cart$user_id"] as $cart_item_id) {
         // Fetch details of the carted item based on $cart_item_id
         $cart_item = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE id = $cart_item_id"));
-        
+
         // Retrieve and format the due date
         $due_date = date('j M, Y', strtotime($cart_item['due_date']));
-        $total_cart_price += $cart_item['price'];
+        $due_date2 = date('Y-m-d', strtotime($cart_item['due_date']));
+        // Retrieve the status
+        $status = $cart_item['status'];
+        $status_c = '';
+
+        if ($date > $due_date2 || $status == 'closed') {
+            $status = 'disabled';
+            $status_c = 'danger';
+        } else {
+            $total_cart_price = $total_cart_price + $cart_item['price'];
+        }
 
         echo '
             <tr>
                 <td>
                     <div class="d-flex">
                         <div>
-                            <h6>' . $cart_item['course_code'] . '</h6>
-                            <p>ID: <span class="fw-bold">' . $cart_item['code'] . '</span></p>
-                        </div>
+                            <h6>' . $cart_item['course_code'] . '</h6>';?>
+                            <?php if($status_c == 'danger'): ?>
+                            <p class="text-danger fw-bold">Item Overdue</p>
+                            <?php endif; ?>
+                            <?php
+                        echo '</div>
                     </div>
                 </td>
                 <td>
