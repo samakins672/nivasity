@@ -239,7 +239,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                           <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                               <div>
-                                <h4 class="card-title card-title-dash">Cart Summary</h4>
+                                <h4 class="card-title card-title-dash">Order Summary</h4>
                               </div>
                             </div><hr>
                             <div class="d-flex justify-content-between my-3 fw-bold">
@@ -250,17 +250,23 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                               // Assuming $transferAmount contains the transfer amount
                               $transferAmount = $total_cart_price;
 
-                              if ($transferAmount <= 5000) {
-                                  $charge = 25;
+                              if ($transferAmount == 0) {
+                                $charge = 0;
+                              } elseif ($transferAmount <= 5000) {
+                                $charge = 25;
                               } elseif ($transferAmount <= 50000) {
-                                  $charge = 65;
+                                $charge = 65;
                               } else {
-                                  $charge = 150;
+                                $charge = 150;
                               }
 
                               // Add the charge to the total
                               $transferAmount += $charge;
                             ?>
+                            <div class="d-flex justify-content-between my-3 fw-bold">
+                              <p>Handling fee</p>
+                              <h5>₦ <?php echo $charge ?></h5>
+                            </div>
                             <?php if($total_cart_price > 0): ?>
                               <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-total_amount="<?php echo $total_cart_price ?>" data-transfer_amount="<?php echo $transferAmount ?>">CHECKOUT (₦ <?php echo $transferAmount ?>)</button>
                             <?php else: ?>

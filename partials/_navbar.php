@@ -12,7 +12,18 @@
   <div class="navbar-menu-wrapper d-flex align-items-top">
     <ul class="navbar-nav">
       <li class="nav-item font-weight-semibold d-none d-lg-block ms-0">
-        <h1 class="welcome-text">Good Morning, <span class="text-black fw-bold"><?php echo $f_name ?></span></h1>
+        <?php
+        $currentHour = date('G');
+
+        if ($currentHour >= 5 && $currentHour < 12) {
+          $greeting = 'Good morning';
+        } elseif ($currentHour >= 12 && $currentHour < 18) {
+          $greeting = 'Good afternoon';
+        } else {
+          $greeting = 'Good evening';
+        }
+        ?>
+        <h1 class="welcome-text"><?php echo $greeting ?>, <span class="text-black fw-bold"><?php echo $f_name ?></span></h1>
       </li>
     </ul>
     <ul class="navbar-nav ms-auto">
@@ -30,10 +41,10 @@
       </li>
       <li class="nav-item dropdown d-none d-lg-block user-dropdown">
         <a class="nav-link" id="UserDropdown" href="#" data-bs-toggle="dropdown" aria-expanded="false">
-          <img class="img-xs rounded rounded-7" src="https://stage.nivasity.com/assets/images/faces/face8.jpg" alt="Profile image"> </a>
+          <img class="img-xs rounded rounded-7" src="../assets/images/users/<?php echo $user_image?>" alt="Profile image"> </a>
         <div class="dropdown-menu dropdown-menu-right navbar-dropdown" aria-labelledby="UserDropdown">
           <div class="dropdown-header text-center">
-            <img class="img-md rounded rounded-7" src="https://stage.nivasity.com/assets/images/faces/face8.jpg" alt="Profile image">
+            <img class="img-sm img-fluid rounded rounded-7" src="../assets/images/users/<?php echo $user_image?>" alt="Profile image">
             <p class="mb-1 mt-3 fw-bold"><?php echo $user_name?></p>
           </div>
           <a class="dropdown-item" href="user.php"><i

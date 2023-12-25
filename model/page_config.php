@@ -14,9 +14,12 @@ $user_ = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = 
 $user_image = $user_['profile_pic'];
 $user_email = $user_['email'];
 $user_phone = $user_['phone'];
+$user_matric_no = $user_['matric_no'];
+$user_adm_year = $user_['adm_year'];
 $user_dept = $_SESSION['nivas_userDept'] = $user_['dept'];
 $f_name = $user_['first_name'];
-$user_name = $f_name .' '. $user_['last_name'];
+$l_name = $user_['last_name'];
+$user_name = $f_name .' '. $l_name;
 
 $admin_role = False;
 

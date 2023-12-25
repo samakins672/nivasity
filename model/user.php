@@ -69,6 +69,39 @@ if (isset($_POST['signup'])) {
   }
 }
 
+if (isset($_POST['edit_profile'])) {
+  session_start();
+  $user_id = $_SESSION['nivas_userId'];
+  $firstname = mysqli_real_escape_string($conn, $_POST['firstname']);
+  $lastname = mysqli_real_escape_string($conn, $_POST['lastname']);
+  $phone = mysqli_real_escape_string($conn, $_POST['phone']);
+  $picture = $_FILES['upload']['name'];
+
+  if ($picture !== 'user.jpg') {
+    $tempname = $_FILES['upload']['tmp_name'];
+    $extension = pathinfo($picture, PATHINFO_EXTENSION);
+    $picture = "user" . time() . "." . $extension;
+    $destination = "../assets/images/users/{$picture}";
+
+    $last_picture = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = $user_id"))['profile_pic'];
+    
+    if ($last_picture !== 'user.jpg') {
+      unlink("../assets/images/users/{$last_picture}");
+    }
+    move_uploaded_file($tempname, $destination);
+  }
+
+  mysqli_query($conn, "UPDATE users SET first_name = '$firstname', last_name = '$lastname', profile_pic = '$picture', phone = '$phone' WHERE id = $user_id");
+  
+  if (mysqli_affected_rows($conn) >= 1) {
+    $statusRes = "success";
+    $messageRes = "Profile successfully edited!.";
+  } else {
+    $statusRes = "error";
+    $messageRes = "Internal Server Error. Please try again later!";
+  }
+}
+
 if (isset($_POST['setup'])) {
   $user_id = mysqli_real_escape_string($conn, $_POST['user_id']);
   $dept = mysqli_real_escape_string($conn, $_POST['dept']);

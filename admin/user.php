@@ -51,16 +51,16 @@ if ($_SESSION['nivas_userRole'] == 'student') {
                 <div class="d-sm-flex align-items-center justify-content-start border-bottom">
                   <ul class="nav nav-tabs" role="tablist">
                     <li class="nav-item">
-                      <a class="nav-link px-3 active ps-0" id="home-tab" data-bs-toggle="tab" href="#account" role="tab"
+                      <a class="nav-link px-3 active ps-0 fw-bold" id="home-tab" data-bs-toggle="tab" href="#account" role="tab"
                         aria-controls="account" aria-selected="true">Account</a>
                     </li>
                     <li class="nav-item">
-                      <a class="nav-link px-3" id="profile-tab" data-bs-toggle="tab" href="#security" role="tab"
-                        aria-selected="false">Security</a>
+                      <a class="nav-link px-3 fw-bold" id="contact-tab" data-bs-toggle="tab" href="#academics" role="tab"
+                        aria-selected="false">Academic Info</a>
                     </li>
                     <li class="nav-item">
-                      <a class="nav-link px-3" id="contact-tab" data-bs-toggle="tab" href="#academics" role="tab"
-                        aria-selected="false">Academic Info</a>
+                      <a class="nav-link px-3 fw-bold" id="profile-tab" data-bs-toggle="tab" href="#security" role="tab"
+                        aria-selected="false">Security</a>
                     </li>
                   </ul>
                 </div>
@@ -69,37 +69,37 @@ if ($_SESSION['nivas_userRole'] == 'student') {
                     <div class="row">
                       <div class="col-12 mb-4">
                         <div class="card card-rounded p-3 shadow-sm">
-                          <div class="card-header">
-                            <h4 class="fw-bold">Profile Details</4>
-                              <div class="d-sm-flex justify-content-start">
-                                <div class="square-img rounded rounded-10 shadow-sm my-3" style="width: 150px;">
-                                  <img src="../assets/images/slideshow4.jpg" class="square-img-content" alt="Avatar" />
+                          <form id="profile-form" enctype="multipart/form-data">
+                            <div class="card-header">
+                              <h4 class="fw-bold">Profile Details</4>
+                                <div class="d-sm-flex justify-content-start">
+                                  <div class="square-img rounded rounded-10 shadow-sm my-3" style="width: 150px;">
+                                    <img src="../assets/images/users/<?php echo $user_image ?>" class="square-img-content" alt="Avatar" />
+                                  </div>
+                                  <div class="my-auto ms-3 d-inline">
+                                    <input type="file" id="upload" name="upload" class="account-file-input" hidden=""
+                                      accept="image/png, image/jpeg">
+                                    <label for="upload" class="btn btn-primary fw-bold btn-lg btn-block">
+                                      <span class="d-none d-md-block">Upload new photo</span>
+                                      <i class="icon-upload d-md-none mx-2"></i>
+                                    </label>
+                                    <p class="text-muted mb-0">Allowed JPG or PNG. Max size of 800K</p>
+                                  </div>
                                 </div>
-                                <div class="my-auto ms-3 d-inline">
-                                  <input type="file" id="upload" name="upload" class="account-file-input" hidden=""
-                                    accept="image/png, image/jpeg">
-                                  <label for="upload" class="btn btn-primary fw-bold btn-lg btn-block">
-                                    <span class="d-none d-md-block">Upload new photo</span>
-                                    <i class="icon-upload d-md-none mx-2"></i>
-                                  </label>
-                                  <p class="text-muted mb-0">Allowed JPG or PNG. Max size of 800K</p>
-                                </div>
-                              </div>
-                          </div>
-                          <div class="card-body">
-                            <form id="user-profile">
+                            </div>
+                            <div class="card-body">
+                              <input type="hidden" name="edit_profile" value="1"/>
                               <div class="row">
                                 <div class="col-md-6">
                                   <div class="form-outline mb-4">
-                                    <input type="text" name="firstname" class="form-control form-control-lg bg-light w-100" value="Samuel"
-                                      readonly />
+                                    <input type="text" name="firstname" class="form-control form-control-lg w-100" value="<?php echo $f_name ?>"/>
                                     <label class="form-label" for="firstname">First Name</label>
                                   </div>
                                 </div>
                                 <div class="col-md-6">
                                   <div class="form-outline mb-4">
-                                    <input type="text" name="lastname" class="form-control form-control-lg bg-light w-100"
-                                      value="Akins" readonly />
+                                    <input type="text" name="lastname" class="form-control form-control-lg w-100"
+                                      value="<?php echo $l_name ?>"/>
                                     <label class="form-label" for="lastname">Last Name</label>
                                   </div>
                                 </div>
@@ -107,41 +107,26 @@ if ($_SESSION['nivas_userRole'] == 'student') {
                                 <div class="col-md-6">
                                   <div class="form-outline mb-4">
                                     <input type="email" name="email" class="form-control form-control-lg bg-light w-100"
-                                      value="akinyemisamuel170@gmail.com" readonly />
+                                      value="<?php echo $user_email ?>" readonly />
                                     <label class="form-label" for="email">Email address</label>
                                   </div>
                                 </div>
                                 <div class="col-md-6">
                                   <div class="form-outline mb-3">
-                                    <input type="number" name="phone" class="form-control form-control-lg w-100"
+                                    <input type="number" name="phone" class="form-control form-control-lg w-100" value="<?php echo $user_phone ?>"
                                       required />
                                     <label class="form-label" for="phone">Phone Number</label>
                                   </div>
                                 </div>
 
-                                <div class="col-md-6">
-                                  <div class="form-outline mb-3">
-                                    <input type="text" name="home_address" class="form-control form-control-lg w-100"
-                                      required />
-                                    <label class="form-label" for="home_address">Home Address</label>
-                                  </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                  <div class="form-outline mb-3">
-                                    <input type="text" name="state" class="form-control form-control-lg w-100"
-                                      required />
-                                    <label class="form-label" for="state">State</label>
-                                  </div>
-                                </div>
                               </div>
                               <!-- Save button -->
-                              <button id="update_profile" type="submit"
+                              <button id="profile_submit" type="submit"
                                 class="btn btn-primary fw-bold btn-lg btn-block mt-2">Save
                                 Changes</button>
 
-                            </form>
-                          </div>
+                            </div>
+                          </form>
                         </div>
                       </div>
                       <div class="col-12 mb-4">
@@ -249,7 +234,7 @@ if ($_SESSION['nivas_userRole'] == 'student') {
                           </div>
                         </div>
                       </div>
-                      <div class="col-12 mb-4">
+                      <!-- <div class="col-12 mb-4">
                         <div class="card card-rounded p-3 shadow-sm">
                           <h4 class="card-header fw-bold pb-3">Two-steps Verification</h4>
                           <div class="card-body">
@@ -264,7 +249,7 @@ if ($_SESSION['nivas_userRole'] == 'student') {
                               authentication</button>
                           </div>
                         </div>
-                      </div>
+                      </div> -->
                       <div class="col-12">
                         <div class="card card-rounded p-3 shadow-sm">
                           <h4 class="card-header fw-bold pb-3">Delete Account</h4>
@@ -305,18 +290,23 @@ if ($_SESSION['nivas_userRole'] == 'student') {
                           <div class="card-body">
                             <form id="user-academics">
                               <div class="row">
+                                <?php
+                                $school = mysqli_fetch_array(mysqli_query($conn, "SELECT name FROM schools WHERE id = $school_id"))[0];
+                                $user_dept_name = mysqli_fetch_array(mysqli_query($conn, "SELECT name FROM depts_$school_id WHERE id = $user_dept"))[0];
+                                
+                                ?>
                                 <div class="col-md-6">
                                   <div class="form-outline mb-4">
                                     <input type="text" name="institution"
                                       class="form-control form-control-lg w-100 bg-light"
-                                      value="Federal University of Agriculture, Abeokuta" readonly />
+                                      value="<?php echo $school ?>" readonly />
                                     <label class="form-label" for="institution">Institution Name</label>
                                   </div>
                                 </div>
                                 <div class="col-md-6">
                                   <div class="form-outline mb-4">
                                     <input type="text" name="adm_year"
-                                      class="form-control form-control-lg w-100 bg-light" value="2021/2022" readonly />
+                                      class="form-control form-control-lg w-100 bg-light" value="<?php echo $user_adm_year ?>" readonly />
                                     <label class="form-label" for="adm_year">Admission Year</label>
                                   </div>
                                 </div>
@@ -324,14 +314,14 @@ if ($_SESSION['nivas_userRole'] == 'student') {
                                 <div class="col-md-6">
                                   <div class="form-outline mb-4">
                                     <input type="text" name="department"
-                                      class="form-control form-control-lg w-100 bg-light" value="Geology" readonly />
+                                      class="form-control form-control-lg w-100 bg-light" value="<?php echo $user_dept_name ?>" readonly />
                                     <label class="form-label" for="department">Department</label>
                                   </div>
                                 </div>
                                 <div class="col-md-6">
                                   <div class="form-outline mb-4">
                                     <input type="text" name="matric_no"
-                                      class="form-control form-control-lg w-100 bg-light" value="190303003" readonly />
+                                      class="form-control form-control-lg w-100 bg-light" value="<?php echo $user_matric_no ?>" readonly />
                                     <label class="form-label" for="matric_no">Matric Number</label>
                                   </div>
                                 </div>
@@ -362,6 +352,12 @@ if ($_SESSION['nivas_userRole'] == 'student') {
         <!-- partial:partials/_footer.html -->
         <?php include('../partials/_footer.php') ?>
         <!-- partial -->
+      </div>
+      <!-- Bootstrap alert container -->
+      <div id="alertBanner"
+        class="alert alert-info text-center fw-bold alert-dismissible end-2 top-2 fade show position-fixed w-auto p-2 px-4"
+        role="alert" style="z-index: 5000; display: none;">
+        An error occurred during the AJAX request.
       </div>
       <!-- main-panel ends -->
     </div>
@@ -419,54 +415,50 @@ if ($_SESSION['nivas_userRole'] == 'student') {
         }
       });
 
-      // Use AJAX to submit the manual form
-      $('#manual-form').submit(function (event) {
+      
+      // Use AJAX to submit the profile form
+      $('#profile-form').submit(function (event) {
         event.preventDefault(); // Prevent the default form submission
-
-        // Define manual button
-        var button = $('#manual_submit');
+        
+        var button = $('#profile_submit');
         var originalText = button.html();
 
-        // Display the spinner and disable the button
-        button.html('<div class="spinner-border text-white" style="width: 1.5rem; height: 1.5rem;" role="status"><span class="sr-only"></span>');
+        button.html(originalText + '  <div class="spinner-border text-white" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
         button.prop('disabled', true);
 
-        // Simulate an AJAX call using setTimeout
-        setTimeout(function () {
-          $.ajax({
+        var formData = new FormData($('#profile-form')[0]);
+
+        $.ajax({
             type: 'POST',
-            url: 'model/user.php',
-            data: $('#manual-form').serialize(),
+            url: '../model/user.php',
+            data: formData,
+            contentType: false,
+            processData: false,
             success: function (data) {
-              $('#alertBanner').html(data.message);
+                $('#alertBanner').html(data.message);
 
-              if (data.status == 'success') {
-                $('#alertBanner').removeClass('alert-info');
-                $('#alertBanner').removeClass('alert-danger');
-                $('#alertBanner').addClass('alert-success');
-                // setTimeout(function () {
-                //   // $(".main-card").load("views/_vote.php?code=" + election_code + "&voter=" + data.voter);
-                // }, 1000);
-              } else {
-                $('#alertBanner').removeClass('alert-success');
-                $('#alertBanner').removeClass('alert-info');
-                $('#alertBanner').addClass('alert-danger');
-              }
+                if (data.status == 'success') {
+                    $('#alertBanner').removeClass('alert-info');
+                    $('#alertBanner').removeClass('alert-danger');
+                    $('#alertBanner').addClass('alert-success');
+                } else {
+                    $('#alertBanner').removeClass('alert-success');
+                    $('#alertBanner').removeClass('alert-info');
+                    $('#alertBanner').addClass('alert-danger');
+                }
 
-              // Automatically show and hide the alert after 5 seconds
-              $('#alertBanner').fadeIn();
+                $('#alertBanner').fadeIn();
 
-              setTimeout(function () {
-                $('#alertBanner').fadeOut();
-              }, 5000);
+                setTimeout(function () {
+                    $('#alertBanner').fadeOut();
+                }, 5000);
 
-              // AJAX call successful, stop the spinner and update button text
-              button.html(originalText);
-              button.prop("disabled", false);
+                button.html(originalText);
+                button.prop("disabled", false);
             }
-          });
-        }, 2000); // Simulated AJAX delay of 2 seconds
+        });
       });
+
     });
   </script>
   <!-- End custom js for this page-->
