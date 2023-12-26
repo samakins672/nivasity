@@ -102,6 +102,31 @@ if (isset($_POST['edit_profile'])) {
   }
 }
 
+if (isset($_POST['change_password'])) {
+  session_start();
+  $user_id = $_SESSION['nivas_userId'];
+  $curr_password = md5($_POST['curr_password']);
+  $new_password = md5($_POST['new_password']);
+
+  // Check if user data exists
+  $user_query = mysqli_query($conn, "SELECT * FROM users WHERE id = $user_id AND password = '$curr_password'");
+
+  if (mysqli_num_rows($user_query) == 1) {
+    mysqli_query($conn, "UPDATE users SET password = '$new_password' WHERE id = $user_id");
+
+    if (mysqli_affected_rows($conn) >= 1) {
+      $statusRes = "success";
+      $messageRes = "Password successfully changed!.";
+    } else {
+      $statusRes = "error";
+      $messageRes = "Internal Server Error. Please try again later!";
+    }
+  } else {
+    $statusRes = "failed";
+    $messageRes = "Oops! your current password is incorrect.";
+  }
+}
+
 if (isset($_POST['setup'])) {
   $user_id = mysqli_real_escape_string($conn, $_POST['user_id']);
   $dept = mysqli_real_escape_string($conn, $_POST['dept']);

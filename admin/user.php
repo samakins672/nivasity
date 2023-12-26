@@ -224,12 +224,12 @@ $bankName = getBankName($bank, $bankList);
                             <h4 class="fw-bold">Change Password</4>
                           </div>
                           <div class="card-body">
-                            <form id="user-password">
+                            <form id="password-form">
+                              <input type="hidden" name="change_password" value="1"/>
                               <div class="row">
                                 <div class="col-md-6">
                                   <div class="form-outline mb-4">
-                                    <input type="password" name="curr_password"
-                                      class="form-control form-control-lg w-100 passwords" required />
+                                    <input type="password" name="curr_password" class="form-control form-control-lg w-100 passwords" required />
                                     <label class="form-label" for="curr_password">Curent Password</label>
                                   </div>
                                 </div>
@@ -263,7 +263,7 @@ $bankName = getBankName($bank, $bankList);
                                 </div>
                               </div>
                               <!-- Save button -->
-                              <button id="change_password" type="submit"
+                              <button id="password_submit" type="submit"
                                 class="btn btn-primary fw-bold btn-lg btn-block mt-2" disabled>Save Changes</button>
 
                             </form>
@@ -513,8 +513,8 @@ $bankName = getBankName($bank, $bankList);
   <script src="../assets/js/js/data-table.js"></script>
   <!-- endinject -->
   <!-- Custom js for this page-->
-  <script src="../assets/js/script.js"></script>
   <script src="../assets/js/js/dashboard.js"></script>
+  <script src="../assets/js/script.js"></script>
 
   <script>   
     // Fetch data from the JSON file
@@ -557,8 +557,50 @@ $bankName = getBankName($bank, $bankList);
           input.attr("type", "password");
         }
       });
-
       
+      // Use AJAX to submit the profile form
+      $('#password-form').submit(function (event) {
+        event.preventDefault(); // Prevent the default form submission
+
+        var button = $('#password_submit');
+        var originalText = button.html();
+
+        button.html(originalText + '  <div class="spinner-border text-white" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
+        button.prop('disabled', true);
+
+        $.ajax({
+          type: 'POST',
+          url: '../model/user.php',
+          data: $('#password-form').serialize(),
+          success: function (data) {
+            $('#alertBanner').html(data.message);
+
+            if (data.status == 'success') {
+              $('#alertBanner').removeClass('alert-info');
+              $('#alertBanner').removeClass('alert-danger');
+              $('#alertBanner').addClass('alert-success');
+
+              setTimeout(function () {
+                location.reload();
+              }, 3000);
+            } else {
+              $('#alertBanner').removeClass('alert-success');
+              $('#alertBanner').removeClass('alert-info');
+              $('#alertBanner').addClass('alert-danger');
+            }
+
+            $('#alertBanner').fadeIn();
+
+            setTimeout(function () {
+                $('#alertBanner').fadeOut();
+            }, 5000);
+
+            button.html(originalText);
+            button.prop("disabled", false);
+          }
+        });
+      });
+
       // Use AJAX to submit the profile form
       $('#profile-form').submit(function (event) {
         event.preventDefault(); // Prevent the default form submission

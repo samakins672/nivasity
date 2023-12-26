@@ -69,8 +69,8 @@ function checkPasswordMatch() {
     const status = $('#password-strength-status');
 
     if (password === confirmPassword && password.length > 0 && status.hasClass('alert-success')) {
-        $('#change_password').prop('disabled', false);
+        $('#password_submit').prop('disabled', false);
     } else {
-        $('#change_password').prop('disabled', true);
+        $('#password_submit').prop('disabled', true);
     }
 }
