@@ -8,6 +8,48 @@ if ($_SESSION['nivas_userRole'] == 'student') {
   exit();
 }
 
+$settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE user_id = $user_id ORDER BY `id` DESC LIMIT 1");
+
+$d_icon = 'plus';
+$d_text = 'Add new account';
+$settlement_id = 0;
+
+$acct_name = '';
+$acct_number = '';
+$bank = '1';
+
+if (mysqli_num_rows($settlement_query) == 1) {
+  $d_icon = 'edit';
+  $d_text = 'Edit account';
+  $settlement_id = 1;
+  $acct = mysqli_fetch_array($settlement_query);
+
+  $acct_name = $acct['acct_name'];
+  $acct_number = $acct['acct_number'];
+  $bank = $acct['bank'];
+}
+
+$filePath = '../model/all-banks-NG.json';
+
+// Read JSON data from the file
+$bankListJson = file_get_contents($filePath);
+
+// Decode the bank list JSON
+$bankList = json_decode($bankListJson, true);
+
+// Function to get bank name by code
+function getBankName($code, $bankList)
+{
+  foreach ($bankList['data'] as $bank) {
+    if ($bank['code'] === $code) {
+      return $bank['name'];
+    }
+  }
+  return ''; // Return an empty string if not found
+}
+
+// Get the bank name based on the bank code
+$bankName = getBankName($bank, $bankList);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -134,15 +176,9 @@ if ($_SESSION['nivas_userRole'] == 'student') {
                           <h4 class="card-header pb-3">
                             <div class="d-sm-flex justify-content-between align-items-center">
                               <h4 class="fw-bold">Settlement Account</h4>
-                              <button data-mdb-ripple-duration="0"
-                                class="btn btn-primary btn-lg fw-bold text-white mb-0 me-0 d-none" type="button"
-                                data-bs-toggle="modal" data-bs-target="#addAccount"><i
-                                  class="mdi mdi-briefcase-plus"></i>Add new
-                                account</button>
-                              <button data-mdb-ripple-duration="0"
-                                class="btn btn-primary btn-lg fw-bold text-white mb-0 me-0" type="button"
-                                data-bs-toggle="modal" data-bs-target="#addAccount"><i
-                                  class="mdi mdi-briefcase-edit"></i>Edit account</button>
+                              <button class="btn btn-primary btn-lg fw-bold text-white mb-0 me-0 view-edit-account" type="button" data-bs-toggle="modal" data-bs-target="#addSettlement"
+                              data-settlement_id="<?php echo $settlement_id?>" data-acct_name="<?php echo $acct_name?>" data-acct_number="<?php echo $acct_number?>" data-bank="<?php echo $bank?>"><i
+                                  class="mdi mdi-briefcase-<?php echo $d_icon?>"></i><?php echo $d_text?></button>
                             </div>
                           </h4>
                           <div class="card-body">
@@ -160,13 +196,13 @@ if ($_SESSION['nivas_userRole'] == 'student') {
                                     <td>
                                       <div class="d-flex ">
                                         <div>
-                                          <p class="pb-2">Access Bank PLC</p>
-                                          <h6>SAMUEL AYOMIDE AKINYEMI</h6>
+                                          <p class="pb-2"><?php echo $bankName?></p>
+                                          <h6 class="text-uppercase"><?php echo $acct_name?></h6>
                                         </div>
                                       </div>
                                     </td>
                                     <td>
-                                      <h6 class="text-secondary">1454746632</h6>
+                                      <h6 class="text-secondary"><?php echo $acct_number?></h6>
                                     </td>
                                     <td>
                                       <h6>NGN</h6>
@@ -344,6 +380,100 @@ if ($_SESSION['nivas_userRole'] == 'student') {
                     </div>
                   </div>
                 </div>
+                
+                <!-- Settlement Account Modal -->
+                <div class="modal fade" id="addSettlement" tabindex="-1" role="dialog" aria-labelledby="addSettlementLabel"
+                  aria-hidden="true">
+                  <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title" id="addSettlementLabel">Settlement Account</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </button>
+                      </div>
+                      <form id="settlement-form">
+                        <input type="hidden" name="settlement_id" value="0">
+                        <div class="modal-body">
+                          <div class="form-outline mb-4">
+                            <input type="text" name="acct_name" class="form-control form-control-lg w-100" required="">
+                            <label class="form-label" for="acct_name">Account Name</label>
+                          </div>
+                          <div class="form-group mb-4">
+                            <label class="form-label" for="bank">Bank Name</label>
+                            <select id="bank" name="bank" class="form-control form-control-lg w-100"></select>
+                          </div>
+                          <div class="form-outline mb-4">
+                            <input type="text" name="acct_number" class="form-control form-control-lg w-100" required="">
+                            <label class="form-label" for="acct_number">Account Number</label>
+                          </div>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
+                          <button id="settlement_submit" type="submit" class="btn btn-lg btn-primary">Submit</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Add New Manual Modal -->
+                <div class="modal fade" id="addManual" tabindex="-1" role="dialog" aria-labelledby="addManualLabel"
+                  aria-hidden="true">
+                  <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title" id="addManualLabel">New Manual</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </button>
+                      </div>
+                      <form id="manual-form">
+                        <input type="hidden" name="manual_id" value="0">
+                        <div class="modal-body">
+                          <div class="form-outline mb-4">
+                            <input type="text" name="title" class="form-control form-control-lg w-100" required="">
+                            <label class="form-label" for="title">Manual Title</label>
+                          </div>
+                          <div class="row">
+                            <div class="col-md-6">
+                              <div class="form-outline mb-4">
+                                <input type="text" name="course_code" class="form-control form-control-lg w-100"
+                                  required="">
+                                <label class="form-label" for="course_code">Course Code</label>
+                              </div>
+                            </div>
+                            <div class="col-md-6">
+                              <div class="form-outline mb-4">
+                                <input type="number" name="price" class="form-control form-control-lg w-100"
+                                  required="">
+                                <label class="form-label" for="price">Unit Price</label>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="col-md-6">
+                              <div class="form-outline mb-4">
+                                <input type="number" name="quantity" class="form-control form-control-lg w-100"
+                                  required="">
+                                <label class="form-label" for="quantity">Quantity</label>
+                              </div>
+                            </div>
+                            <div class="col-md-6">
+                              <div class="form-outline mb-4">
+                                <input type="date" name="due_date" class="form-control form-control-lg w-100"
+                                  required="">
+                                <label class="form-label" for="due_date">Due Date</label>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
+                          <button id="manual_submit" type="submit" class="btn btn-lg btn-primary">Submit</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -386,9 +516,22 @@ if ($_SESSION['nivas_userRole'] == 'student') {
   <script src="../assets/js/script.js"></script>
   <script src="../assets/js/js/dashboard.js"></script>
 
-  <script>
+  <script>   
+    // Fetch data from the JSON file
+    $.getJSON('../model/all-banks-NG.json', function(data) {
+        var select = $('#bank');
+
+        // Clear existing options
+        select.empty();
+
+        // Loop through the data and add options
+        $.each(data.data, function(index, bank) {
+            select.append('<option value="' + bank.code + '">' + bank.name + '</option>');
+        });
+    });
+    
     $(document).ready(function () {
-        $('.btn').attr('data-mdb-ripple-duration', '0');
+      $('.btn').attr('data-mdb-ripple-duration', '0');
 
       $('#upload').on('change', function (event) {
         const file = event.target.files[0]; // Get the uploaded file
@@ -419,7 +562,7 @@ if ($_SESSION['nivas_userRole'] == 'student') {
       // Use AJAX to submit the profile form
       $('#profile-form').submit(function (event) {
         event.preventDefault(); // Prevent the default form submission
-        
+
         var button = $('#profile_submit');
         var originalText = button.html();
 
@@ -459,6 +602,66 @@ if ($_SESSION['nivas_userRole'] == 'student') {
         });
       });
 
+      // Handle click event of View/Edit button
+      $('.view-edit-account').on('click', function () {
+        // Get the manual details from the data- attributes
+        var settlement = $(this).data('settlement_id');
+        var acct_name = $(this).data('acct_name');
+        var acct_number = $(this).data('acct_number');
+        var bank = $(this).data('bank');
+
+        // Set the values in the edit manual modal
+        $('#settlement-form input[name="settlement_id"]').val(settlement);
+        $('#settlement-form input[name="acct_name"]').val(acct_name);
+        $('#settlement-form input[name="acct_number"]').val(acct_number);
+        $('#settlement-form select[name="bank"]').val(bank);
+      });
+
+      // Use AJAX to submit the settlement form
+      $('#settlement-form').submit(function (event) {
+        event.preventDefault(); // Prevent the default form submission
+
+        // Define settlement button
+        var button = $('#settlement_submit');
+        var originalText = button.html();
+
+        // Display the spinner and disable the button
+        button.html('<div class="spinner-border text-white" style="width: 1.5rem; height: 1.5rem;" role="status"><span class="sr-only"></span>');
+        button.prop('disabled', true);
+
+        // Simulate an AJAX call using setTimeout
+        setTimeout(function () {
+          $.ajax({
+            type: 'POST',
+            url: 'model/settlement.php',
+            data: $('#settlement-form').serialize(),
+            success: function (data) {
+              $('#alertBanner').html(data.message);
+
+              if (data.status == 'success') {
+                $('#alertBanner').removeClass('alert-info');
+                $('#alertBanner').removeClass('alert-danger');
+                $('#alertBanner').addClass('alert-success');
+
+                location.reload();
+              } else {
+                $('#alertBanner').removeClass('alert-success');
+                $('#alertBanner').removeClass('alert-info');
+                $('#alertBanner').addClass('alert-danger');
+              }
+
+              $('#alertBanner').fadeIn();
+
+              setTimeout(function () {
+                  $('#alertBanner').fadeOut();
+              }, 5000);
+
+              button.html(originalText);
+              button.prop("disabled", false);
+            }
+          });
+        }, 2000); // Simulated AJAX delay of 2 seconds
+      });
     });
   </script>
   <!-- End custom js for this page-->

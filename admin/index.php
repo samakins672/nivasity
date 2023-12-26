@@ -584,8 +584,8 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
   <script src="../assets/js/js/data-table.js"></script>
   <!-- endinject -->
   <!-- Custom js for this page-->
-  <script src="../assets/js/js/dashboard.js"></script>
   <script src="../assets/js/script.js"></script>
+  <script src="../assets/js/js/dashboard.js"></script>
 
   <script>
     $(document).ready(function () {
