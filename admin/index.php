@@ -72,7 +72,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
 
         <div class="content-wrapper">
           <div class="row">
-            <div class="col-sm-12">
+            <div class="col-sm-12 px-2">
               <div class="home-tab">
                 <div class="d-sm-flex align-items-center justify-content-between border-bottom">
                   <ul class="nav nav-tabs" role="tablist">
@@ -122,7 +122,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                         <div class="row flex-grow">
                           <div class="col-12 grid-margin stretch-card">
                             <div class="card card-rounded shadow-sm">
-                              <div class="card-body">
+                              <div class="card-body px-2">
                                 <div class="d-sm-flex justify-content-between align-items-start">
                                   <div>
                                     <h4 class="card-title card-title-dash">Weekly Income Overview</h4>
@@ -145,7 +145,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                         <div class="row flex-grow">
                           <div class="col-12 grid-margin stretch-card">
                             <div class="card card-rounded shadow-sm table-darkBGImg">
-                              <div class="card-body">
+                              <div class="card-body px-2">
                                 <div class="col-sm-8">
                                   <h3 class="text-white upgrade-info mb-0">
                                     Enhance your <span class="fw-bold">Campaign</span> for better outreach
@@ -160,7 +160,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                         <div class="row flex-grow">
                           <div class="col-12 grid-margin stretch-card">
                             <div class="card card-rounded shadow-sm">
-                              <div class="card-body">
+                              <div class="card-body px-2">
                                 <div class="d-sm-flex justify-content-between align-items-start">
                                   <div>
                                     <h4 class="card-title card-title-dash">Best Selling Manuals</h4>
@@ -278,7 +278,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                     <div class="row flex-grow">
                       <div class="col-12 grid-margin stretch-card">
                         <div class="card card-rounded shadow-sm">
-                          <div class="card-body">
+                          <div class="card-body px-2">
                             <div class="d-sm-flex justify-content-end">
                               <div>
                                 <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"
@@ -383,7 +383,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                     <div class="row flex-grow">
                       <div class="col-12 grid-margin stretch-card">
                         <div class="card card-rounded shadow-sm">
-                          <div class="card-body">
+                          <div class="card-body px-2">
                             <div class="table-responsive  mt-1">
                               <table id="transaction_table"
                                 class="table table-hover table-striped select-table datatable-opt">

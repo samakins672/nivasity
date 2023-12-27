@@ -40,7 +40,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
 
         <div class="content-wrapper">
           <div class="row">
-            <div class="col-sm-12">
+            <div class="col-sm-12 px-2">
               <div class="home-tab">
                 <div class="d-flex align-items-center justify-content-between border-bottom">
                   <ul class="nav nav-tabs d-flex" role="tablist">
@@ -112,9 +112,9 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                             $button_class = $is_in_cart ? 'btn-primary' : 'btn-outline-primary';
 
                             ?>
-                          <div class="col-12 col-md-4 grid-margin stretch-card sortable-card">
+                          <div class="col-12 col-md-4 grid-margin px-2 stretch-card sortable-card">
                             <div class="card card-rounded shadow-sm">
-                              <div class="card-body">
+                              <div class="card-body px-2">
                                 <h4 class="card-title"><?php echo $manual['title'] ?> <span class="text-secondary">- <?php echo $manual['course_code'] ?></span></h4>
                                 <div class="media">
                                   <i class="mdi mdi-book icon-lg text-secondary d-flex align-self-start me-3"></i>
@@ -148,7 +148,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                             if ($count_row == 0) { ?>
                               <div class="col-12">
                                   <div class="card card-rounded shadow-sm">
-                                    <div class="card-body">
+                                    <div class="card-body px-2">
                                       <h5 class="card-title">All manuals have been bought</h5>
                                       <p class="card-text">Check back later when your HOC uploads a new manual.</p>
                                     </div>
@@ -160,7 +160,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                               ?>
                               <div class="col-12">
                                   <div class="card card-rounded shadow-sm">
-                                    <div class="card-body">
+                                    <div class="card-body px-2">
                                       <h5 class="card-title text-center">No manuals available.</h5>
                                       <p class="card-text text-center">Check back later when your HOC uploads a new manual.</p>
                                     </div>
@@ -173,9 +173,9 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                   </div>
                   <div class="tab-pane fade hide" id="cart" role="tabpanel" aria-labelledby="cart">
                     <div class="row flex-grow">
-                      <div class="col-sm-8 grid-margin stretch-card">
+                      <div class="col-sm-8 grid-margin px-2 stretch-card">
                         <div class="card card-rounded shadow-sm">
-                          <div class="card-body">
+                          <div class="card-body px-2">
                             <div class="table-responsive  mt-1">
                               <table class="table table-hover select-table">
                                 <thead>
@@ -234,9 +234,9 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                           </div>
                         </div>
                       </div>
-                      <div class="col-sm-4 grid-margin">
+                      <div class="col-sm-4 grid-margin px-2">
                         <div class="card card-rounded shadow-sm">
-                          <div class="card-body">
+                          <div class="card-body px-2">
                             <div class="d-flex justify-content-between align-items-center">
                               <div>
                                 <h4 class="card-title card-title-dash">Order Summary</h4>

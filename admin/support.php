@@ -49,13 +49,13 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets WHERE user_i
   
         <div class="content-wrapper py-0">
           <div class="row">
-            <div class="col-sm-12">
+            <div class="col-sm-12 px-2">
               <div class="home-tab">
                 <div class="tab-content tab-content-basic py-0">
                   <div class="tab-pane fade show active" id="support" role="tabpanel" aria-labelledby="support">
                     <div class="row flex-grow">
                       <div class="col-12 card card-rounded shadow-sm">
-                        <div class="card-body">
+                        <div class="card-body px-2">
                           <!-- Button to open ticket modal -->
                           <button type="button" class="btn btn-primary btn-lg mb-3"
                             data-bs-toggle="modal" data-bs-target="#ticketModal">
