@@ -298,7 +298,12 @@ $bankName = getBankName($bank, $bankList);
                                 </p>
                               </div>
                             </div>
-                            <form id="acct_deactivation">
+                            <form id="acct_deactivation-form">
+                              <input type="hidden" name="deactivate_acct" value="1"/>
+                              <div class="form-outline mb-4">
+                                <input type="password" name="password" class="form-control form-control-lg w-100" required />
+                                <label class="form-label" for="password">Password</label>
+                              </div>
                               <div class="form-group mb-3">
                                 <div class="form-check">
                                   <label class="form-check-label">
@@ -307,9 +312,7 @@ $bankName = getBankName($bank, $bankList);
                                 </div>
                               </div>
 
-                              <button type="submit"
-                                class="btn btn-danger deactivate-account btn-lg">Deactivate
-                                Account</button>
+                              <button type="submit" class="btn btn-danger deactivate-account btn-lg">Deactivate Account</button>
                             </form>
                           </div>
                         </div>
@@ -763,7 +766,7 @@ $bankName = getBankName($bank, $bankList);
       });
     });
 
-    // Use AJAX to submit the profile form
+    // Use AJAX to submit the academic_info form
       $('#academic_info-form').submit(function (event) {
         event.preventDefault(); // Prevent the default form submission
 
@@ -792,6 +795,49 @@ $bankName = getBankName($bank, $bankList);
                 setTimeout(function () {
                   window.location.href = "support.php";
                 }, 1000);
+              } else {
+                $('#alertBanner').removeClass('alert-success');
+                $('#alertBanner').removeClass('alert-info');
+                $('#alertBanner').addClass('alert-danger');
+              }
+
+              $('#alertBanner').fadeIn();
+
+              setTimeout(function () {
+                  $('#alertBanner').fadeOut();
+              }, 5000);
+
+              button.html(originalText);
+              button.prop("disabled", false);
+            }
+        });
+      });
+
+    // Use AJAX to deactivate account
+      $('#acct_deactivation-form').submit(function (event) {
+        event.preventDefault(); // Prevent the default form submission
+
+        var button = $('.deactivate-account');
+        var originalText = button.html();
+
+        button.html(originalText + '  <div class="spinner-border text-white" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
+        button.prop('disabled', true);
+
+        $.ajax({
+            type: 'POST',
+            url: '../model/user.php',
+            data: $('#acct_deactivation-form').serialize(),
+            success: function (data) {
+              $('#alertBanner').html(data.message);
+
+              if (data.status == 'success') {
+                $('#alertBanner').removeClass('alert-info');
+                $('#alertBanner').removeClass('alert-danger');
+                $('#alertBanner').addClass('alert-success');
+
+                setTimeout(function () {
+                  window.location.href = "../signin.html?logout=1";
+                }, 2000);
               } else {
                 $('#alertBanner').removeClass('alert-success');
                 $('#alertBanner').removeClass('alert-info');

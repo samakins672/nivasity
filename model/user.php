@@ -185,6 +185,27 @@ if (isset($_POST['login'])) {
   }
 }
 
+if (isset($_POST['deactivate_acct'])) {
+  session_start();
+  $user_id = $_SESSION['nivas_userId'];
+  $password = md5($_POST['password']);
+
+  // Check if user data exists
+  $user_query = mysqli_query($conn, "SELECT * FROM users WHERE id = $user_id AND password = '$password'");
+
+  if (mysqli_num_rows($user_query) == 1) {
+    mysqli_query($conn, "UPDATE users SET status = 'deactivated' WHERE id = $user_id");
+
+    if (mysqli_affected_rows($conn) >= 1) {
+      $statusRes = "success";
+      $messageRes = "Account successfully deleted!.";
+    }
+  } else {
+    $statusRes = "failed";
+    $messageRes = "Password incorrect! Please try again.";
+  }
+}
+
 if (isset($_POST['logout'])) {
   session_start();
   session_unset();

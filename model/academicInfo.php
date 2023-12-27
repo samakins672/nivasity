@@ -38,12 +38,12 @@ if ($role == 'hoc') {
   if (move_uploaded_file($tempname, $destination)) {
     // Send email to support
     $supportEmail = 'support@nivasity.com';
-    $subject = "New Support Request - Ticket #$uniqueCode";
+    $subject = "Important: Academic Info Change Request - Ticket #$uniqueCode";
     $supportMessage = "User: $first_name (User id: $user_id)<br>Email: $userEmail<br>Message: $message";
 
     // Send confirmation email to the user
     $userSubject = "Support Request Received - Ticket #$uniqueCode";
-    $userMessage = "Hi $first_name,<br><br>Thank you for reaching out to us. Your support request has been received, and a ticket has been generated with the reference number #$uniqueCode. <br>Our team will get back to you within 24 working hours.<br><br>Best regards,<br>Support Team<br>Nivasity";
+    $userMessage = "Hi $first_name,<br><br>Thank you for reaching out to us. Your academic info change request has been received, and a support ticket has been generated with the reference number #$uniqueCode. <br>Our team will get back to you within 24 working hours.<br><br>Best regards,<br>Support Team<br>Nivasity";
 
     $mailStatus = sendMail($subject, $supportMessage, $supportEmail);
 
@@ -56,8 +56,8 @@ if ($role == 'hoc') {
         // Get current time in the desired format
         $currentDateTime = date("Y-m-d H:i:s");
 
-        mysqli_query($conn, "INSERT INTO support_tickets (code,	user_id,	message, created_at) 
-          VALUES ('$uniqueCode',	$user_id,	'$message', '$currentDateTime')");
+        mysqli_query($conn, "INSERT INTO support_tickets (subject, code,	user_id,	message, created_at) 
+          VALUES ('Academic Info Change Request', '$uniqueCode',	$user_id,	'$message', '$currentDateTime')");
 
         $statusRes = "success";
         $messageRes = "Request successfully sent!";

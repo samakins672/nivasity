@@ -1,17 +1,18 @@
-(function($) {
+(function ($) {
   'use strict';
-  $(function() {
+  $(function () {
     $('.datatable-opt').DataTable({
       "aLengthMenu": [
         [5, 10, 15, -1],
         [5, 10, 15, "All"]
       ],
+      "order": [],
       "iDisplayLength": 10,
       "language": {
         search: ""
       }
     });
-    $('.datatable-opt').each(function() {
+    $('.datatable-opt').each(function () {
       var datatable = $(this);
       // SEARCH - Add the placeholder for Search and Turn this into in-line form control
       var search_input = datatable.closest('.dataTables_wrapper').find('div[id$=_filter] input');

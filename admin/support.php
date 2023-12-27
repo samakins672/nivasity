@@ -8,6 +8,7 @@ if ($_SESSION['nivas_userRole'] == 'student') {
   exit();
 }
 
+$support_query = mysqli_query($conn, "SELECT * FROM support_tickets WHERE user_id = $user_id ORDER BY `created_at` DESC");
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -63,39 +64,57 @@ if ($_SESSION['nivas_userRole'] == 'student') {
 
                           <!-- Support Ticket Table -->
                           <div class="table-responsive  mt-1">
-                            <table class="table table-striped table-hover select-table datatable-opt">
+                            <table id="support_table" class="table table-striped table-hover select-table datatable-opt">
                               <thead>
                                 <tr>
                                   <th class="d-sm-none-2">Ticket ID</th>
                                   <th>Subject</th>
-                                  <th class="d-sm-none-2">Last Updated</th>
+                                  <th class="d-sm-none-2">Date Opened</th>
                                   <th>Status</th>
                                   <th>Actions</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                <!-- Table rows for existing tickets will go here -->
-                                <!-- Example row -->
+                              <?php
+                              while ($support = mysqli_fetch_array($support_query)) {
+                                $subject = $support['subject'];
+
+                                if (strlen($subject) > 22) {
+                                  // If yes, truncate the text
+                                  $subject = substr($subject, 0, 22) . '...';
+                                }
+                                
+                                $created_at = $support['created_at'];
+
+                                // Retrieve and format the due date
+                                $created_date = date('M j, Y', strtotime($created_at));
+                                $created_time = date('h:m:s', strtotime($created_at));
+                                // Retrieve the status
+                                $status = $support['status'];
+                                ?>
                                 <tr>
                                   <td class="py-3 d-sm-none-2">
-                                    <h6>#2460-9E1Q-2460-9E1Q</h6>
+                                    <h6>#<?php echo $support['code'] ?></h6>
                                   </td>
                                   <td class="py-3">
-                                    <h6>Issue with login </h6>
+                                    <h6><?php echo $subject ?> </h6>
                                   </td>
                                   <td class="d-sm-none-2">
-                                    <h6>21 October, 2023</h6>
-                                    <p class="fw-bold">09:28:09</p>
+                                    <h6><?php echo $created_date ?></h6>
+                                    <p class="fw-bold"><?php echo $created_time ?></p>
                                   </td>
                                   <td class="py-3">
-                                    <div class="badge badge-opacity-success">Open</div>
+                                    <div class="badge badge-opacity-<?php echo ($status == 'open') ? 'warning' : 'success'; ?>"><?php echo $status ?></div>
                                   </td>
                                   <td class="py-3">
-                                    <button data-mdb-ripple-duration="0"
-                                      class="btn btn-primary btn-lg fw-bold mb-0">View</button>
+                                    <button data-code="<?php echo $support['code'] ?>" data-subject="<?php echo $subject ?>"
+                                      data-message="<?php echo $support['message'] ?>" data-response="<?php echo $support['response'] ?>"
+                                      data-response_time="<?php echo $support['response_time'] ?>"
+                                      data-date="<?php echo $created_date ?>" data-bs-toggle="modal" data-bs-target="#addSupport"
+                                      class="btn btn-primary btn-lg fw-bold mb-0 view-support">View</button>
                                   </td>
                                 </tr>
-                                <!-- Example row ends -->
+                                <?php } ?>
                               </tbody>
                             </table>
                           </div>
@@ -111,24 +130,23 @@ if ($_SESSION['nivas_userRole'] == 'student') {
                                     aria-label="Close"></button>
                                 </div>
                                 <form id="support-form">
+                                  <input type="hidden" name="support_id" value="0">
                                   <div class="modal-body">
                                     <div class="form-outline mb-4">
-                                      <input type="text" name="subject" class="form-control form-control-lg w-100"
-                                        required>
+                                      <input type="text" name="subject" class="form-control form-control-lg w-100" required>
                                       <label class="form-label" for="subject">Subject</label>
                                     </div>
                                     <div class="wysi-editor mb-4">
                                       <label class="form-label" for="message">Message</label>
-                                      <textarea class="form-control w-100 px-3 py-2" id="message"
-                                        required></textarea>
+                                      <textarea class="form-control w-100 px-3 py-2" name="message" required></textarea>
                                     </div>
 
                                     <div>
                                       <label for="attachment" class="form-label fw-bold">Attach files (<span
                                           class="attach_ment">no file selected</span>)</label>
                                       <div>
-                                        <input type="file" id="attachment" class="form-control"
-                                          accept=".pdf,.jpeg,.jpg,.png" multiple style="display: none">
+                                        <input type="file" id="attachment" name="attachment" class="form-control"
+                                          accept=".pdf,.jpeg,.jpg,.png" style="display: none">
                                         <label for="attachment"
                                           class="btn btn-lg btn-secondary text-light">
                                           <i class="mdi mdi-upload-outline"></i> Upload
@@ -137,15 +155,41 @@ if ($_SESSION['nivas_userRole'] == 'student') {
                                     </div>
                                   </div>
                                   <div class="modal-footer">
-                                    <button type="button" class="btn btn-lg btn-light"
-                                      data-bs-dismiss="modal">Close</button>
-                                    <button id="support_submit" type="submit" data-mdb-ripple-duration="0"
-                                      class="btn btn-lg btn-primary">Submit</button>
+                                    <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Close</button>
+                                    <button id="support_submit" type="submit" class="btn btn-lg btn-primary">Submit</button>
                                   </div>
                                 </form>
                               </div>
                             </div>
                           </div>
+                                    
+                          <!-- View Support Manual Modal -->
+                          <div class="modal fade" id="addSupport" tabindex="-1" role="dialog" aria-labelledby="supportLabel"
+                            aria-hidden="true">
+                            <div class="modal-dialog" role="document">
+                              <div class="modal-content">
+                                <div class="modal-header">
+                                  <h4 class="modal-title fw-bold" id="supportLabel"><span class="subject"></span> - #<span class="ticket_id"></span></h4>
+                                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                  </button>
+                                </div>
+                                <div class="modal-body">
+                                  <div>
+                                    <h4>Response:</h4>
+                                    <p class="lh-base response_text">No response yet!</p>
+                                    <p class="text-muted response_time"></p><br>
+                                    <h4>Complain:</h4>
+                                    <p class="lh-base complaint_text"></p>
+                                    <p class="text-muted complaint_time"> Date: 23 Dec, 2023</p><br>
+                                  </div>
+                                </div>
+                                <div class="modal-footer">
+                                  <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Close</button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
                         </div>
                       </div>
                     </div>
@@ -159,6 +203,12 @@ if ($_SESSION['nivas_userRole'] == 'student') {
         <!-- partial:partials/_footer.html -->
         <?php include('../partials/_footer.php') ?>
         <!-- partial -->
+      </div>
+      <!-- Bootstrap alert container -->
+      <div id="alertBanner"
+        class="alert alert-info text-center fw-bold alert-dismissible end-2 top-2 fade show position-fixed w-auto p-2 px-4"
+        role="alert" style="z-index: 5000; display: none;">
+        An error occurred during the AJAX request.
       </div>
       <!-- main-panel ends -->
     </div>
@@ -190,7 +240,7 @@ if ($_SESSION['nivas_userRole'] == 'student') {
   <script>
     $(document).ready(function () {
       $('.btn').attr('data-mdb-ripple-duration', '0');
-      
+
       // Trigger file upload when the icon/button is clicked
       $('#attachment').change(function () {
         // Get the number of files selected and display the count
@@ -202,6 +252,75 @@ if ($_SESSION['nivas_userRole'] == 'student') {
       $('#ticketModal').on('hide.bs.modal', function () {
         $('#support-form')[0].reset(); // Reset the form
         $('.attach_ment').text('no file selected'); // Clear the file count display
+      });
+
+      // Handle click event of View button
+      $('.view-support').on('click', function () {
+        // Get the manual details from the data- attributes
+        var code = $(this).data('code');
+        var subject = $(this).data('subject');
+        var message = $(this).data('message');
+        var date = $(this).data('date');
+        var response = $(this).data('response');
+        var response_time = $(this).data('response_time');
+        
+        if (response !== '') {
+          $('.response_text').html(response);
+          $('.response_time').html(response_time);
+        }
+
+        // Set the values in the support modal
+        $('.subject').html(subject);
+        $('.ticket_id').html(code);
+        $('.complaint_text').html(message);
+        $('.complaint_time').html(date);
+      });
+
+      // Use AJAX to submit the support form
+      $('#support-form').submit(function (event) {
+        event.preventDefault(); // Prevent the default form submission
+
+        var button = $('#support_submit');
+        var originalText = button.html();
+
+        button.html(originalText + '  <div class="spinner-border text-white" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
+        button.prop('disabled', true);
+
+        var formData = new FormData($('#support-form')[0]);
+
+        $.ajax({
+            type: 'POST',
+            url: '../model/support.php',
+            data: formData,
+            contentType: false,
+            processData: false,
+            success: function (data) {
+              $('#alertBanner').html(data.message);
+
+              if (data.status == 'success') {
+                $('#alertBanner').removeClass('alert-info');
+                $('#alertBanner').removeClass('alert-danger');
+                $('#alertBanner').addClass('alert-success');
+
+                setTimeout(function () {
+                  location.reload();
+                }, 2000);
+              } else {
+                $('#alertBanner').removeClass('alert-success');
+                $('#alertBanner').removeClass('alert-info');
+                $('#alertBanner').addClass('alert-danger');
+              }
+
+              $('#alertBanner').fadeIn();
+
+              setTimeout(function () {
+                  $('#alertBanner').fadeOut();
+              }, 5000);
+
+              button.html(originalText);
+              button.prop("disabled", false);
+            }
+        });
       });
     });
   </script>

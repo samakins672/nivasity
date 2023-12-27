@@ -13,13 +13,8 @@
         <span class="menu-title">Orders</span>
       </a>
     </li>
-    <li class="nav-item">
-      <a class="nav-link" href="vouchers.php">
-        <i class="mdi mdi-ticket-outline menu-icon"></i>
-        <span class="menu-title">Vouchers</span>
-      </a>
-    </li>
 
+    <?php if(!$admin_role):?>      
     <li class="nav-item nav-category">My Settings</li>
     <li class="nav-item">
       <a class="nav-link" href="user.php">
@@ -33,6 +28,7 @@
         <span class="menu-title">Security Settings</span>
       </a>
     </li>
+    <?php endif;?>
 
     <?php if($admin_role):?>
     <li class="nav-item nav-category">Host Panel</li>
