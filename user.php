@@ -596,8 +596,8 @@ include('model/page_config.php');
                 $('#alertBanner').addClass('alert-success');
 
                 setTimeout(function () {
-                  window.location.href = "support.php";
-                }, 1000);
+                  location.reload();
+                }, 2000);
               } else {
                 $('#alertBanner').removeClass('alert-success');
                 $('#alertBanner').removeClass('alert-info');
