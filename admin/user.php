@@ -324,56 +324,47 @@ $bankName = getBankName($bank, $bankList);
                             <h4 class="fw-bold">Academic Information</4>
                           </div>
                           <div class="card-body">
-                            <form id="user-academics">
-                              <div class="row">
-                                <?php
-                                $school = mysqli_fetch_array(mysqli_query($conn, "SELECT name FROM schools WHERE id = $school_id"))[0];
-                                $user_dept_name = mysqli_fetch_array(mysqli_query($conn, "SELECT name FROM depts_$school_id WHERE id = $user_dept"))[0];
-                                
-                                ?>
-                                <div class="col-md-6">
-                                  <div class="form-outline mb-4">
-                                    <input type="text" name="institution"
-                                      class="form-control form-control-lg w-100 bg-light"
-                                      value="<?php echo $school ?>" readonly />
-                                    <label class="form-label" for="institution">Institution Name</label>
-                                  </div>
-                                </div>
-                                <div class="col-md-6">
-                                  <div class="form-outline mb-4">
-                                    <input type="text" name="adm_year"
-                                      class="form-control form-control-lg w-100 bg-light" value="<?php echo $user_adm_year ?>" readonly />
-                                    <label class="form-label" for="adm_year">Admission Year</label>
-                                  </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                  <div class="form-outline mb-4">
-                                    <input type="text" name="department"
-                                      class="form-control form-control-lg w-100 bg-light" value="<?php echo $user_dept_name ?>" readonly />
-                                    <label class="form-label" for="department">Department</label>
-                                  </div>
-                                </div>
-                                <div class="col-md-6">
-                                  <div class="form-outline mb-4">
-                                    <input type="text" name="matric_no"
-                                      class="form-control form-control-lg w-100 bg-light" value="<?php echo $user_matric_no ?>" readonly />
-                                    <label class="form-label" for="matric_no">Matric Number</label>
-                                  </div>
+                            <div class="row">
+                              <?php
+                              $school = mysqli_fetch_array(mysqli_query($conn, "SELECT name FROM schools WHERE id = $school_id"))[0];
+                              $user_dept_name = mysqli_fetch_array(mysqli_query($conn, "SELECT name FROM depts_$school_id WHERE id = $user_dept"))[0];
+                              
+                              ?>
+                              <div class="col-md-6">
+                                <div class="form-outline mb-4">
+                                  <input type="text" id="new_institution"
+                                    class="form-control form-control-lg w-100"
+                                    value="<?php echo $school ?>" />
+                                  <label class="form-label" for="institution">Institution Name</label>
                                 </div>
                               </div>
-                              <!-- <div class="form-group mb-3">
-                                <div class="form-check">
-                                  <label class="form-check-label">
-                                    <input type="checkbox" class="form-check-input toogle-password">Show
-                                    Password</label>
+                              <div class="col-md-6">
+                                <div class="form-outline mb-4">
+                                  <input type="text" id="new_adm_year"
+                                    class="form-control form-control-lg w-100" value="<?php echo $user_adm_year ?>" />
+                                  <label class="form-label" for="adm_year">Admission Year</label>
                                 </div>
-                              </div> -->
-                              <!-- Save button -->
-                              <button id="req-academic-change" type="submit"
-                                class="btn btn-primary fw-bold btn-lg btn-block mt-2">Request Change</button>
+                              </div>
 
-                            </form>
+                              <div class="col-md-6">
+                                <div class="form-outline mb-4">
+                                  <input type="text" id="new_department"
+                                    class="form-control form-control-lg w-100" value="<?php echo $user_dept_name ?>" />
+                                  <label class="form-label" for="department">Department</label>
+                                </div>
+                              </div>
+                              <div class="col-md-6">
+                                <div class="form-outline mb-4">
+                                  <input type="text" id="new_matric_no"
+                                    class="form-control form-control-lg w-100" value="<?php echo $user_matric_no ?>" />
+                                  <label class="form-label" for="matric_no">Matric Number</label>
+                                </div>
+                              </div>
+                            </div>
+                            <!-- Save button -->
+                            <button id="req-academic-change" type="submit" data-bs-toggle="modal" data-bs-target="#reqAcctChange"
+                              class="btn btn-primary fw-bold btn-lg btn-block mt-2">Request Change</button>
+
                           </div>
                         </div>
                       </div>
@@ -387,7 +378,7 @@ $bankName = getBankName($bank, $bankList);
                   <div class="modal-dialog" role="document">
                     <div class="modal-content">
                       <div class="modal-header">
-                        <h5 class="modal-title" id="addSettlementLabel">Settlement Account</h5>
+                        <h5 class="modal-title fw-bold" id="addSettlementLabel">Settlement Account</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </button>
                       </div>
@@ -410,6 +401,50 @@ $bankName = getBankName($bank, $bankList);
                         <div class="modal-footer">
                           <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
                           <button id="settlement_submit" type="submit" class="btn btn-lg btn-primary">Submit</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+                                
+                <!-- Request Academic Info Change Modal -->
+                <div class="modal fade" id="reqAcctChange" tabindex="-1" role="dialog" aria-labelledby="reqAcctChangeLabel"
+                  aria-hidden="true">
+                  <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title fw-bold" id="reqAcctChangeLabel">Request Academic Info Change</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </button>
+                      </div>
+                      <form id="academic_info-form" enctype="multipart/form-data">
+                        <input type="hidden" name="new_institution" value="">
+                        <input type="hidden" name="new_adm_year" value="">
+                        <input type="hidden" name="new_department" value="">
+                        <input type="hidden" name="new_matric_no" value="">
+                        <div class="modal-body">
+                          <div class="wysi-editor mb-4">
+                            <label class="form-label" for="message">Why are you making this change?.</label>
+                            <textarea class="form-control w-100 px-3 py-2" id="message" name="message"
+                              required></textarea>
+                          </div>
+
+                          <div>
+                            <label for="attachment" class="form-label">Upload proof(s) - (<span
+                                class="attach_ment">no file selected</span>)</label>
+                            <div>
+                              <input type="file" id="attachment" name="attachment" class="form-control"
+                                accept=".pdf,.jpeg,.jpg,.png" style="display: none" required>
+                              <label for="attachment"
+                                class="btn btn-lg btn-secondary text-light">
+                                <i class="mdi mdi-upload-outline"></i> Upload
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Close</button>
+                          <button id="academic_info_submit" type="submit" class="btn btn-lg btn-primary">Submit</button>
                         </div>
                       </form>
                     </div>
@@ -532,7 +567,7 @@ $bankName = getBankName($bank, $bankList);
     
     $(document).ready(function () {
       $('.btn').attr('data-mdb-ripple-duration', '0');
-
+      
       $('#upload').on('change', function (event) {
         const file = event.target.files[0]; // Get the uploaded file
         if (file) {
@@ -544,6 +579,13 @@ $bankName = getBankName($bank, $bankList);
 
           reader.readAsDataURL(file); // Read the file as a data URL
         }
+      });
+      
+      // Trigger file upload when the icon/button is clicked
+      $('#attachment').change(function () {
+        // Get the number of files selected and display the count
+        var numFiles = $(this)[0].files.length;
+        $('.attach_ment').text(numFiles + (numFiles === 1 ? ' file' : ' files') + ' selected');
       });
 
       // toggle password visibility
@@ -704,7 +746,70 @@ $bankName = getBankName($bank, $bankList);
           });
         }, 2000); // Simulated AJAX delay of 2 seconds
       });
+
+      // Handle click event of View/Edit button
+      $('#req-academic-change').on('click', function () {
+        // Get the manual details from the data- attributes
+        var new_institution = $('#new_institution').val();
+        var new_adm_year = $('#new_adm_year').val();
+        var new_department = $('#new_department').val();
+        var new_matric_no = $('#new_matric_no').val();
+
+        // Set the values in the edit manual modal
+        $('#academic_info-form input[name="new_institution"]').val(new_institution);
+        $('#academic_info-form input[name="new_adm_year"]').val(new_adm_year);
+        $('#academic_info-form input[name="new_department"]').val(new_department);
+        $('#academic_info-form input[name="new_matric_no"]').val(new_matric_no);
+      });
     });
+
+    // Use AJAX to submit the profile form
+      $('#academic_info-form').submit(function (event) {
+        event.preventDefault(); // Prevent the default form submission
+
+        var button = $('#academic_info_submit');
+        var originalText = button.html();
+
+        button.html(originalText + '  <div class="spinner-border text-white" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
+        button.prop('disabled', true);
+
+        var formData = new FormData($('#academic_info-form')[0]);
+
+        $.ajax({
+            type: 'POST',
+            url: '../model/academicInfo.php',
+            data: formData,
+            contentType: false,
+            processData: false,
+            success: function (data) {
+              $('#alertBanner').html(data.message);
+
+              if (data.status == 'success') {
+                $('#alertBanner').removeClass('alert-info');
+                $('#alertBanner').removeClass('alert-danger');
+                $('#alertBanner').addClass('alert-success');
+
+                setTimeout(function () {
+                  window.location.href = "support.php";
+                }, 1000);
+              } else {
+                $('#alertBanner').removeClass('alert-success');
+                $('#alertBanner').removeClass('alert-info');
+                $('#alertBanner').addClass('alert-danger');
+              }
+
+              $('#alertBanner').fadeIn();
+
+              setTimeout(function () {
+                  $('#alertBanner').fadeOut();
+              }, 5000);
+
+              button.html(originalText);
+              button.prop("disabled", false);
+            }
+        });
+      });
+
   </script>
   <!-- End custom js for this page-->
 </body>

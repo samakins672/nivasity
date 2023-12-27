@@ -189,7 +189,8 @@ if ($_SESSION['nivas_userRole'] == 'student') {
 
   <script>
     $(document).ready(function () {
-        $('.btn').attr('data-mdb-ripple-duration', '0');
+      $('.btn').attr('data-mdb-ripple-duration', '0');
+      
       // Trigger file upload when the icon/button is clicked
       $('#attachment').change(function () {
         // Get the number of files selected and display the count
