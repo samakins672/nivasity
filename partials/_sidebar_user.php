@@ -22,12 +22,6 @@
         <span class="menu-title">Profile Details</span>
       </a>
     </li>
-    <li class="nav-item">
-      <a class="nav-link" href="user.php?security">
-        <i class="mdi mdi-security menu-icon"></i>
-        <span class="menu-title">Security Settings</span>
-      </a>
-    </li>
     <?php endif;?>
 
     <?php if($admin_role):?>

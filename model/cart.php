@@ -9,29 +9,29 @@ $date = date('Y-m-d');
 
 // Get the product ID from the AJAX request
 if (isset($_POST['product_id'])) {
-  $product_id = $_POST['product_id'];
-  $action = $_POST['action'];
+    $product_id = $_POST['product_id'];
+    $action = $_POST['action'];
 
-  // Simulate adding/removing the product to/from the cart
-  if (!isset($_SESSION[$cart_])) {
-    $_SESSION[$cart_] = array();
-  }
+    // Simulate adding/removing the product to/from the cart
+    if (!isset($_SESSION[$cart_])) {
+        $_SESSION[$cart_] = array();
+    }
 
-  if ($action == 0) {
-    // Product is in the cart, remove it
-    $_SESSION[$cart_] = array_diff($_SESSION[$cart_], array($product_id));
-  } else {
-    // Product is not in the cart, add it
-    $_SESSION[$cart_][] = $product_id;
-  }
+    if ($action == 0) {
+        // Product is in the cart, remove it
+        $_SESSION[$cart_] = array_diff($_SESSION[$cart_], array($product_id));
+    } else {
+        // Product is not in the cart, add it
+        $_SESSION[$cart_][] = $product_id;
+    }
 
-  // Return the total number of carted products
-  $response = array('total' => count($_SESSION[$cart_]));
+    // Return the total number of carted products
+    $response = array('total' => count($_SESSION[$cart_]));
 
-  // Set the appropriate headers for JSON response
-  header('Content-Type: application/json');
+    // Set the appropriate headers for JSON response
+    header('Content-Type: application/json');
 
-  echo json_encode($response);
+    echo json_encode($response);
 
 } else if (isset($_POST['reload_cart'])) {
     $total_cart_items = count($_SESSION["nivas_cart$user_id"]);
@@ -53,7 +53,7 @@ if (isset($_POST['product_id'])) {
                                 </tr>
                             </thead>
                             <tbody>';
-    
+
     foreach ($_SESSION["nivas_cart$user_id"] as $cart_item_id) {
         // Fetch details of the carted item based on $cart_item_id
         $cart_item = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE id = $cart_item_id"));
@@ -77,12 +77,12 @@ if (isset($_POST['product_id'])) {
                 <td>
                     <div class="d-flex">
                         <div>
-                            <h6>' . $cart_item['course_code'] . '</h6>';?>
-                            <?php if($status_c == 'danger'): ?>
-                            <p class="text-danger fw-bold">Item Overdue</p>
-                            <?php endif; ?>
-                            <?php
-                        echo '</div>
+                            <h6>' . $cart_item['course_code'] . '</h6>'; ?>
+                                    <?php if ($status_c == 'danger'): ?>
+                                            <p class="text-danger fw-bold">Item Overdue</p>
+                                    <?php endif; ?>
+                                        <?php
+                                        echo '</div>
                     </div>
                 </td>
                 <td>
@@ -96,7 +96,7 @@ if (isset($_POST['product_id'])) {
                 </td>
             </tr>';
     }
-    
+
     // Assuming $transferAmount contains the transfer amount
     $transferAmount = $total_cart_price;
 
@@ -129,11 +129,15 @@ if (isset($_POST['product_id'])) {
                     <div class="d-flex justify-content-between my-3 fw-bold">
                         <p>Subtotal</p>
                         <h3>₦ ' . $total_cart_price . '</h3>
-                    </div>';
+                    </div>
 
+                    <div class="d-flex justify-content-between my-3 fw-bold">
+                        <p>Handling fee</p>
+                        <h5>₦ ' . $charge . '</h5>
+                    </div>';
     if ($total_cart_price > 0) {
         echo '
-                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-total_amount="'. $total_cart_price .'" data-transfer_amount="' . $transferAmount . '" data-mdb-ripple-duration="0" >CHECKOUT (₦ ' . $transferAmount . ')</button>';
+                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-total_amount="' . $total_cart_price . '" data-transfer_amount="' . $transferAmount . '" data-mdb-ripple-duration="0" >CHECKOUT (₦ ' . $transferAmount . ')</button>';
     } else {
         echo '
                     <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>';
@@ -145,25 +149,25 @@ if (isset($_POST['product_id'])) {
         </div>
     </div>';
 } else {
-  $product_id = $_GET['product_id'];
-  $action = $_GET['action'];
+    $product_id = $_GET['product_id'];
+    $action = $_GET['action'];
 
-  // Simulate adding/removing the product to/from the cart
-  if (!isset($_SESSION[$cart_])) {
-    $_SESSION[$cart_] = array();
-  }
+    // Simulate adding/removing the product to/from the cart
+    if (!isset($_SESSION[$cart_])) {
+        $_SESSION[$cart_] = array();
+    }
 
-  if ($action == 0) {
-    // Product is in the cart, remove it
-    $_SESSION[$cart_] = array_diff($_SESSION[$cart_], array($product_id));
-  } else {
-    // Product is not in the cart, add it
-    $_SESSION[$cart_][] = $product_id;
-  }
+    if ($action == 0) {
+        // Product is in the cart, remove it
+        $_SESSION[$cart_] = array_diff($_SESSION[$cart_], array($product_id));
+    } else {
+        // Product is not in the cart, add it
+        $_SESSION[$cart_][] = $product_id;
+    }
 
-  // Return the total number of carted products
-  $response = array('total' => count($_SESSION[$cart_]));
+    // Return the total number of carted products
+    $response = array('total' => count($_SESSION[$cart_]));
 
-  header('Location: ../store.php');
+    header('Location: ../store.php');
 }
 ?>
