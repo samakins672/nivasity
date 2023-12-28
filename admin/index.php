@@ -95,7 +95,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                 <div class="tab-content tab-content-basic">
                   <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview">
                     <div class="row flex-grow">
-                      <div class="col-12 d-none d-md-block">
+                      <div class="col-12">
                         <div
                           class="statistics-details d-flex justify-content-between align-items-center mt-0 mt-md-2 mb-4">
                           <div>
@@ -106,11 +106,11 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                             <p class="statistics-title fw-bold">Total Manuals</p>
                             <h3 class="rate-percentage"><?php echo $t_manuals ?></h3>
                           </div>
-                          <div>
+                          <div class="d-none d-md-block">
                             <p class="statistics-title fw-bold">Total Sales</p>
                             <h3 class="rate-percentage"><?php echo $t_manuals_sold ?></h3>
                           </div>
-                          <div>
+                          <div class="d-none d-md-block">
                             <p class="statistics-title fw-bold">Total Students</p>
                             <h3 class="rate-percentage"><?php echo $t_students ?></h3>
                           </div>
