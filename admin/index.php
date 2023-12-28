@@ -98,11 +98,11 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                       <div class="col-12">
                         <div
                           class="statistics-details d-flex justify-content-between align-items-center mt-0 mt-md-2 mb-4">
-                          <div class="d-block">
+                          <div>
                             <p class="statistics-title fw-bold">Revenue Earned</p>
                             <h3 class="rate-percentage">&#8358; <?php echo $t_manuals_price ?></h3>
                           </div>
-                          <div class="d-block">
+                          <div>
                             <p class="statistics-title fw-bold">Total Manuals</p>
                             <h3 class="rate-percentage"><?php echo $t_manuals ?></h3>
                           </div>

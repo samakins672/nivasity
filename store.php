@@ -102,7 +102,11 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                             if ($date > $due_date2) {
                               $status = 'disabled';
                               $status_c = 'danger';
-                            }
+                                if (abs(strtotime($date) - strtotime($due_date2)) > 10 * 24 * 60 * 60) {
+                                  $count_row = $count_row - 1;
+                                  continue;
+                                }
+                              }
 
                             // Check if the manual is already in the cart
                             $is_in_cart = in_array($manual_id, $_SESSION["nivas_cart$user_id"]);
