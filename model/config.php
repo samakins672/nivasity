@@ -6,4 +6,7 @@ if (!$conn) {
   die("Error: Failed to connect to database!");
 }
 
+// Set the timezone to Africa/Lagos
+date_default_timezone_set('Africa/Lagos');
+
 ?>
