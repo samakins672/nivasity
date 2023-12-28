@@ -8,12 +8,12 @@ $user_id = $_SESSION['nivas_userId'];
 $school_id = $_SESSION['nivas_userSch'];
 
 // Get the first day and last day of the current week
-$currentWeekStart = date('Y-m-d', strtotime('sunday this week'));
-$currentWeekEnd = date('Y-m-d', strtotime('saturday this week'));
+$currentWeekStart = date('Y-m-d', strtotime('last sunday'));
+$currentWeekEnd = date('Y-m-d', strtotime('next saturday'));
 
 // Get the first day and last day of the previous week
-$prevWeekStart = date('Y-m-d', strtotime('sunday last week'));
-$prevWeekEnd = date('Y-m-d', strtotime('saturday last week'));
+$prevWeekStart = date('Y-m-d', strtotime('last sunday', strtotime($currentWeekStart)));
+$prevWeekEnd = date('Y-m-d', strtotime('last saturday', strtotime($currentWeekStart)));
 
 // Fetch data for the current and last week
 $thisWeekSales = array();

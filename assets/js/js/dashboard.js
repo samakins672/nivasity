@@ -24,7 +24,7 @@
               pointBorderWidth: 1,
               pointRadius: [4, 4, 4, 4, 4,4, 4],
               pointHoverRadius: [2, 2, 2, 2, 2,2, 2],
-              pointBackgroundColor: ['#FF9100)', '#FF9100', '#FF9100', '#FF9100','#FF9100)', '#FF9100', '#FF9100', '#FF9100','#FF9100)', '#FF9100', '#FF9100', '#FF9100','#FF9100)'],
+              pointBackgroundColor: ['#FF9100', '#FF9100', '#FF9100', '#FF9100','#FF9100', '#FF9100', '#FF9100', '#FF9100','#FF9100', '#FF9100', '#FF9100', '#FF9100','#FF9100'],
               pointBorderColor: ['#fff','#fff','#fff','#fff','#fff','#fff','#fff','#fff','#fff','#fff','#fff','#fff','#fff',],
           },{
             label: 'Last week',
