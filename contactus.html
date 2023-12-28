@@ -41,9 +41,7 @@
 
     <div class="row d-flex align-items-center justify-content-center h-100">
       <div class="d-none d-md-block col-md-8 col-lg-7 col-xl-6">
-        <img src="images/contact us.png" class="img-fluid" alt="Phone image">
-          =======
-          <img src="assets/images/svg1 (2).png" class="img-fluid" alt="Phone image">
+        <img src="assets/images/contact us.png" class="img-fluid" alt="Phone image">
       </div>
       <div class="col-md-7 col-lg-5 col-xl-5 offset-xl-1 p-5 px-md-2">
         <div class="w-50 mb-3 mx-auto">
@@ -155,110 +153,6 @@
   <!-- main js -->
   <script src="assets/js/script.js"></script>
 
-  <!-- Initialize Bootstrap tooltips -->
-  <script>
-    $(document).ready(function () {
-      $('.searchable-select').select2();
-
-      $('[data-toggle="tooltip"]').tooltip();
-
-      $(".form-check-input").click(function () {
-        // Animate the checkbox's position with jQuery
-        $(this).animate({ marginTop: '-6px' }, 200, function () {
-          // After the animation, reset the position
-          $(this).animate({ marginTop: '3px' }, 200);
-        });
-      });
-
-      // toggle password visibility
-      $('.toogle-password').on('click', function () {
-        $(this).toggleClass('fa-eye-slash').toggleClass('fa-eye'); // toggle our classes for the eye icon
-        var input = $('#password');
-
-        if (input.attr("type") == "password") {
-          input.attr("type", "text");
-        } else {
-          input.attr("type", "password");
-        }
-      });
-
-      // Use AJAX to submit the login form
-      $('#login-form').submit(function (event) {
-        event.preventDefault(); // Prevent the default form submission
-
-        // Define login button
-        var button = $('#login');
-        var originalText = button.html();
-
-        // Display the spinner and disable the button
-        button.html('<div class="spinner-border text-white" style="width: 1.5rem; height: 1.5rem;" role="status"><span class="sr-only">Loading...</span>');
-        button.prop('disabled', true);
-
-        // Simulate an AJAX call using setTimeout
-        setTimeout(function () {
-          $.ajax({
-            type: 'POST',
-            url: 'model/user.php',
-            data: $('#login-form').serialize(),
-            success: function (data) {
-              $('#alertBanner').html(data.message);
-
-              if (data.status == 'success') {
-                $('#alertBanner').removeClass('alert-info');
-                $('#alertBanner').removeClass('alert-danger');
-                $('#alertBanner').addClass('alert-success');
-                // setTimeout(function () {
-                //   // $(".main-card").load("views/_vote.php?code=" + election_code + "&voter=" + data.voter);
-                // }, 1000);
-              } else {
-                $('#alertBanner').removeClass('alert-success');
-                $('#alertBanner').removeClass('alert-info');
-                $('#alertBanner').addClass('alert-danger');
-              }
-
-              // Automatically show and hide the alert after 5 seconds
-              $('#alertBanner').fadeIn();
-
-              setTimeout(function () {
-                $('#alertBanner').fadeOut();
-              }, 5000);
-
-              // AJAX call successful, stop the spinner and update button text
-              button.html(originalText);
-              button.prop("disabled", false);
-            }
-          });
-        }, 2000); // Simulated AJAX delay of 2 seconds
-      });
-
-      // Use AJAX to submit the signup form
-      $('#signup-form').submit(function (event) {
-        event.preventDefault(); // Prevent the default form submission
-
-        // Display the spinner and disable the button
-        $('#signup').html('<div class="spinner-border text-white" style="width: 1.5rem; height: 1.5rem;" role="status"><span class="sr-only">Loading...</span>');
-        $('#signup').prop('disabled', true);
-
-        $.ajax({
-          type: 'POST',
-          url: 'model/user.php',
-          data: $('#signup-form').serialize(),
-          success: function (response) {
-            // Check the response to determine if signup was successful
-            if (response === 'success') {
-              // $('#pills-register').html('<div class="alert alert-info"><i class="fas fa-envelope"></i> error.</div>');
-            } else {
-              $('#pills-register').html('<div class="alert alert-primary text-center"><i class="fas fa-envelope h1"></i> <br>Great news! You\'re one step away from completing your signup.We\'ve sent an account verification link to your email address. <br><br>Please check your inbox (and your spam folder, just in case) for an email from us. Click on the verification link to confirm your account and gain full access.</div>');
-            }
-          }
-        });
-      });
-
-    });
-  </script>
-  <script type="text/javascript">
-    // document.addEventListener('DOMContentLoaded', function () { window.setTimeout(document.querySelector('svg').classList.add('animated'), 1000); })
-  </script>
 </body>
 
 </html>
