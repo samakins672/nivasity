@@ -16,4 +16,7 @@
 <!-- Flutterwave Integration -->
 <script src="https://checkout.flutterwave.com/v3.js"></script>
 
+<!-- Google Sign-In API library -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
 <link rel="shortcut icon" href="favicon.ico" />

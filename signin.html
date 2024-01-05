@@ -16,7 +16,10 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
-  <link href="assets/css/style.css" rel="stylesheet">
+  <link href="assets/css/style.css" rel="stylesheet" />
+
+  <!-- Google Sign-In API library -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <style>
     .divider:after,
@@ -27,6 +30,7 @@
       background: #eee;
     }
   </style>
+
 </head>
 
 <body>
@@ -86,17 +90,18 @@
                 <p class="text-center fw-bold mx-3 mb-0 text-muted">OR</p>
               </div>
 
-              <a class="btn btn-lg btn-block fw-bold" href="#!" style="background-color: #f7f7f7" role="button">
-                Login with &nbsp; <img
-                  src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png"
-                  alt="Google Logo" class="google-logo" width="76" height="25">
-              </a>
+              <!-- Login with Google Popup and Button -->
+              <div id="g_id_onload"
+                data-client_id="310503296847-97hk6jnt3celij3of2mocmjremh8vct4.apps.googleusercontent.com"
+                data-context="signin" data-ux_mode="popup" data-callback="handleCredentialResponse"
+                data-auto_select="true" data-itp_support="true">
+              </div>
 
-              <!-- <a class="btn btn-primary btn-lg btn-block" style="background-color: #3b5998" href="#!" role="button">
-                  <i class="fab fa-facebook-f me-2"></i>Continue with Facebook
-                </a>
-                <a class="btn btn-primary btn-lg btn-block" style="background-color: #55acee" href="#!" role="button">
-                  <i class="fab fa-twitter me-2"></i>Continue with Twitter</a> -->
+              <div class="g_id_signin btn btn-sm d-flex justify-content-center" data-type="standard"
+                data-shape="rectangular" data-theme="outline" data-text="signin_with" data-size="large"
+                data-logo_alignment="left">
+              </div>
+              <!-- End of Google login -->
 
             </form>
           </div>
@@ -193,16 +198,16 @@
               <button id="signup" type="submit" class="btn btn-primary fw-bold btn-lg btn-block" disabled>Sign
                 up</button>
 
-              <div class="divider d-flex align-items-center my-3">
+              <!-- <div class="divider d-flex align-items-center my-3">
                 <p class="text-center fw-bold mx-3 mb-0 text-muted">OR</p>
               </div>
 
-              <a class="btn btn-lg btn-block fw-bold" href="#!" style="background-color: #f7f7f7" role="button">
+              <a class="btn btn-lg btn-block fw-bold " href="#!" style="background-color: #f7f7f7" role="button">
                 Sign Up with &nbsp; <img
                   src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png"
                   alt="Google Logo" class="google-logo" width="76" height="25">
               </a>
-              <!-- <a class="btn btn-primary btn-lg btn-block" style="background-color: #3b5998" href="#!" role="button">
+              <a class="btn btn-primary btn-lg btn-block" style="background-color: #3b5998" href="#!" role="button">
                   <i class="fab fa-facebook-f me-2"></i>Continue with Facebook
                 </a>
                 <a class="btn btn-primary btn-lg btn-block" style="background-color: #55acee" href="#!" role="button">
@@ -237,13 +242,15 @@
   <script src="assets/js/script.js"></script>
 
   <!-- Initialize Bootstrap tooltips -->
-  <script>  
+  <script>
     const urlParams = new URLSearchParams(window.location.search);
     // Get the logout parameter from the URL
     const logout = urlParams.get('logout');
 
     // Check if the verify parameter is present
     if (logout) {
+      google.accounts.id.disableAutoSelect();
+
       $.ajax({
         type: 'POST',
         url: 'model/user.php',
@@ -270,12 +277,68 @@
       });
     }
 
+    function decodeJwtResponse(jwt) {
+      // Split the JWT into its parts (header, payload, and signature)
+      const parts = jwt.split('.');
+
+      // Decode the base64-encoded payload
+      const decodedPayload = atob(parts[1]);
+
+      // Parse the JSON-formatted payload
+      const payloadObject = JSON.parse(decodedPayload);
+
+      return payloadObject;
+    }
+
+    // Example usage of handleCredentialResponse
+    function handleCredentialResponse(response) {
+      // Assuming response.credential contains a JWT
+      const responsePayload = decodeJwtResponse(response.credential);
+
+      user_email = responsePayload.email;
+
+      $.ajax({
+        type: 'POST',
+        url: 'model/user.php',
+        data: { login: 'g_signin', email: user_email },
+        success: function (data) {
+          $('#alertBanner').html(data.message);
+
+          if (data.status == 'success') {
+            $('#alertBanner').removeClass('alert-info');
+            $('#alertBanner').removeClass('alert-danger');
+            $('#alertBanner').removeClass('alert-warning');
+            $('#alertBanner').addClass('alert-success');
+
+            window.location.href = "store.php?loggedin";
+          } else if (data.status == 'unverified') {
+            $('#alertBanner').removeClass('alert-danger');
+            $('#alertBanner').removeClass('alert-success');
+            $('#alertBanner').removeClass('alert-info');
+            $('#alertBanner').addClass('alert-warning');
+          } else {
+            $('#alertBanner').removeClass('alert-warning');
+            $('#alertBanner').removeClass('alert-success');
+            $('#alertBanner').removeClass('alert-info');
+            $('#alertBanner').addClass('alert-danger');
+          }
+
+          // Automatically show and hide the alert after 5 seconds
+          $('#alertBanner').fadeIn();
+
+          setTimeout(function () {
+            $('#alertBanner').fadeOut();
+          }, 5000);
+        }
+      });
+    }
+
     $(document).ready(function () {
       $.ajax({
         type: 'GET',
         url: 'model/getInfo.php',
-        data: {get_data: 'schools'},
-        success: function (data) {         
+        data: { get_data: 'schools' },
+        success: function (data) {
           // Get the select element
           var school_select = $('#school');
 
@@ -289,7 +352,7 @@
           });
         }
       });
-      
+
       $('.searchable-select').select2();
 
       $('[data-toggle="tooltip"]').tooltip();

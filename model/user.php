@@ -25,7 +25,7 @@ if (isset($_POST['signup'])) {
       VALUES ('$first_name', '$last_name', '$email', '$phone', '$password', '$role', $school, '$gender')");
 
     $user_id = mysqli_insert_id($conn);
-    
+
     if (mysqli_affected_rows($conn) < 1) {
       $statusRes = "error";
       $messageRes = "Internal Server Error. Please try again later!";
@@ -84,7 +84,7 @@ if (isset($_POST['edit_profile'])) {
     $destination = "../assets/images/users/{$picture}";
 
     $last_picture = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = $user_id"))['profile_pic'];
-    
+
     if ($last_picture !== 'user.jpg') {
       unlink("../assets/images/users/{$last_picture}");
     }
@@ -92,7 +92,7 @@ if (isset($_POST['edit_profile'])) {
   }
 
   mysqli_query($conn, "UPDATE users SET first_name = '$firstname', last_name = '$lastname', profile_pic = '$picture', phone = '$phone' WHERE id = $user_id");
-  
+
   if (mysqli_affected_rows($conn) >= 1) {
     $statusRes = "success";
     $messageRes = "Profile successfully edited!.";
@@ -135,7 +135,7 @@ if (isset($_POST['setup'])) {
   $school_id = mysqli_real_escape_string($conn, $_POST['school_id']);
 
   $user_query = mysqli_query($conn, "SELECT * FROM users WHERE matric_no = '$matric_no' AND school = '$school_id'");
-  
+
   if (mysqli_num_rows($user_query) < 1) {
     if (!is_numeric($dept)) {
       mysqli_query($conn, "INSERT INTO depts_$school_id (name) VALUES ('$dept')");
@@ -143,7 +143,7 @@ if (isset($_POST['setup'])) {
     }
 
     mysqli_query($conn, "UPDATE users SET dept = '$dept', adm_year = '$adm_year', matric_no = '$matric_no', status = 'active' WHERE id = $user_id");
-    
+
     if (mysqli_affected_rows($conn) >= 1) {
       $statusRes = "success";
       $messageRes = "Account successfully created!.";
@@ -156,11 +156,16 @@ if (isset($_POST['setup'])) {
 
 if (isset($_POST['login'])) {
   $email = mysqli_real_escape_string($conn, $_POST['email']);
-  $password = md5($_POST['password']);
 
-  // Check if user data exists
-  $user_query = mysqli_query($conn, "SELECT * FROM users WHERE email = '$email' AND password = '$password'");
+  if ($_POST['login'] !== 'g_signin') {
+    $password = md5($_POST['password']);
 
+    // Check if user data exists
+    $user_query = mysqli_query($conn, "SELECT * FROM users WHERE email = '$email' AND password = '$password'");
+  } else {
+    // Check if user data exists
+    $user_query = mysqli_query($conn, "SELECT * FROM users WHERE email = '$email'");
+  } 
   if (mysqli_num_rows($user_query) == 1) {
     session_start();
     $user = mysqli_fetch_array($user_query);
@@ -177,7 +182,7 @@ if (isset($_POST['login'])) {
       $_SESSION['nivas_userSch'] = $user['school'];
 
       $statusRes = "success";
-      $messageRes = "Great news! You've successfully logged into your account. Welcome back!";
+      $messageRes = "Logged in successfully!";
     }
   } else {
     $statusRes = "failed";
@@ -210,7 +215,7 @@ if (isset($_POST['logout'])) {
   session_start();
   session_unset();
   session_destroy();
-  
+
   $statusRes = "success";
   $messageRes = "You have successfully logged out!";
 }
