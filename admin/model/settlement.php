@@ -18,7 +18,7 @@ if (isset($_POST['settlement_id'])) {
     mysqli_query($conn, "INSERT INTO settlement_accounts (acct_name,	acct_number,	bank,	user_id) 
         VALUES ('$acct_name',	$acct_number,	'$bank',	$user_id)");
   } else {
-    mysqli_query($conn, "UPDATE settlement_accounts SET acct_name = '$acct_name', acct_number = $acct_number, bank = '$bank' WHERE user_id = $user_id");
+    mysqli_query($conn, "UPDATE settlement_accounts SET acct_name = '$acct_name', acct_number = '$acct_number', bank = '$bank' WHERE user_id = $user_id");
   }
 
   if (mysqli_affected_rows($conn) >= 1) {

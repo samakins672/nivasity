@@ -397,7 +397,7 @@ $bankName = getBankName($bank, $bankList);
                             <select id="bank" name="bank" class="form-control form-control-lg w-100"></select>
                           </div>
                           <div class="form-outline mb-4">
-                            <input type="text" name="acct_number" class="form-control form-control-lg w-100" required="">
+                            <input type="number" name="acct_number" class="form-control form-control-lg w-100" required="">
                             <label class="form-label" for="acct_number">Account Number</label>
                           </div>
                         </div>
