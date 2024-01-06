@@ -40,7 +40,7 @@
 
     <li class="nav-item nav-category">Sign Out</li>
     <li class="nav-item">
-      <a class="nav-link" href="../signin.html?logout=1">
+      <a class="nav-link g_id_signout" href="../signin.html?logout=1">
         <i class="menu-icon mdi mdi-power"></i>
         <span class="menu-title">Sign Out</span>
       </a>
