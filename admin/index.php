@@ -55,6 +55,9 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
 
   <!-- main js -->
   <script src="../assets/js/main.js"></script>
+  
+  <!-- Google Sign-In API library -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <link rel="shortcut icon" href="../favicon.ico" />
 </head>

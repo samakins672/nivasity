@@ -73,6 +73,10 @@ $bankName = getBankName($bank, $bankList);
   <!-- inject:css -->
   <link rel="stylesheet" href="../assets/css/dashboard/style.css">
   <!-- endinject -->
+
+  <!-- Google Sign-In API library -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
   <link rel="shortcut icon" href="../favicon.ico" />
 </head>
 

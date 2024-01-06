@@ -32,8 +32,11 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets WHERE user_i
   <!-- inject:css -->
   <link rel="stylesheet" href="../assets/css/dashboard/style.css">
   <!-- endinject -->
+
+  <!-- Google Sign-In API library -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
   <link rel="shortcut icon" href="../favicon.ico" />
-  </head>
 </head>
 
 <body>
