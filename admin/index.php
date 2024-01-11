@@ -771,40 +771,54 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
         var manualId = $(this).data('manual_id');
         var code = $(this).data('code');
 
-        // Call the Ajax function to get data
-        $.ajax({
-          url: "../model/export.php", // Replace with your server-side script to fetch data
-          type: "POST",
-          data: {manual_id: manualId},
-          success: function (data) {
-            // Check if the response contains data
-            heading = "<center><h2 style='text-transform: uppercase'>PAYMENTS FOR "+code+" MANUAL</h2></center>"
-            // Format data into a table
-            var table = "<table><tr><th>S/N</th><th>NAMES</th><th>MATRIC NO</th></tr>";
+        // Define export button
+        var button = $(this);
+        var originalText = $(this).html();
 
-            // Sort usersData based on matric_no before rendering
-            data.sort(function (a, b) {
-                return a.matric_no.localeCompare(b.matric_no);
-            });
+        // Display the spinner and disable the button
+        button.html('<div class="spinner-border text-white" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
+        button.prop('disabled', true);
 
-            $.each(data, function (index, item) {
-              table += "<tr><td>" + (index + 1) + "</td><td>" + item.name + "</td><td>" + item.matric_no + "</td></tr>";
-            });
-            table += "</table>";
+        // Simulate an AJAX call using setTimeout
+        setTimeout(function () {
+          // Call the Ajax function to get data
+          $.ajax({
+            url: "../model/export.php", // Replace with your server-side script to fetch data
+            type: "POST",
+            data: {manual_id: manualId},
+            success: function (data) {
+              // Check if the response contains data
+              heading = "<center><h2 style='text-transform: uppercase'>PAYMENTS FOR "+code+" MANUAL</h2></center>"
+              // Format data into a table
+              var table = "<table><tr><th>S/N</th><th>NAMES</th><th>MATRIC NO</th></tr>";
 
-            // Open a new window with the formatted data
-            var exportWindow = window.open("", "_blank");
-            exportWindow.document.write("<html><head><title>Exported Data</title> <style>body {padding: 50px;margin: 0;width: 100%;font-family: sans-serif;box-sizing: border-box;} table{width: 80%} th{text-align: left}</style></head><body>");
-            exportWindow.document.write(heading+table);
-            exportWindow.document.write("</body></html>");
+              // Sort usersData based on matric_no before rendering
+              data.sort(function (a, b) {
+                  return a.matric_no.localeCompare(b.matric_no);
+              });
 
-            // Add a print button in the new window
-            exportWindow.document.write("<script>window.print();</scr" + "ipt>");
-          },
-          error: function () {
-            alert("Error fetching data.");
-          },
-        });
+              $.each(data, function (index, item) {
+                table += "<tr><td>" + (index + 1) + "</td><td>" + item.name + "</td><td>" + item.matric_no + "</td></tr>";
+              });
+              table += "</table>";
+
+              // Open a new window with the formatted data
+              var exportWindow = window.open("", "_blank");
+              exportWindow.document.write("<html><head><title>Exported Data</title> <style>body {padding: 50px;margin: 0;width: 100%;font-family: sans-serif;box-sizing: border-box;} table{width: 80%} th{text-align: left}</style></head><body>");
+              exportWindow.document.write(heading+table);
+              exportWindow.document.write("</body></html>");
+
+              // Add a print button in the new window
+              exportWindow.document.write("<script>window.print();</scr" + "ipt>");
+                // AJAX call successful, stop the spinner and update button text
+                button.html(originalText);
+                button.prop("disabled", false);
+            },
+            error: function () {
+              alert("Error fetching data.");
+            },
+          });
+        }, 2000); // Simulated AJAX delay of 2 seconds
       });
     });
   </script>
