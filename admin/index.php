@@ -146,7 +146,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                     </div>
                     <div class="row">
                       <div class="col-lg-8 d-flex flex-column">
-                        <div class="row flex-grow">
+                        <!-- <div class="row flex-grow">
                           <div class="col-12 grid-margin stretch-card">
                             <div class="card card-rounded shadow-sm table-darkBGImg">
                               <div class="card-body px-2">
@@ -160,7 +160,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                               </div>
                             </div>
                           </div>
-                        </div>
+                        </div> -->
                         <div class="row flex-grow">
                           <div class="col-12 grid-margin stretch-card">
                             <div class="card card-rounded shadow-sm">
