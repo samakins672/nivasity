@@ -52,6 +52,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
   <!-- inject:css -->
   <link rel="stylesheet" href="../assets/css/dashboard/style.css">
   <!-- endinject -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
 
   <!-- main js -->
   <script src="../assets/js/main.js"></script>
@@ -379,13 +380,15 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                         <td class="text-center">
                                           <div class="badge <?php echo ($status == 'open') ? 'bg-success' : 'bg-danger'; ?>"> </div>
                                         </td>
-                                        <td>
+                                        <td class="pe-1">
                                           <button class="btn btn-md btn-primary mb-0 btn-block view-edit-manual"
                                             data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>"
                                             data-course_code="<?php echo $manual['course_code']; ?>" data-price="<?php echo $manual['price']; ?>"
                                             data-quantity="<?php echo $manual['quantity']; ?>"
                                             data-due_date="<?php echo date('Y-m-d', strtotime($manual['due_date'])); ?>" 
                                             data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'active') ? 'addManual': 'verificationManual'?>">Edit</button>
+                                            <button class="btn btn-md btn-dark mb-0 btn-block export-manual"
+                                              data-manual_id="<?php echo $manual['id']; ?>" data-code="<?php echo $manual['course_code']; ?>"><i class="mdi mdi-file-export m-0 text-white"></i></button>
                                           <?php if($status != 'overdue'): ?>
                                             <button class="btn btn-md btn-secondary mb-0 btn-block close-manual"
                                               data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>" data-action="<?php echo ($status_2 != 'open') ? 1 : 0; ?>"
@@ -760,6 +763,48 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
             }
           });
         }, 2000); // Simulated AJAX delay of 2 seconds
+      });
+
+      // Event listener for the export button click
+      $(".export-manual").click(function () {
+        // Get the manual details from the data- attributes
+        var manualId = $(this).data('manual_id');
+        var code = $(this).data('code');
+
+        // Call the Ajax function to get data
+        $.ajax({
+          url: "../model/export.php", // Replace with your server-side script to fetch data
+          type: "POST",
+          data: {manual_id: manualId},
+          success: function (data) {
+            // Check if the response contains data
+            heading = "<center><h2 style='text-transform: uppercase'>PAYMENTS FOR "+code+" MANUAL</h2></center>"
+            // Format data into a table
+            var table = "<table><tr><th>S/N</th><th>NAMES</th><th>MATRIC NO</th></tr>";
+
+            // Sort usersData based on matric_no before rendering
+            data.sort(function (a, b) {
+                return a.matric_no.localeCompare(b.matric_no);
+            });
+
+            $.each(data, function (index, item) {
+              table += "<tr><td>" + (index + 1) + "</td><td>" + item.name + "</td><td>" + item.matric_no + "</td></tr>";
+            });
+            table += "</table>";
+
+            // Open a new window with the formatted data
+            var exportWindow = window.open("", "_blank");
+            exportWindow.document.write("<html><head><title>Exported Data</title> <style>body {padding: 50px;margin: 0;width: 100%;font-family: sans-serif;box-sizing: border-box;} table{width: 80%} th{text-align: left}</style></head><body>");
+            exportWindow.document.write(heading+table);
+            exportWindow.document.write("</body></html>");
+
+            // Add a print button in the new window
+            exportWindow.document.write("<script>window.print();</scr" + "ipt>");
+          },
+          error: function () {
+            alert("Error fetching data.");
+          },
+        });
       });
     });
   </script>
