@@ -25,6 +25,7 @@ if (isset($_POST['support_id'])) {
     $uniqueCode = generateVerificationCode(8);
   }
 
+  $picture = 'NULL';
   if (!empty($_FILES['attachment']['name'])) {
     $picture = $_FILES['attachment']['name'];
     $tempname = $_FILES['attachment']['tmp_name'];
@@ -38,7 +39,7 @@ if (isset($_POST['support_id'])) {
   // Send email to support
   $supportEmail = 'support@nivasity.com';
   $supportSubject = "Important: New Support Request - Ticket #$uniqueCode";
-  $supportMessage = "User: $first_name (User id: $user_id)<br>Email: $userEmail<br>Message: $message";
+  $supportMessage = "User: $first_name (User id: $user_id)<br>Email: <a href='mailto:$userEmail'>$userEmail</a><br>Message: $message<br>File attached: <a href='https://stage.nivasity.com/assets/images/supports/$picture'>https://stage.nivasity.com/assets/images/supports/$picture</a>";
 
   // Send confirmation email to the user
   $userSubject = "Support Request Received - Ticket #$uniqueCode";
