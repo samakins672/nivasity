@@ -14,6 +14,7 @@ $user_ = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = 
 $user_image = $user_['profile_pic'];
 $user_email = $user_['email'];
 $user_phone = $user_['phone'];
+$user_status = $user_['status'];
 $user_matric_no = $user_['matric_no'];
 $user_adm_year = $user_['adm_year'];
 $user_dept = $_SESSION['nivas_userDept'] = $user_['dept'];

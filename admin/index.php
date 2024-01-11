@@ -97,6 +97,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                 </div>
                 <div class="tab-content tab-content-basic">
                   <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview">
+                    <?php if ($user_status == 'active'): ?>
                     <div class="row flex-grow">
                       <div class="col-12">
                         <div
@@ -275,7 +276,26 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </div>        
+                    <?php else: ?>
+                    <div class="row">
+                      <div class="col-12 d-flex flex-column">
+                        <div class="card card-rounded shadow-sm bg-secondary">
+                          <div class="card-body px-2">
+                            <div class="d-sm-flex justify-content-center align-items-center">
+                              <div>
+                                
+                                <h4 class="card-title text-center text-white fw-bold"><i class="mdi mdi-account-clock h1"></i><br><br>VERIFICATION IN PROGRESS...</h4>
+                              </div>
+                            </div>
+                            <div>
+                              <h4 class="lh-base text-center text-white">Our Support team is currently verifying your role at your school. This should be sorted within <span class="text-primary">48 working hours after registration</span>.<br><br>However, please go on to <a href="user.php" class="text-primary fw-bold">profile settings</a> to add your Settlement Account.</h4>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>  
+                    <?php endif; ?>      
                   </div>
                   <div class="tab-pane fade hide" id="manuals" role="tabpanel" aria-labelledby="manuals">
                     <div class="row flex-grow">
@@ -285,7 +305,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                             <div class="d-sm-flex justify-content-end">
                               <div>
                                 <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"
-                                  data-bs-toggle="modal" data-bs-target="#addManual"><i class="mdi mdi-book"></i>Add new
+                                  data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'active') ? 'addManual' : 'verificationManual' ?>"><i class="mdi mdi-book"></i>Add new
                                   manual</button>
                               </div>
                             </div>
@@ -365,7 +385,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                             data-course_code="<?php echo $manual['course_code']; ?>" data-price="<?php echo $manual['price']; ?>"
                                             data-quantity="<?php echo $manual['quantity']; ?>"
                                             data-due_date="<?php echo date('Y-m-d', strtotime($manual['due_date'])); ?>" 
-                                            data-bs-toggle="modal" data-bs-target="#addManual">Edit</button>
+                                            data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'active') ? 'addManual': 'verificationManual'?>">Edit</button>
                                           <?php if($status != 'overdue'): ?>
                                             <button class="btn btn-md btn-secondary mb-0 btn-block close-manual"
                                               data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>" data-action="<?php echo ($status_2 != 'open') ? 1 : 0; ?>"
@@ -486,6 +506,29 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                   </div>
                 </div>
 
+                <!-- User Verification Modal -->
+                <div class="modal fade" id="verificationManual" tabindex="-1" role="dialog" aria-labelledby="verificationManualLabel"
+                  aria-hidden="true">
+                  <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h4 class="modal-title fw-bold" id="verificationManualLabel">Change Manual Visibility</h4>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </button>
+                      </div>
+                      <div class="modal-body">
+                        <div>
+                          <h4 class="lh-base">Our Support team is currently verifying your role at your school. This should be sorted within <span class="text-primary">48 working hours after registration</span>.<br><br>However, to speed up the proccess, you can use the support tickets and upload means of verification regarding your role at your school.</h4>
+                        </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Close</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <?php if ($user_status == 'active'): ?>
                 <!-- Add New Manual Modal -->
                 <div class="modal fade" id="addManual" tabindex="-1" role="dialog" aria-labelledby="addManualLabel"
                   aria-hidden="true">
@@ -544,7 +587,8 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                       </form>
                     </div>
                   </div>
-                </div>
+                </div>                
+                <?php endif; ?>
               </div>
             </div>
           </div>

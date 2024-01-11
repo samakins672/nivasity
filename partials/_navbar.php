@@ -33,12 +33,14 @@
           <input type="search" class="form-control" placeholder="Search Here" title="Search here">
         </form>
       </li>
+      <?php if($url == 'store.php'):?>
       <li class="nav-item dropdown d-md-none d-inline">
         <a class="nav-link count-indicator mt-2 go-to-cart-button" data-bs-toggle="tab" href="javascript:;">
           <i class="mdi mdi-cart-outline"></i>
           <span class="count"></span>
         </a>
       </li>
+      <?php endif;?>
       <li class="nav-item dropdown d-none d-lg-block user-dropdown">
         <a class="nav-link" id="UserDropdown" href="#" data-bs-toggle="dropdown" aria-expanded="false">
           <img class="img-xs rounded rounded-7" src="https://stage.nivasity.com/assets/images/users/<?php echo $user_image?>" alt="Profile image"> </a>
