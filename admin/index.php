@@ -367,9 +367,9 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                             data-due_date="<?php echo date('Y-m-d', strtotime($manual['due_date'])); ?>" 
                                             data-bs-toggle="modal" data-bs-target="#addManual">Edit</button>
                                           <?php if($status != 'overdue'): ?>
-                                            <button class="btn btn-md btn-<?php echo ($status_2 != 'open') ? 'success' : 'danger'; ?> mb-0 btn-block close-manual"
+                                            <button class="btn btn-md btn-secondary mb-0 btn-block close-manual"
                                               data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>" data-action="<?php echo ($status_2 != 'open') ? 1 : 0; ?>"
-                                                  data-bs-toggle="modal" data-bs-target="#closeManual"><?php echo ($status_2 != 'open') ? 'Open' : 'Close'; ?></button>
+                                                  data-bs-toggle="modal" data-bs-target="#closeManual"><i class="mdi mdi-eye<?php echo ($status_2 != 'open') ? '-off' : ''; ?> m-0 text-white"></i></button>
                                           <?php endif; ?>
                                           </td>
                                         </tr>
