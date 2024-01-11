@@ -21,7 +21,7 @@ function sendMail($subject, $body, $to) {
   $mail->Port = SMTP_PORT; //TCP port to connect to; use 587 if you have set `SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS`
   
   //Recipients
-  $mail->setFrom("info@nivasity.com", "Nivasity");
+  $mail->setFrom("contact@nivasity.com", "Nivasity");
   
   // Set your email subject and body
   $mail->Subject = $subject;
