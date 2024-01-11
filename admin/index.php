@@ -512,7 +512,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                   <div class="modal-dialog" role="document">
                     <div class="modal-content">
                       <div class="modal-header">
-                        <h4 class="modal-title fw-bold" id="verificationManualLabel">Change Manual Visibility</h4>
+                        <h4 class="modal-title fw-bold" id="verificationManualLabel">VERIFICATION IN PROGRESS...</h4>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </button>
                       </div>
