@@ -190,6 +190,9 @@ if (isset($_POST['login'])) {
     } else if ($user['status'] == 'denied') {
       $statusRes = "denied";
       $messageRes = "Your account is temporarily suspended. Contact our support team for help.";
+    } else if ($user['status'] == 'deactivated') {
+      $statusRes = "deactivated";
+      $messageRes = "Your account has been deactivated. Contact our support team to reopen your account.";
     } else {
       $_SESSION['nivas_userId'] = $user['id'];
       $_SESSION['nivas_userName'] = $user['first_name'];

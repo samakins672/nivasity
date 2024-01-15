@@ -387,7 +387,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                             data-quantity="<?php echo $manual['quantity']; ?>"
                                             data-due_date="<?php echo date('Y-m-d', strtotime($manual['due_date'])); ?>" 
                                             data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'active') ? 'addManual': 'verificationManual'?>">Edit</button>
-                                            <button class="btn btn-md btn-dark mb-0 btn-block export-manual"
+                                            <button class="btn btn-md btn-dark mb-0 btn-block export-manual" data-bs-toggle="modal" data-bs-target="#exportManual"
                                               data-manual_id="<?php echo $manual['id']; ?>" data-code="<?php echo $manual['course_code']; ?>"><i class="mdi mdi-file-export m-0 text-white"></i></button>
                                           <?php if($status != 'overdue'): ?>
                                             <button class="btn btn-md btn-secondary mb-0 btn-block close-manual"
@@ -503,6 +503,34 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                           <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
                           <button id="close_manual_submit" type="submit" data-mdb-ripple-duration="0"
                             class="btn btn-lg btn-danger">Confirm</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Export Manual Modal -->
+                <div class="modal fade" id="exportManual" tabindex="-1" role="dialog" aria-labelledby="exportManualLabel"
+                  aria-hidden="true">
+                  <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h4 class="modal-title fw-bold" id="exportManualLabel">Got a RRR Number?</h4>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </button>
+                      </div>
+                      <form id="export-manual-form">
+                        <input type="hidden" name="code" value="0">
+                        <input type="hidden" name="manual_id" value="0">
+                        <div class="modal-body">
+                          <div class="form-outline mb-4">
+                            <input type="text" name="rrr" class="form-control form-control-lg w-100">
+                            <label class="form-label" for="rrr">RRR Number (Optional)</label>
+                          </div>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
+                          <button id="export_manual_submit" type="submit" class="btn btn-lg btn-dark"><i class="mdi mdi-file-export text-white"></i> Proceed Export</button>
                         </div>
                       </form>
                     </div>
@@ -645,6 +673,11 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
         // Reset the form by setting its values to empty
         $('#manual-form')[0].reset();
       });
+      
+      $('#exportManual').on('hidden.bs.modal', function () {
+        // Reset the form by setting its values to empty
+        $('#export-manual-form')[0].reset();
+      });
 
       // Handle click event of View/Edit button
       $('.view-edit-manual').on('click', function () {
@@ -771,9 +804,21 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
         var manualId = $(this).data('manual_id');
         var code = $(this).data('code');
 
+        // Set the values in the edit manual modal
+        $('#export-manual-form input[name="manual_id"]').val(manualId);
+        $('#export-manual-form input[name="code"]').val(code);
+      });
+
+      $('#export-manual-form').submit(function (event) {
+        event.preventDefault(); // Prevent the default form submission
+
+        var manualId = $('#export-manual-form input[name="manual_id"]').val();
+        var code = $('#export-manual-form input[name="code"]').val();
+        var rrr = $('#export-manual-form input[name="rrr"]').val();
+
         // Define export button
-        var button = $(this);
-        var originalText = $(this).html();
+        var button = $('#export_manual_submit');
+        var originalText = button.html();
 
         // Display the spinner and disable the button
         button.html('<div class="spinner-border text-white" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
@@ -787,19 +832,30 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
             type: "POST",
             data: {manual_id: manualId},
             success: function (data) {
-              // Check if the response contains data
               heading = "<center><h2 style='text-transform: uppercase'>PAYMENTS FOR "+code+" MANUAL</h2></center>"
-              // Format data into a table
-              var table = "<table><tr><th>S/N</th><th>NAMES</th><th>MATRIC NO</th></tr>";
-
+              
+              
               // Sort usersData based on matric_no before rendering
               data.sort(function (a, b) {
-                  return a.matric_no.localeCompare(b.matric_no);
+                return a.matric_no.localeCompare(b.matric_no);
               });
+              
+              if (rrr === '') {
+                // Format data into a table
+                var table = "<table><tr><th>S/N</th><th>NAMES</th><th>MATRIC NO</th></tr>";
 
-              $.each(data, function (index, item) {
-                table += "<tr><td>" + (index + 1) + "</td><td>" + item.name + "</td><td>" + item.matric_no + "</td></tr>";
-              });
+                $.each(data, function (index, item) {
+                  table += "<tr><td>" + (index + 1) + "</td><td>" + item.name + "</td><td>" + item.matric_no + "</td></tr>";
+                });
+              } else {
+                // Format data into a table
+                var table = "<table><tr><th>S/N</th><th>NAMES</th><th>MATRIC NO</th><th>RRR</th></tr>";
+                
+                $.each(data, function (index, item) {
+                  table += "<tr><td>" + (index + 1) + "</td><td>" + item.name + "</td><td>" + item.matric_no + "</td><td>" + rrr + "</td></tr>";
+                });
+              }
+
               table += "</table>";
 
               // Open a new window with the formatted data
