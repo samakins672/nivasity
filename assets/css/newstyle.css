@@ -1,0 +1,303 @@
+body{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    padding-top: 56px;
+}
+    .navbar-scrolled {
+      background-color: #333; /* Change this to your desired color */
+      transition: background-color 0.3s ease-in-out;
+    }
+    .custom-text{
+      font-size: 1.5rem;
+    }
+/* Custom button style */
+      .custom-btn {
+      display: inline-block;
+      padding: 10px 40px;
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+      border: 2px solid #800080; /* Primary color */
+      border-radius: 30px;
+      color: #fff; /* Text color */
+      background-color: #800080; /* Primary color */
+      transition: background-color 0.3s ease;
+    }
+
+    .custom-btn:hover {
+      background-color: #ff6600; /* Darker shade on hover */
+      border-color: #ff6600;
+      color: #ffffff;
+      text-decoration: none;
+    }
+/*.content{
+    position: relative;
+    width: 50%;
+    height: 80vh;
+    /*display: flex;
+    justify-content: center;
+    align-items: center;
+
+}*/
+
+.owl-carousel {
+  display: flex;
+  overflow: hidden;
+}
+
+.owl-item {
+  width: 100%;
+  flex: 0 0 auto;
+}
+
+.owl-item img {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.custom-carousel {
+  max-width: 600px;
+  margin: 20px auto;
+}
+
+.custom-carousel .owl-nav {
+  margin-top: 20px;
+}
+
+.custom-carousel .owl-prev,
+.custom-carousel .owl-next {
+  font-size: 24px;
+  color: #333;
+}
+
+section .circle{
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #ff6600;
+    opacity: .5;
+    clip-path: circle(60% at right -20%);
+}
+
+.spad {
+	padding-top: 100px;
+	padding-bottom: 90px;
+}
+/*---------------------
+  Feature Section
+-----------------------*/
+
+.features-section .container {
+	margin-bottom: -45px;
+}
+
+.feature {
+	margin-bottom: 45px;
+}
+
+.feature i {
+	font-size: 48px;
+	float: left;
+	padding-top: 10px;
+}
+
+.feature .feature-content {
+	padding-left: 70px;
+}
+
+.feature .feature-content h4 {
+	margin-bottom: 15px;
+}
+
+.feature .readmore {
+	text-decoration: underline;
+	line-height: 1.2;
+}
+
+/*---------------------
+	Process Section
+-----------------------*/
+.gradient-bg,
+.site-btn.sb-gradients,
+.member-social a:hover,
+.single-blog-page .social-share a:hover,
+.comment .comment-content .c-btn:hover,
+.comment-form label {
+	/* FF3.6-15 */
+	/* Chrome10-25,Safari5.1-6 */
+	background: -webkit-gradient(linear, left top, right top, from(#ff6600), color-stop(100%, #2dd3aa), color-stop(100%, #2dd3aa), to(#2dd3aa));
+	background: -o-linear-gradient(left, #3e2bce 0%, #ff6600 100%, #800080 100%, #2dd3aa 100%);
+	background: linear-gradient(to right, #ff6600 0%, #800080 100%, #000000 100%, #800080 100%);
+	/* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#3e2bce', endColorstr='#2dd3aa', GradientType=1);
+	/* IE6-9 */
+}
+
+.fact-section {
+	padding: 80px 0;
+}
+
+.fact {
+	display: inline-block;
+	position: relative;
+}
+
+.fact h2 {
+	float: left;
+	color: #000000;
+	font-size: 60px;
+	margin-right: 20px;
+}
+
+.fact p {
+	float: left;
+	padding-top: 14px;
+	line-height: 1.4;
+	color: #fff;
+	text-transform: uppercase;
+}
+
+.fact i {
+	position: absolute;
+	right: -20px;
+	top: -10px;
+	font-size: 90px;
+	color: #000000;
+	z-index: 0;
+	opacity: 0.1;
+}
+
+/* The actual timeline (the vertical ruler) */
+.timeline {
+  position: relative;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* The actual timeline (the vertical ruler) */
+.timeline::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  background-color: #fffaf9;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  margin-left: -3px;
+}
+
+/* Container around content */
+.containerr {
+  padding: 10px 40px;
+  position: relative;
+  background-color: inherit;
+  width: 50%;
+}
+
+/* The circles on the timeline */
+.containerr::after {
+  content: '';
+  position: absolute;
+  width: 25px;
+  height: 25px;
+  right: -17px;
+  background-color: white;
+  border: 4px solid #FF9F55;
+  top: 15px;
+  border-radius: 20%;
+  z-index: 1;
+}
+
+/* Place the container to the left */
+.left {
+  left: 0;
+}
+
+/* Place the container to the right */
+.right {
+  left: 50%;
+}
+
+/* Add arrows to the left container (pointing right) */
+.left::before {
+  content: " ";
+  height: 0;
+  position: absolute;
+  top: 22px;
+  width: 0;
+  z-index: 1;
+  right: 30px;
+  border: medium solid white;
+  border-width: 10px 0 10px 10px;
+  border-color: transparent transparent transparent white;
+}
+
+/* Add arrows to the right container (pointing left) */
+.right::before {
+  content: " ";
+  height: 0;
+  position: absolute;
+  top: 22px;
+  width: 0;
+  z-index: 1;
+  left: 30px;
+  border: medium solid white;
+  border-width: 10px 10px 10px 0;
+  border-color: transparent white transparent transparent;
+}
+
+/* Fix the circle for containers on the right side */
+.right::after {
+  left: -16px;
+}
+
+/* The actual content */
+.content {
+  padding: 20px 30px;
+  background-color: white;
+  position: relative;
+  border-radius: 6px;
+}
+
+/* Media queries - Responsive timeline on screens less than 600px wide */
+@media screen and (max-width: 600px) {
+  /* Place the timelime to the left */
+  .timeline::after {
+  left: 31px;
+  }
+  
+  /* Full-width containers */
+  .containerr {
+  width: 100%;
+  padding-left: 70px;
+  padding-right: 25px;
+  }
+  
+  /* Make sure that all arrows are pointing leftwards */
+  .containerr::before {
+  left: 60px;
+  border: medium solid white;
+  border-width: 10px 10px 10px 0;
+  border-color: transparent white transparent transparent;
+  }
+
+  /* Make sure all circles are at the same spot */
+  .left::after, .right::after {
+  left: 15px;
+  }
+  
+  /* Make all right containers behave like the left ones */
+  .right {
+  left: 0%;
+  }
+}
+
+.end{
+  background-color: #dd4b39;
+}

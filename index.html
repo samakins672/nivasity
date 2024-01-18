@@ -4,430 +4,454 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NIVARSITY</title>
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <title>Home - Nivarsity</title>
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+
+  <!--style css-->
   <link rel="stylesheet" href="assets/css/style.css">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.1/mdb.min.css" rel="stylesheet" />
-  <!-- Bootstrap icons-->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet" />
-  <!--scroll reveal -->
-  <script src="https://unpkg.com/scrollreveal"></script>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+  <!-- Font Awesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+  <!--owl carousel-->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/assets/owl.carousel.min.css">
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/assets/owl.theme.default.min.css">
 
 </head>
 
-<body>
+<body style="box-sizing: border-box;">
+  <!--navbar that changes color-->
 
-  <main style="overflow: hidden;">
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg">
-      <!-- Container wrapper -->
-      <div class="container">
-        <!-- Navbar brand -->
-        <a class="navbar-brand me-2" href="https://mdbgo.com/">
-          <img src="assets/images/nivasity-manuals.png"
-           height="50" alt="Logo"
-            loading="lazy" style="margin-top: -1px;" />
-        </a>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <a class="navbar-brand" href="#">
+      <img src="assets/images/nivasity-manuals.png" class="img-fluid" width="200" height="200">
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+      aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav ml-auto">
+        <li class="nav-item active">
+          <a class="nav-link" href="#">Home</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#">About</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#">Services</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#">Contact</a>
+        </li>
+      </ul>
+    </div>
+  </nav>
 
-        <!-- Toggle button -->
-        <button class="navbar-toggler" type="button" data-mdb-toggle="collapse" data-mdb-target="#navbarButtonsExample"
-          aria-controls="navbarButtonsExample" aria-expanded="false" aria-label="Toggle navigation">
-          <i class="fas fa-bars"></i>
-        </button>
-
-        <!-- Collapsible wrapper -->
-        <div class="collapse navbar-collapse" id="navbarButtonsExample">
-          <!-- Left links -->
-          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-
-          </ul>
-          <!-- Left links -->
-
-          <div class="d-flex align-items-center">
-            <a href="index.html" class="text-light px-3 me-2">
-              Home
-            </a>
-            <a href="signin.html" class="btn btn-success me-3">
-              Sign in as HOC
-            </a>
-
-          </div>
-        </div>
-        <!-- Collapsible wrapper -->
-      </div>
-      <!-- Container wrapper -->
-    </nav>
-
-    <section class="d-flex justify-content-center align-items-center">
-      <div id="demo" class="carousel slide bg-image" data-bs-ride="carousel">
-        <!-- The slideshow/carousel -->
-
-        <div class="row">
-          <div class="col-12 text-center mx-auto">
-            <div class="carousel-inner">
-
-              <div class="carousel-item active">
-                <img src="assets/images/slideshow.jpg" alt="Los Angeles" class="d-block" style="width:100%">
-                <div class="mask" style="background-color: hsla(0, 0%, 0%, 0.6)"></div>
-
-                <div class="carousel-caption text-center">
-                  <h3>Your Course Material Payment just got easier</h3>
-                  <p>Welcome to <span style="color: #006400; font-weight: 600;">NIVERPAY</span></p>
-                  <button class="btn">Curious?</button>
-
-                </div>
-              </div>
-
-              <div class="carousel-item">
-                <img src="assets/images/slideshow1.jpg" alt="Chicago" class="d-block" style="width:100%">
-                <div class="mask" style="background-color: hsla(0, 0%, 0%, 0.6)"></div>
-
-                <div class="carousel-caption text-center">
-                  <h3>Your Course Material Payment just got easier</h3>
-                  <p>Welcome to <span style="color: #006400; font-weight: 600;">NIVERPAY</span></p>
-                  <button class="btn">Curious?</button>
-                </div>
-              </div>
-
-              <div class="carousel-item">
-                <img src="assets/images/slideshow4.jpg" alt="New York" class="d-block" style="width:100%">
-                <div class="mask" style="background-color: hsla(0, 0%, 0%, 0.6)"></div>
-
-                <div class="carousel-caption text-center">
-                  <h3>Your Course Material Payment just got easier</h3>
-                  <p>Welcome to <span style="color: #006400; font-weight: 600;">NIVERPAY</span></p>
-                  <button class="btn">Curious?</button>
-                </div>
-              </div>
-
-            </div>
-
-            <svg class="waves" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 319">
-              <path fill="#ffffff" fill-opacity="1"
-                d="M0,256L60,229.3C120,203,240,149,360,154.7C480,160,600,224,720,229.3C840,235,960,181,1080,176C1200,171,1320,213,1380,234.7L1440,256L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
-              </path>
-            </svg>
-          </div>
-        </div>
-      </div>
-    </section>
-
-
-
-    <!-- Header message -->
+  <section id="home" style="background-color: #dd4b39;">
     <div class="container">
-      <div class="row">
-        <div class="col-12 text-center header-message mb-3">
-          Complete the details to proceed!
+      <div class="circle"></div>
+      <div class="row align-items-center justify-content-between">
+        <div class="col-md-6 content mt-5" style="background-color: #dd4b39; color: #ffffff;">
+          <h1>GETTING MANUALS<h1>
+              <h1>JUST GOT MORE EASIER</h1>
+              <p class="custom-text">A financial platform made exclusively
+                for tertiary institutions to make payment for course materials and manuals with ease.</p>
+              <!--remember to put both the text area and the image area to box-sizing border box-->
+              <a href="#" class="custom-btn">Click Me</a>
+        </div>
+        <div class="col-md-6 banner-image">
+          <!--<img src="assets/images/Course app.gif" alt="Computer man">-->
+          <img class="img-fluid" src="assets/images/banner1.png" width="500" height="500">
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section class="container mb-5">
+    <h2 class="p-5 font-weight-bold">WHY NIVARSITY?</h2>
+    <div class="row">
+      <div class="col-md-6">
+        <div class="custom-carousel owl-carousel">
+          <div class="item"><img src="assets/images/clipart1.svg" alt="Image 1"></div>
+          <div class="item"><img src="assets/images/clipart2.svg" alt="Image 2"></div>
+          <div class="item"><img src="assets/images/clipart3.svg" alt="Image 3"></div>
+          <div class="item"><img src="assets/images/clipart4.svg" alt="Image 1"></div>
+          <div class="item"><img src="assets/images/clipart5.svg" alt="Image 2"></div>
+          <div class="item"><img src="assets/images/clipart4.svg" alt="Image 3"></div>
         </div>
       </div>
-
-      <div class="row justify-content-center">
-        <div class="col-md-6">
-          <form action="#">
-            <div class="form-group">
-              <label for="First Name">First Name</label>
-              <input type="text" class="form-control" id="firstName" placeholder="Enter First Name" name="firstName">
-            </div>
-            <br>
-            <div class="form-group">
-              <label for="lastName">Last Name</label>
-              <input type="text" class="form-control" id="lastName" placeholder="Enter Last Name" name="lastName">
-            </div>
-            <br>
-            <div class="form-group">
-              <label for="matricNumber">Matric Number</label>
-              <input type="text" class="form-control" id="matricNumber" placeholder="Enter Matric Number"
-                name="matricNumber">
-            </div>
-            <br>
-            <div class="form-group">
-              <label for="email">Enter your Email</label>
-              <input type="email" class="form-control" id="email" placeholder="Enter Your Email" name="email">
-            </div>
-            <br>
-
-            <div class="form-group">
-              <label for="Department">Department</label>
-              <select class="form-select mt-3 form-select-lg">
-                <option>Select Department...</option>
-                <option>ANP</option>
-                <option>ANN</option>
-                <option>ABG</option>
-                <option>MCE</option>
-                <option>MTS</option>
-                <option>AQFM</option>
-                <option>HRT</option>
-                <option>CVE</option>
-                <option>MCB</option>
-                <option>ELE</option>
-                <option>SSLM</option>
-                <option>PBST</option>
-                <option>PPCP</option>
-                <option>ETS</option>
-                <option>FWM</option>
-                <option>EMT</option>
-                <option>WMA</option>
-                <option>GEO</option>
-                <option>AERD</option>
-                <option>AGAD</option>
-                <option>AEFM</option>
-                <option>BCH</option>
-                <option>APH</option>
-                <option>ECM</option>
-                <option>MCB</option>
-                <option>FST</option>
-                <option>HSM</option>
-                <option>NTD</option>
-                <option>PAB</option>
-                <option>STS</option>
-                <option>MTE</option>
-                <option>VET</option>
-                <option>CPT</option>
-                <option>CSC</option>
-                <option>PHS</option>
-                <option>CHM</option>
-                <option>PAZ</option>
-                <option>PBST</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="level">Level</label>
-              <select class="form-select mt-3 form-select-lg">
-                <option value="">Select Level...</option>
-                <option value="100">100L</option>
-                <option value="200">200L</option>
-                <option value="300">300L</option>
-                <option value="400">400L</option>
-                <option value="500">500L</option>
-                <option value="600">600L</option>
-              </select>
-            </div>
-
-            <div class="proceed mt-3">
-              <button type="submit" class="btn">Submit</button>
-            </div>
-
-          </form>
+      <div class="col-md-6">
+        <div class="bg-light backg p-4 rounded-4">
+          <p>Lorem ipsum, dolor sit amet consectetur adipisicing elit. Natus, omnis minima deserunt
+            amet nobis
+            maxime! Cum corrupti recusandae hic accusantium aperiam distinctio atque,
+            temporibus doloremque necessitatibus optio voluptas explicabo officia.</p>
         </div>
-      </div>
-
-
-      <section class="text-dark ">
-
-        <div class="container">
-          <div class="row">
-            <div class="first col-sm-6 mt-5">
-              <h1><span class="text-dark">What We Do</span></h1>
-              <p class="my-4">NIVERSITY is a fin tech company dedicated to making payment for course materials and
-                manuals in tertiary institutions easy for both students and Head Of Class.
-                From the comfort of your home, you can pay for your school materials.
-              </p>
-              <div class="learn">
-                <button class="btn">Learn More</button>
-              </div>
-            </div>
-
-            <div class="first1 col-sm-6">
-              <img src="assets/images/header.png" class="img-fluid" width="800" height="700" alt="Banner Image" />
-            </div>
-          </div>
-
-      </section>
-
-
-
-      <!-- Hidden window with contents -->
-      <div class="window" id="window">
-        <span class="close-button" onclick="closeWindow()">&times;</span>
-        your input says you are in...
-        <h4>HRT</h4>
-        <h5>100 Level</h5>
-        <h6>Matric No: 20224332</h6>
-
-        <hr>
-        <p>These are the manuals available for your department:</p>
-        <p class="lead"><i class="fa fa-book" aria-hidden="true"
-            style="width: 80;height: 80;color:rgb(90, 73, 35);"></i> </p>
-        <p class="lead" style="color:rgb(202, 124, 124)">PCP Manual</p>
-        <button type="submit" class="btn btn-green">Pay &#8358;1000</button>
       </div>
     </div>
 
-    <!-- Footer -->
-    <footer class="text-center text-lg-start pt-3 text-muted mt-5" style="background-color:#f9f9f9 ;">
+  </section>
 
-      <!-- Section: Links  -->
-      <section class="">
-        <div class="container text-center text-md-start mt-5">
-          <!-- Grid row -->
-          <div class="row mt-3">
-            <!-- Grid column -->
-            <div class="col-md-3 col-lg-4 col-xl-3 mx-auto mb-4">
-              <!-- Content -->
-              <h6 class="text-uppercase fw-bold mb-4">
-                <i class="fas fa-book me-3 text-secondary"></i>NIVERPAY
-              </h6>
-              <p>
-                A financial platform made exclusively
-                for tertiary institutions to make payment for course materials and manuals with ease.
-              </p>
-            </div>
-            <!-- Grid column -->
 
-            <!-- Grid column -->
-            <div class="col-md-2 col-lg-2 col-xl-2 mx-auto mb-4">
-              <!-- Links -->
-              <!--<h6 class="text-uppercase fw-bold mb-4">
-            Products
-          </h6>-->
-              <p>
-                <a href="#!" class="text-reset">FAQ</a>
-              </p>
-              <p>
-                <a href="#!" class="text-reset">Terms and Condition</a>
-              </p>
-              <p>
-                <a href="#!" class="text-reset">Privacy and Policy</a>
-              </p>
-
-            </div>
-            <!-- Grid column -->
-
-            <!-- Grid column -->
-            <div class="col-md-3 col-lg-2 col-xl-2 mx-auto mb-4">
-              <!-- Links -->
-              <!--<h6 class="text-uppercase fw-bold mb-4">
-            Useful links
-          </h6>-->
-              <p>
-                <a href="#!" class="text-reset">About Us</a>
-              </p>
-              <p>
-                <a href="#!" class="text-reset">Contact Us</a>
-              </p>
-
-            </div>
-            <!-- Grid column -->
-
-            <!-- Grid column -->
-            <div class="col-md-4 col-lg-3 col-xl-3 mx-auto mb-md-0 mb-4">
-              <!-- Links -->
-              <h6 class="text-uppercase fw-bold mb-4">Contact</h6>
-              <p><i class="fas fa-home me-3 text-secondary"></i> No Rigid Structure </p>
-              <p>
-                <i class="fas fa-envelope me-3 text-secondary"></i>
-                contact@niversity.com
-              </p>
-              <p><i class="fas fa-phone me-3 text-secondary"></i> + (234) 70 5375 2950</p>
-
-            </div>
-            <!-- Grid column -->
+  <!-- Features section -->
+  <section class="features-section spad gradient-bg">
+    <div class="container text-white">
+      <div class="section-title text-center">
+        <h2>Our Features</h2>
+        <p>Bitcoin is the simplest way to exchange money at very low cost.</p>
+      </div>
+      <div class="row">
+        <!-- feature -->
+        <div class="col-md-6 col-lg-4 feature">
+          <i class="fa fa-credit-card-alt"></i>
+          <div class="feature-content">
+            <h4>Mobile Apps</h4>
+            <p>Excepteur sint occaecat cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est
+              laborum. </p>
+            <a href="" class="readmore">Readmore</a>
           </div>
-          <!-- Grid row -->
         </div>
-      </section>
-      <!-- Section: Links  -->
+        <!-- feature -->
+        <div class="col-md-6 col-lg-4 feature">
+          <i class="fa fa-credit-card-alt"></i>
+          <div class="feature-content">
+            <h4>Safe & Secure</h4>
+            <p>Excepteur sint occaecat cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est
+              laborum. </p>
+            <a href="" class="readmore">Readmore</a>
+          </div>
+        </div>
+        <!-- feature -->
+        <div class="col-md-6 col-lg-4 feature">
+          <i class="fa fa-credit-card-alt"></i>
+          <div class="feature-content">
+            <h4>Wallet</h4>
+            <p>Excepteur sint occaecat cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est
+              laborum. </p>
+            <a href="" class="readmore">Readmore</a>
+          </div>
+        </div>
+        <!-- feature -->
+        <div class="col-md-6 col-lg-4 feature">
+          <i class="fa fa-credit-card-alt"></i>
+          <div class="feature-content">
+            <h4>Experts Support</h4>
+            <p>Excepteur sint occaecat cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est
+              laborum. </p>
+            <a href="" class="readmore">Readmore</a>
+          </div>
+        </div>
+        <!-- feature -->
+        <div class="col-md-6 col-lg-4 feature">
+          <i class="fa fa-credit-card-alt"></i>
+          <div class="feature-content">
+            <h4>Instant Exchange</h4>
+            <p>Excepteur sint occaecat cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est
+              laborum. </p>
+            <a href="" class="readmore">Readmore</a>
+          </div>
+        </div>
+        <!-- feature -->
+        <div class="col-md-6 col-lg-4 feature">
+          <i class="fa fa-credit-card-alt"></i>
+          <div class="feature-content">
+            <h4>Recuring Buys</h4>
+            <p>Excepteur sint occaecat cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est
+              laborum. </p>
+            <a href="" class="readmore">Readmore</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- Features section end -->
+
+  <div class="container mt-5 fact-section">
+    <!-- Icon Section -->
+    <div class="row text-center">
+      <div class="col-12 mb-5">
+        <h2>Explore our Payment Options</h2>
+      </div>
+
+      <div class="col-3 circle">
+        <i class="fa fa-long-arrow-up"></i>
+        <!--<i id="infoButton" class="fa fa-long-arrow-up" aria-hidden="true"></i>-->
+        <p>withdraw</p>
+      </div>
+
+      <div class="col-3 circle">
+        <i class="fa fa-long-arrow-down"></i>
+        <p>deposit</p>
+      </div>
+
+      <div class="col-3 circle">
+        <i class="fa fa-credit-card-alt"></i>
+        <p style="align-items: center;">check bonus</p>
+      </div>
+
+      <div class="col-3 circle">
+        <i class="fa fa-credit-card-alt"></i>
+        <p style="align-items: center;">check bonus</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fact section -->
+  <!--<section class="fact-section mt-5">
+  <div class="container">
+    <div class="row">
+      <div class="col-sm-6 col-md-6 col-lg-3">
+        <div class="fact">
+          <h2>60</h2>
+          <p>Support <br> Countries</p>
+          <i class="fa fa-credit-card-alt"></i>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md-6 col-lg-3">
+        <div class="fact">
+          <h2>12K</h2>
+          <p>Transactions  <br> per hour</p>
+          <i class="fa fa-credit-card-alt"></i>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md-6 col-lg-3">
+        <div class="fact">
+          <h2>5B</h2>
+          <p>Largest <br> Transactions</p>
+          <i class="fa fa-credit-card-alt"></i>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md-6 col-lg-3">
+        <div class="fact">
+          <h2>240</h2>
+          <p>Years <br> of Experience</p>
+          <i class="fa fa-credit-card-alt"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>-->
+  <!-- Fact section end -->
+
+  <section class="Faq">
+    <div class="timeline">
+      <div class="containerr left">
+        <div class="content">
+          <h2>2017</h2>
+          <p>Lorem ipsum dolor sit amet, quo ei simul congue exerci, ad nec admodum perfecto mnesarchum, vim ea mazim
+            fierent detracto. Ea quis iuvaret expetendis his, te elit voluptua dignissim per, habeo iusto primis ea eam.
+          </p>
+        </div>
+      </div>
+      <div class="containerr right">
+        <div class="content">
+          <h2>2016</h2>
+          <p>Lorem ipsum dolor sit amet, quo ei simul congue exerci, ad nec admodum perfecto mnesarchum, vim ea mazim
+            fierent detracto. Ea quis iuvaret expetendis his, te elit voluptua dignissim per, habeo iusto primis ea eam.
+          </p>
+        </div>
+      </div>
+      <div class="containerr left">
+        <div class="content">
+          <h2>2015</h2>
+          <p>Lorem ipsum dolor sit amet, quo ei simul congue exerci, ad nec admodum perfecto mnesarchum, vim ea mazim
+            fierent detracto. Ea quis iuvaret expetendis his, te elit voluptua dignissim per, habeo iusto primis ea eam.
+          </p>
+        </div>
+      </div>
+      <div class="containerr right">
+        <div class="content">
+          <h2>2012</h2>
+          <p>Lorem ipsum dolor sit amet, quo ei simul congue exerci, ad nec admodum perfecto mnesarchum, vim ea mazim
+            fierent detracto. Ea quis iuvaret expetendis his, te elit voluptua dignissim per, habeo iusto primis ea eam.
+          </p>
+        </div>
+      </div>
+      <div class="containerr left">
+        <div class="content">
+          <h2>2011</h2>
+          <p>Lorem ipsum dolor sit amet, quo ei simul congue exerci, ad nec admodum perfecto mnesarchum, vim ea mazim
+            fierent detracto. Ea quis iuvaret expetendis his, te elit voluptua dignissim per, habeo iusto primis ea eam.
+          </p>
+        </div>
+      </div>
+      <div class="containerr right">
+        <div class="content">
+          <h2>2007</h2>
+          <p>Lorem ipsum dolor sit amet, quo ei simul congue exerci, ad nec admodum perfecto mnesarchum, vim ea mazim
+            fierent detracto. Ea quis iuvaret expetendis his, te elit voluptua dignissim per, habeo iusto primis ea eam.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="end">
+    <!-- Footer -->
+    <footer class="bg-body-tertiary">
+      <!-- Grid container -->
+      <div class="container p-4">
+        <!--Grid row-->
+        <div class="row">
+          <!--Grid column-->
+          <div class="col-lg-6 col-md-12 mb-4 mb-md-0">
+            <h5 class="text-uppercase">Footer Content</h5>
+
+            <p>
+              Lorem ipsum dolor sit amet consectetur, adipisicing elit. Iste atque ea quis
+              molestias. Fugiat pariatur maxime quis culpa corporis vitae repudiandae
+              aliquam voluptatem veniam, est atque cumque eum delectus sint!
+            </p>
+          </div>
+          <!--Grid column-->
+
+          <!--Grid column-->
+          <div class="col-lg-3 col-md-6 mb-4 mb-md-0">
+            <h5 class="text-uppercase">Links</h5>
+
+            <ul class="list-unstyled mb-0">
+              <li>
+                <a href="#!" class="text-body">Link 1</a>
+              </li>
+              <li>
+                <a href="#!" class="text-body">Link 2</a>
+              </li>
+              <li>
+                <a href="#!" class="text-body">Link 3</a>
+              </li>
+              <li>
+                <a href="#!" class="text-body">Link 4</a>
+              </li>
+            </ul>
+          </div>
+          <!--Grid column-->
+
+          <!--Grid column-->
+          <div class="col-lg-3 col-md-6 mb-4 mb-md-0">
+            <h5 class="text-uppercase mb-0">Links</h5>
+
+            <ul class="list-unstyled">
+              <li>
+                <a href="#!" class="text-body">Link 1</a>
+              </li>
+              <li>
+                <a href="#!" class="text-body">Link 2</a>
+              </li>
+              <li>
+                <a href="#!" class="text-body">Link 3</a>
+              </li>
+              <li>
+                <a href="#!" class="text-body">Link 4</a>
+              </li>
+            </ul>
+          </div>
+          <!--Grid column-->
+        </div>
+        <!--Grid row-->
+      </div>
+      <!-- Grid container -->
+
+
+      <div class="text-center">
+        <!-- Grid container -->
+        <div class="container p-4 pb-0">
+          <!-- Section: Social media -->
+          <section class="mb-4">
+            <!-- Facebook -->
+            <a data-mdb-ripple-init class="btn text-white btn-floating m-1"
+              style="background-color: #3b5998; border-radius: 50px;" href="#!" role="button"><i
+                class="fab fa-facebook-f"></i></a>
+
+            <!-- Twitter -->
+            <a data-mdb-ripple-init class="btn text-white btn-floating m-1"
+              style="background-color: #55acee; border-radius: 50px;" href="#!" role="button"><i
+                class="fab fa-twitter"></i></a>
+
+            <!-- Google -->
+            <a data-mdb-ripple-init class="btn text-white btn-floating m-1"
+              style="background-color: #dd4b39;  border-radius: 50px" href="#!" role="button"><i
+                class="fab fa-google"></i></a>
+
+            <!-- Instagram -->
+            <a data-mdb-ripple-init class="btn text-white btn-floating m-1"
+              style="background-color: #ac2bac;  border-radius: 50px" href="#!" role="button"><i
+                class="fab fa-instagram"></i></a>
+
+            <!-- Linkedin -->
+            <a data-mdb-ripple-init class="btn text-white btn-floating m-1"
+              style="background-color: #0082ca;  border-radius: 50px" href="#!" role="button"><i
+                class="fab fa-linkedin-in"></i></a>
+            <!-- Github -->
+            <a data-mdb-ripple-init class="btn text-white btn-floating m-1"
+              style="background-color: #333333;  border-radius: 50px" href="#!" role="button"><i
+                class="fab fa-github"></i></a>
+          </section>
+          <!-- Section: Social media -->
+        </div>
+        <!-- Grid container -->
+
+      </div>
 
       <!-- Copyright -->
-      <div class="bg-white py-4 mt-auto">
-        <div class="container px-5">
-            <div class="row align-items-center justify-content-between flex-column flex-sm-row">
-                <div class="col-auto"><div class="small m-0">Copyright &copy; Nivarsity 2023</div></div>
-                <div class="col-auto">
-                    
-                        <a style="color: orangered ;" href="#!"><i class="bi bi-twitter"></i></a>
-                        <a style="color: orangered ;"  href="#!"><i class="bi bi-linkedin"></i></a>
-                        <a style="color: orangered ;"  href="#!"><i class="bi bi-github"></i></a>
-                    
-                </div>
-            </div>
-        </div>
+      <div class="text-center p-3" style="background-color: #fffbfb;">
+        © 2024 Copyright:
+        <a class="text-body" href="https://mdbootstrap.com/">.com</a>Nivarsity
       </div>
       <!-- Copyright -->
     </footer>
     <!-- Footer -->
-  </main>
+  </section>
 
+
+  <!--attributions
+<a href="https://www.freepik.com/free-vector/people-standing-together-shape-arrow_1311194.htm#query=people&position=4&from_view=keyword&track=sph&uuid=bad7058d-f177-478d-91d0-079555fe961d">Image by iconicbestiary</a> on Freepik
+-->
+
+
+  <!-- Bootstrap JS and dependencies -->
+  <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+  <!--for the carousel-->
+  <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/owl.carousel.min.js"></script>
 
 
   <script>
-    window.sr = ScrollReveal();
-    sr.reveal('.first', {
-      reset: true,
-      duration: 1500,
-      origin: 'left',
-      distance: '20px'
-    })
-
-    sr.reveal('.first1', {
-      reset: true,
-      duration: 1500,
-      origin: 'right',
-      distance: '20px',
-    })
-  </script>
-  <!-- MDB -->
-  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.1/mdb.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
-
-  <script src="assets/js/script.js"></script>
-  <!-- Font Awesome Icons  -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/js/all.min.js"></script>
-
-  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.7/dist/umd/popper.min.js"></script>
-  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-  <script>
-
-    // Array of image URLs with their messages
-    const imageUrls = [
-      { url: 'https://img.freepik.com/free-photo/afro-man-taking-selfies-with-phone_58466-16301.jpg?size=626&ext=jpg&ga=GA1.2.975446108.1690673480&semt=ais', message: 'Get notified of new payments' },
-      { url: 'https://img.freepik.com/premium-photo/happy-young-black-woman-shopper-holding-credit-card-using-phone-buying-online_562687-3440.jpg?size=626&ext=jpg&ga=GA1.1.975446108.1690673480&semt=ais', message: 'Pay with ease at your convenience' },
-      { url: 'https://t3.ftcdn.net/jpg/06/14/73/18/240_F_614731833_SM259QtIyhnNQcU7S2SjHWlnfniumsBj.jpg', message: 'Instantly get added to the list' }
-    ];
-
-    // Function to update the background image and message in the container
-    let currentImageIndex = 0;
-    function updateImage() {
-      const container = document.querySelector('.image-container');
-      const messageElement = document.querySelector('.image-message');
-      const imageUrl = imageUrls[currentImageIndex].url;
-      const message = imageUrls[currentImageIndex].message;
-      container.style.backgroundImage = `url('${imageUrl}')`;
-      messageElement.textContent = message;
-      currentImageIndex = (currentImageIndex + 1) % imageUrls.length;
-    }
-
-
-    setInterval(updateImage, 3000);
-
-    //
-
-    const openButton = document.getElementById('openButton');
-    const windowDiv = document.getElementById('window');
-
-    // Show the window when the button is clicked
-    openButton.addEventListener('click', () => {
-      openButton.style.pointerEvents = 'none'; // Disable the button during loading
-      openButton.innerText = 'Loading...'; // Change the button text to "Loading..."
-      setTimeout(() => {
-        windowDiv.style.display = 'block'; // Show the window after the delay
-        openButton.innerText = 'proceed'; // Restore the button text
-        openButton.style.pointerEvents = 'auto'; // Enable the button after loading
-      }, 2000); // Set the delay time in milliseconds (e.g., 2000ms = 2 seconds)
-
+    // Change navbar background color on scroll
+    document.addEventListener("scroll", function () {
+      const navbar = document.querySelector(".navbar");
+      const scrolled = window.scrollY > 50; // Change this value as needed
+      if (scrolled) {
+        navbar.classList.add("navbar-scrolled");
+      } else {
+        navbar.classList.remove("navbar-scrolled");
+      }
     });
 
-    // Hide the window when the close button is clicked
-    function closeWindow() {
-      windowDiv.style.display = 'none';
-    }
+
+    $(document).ready(function () {
+      $(".custom-carousel").owlCarousel({
+        items: 1, // Number of items to display
+        loop: true, // Infinite loop
+        margin: 10, // Margin between items
+        nav: true, // Display navigation arrows
+        dots: true, // Display pagination dots
+        autoplay: true, // Autoplay enabled
+        autoplayTimeout: 3000, // Autoplay timeout in milliseconds (adjust as needed)
+      });
+    });
+
 
   </script>
-  </script>
+
+
+
 </body>
 
 </html>

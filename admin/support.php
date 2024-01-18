@@ -91,7 +91,7 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets WHERE user_i
 
                                 // Retrieve and format the due date
                                 $created_date = date('M j, Y', strtotime($created_at));
-                                $created_time = date('h:m:s', strtotime($created_at));
+                                $created_time = date('h:i a', strtotime($created_at));
                                 // Retrieve the status
                                 $status = $support['status'];
                                 ?>

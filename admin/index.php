@@ -254,7 +254,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                               
                               // Retrieve and format the due date
                               $created_date = date('M j', strtotime($created_at));
-                              $created_time = date('h:m:s', strtotime($created_at));
+                              $created_time = date('h:i a', strtotime($created_at));
                               ?>
                               <div class="wrapper d-flex align-items-center justify-content-between py-2 border-bottom">
                                 <div class="d-flex">
@@ -437,7 +437,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                   
                                   // Retrieve and format the due date
                                   $created_date = date('j M, Y', strtotime($created_at));
-                                  $created_time = date('h:m:s', strtotime($created_at));
+                                  $created_time = date('h:i a', strtotime($created_at));
                                   // Retrieve the status
                                   $status = mysqli_fetch_array(mysqli_query($conn, "SELECT status FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id' LIMIT 1"))[0];
                                   $status_bg = 'danger';

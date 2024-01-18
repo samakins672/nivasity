@@ -59,7 +59,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought_$school_id WHE
 
                                 // Retrieve and format the due date
                                 $created_date = date('j M, Y', strtotime($manual['created_at']));
-                                $created_time = date('h:m:s', strtotime($manual['created_at']));
+                                $created_time = date('h:i a', strtotime($manual['created_at']));
                                 // Retrieve the status
                                 $status = $manual['status'];
                                 ?>
