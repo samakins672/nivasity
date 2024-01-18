@@ -15148,6 +15148,7 @@ i.flag-zw:before {
 }
 
 .bg-image {
+  background-image: url(../../assets/images/background.jpg);
   position: relative;
   overflow: hidden;
   background-repeat: no-repeat;
