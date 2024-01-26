@@ -144,7 +144,7 @@ if (isset($_POST['product_id'])) {
                     </div><hr>
                     <div class="d-flex justify-content-between mt-3 mb-1 fw-bold">
                         <p>Subtotal</p>
-                        <h5>₦ ' . number_format($total_cart_price) . '</h5>
+                        <h4>₦ ' . number_format($total_cart_price) . '</h4>
                     </div>
 
                     <div class="d-flex justify-content-between mt-0 mb-3 fw-bold">
