@@ -65,6 +65,9 @@ if (isset($_POST['product_id'])) {
         $status = $cart_item['status'];
         $status_c = '';
 
+        $seller = $cart_item['user_id'];
+        $seller_code = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE user_id = $seller"))['subaccount_code'];
+
         if ($date > $due_date2 || $status == 'closed') {
             $status = 'disabled';
             $status_c = 'danger';
@@ -155,7 +158,7 @@ if (isset($_POST['product_id'])) {
                     ';
     if ($total_cart_price > 0) {
         echo '
-                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-charge="' . $charge . '" data-transfer_amount="' . $transferAmount . '" data-mdb-ripple-duration="0" >CHECKOUT</button>';
+                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-charge="' . $charge . '" data-seller="'.$seller_code.'" data-transfer_amount="' . $transferAmount . '" data-mdb-ripple-duration="0" >CHECKOUT</button>';
     } else {
         echo '
                     <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>';

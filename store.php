@@ -202,6 +202,9 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                                   // Retrieve the status
                                   $status = $cart_item['status'];
                                   $status_c = '';
+                                  
+                                  $seller = $cart_item['user_id'];
+                                  $seller_code = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE user_id = $seller"))['subaccount_code'];
 
                                   if ($date > $due_date2 || $status == 'closed') {
                                     $status = 'disabled';
@@ -287,7 +290,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                               <h5 class="fw-bold">₦ <?php echo number_format($transferAmount) ?></h5>
                             </div>
                             <?php if($total_cart_price > 0): ?>
-                              <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-charge="<?php echo $charge ?>" data-transfer_amount="<?php echo $transferAmount ?>">CHECKOUT</button>
+                              <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-charge="<?php echo $charge ?>" data-seller="<?php echo $seller_code ?>" data-transfer_amount="<?php echo $transferAmount ?>">CHECKOUT</button>
                             <?php else: ?>
                               <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>
                             <?php endif; ?>
@@ -504,6 +507,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
       // Add to Cart button click event
       $('#cart').on('click', '.checkout-cart', function() {
         amount = $(this).data('transfer_amount');
+        seller = $(this).data('seller');
         charge = $(this).data('charge');
         email = "<?php echo $user_email ?>";
 
@@ -522,6 +526,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
           data: {
             amount: amount*100,
             email: email,
+            seller: seller,
             charge: charge*100,
             nivas_ref: myUniqueID
           },

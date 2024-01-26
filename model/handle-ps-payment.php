@@ -12,6 +12,7 @@ if (isset($_POST['nivas_ref'])) {
   $nivas_ref = $_POST['nivas_ref'];
   $amount = $_POST['amount'];
   $email = $_POST['email'];
+  $seller = $_POST['seller'];
   $charge = $_POST['charge'];
 
   curl_setopt_array($curl, array(
@@ -27,7 +28,7 @@ if (isset($_POST['nivas_ref'])) {
       'amount' => $amount,
       'email' => $email,
       'reference' => $nivas_ref,
-      'subaccount' => 'ACCT_ono9ecuuw5s0zx1',
+      'subaccount' => $seller,
       'transaction_charge' => $charge,
       'callback_url' => 'https://stage.nivasity.com/model/handle-ps-payment.php'
     ]),
