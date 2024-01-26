@@ -137,7 +137,7 @@ if (isset($_POST['product_id'])) {
                     </div>';
     if ($total_cart_price > 0) {
         echo '
-                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-total_amount="' . $total_cart_price . '" data-transfer_amount="' . $transferAmount . '" data-mdb-ripple-duration="0" >CHECKOUT (₦ ' . $transferAmount . ')</button>';
+                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-charge="' . $charge . '" data-transfer_amount="' . $transferAmount . '" data-mdb-ripple-duration="0" >CHECKOUT (₦ ' . $transferAmount . ')</button>';
     } else {
         echo '
                     <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>';

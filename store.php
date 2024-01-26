@@ -272,7 +272,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                               <h5>₦ <?php echo $charge ?></h5>
                             </div>
                             <?php if($total_cart_price > 0): ?>
-                              <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-total_amount="<?php echo $total_cart_price ?>" data-transfer_amount="<?php echo $transferAmount ?>">CHECKOUT (₦ <?php echo $transferAmount ?>)</button>
+                              <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-charge="<?php echo $charge ?>" data-transfer_amount="<?php echo $transferAmount ?>">CHECKOUT (₦ <?php echo $transferAmount ?>)</button>
                             <?php else: ?>
                               <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>
                             <?php endif; ?>
@@ -489,7 +489,8 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
       // Add to Cart button click event
       $('#cart').on('click', '.checkout-cart', function() {
         amount = $(this).data('transfer_amount');
-        subaccount_amount = $(this).data('total_amount');
+        charge = $(this).data('charge');
+        email = "<?php echo $user_email ?>";
 
         function generateUniqueID() {
           const currentDate = new Date();
@@ -499,45 +500,68 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
 
         const myUniqueID = generateUniqueID();
 
+        // Make another API call to your server to create a split transaction
         $.ajax({
-          url: 'model/getKey.php',
+          url: 'model/handle-ps-payment.php',
           type: 'POST',
-          data: { getKey: 'get-Key'},
-          success: function (data) {
-            var flw_pk = data.flw_pk;
+          data: {
+            amount: amount*100,
+            email: email,
+            charge: charge*100,
+            nivas_ref: myUniqueID
+          },
+          dataType: 'json',
+          success: function(response) {
+            var payment_link = response.data.authorization_url;
+            // alert(payment_link);
 
-            // Call FlutterwaveCheckout with the retrieved flw_pk
-            FlutterwaveCheckout({
-              public_key: flw_pk,
-              tx_ref: myUniqueID,
-              amount: amount,
-              currency: "NGN",
-              subaccounts: [
-                {
-                  id: "RS_96A0AE6B6C1F9347B538451A1E4F6C0E",
-                  transaction_charge_type: "flat_subaccount",
-                  transaction_charge: subaccount_amount,
-                }
-              ],
-              payment_options: "card, banktransfer, ussd",
-              redirect_url: "https://stage.nivasity.com/model/handle-fw-payment.php",
-              meta: {
-                consumer_id: 23,
-                consumer_mac: "92a3-912ba-1192a",
-              },
-              customer: {
-                email: "akinyemisamuel170@gmail.com",
-                phone_number: "07048706198",
-                name: "Samuel Akinyemi",
-              },
-              customizations: {
-                title: "NIVASITY PAY",
-                description: "Student manual payment",
-                logo: "https://stage.nivasity.com/favicon.ico",
-              },
-            });
+            // Redirect to the Paystack payment page
+            window.location.href = payment_link;
+          },
+          error: function(jqXHR, textStatus, errorThrown) {
+              console.error('Ajax request failed:', textStatus, errorThrown);
           }
         });
+        // $.ajax({
+        //   url: 'model/getKey.php',
+        //   type: 'POST',
+        //   data: { getKey: 'get-Key'},
+        //   success: function (data) {
+        //     var paystack_pk = data.paystack_pk;
+
+
+            // Call FlutterwaveCheckout with the retrieved flw_pk
+            // FlutterwaveCheckout({
+            //   public_key: flw_pk,
+            //   tx_ref: myUniqueID,
+            //   amount: amount,
+            //   currency: "NGN",
+            //   subaccounts: [
+            //     {
+            //       id: "RS_96A0AE6B6C1F9347B538451A1E4F6C0E",
+            //       transaction_charge_type: "flat_subaccount",
+            //       transaction_charge: subaccount_amount,
+            //     }
+            //   ],
+            //   payment_options: "card, banktransfer, ussd",
+            //   redirect_url: "https://stage.nivasity.com/model/handle-fw-payment.php",
+            //   meta: {
+            //     consumer_id: 23,
+            //     consumer_mac: "92a3-912ba-1192a",
+            //   },
+            //   customer: {
+            //     email: "akinyemisamuel170@gmail.com",
+            //     phone_number: "07048706198",
+            //     name: "Samuel Akinyemi",
+            //   },
+            //   customizations: {
+            //     title: "NIVASITY PAY",
+            //     description: "Student manual payment",
+            //     logo: "https://stage.nivasity.com/favicon.ico",
+            //   },
+            // });
+          // }
+        // });
       });
 
     });

@@ -15,6 +15,8 @@
 
 <!-- Flutterwave Integration -->
 <script src="https://checkout.flutterwave.com/v3.js"></script>
+<!-- Paystack Integration -->
+<script src="https://js.paystack.co/v1/inline.js"></script>
 
 <!-- Google Sign-In API library -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
