@@ -393,21 +393,21 @@ $bankName = getBankName($bank, $bankList);
                         <input type="hidden" name="settlement_id" value="0">
                         <div class="modal-body">
                           <div class="form-outline mb-4">
-                            <input type="text" name="acct_name" class="form-control form-control-lg w-100" required="">
-                            <label class="form-label" for="acct_name">Account Name</label>
+                            <input type="number" id="acct_number" name="acct_number" class="form-control form-control-lg w-100" maxlength="11" required="">
+                            <label class="form-label" for="acct_number">Account Number</label>
                           </div>
                           <div class="form-group mb-4">
                             <label class="form-label" for="bank">Bank Name</label>
                             <select id="bank" name="bank" class="form-control form-control-lg w-100"></select>
                           </div>
                           <div class="form-outline mb-4">
-                            <input type="number" name="acct_number" class="form-control form-control-lg w-100" required="">
-                            <label class="form-label" for="acct_number">Account Number</label>
+                            <input type="text" name="acct_name" class="form-control form-control-lg w-100" readonly required>
+                            <label class="form-label" for="acct_name">Account Name</label>
                           </div>
                         </div>
                         <div class="modal-footer">
                           <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
-                          <button id="settlement_submit" type="submit" class="btn btn-lg btn-primary">Submit</button>
+                          <button id="settlement_submit" type="submit" class="btn btn-lg btn-primary" disabled>Submit</button>
                         </div>
                       </form>
                     </div>
@@ -708,6 +708,58 @@ $bankName = getBankName($bank, $bankList);
         $('#settlement-form select[name="bank"]').val(bank);
       });
 
+      function fetchAccountName() {
+        let acct_number = $('#acct_number').val();
+        let bank_code = $('#settlement-form select[name="bank"]').val();
+        let acct_name = $('#settlement-form input[name="acct_name"]');
+        let submitButton = $('#settlement_submit');
+        
+        // Change the value to "Searching..."
+        acct_name.val('Searching...');
+        
+        $('#acct_number').val(acct_number.slice(0, 10)); // Slice to 11 digits
+
+        // Disable the submit button
+        submitButton.prop('disabled', true);
+
+        // Make an Ajax request to your PHP script
+        $.ajax({
+          url: '../model/getAcct.php', // Replace with the actual path to your PHP script
+          type: 'GET',
+          data: {
+            account_number: acct_number,
+            bank_code: bank_code
+          },
+          success: function(response) {
+            try {
+              let jsonResponse = JSON.parse(response);
+
+              if (jsonResponse.error) {
+                acct_name.val(jsonResponse.error);
+              } else {
+                // Enable the submit button
+                $('#settlement_submit').prop('disabled', false);
+
+                // Update the result with the fetched account name
+                acct_name.val(jsonResponse.account_name);
+              }
+            } catch (e) {
+              acct_name.val('Error parsing server response.');
+            }
+          },
+          error: function() {
+            acct_name.val('Error fetching account name. Please try again.');
+          }
+        });
+      }
+
+      // Trigger the fetchAccountName function on keyup event
+      $('#acct_number').on('keyup', fetchAccountName);
+
+      // Trigger the fetchAccountName function on select change event
+      $('#settlement-form select[name="bank"]').on('change', fetchAccountName);
+
+
       // Use AJAX to submit the settlement form
       $('#settlement-form').submit(function (event) {
         event.preventDefault(); // Prevent the default form submission
@@ -727,6 +779,7 @@ $bankName = getBankName($bank, $bankList);
             url: 'model/settlement.php',
             data: $('#settlement-form').serialize(),
             success: function (data) {
+              console.log(data);
               $('#alertBanner').html(data.message);
 
               if (data.status == 'success') {
