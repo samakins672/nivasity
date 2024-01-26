@@ -86,7 +86,7 @@ if (isset($_POST['product_id'])) {
                     </div>
                 </td>
                 <td>
-                    <h6>&#8358; ' . $cart_item['price'] . '</h6>
+                    <h6>&#8358; ' . number_format($cart_item['price']) . '</h6>
                 </td>
                 <td>
                     <h6>' . $due_date . '</h6>
@@ -100,12 +100,25 @@ if (isset($_POST['product_id'])) {
     // Assuming $transferAmount contains the transfer amount
     $transferAmount = $total_cart_price;
 
-    if ($transferAmount <= 5000) {
-        $charge = 25;
-    } elseif ($transferAmount <= 50000) {
+    $charge = 0;
+    if ($transferAmount == 0) {
+        $charge = 0;
+    } elseif ($transferAmount < 2500) {
         $charge = 65;
-    } else {
-        $charge = 150;
+    } elseif ($transferAmount >= 2500) {
+        // Add 1.5% to the transferAmount
+        $charge += ($transferAmount * 0.015);
+
+        // Adjust the charge accordingly
+        if ($transferAmount < 2500) {
+            $charge += 120;
+        } elseif ($transferAmount >= 2500 && $transferAmount < 5000) {
+            $charge += 125;
+        } elseif ($transferAmount >= 5000 && $transferAmount < 10000) {
+            $charge += 130;
+        } else {
+            $charge += 135;
+        }
     }
 
     // Add the charge to the total
@@ -126,18 +139,23 @@ if (isset($_POST['product_id'])) {
                             <h4 class="card-title card-title-dash">Cart Summary</h4>
                         </div>
                     </div><hr>
-                    <div class="d-flex justify-content-between my-3 fw-bold">
+                    <div class="d-flex justify-content-between mt-3 mb-1 fw-bold">
                         <p>Subtotal</p>
-                        <h3>₦ ' . $total_cart_price . '</h3>
+                        <h3>₦ ' . number_format($total_cart_price) . '</h3>
                     </div>
 
-                    <div class="d-flex justify-content-between my-3 fw-bold">
+                    <div class="d-flex justify-content-between mt-0 mb-3 fw-bold">
                         <p>Handling fee</p>
                         <h5>₦ ' . $charge . '</h5>
-                    </div>';
+                    </div>                    
+                    <div class="d-flex justify-content-between my-3 text-secondary fw-bold">
+                        <h5 class="fw-bold">Total Due</h5>
+                        <h5 class="fw-bold">₦ '.number_format($transferAmount).'</h5>
+                    </div>
+                    ';
     if ($total_cart_price > 0) {
         echo '
-                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-charge="' . $charge . '" data-transfer_amount="' . $transferAmount . '" data-mdb-ripple-duration="0" >CHECKOUT (₦ ' . $transferAmount . ')</button>';
+                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-charge="' . $charge . '" data-transfer_amount="' . $transferAmount . '" data-mdb-ripple-duration="0" >CHECKOUT</button>';
     } else {
         echo '
                     <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>';

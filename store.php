@@ -123,7 +123,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                                 <div class="media">
                                   <i class="mdi mdi-book icon-lg text-secondary d-flex align-self-start me-3"></i>
                                   <div class="media-body">
-                                    <h3 class="fw-bold price">₦ <?php echo $manual['price'] ?></h3>
+                                    <h3 class="fw-bold price">₦ <?php echo number_format($manual['price']) ?></h3>
                                     <p class="card-text">
                                       Due date:<span class="fw-bold text-<?php echo $status_c ?> due_date"> <?php echo $due_date ?></span><br>
                                       <span class="text-secondary"><?php echo $seller_fn.' '. $seller_ln ?> (HOC)</span>
@@ -222,7 +222,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                                         </div>
                                     </td>
                                     <td>
-                                      <h6>&#8358; <?php echo $cart_item['price'] ?></h6>
+                                      <h6>&#8358; <?php echo number_format($cart_item['price']) ?></h6>
                                     </td>
                                     <td>
                                       <h6 class="text-<?php echo $status_c ?>"><?php echo $due_date ?></h6>
@@ -246,33 +246,48 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                                 <h4 class="card-title card-title-dash">Order Summary</h4>
                               </div>
                             </div><hr>
-                            <div class="d-flex justify-content-between my-3 fw-bold">
+                            <div class="d-flex justify-content-between mt-3 mb-1 fw-bold">
                               <p>Subtotal</p>
-                              <h3>₦ <?php echo $total_cart_price ?></h3>
+                              <h4>₦ <?php echo number_format($total_cart_price) ?></h4>
                             </div>
                             <?php 
                               // Assuming $transferAmount contains the transfer amount
                               $transferAmount = $total_cart_price;
 
+                              $charge = 0;                              
                               if ($transferAmount == 0) {
                                 $charge = 0;
-                              } elseif ($transferAmount <= 5000) {
-                                $charge = 25;
-                              } elseif ($transferAmount <= 50000) {
+                              } elseif ($transferAmount < 2500) {
                                 $charge = 65;
-                              } else {
-                                $charge = 150;
+                              } elseif ($transferAmount >= 2500) {
+                                // Add 1.5% to the transferAmount
+                                $charge += ($transferAmount * 0.015);
+
+                                // Adjust the charge accordingly
+                                if ($transferAmount < 2500) {
+                                  $charge += 120;
+                                } elseif ($transferAmount >= 2500 && $transferAmount < 5000) {
+                                  $charge += 125;
+                                } elseif ($transferAmount >= 5000 && $transferAmount < 10000) {
+                                  $charge += 130;
+                                } else {
+                                  $charge += 135;
+                                }
                               }
 
-                              // Add the charge to the total
+                            // Add the charge to the total
                               $transferAmount += $charge;
                             ?>
-                            <div class="d-flex justify-content-between my-3 fw-bold">
+                            <div class="d-flex justify-content-between mt-0 mb-3 fw-bold">
                               <p>Handling fee</p>
-                              <h5>₦ <?php echo $charge ?></h5>
+                              <h5>₦ <?php echo number_format($charge) ?></h5>
+                            </div>
+                            <div class="d-flex justify-content-between my-3 text-secondary fw-bold">
+                              <h5 class="fw-bold">Total Due</h5>
+                              <h5 class="fw-bold">₦ <?php echo number_format($transferAmount) ?></h5>
                             </div>
                             <?php if($total_cart_price > 0): ?>
-                              <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-charge="<?php echo $charge ?>" data-transfer_amount="<?php echo $transferAmount ?>">CHECKOUT (₦ <?php echo $transferAmount ?>)</button>
+                              <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-charge="<?php echo $charge ?>" data-transfer_amount="<?php echo $transferAmount ?>">CHECKOUT</button>
                             <?php else: ?>
                               <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>
                             <?php endif; ?>

@@ -71,7 +71,7 @@ if (isset($_POST['nivas_ref'])) {
   $response = json_decode($response, true);
 
   if ($response['status'] === true && $response['data']['reference'] === $tx_ref) {
-    $status = 'success';
+    $status = 'successful';
     $total_amount = 0;
 
     // Iterate through each manualId

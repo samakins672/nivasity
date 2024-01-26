@@ -105,7 +105,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                           class="statistics-details d-flex justify-content-between align-items-center mt-0 mt-md-2 mb-4">
                           <div>
                             <p class="statistics-title fw-bold">Revenue Earned</p>
-                            <h3 class="rate-percentage">&#8358; <?php echo $t_manuals_price ?></h3>
+                            <h3 class="rate-percentage">&#8358; <?php echo number_format($t_manuals_price) ?></h3>
                           </div>
                           <div>
                             <p class="statistics-title fw-bold">Total Manuals</p>
@@ -209,7 +209,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                           </div>
                                         </td>
                                         <td>
-                                          <h6 class="text-secondary">&#8358; <?php echo $manual['total_sales'] ?></h6>
+                                          <h6 class="text-secondary">&#8358; <?php echo number_format($manual['total_sales']) ?></h6>
                                           <p>Qty Sold: <span class="fw-bold"><?php echo $manuals_bought_cnt ?></span></p>
                                         </td>
                                         <td class="text-center">
@@ -261,7 +261,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                   
                                   <div class="wrapper ms-3">
                                     <p class="mb-1 fw-bold"><?php echo $transactions_bought_cnt ?> manuals bought by <span class="text-capitalize"><?php echo $buyer['first_name']?></span></p>
-                                    <p class="text-secondary mb-0 fw-bold">&#8358; <?php echo $transactions_bought_price ?></p>
+                                    <p class="text-secondary mb-0 fw-bold">&#8358; <?php echo number_format($transactions_bought_price) ?></p>
                                   </div>
                                 </div>
                                 <div class="text-muted fw-bold">
@@ -356,10 +356,10 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                         </div>
                                       </td>
                                       <td class="d-sm-none-2">
-                                        <h6>&#8358; <?php echo $manual['price'] ?></h6>
+                                        <h6>&#8358; <?php echo number_format($manual['price']) ?></h6>
                                       </td>
                                       <td>
-                                        <h6 class="text-secondary">&#8358; <?php echo $manuals_bought_price ?></h6>
+                                        <h6 class="text-secondary">&#8358; <?php echo number_format($manuals_bought_price) ?></h6>
                                         <p>Qty Sold: <span class="fw-bold"><?php echo $manuals_bought_cnt ?></span></p>
                                       </td>
                                       <td class="d-sm-none-2">
@@ -460,7 +460,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                         <h6><?php echo $transactions_bought_cnt ?></h6>
                                       </td>
                                       <td>
-                                        <h6 class="text-success fw-bold">&#8358; <?php echo $transactions_bought_price ?></h6>
+                                        <h6 class="text-success fw-bold">&#8358; <?php echo number_format($transactions_bought_price) ?></h6>
                                       </td>
                                       <td class="d-sm-none-2">
                                         <h6><?php echo $created_date ?></h6>

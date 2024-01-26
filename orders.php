@@ -73,7 +73,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought_$school_id WHE
                                   </div>
                                 </td>
                                 <td>
-                                  <h6 class="text-success fw-bold">&#8358; <?php echo $manuals['price'] ?></h6>
+                                  <h6 class="text-success fw-bold">&#8358; <?php echo number_format($manuals['price']) ?></h6>
                                 </td>
                                 <td>
                                   <h6><?php echo $created_date ?></h6>
