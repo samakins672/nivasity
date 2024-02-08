@@ -29,7 +29,7 @@ if (mysqli_num_rows($settlement_query) == 1) {
   $bank = $acct['bank'];
 }
 
-$filePath = '../model/all-banks-NG.json';
+$filePath = '../model/all-banks-NG-flw.json';
 
 // Read JSON data from the file
 $bankListJson = file_get_contents($filePath);
@@ -181,8 +181,8 @@ $bankName = getBankName($bank, $bankList);
                             <div class="d-sm-flex justify-content-between align-items-center">
                               <h4 class="fw-bold">Settlement Account</h4>
                               <button class="btn btn-primary btn-lg fw-bold text-white mb-0 me-0 view-edit-account" type="button" data-bs-toggle="modal" data-bs-target="#addSettlement"
-                              data-settlement_id="<?php echo $settlement_id?>" data-acct_name="<?php echo $acct_name?>" data-acct_number="<?php echo $acct_number?>" data-bank="<?php echo $bank?>"><i
-                                  class="mdi mdi-briefcase-<?php echo $d_icon?>"></i><?php echo $d_text?></button>
+                              data-settlement_id="<?php echo $settlement_id ?>" data-acct_name="<?php echo $acct_name ?>" data-acct_number="<?php echo $acct_number ?>" data-bank="<?php echo $bank ?>"><i
+                                  class="mdi mdi-briefcase-<?php echo $d_icon ?>"></i><?php echo $d_text ?></button>
                             </div>
                           </h4>
                           <div class="card-body px-2">
@@ -200,13 +200,13 @@ $bankName = getBankName($bank, $bankList);
                                     <td>
                                       <div class="d-flex ">
                                         <div>
-                                          <p class="pb-2"><?php echo $bankName?></p>
-                                          <h6 class="text-uppercase"><?php echo $acct_name?></h6>
+                                          <p class="pb-2"><?php echo $bankName ?></p>
+                                          <h6 class="text-uppercase"><?php echo $acct_name ?></h6>
                                         </div>
                                       </div>
                                     </td>
                                     <td>
-                                      <h6 class="text-secondary"><?php echo $acct_number?></h6>
+                                      <h6 class="text-secondary"><?php echo $acct_number ?></h6>
                                     </td>
                                     <td>
                                       <h6>NGN</h6>
@@ -335,7 +335,7 @@ $bankName = getBankName($bank, $bankList);
                               <?php
                               $school = mysqli_fetch_array(mysqli_query($conn, "SELECT name FROM schools WHERE id = $school_id"))[0];
                               $user_dept_name = mysqli_fetch_array(mysqli_query($conn, "SELECT name FROM depts_$school_id WHERE id = $user_dept"))[0];
-                              
+
                               ?>
                               <div class="col-md-6">
                                 <div class="form-outline mb-4">
@@ -560,7 +560,7 @@ $bankName = getBankName($bank, $bankList);
 
   <script>   
     // Fetch data from the JSON file
-    $.getJSON('../model/all-banks-NG.json', function(data) {
+    $.getJSON('../model/all-banks-NG-flw.json', function(data) {
         var select = $('#bank');
 
         // Clear existing options
@@ -724,7 +724,7 @@ $bankName = getBankName($bank, $bankList);
 
         // Make an Ajax request to your PHP script
         $.ajax({
-          url: '../model/getAcct.php', // Replace with the actual path to your PHP script
+          url: '../model/getAcct_flw.php', // Replace with the actual path to your PHP script
           type: 'GET',
           data: {
             account_number: acct_number,
@@ -776,7 +776,7 @@ $bankName = getBankName($bank, $bankList);
         setTimeout(function () {
           $.ajax({
             type: 'POST',
-            url: 'model/settlement.php',
+            url: 'model/settlement_flw.php',
             data: $('#settlement-form').serialize(),
             success: function (data) {
               console.log(data);

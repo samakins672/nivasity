@@ -107,20 +107,18 @@ if (isset($_POST['product_id'])) {
     if ($transferAmount == 0) {
         $charge = 0;
     } elseif ($transferAmount < 2500) {
-        $charge = 65;
+        $charge = 45;
     } elseif ($transferAmount >= 2500) {
-        // Add 1.5% to the transferAmount
-        $charge += ($transferAmount * 0.015);
+        // Add 1.4% to the transferAmount
+        $charge += ($transferAmount * 0.014);
 
         // Adjust the charge accordingly
-        if ($transferAmount < 2500) {
-            $charge += 120;
-        } elseif ($transferAmount >= 2500 && $transferAmount < 5000) {
-            $charge += 125;
+        if ($transferAmount >= 2500 && $transferAmount < 5000) {
+            $charge += 20;
         } elseif ($transferAmount >= 5000 && $transferAmount < 10000) {
-            $charge += 130;
+            $charge += 30;
         } else {
-            $charge += 135;
+            $charge += 35;
         }
     }
 
@@ -158,7 +156,7 @@ if (isset($_POST['product_id'])) {
                     ';
     if ($total_cart_price > 0) {
         echo '
-                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-charge="' . $charge . '" data-seller="'.$seller_code.'" data-transfer_amount="' . $transferAmount . '" data-mdb-ripple-duration="0" >CHECKOUT</button>';
+                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-charge="' . $charge . '" data-seller="'.$seller_code.'" data-subaccount_amount="'.$total_cart_price.'" data-transfer_amount="' . $transferAmount . '" data-mdb-ripple-duration="0" >CHECKOUT</button>';
     } else {
         echo '
                     <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>';

@@ -103,21 +103,19 @@ if (isset($_POST['nivas_ref'])) {
       }
     }
 
-    if ($total_amount < 2500) {
-      $charge = 65;
-    } elseif ($total_amount >= 2500) {
-      // Add 1.5% to the transferAmount
-      $charge += ($total_amount * 0.015);
+    if ($transferAmount < 2500) {
+      $charge = 45;
+    } elseif ($transferAmount >= 2500) {
+      // Add 1.4% to the transferAmount
+      $charge += ($transferAmount * 0.014);
 
       // Adjust the charge accordingly
-      if ($total_amount < 2500) {
-        $charge += 120;
-      } elseif ($total_amount >= 2500 && $total_amount < 5000) {
-        $charge += 125;
-      } elseif ($total_amount >= 5000 && $total_amount < 10000) {
-        $charge += 130;
+      if ($transferAmount >= 2500 && $transferAmount < 5000) {
+        $charge += 20;
+      } elseif ($transferAmount >= 5000 && $transferAmount < 10000) {
+        $charge += 30;
       } else {
-        $charge += 135;
+        $charge += 35;
       }
     }
 

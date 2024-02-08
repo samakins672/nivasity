@@ -72,104 +72,104 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                         <div class="row flex-grow sortables">
                           <?php
                           if (mysqli_num_rows($manual_query) > 0) {
-                          $count_row = mysqli_num_rows($manual_query);
+                            $count_row = mysqli_num_rows($manual_query);
 
-                          while ($manual = mysqli_fetch_array($manual_query)) {
-                            $manual_id = $manual['id'];
-                            $seller_id = $manual['user_id'];
+                            while ($manual = mysqli_fetch_array($manual_query)) {
+                              $manual_id = $manual['id'];
+                              $seller_id = $manual['user_id'];
 
-                            // Check if the manual has been bought by the current user
-                            $is_bought_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM manuals_bought_$school_id WHERE manual_id = $manual_id AND buyer = $user_id");
-                            $is_bought_result = mysqli_fetch_assoc($is_bought_query);
+                              // Check if the manual has been bought by the current user
+                              $is_bought_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM manuals_bought_$school_id WHERE manual_id = $manual_id AND buyer = $user_id");
+                              $is_bought_result = mysqli_fetch_assoc($is_bought_query);
 
-                            // If the manual has been bought, skip it
-                            if ($is_bought_result['count'] > 0) {
-                              $count_row = $count_row - 1;
-                              continue;
-                            }
+                              // If the manual has been bought, skip it
+                              if ($is_bought_result['count'] > 0) {
+                                $count_row = $count_row - 1;
+                                continue;
+                              }
 
-                            $seller_q = mysqli_fetch_array(mysqli_query($conn, "SELECT first_name, last_name FROM users WHERE id = $seller_id"));
-                            $seller_fn = $seller_q['first_name'];
-                            $seller_ln = $seller_q['last_name'];
+                              $seller_q = mysqli_fetch_array(mysqli_query($conn, "SELECT first_name, last_name FROM users WHERE id = $seller_id"));
+                              $seller_fn = $seller_q['first_name'];
+                              $seller_ln = $seller_q['last_name'];
 
-                            // Retrieve and format the due date
-                            $due_date = date('j M, Y', strtotime($manual['due_date']));
-                            $due_date2 = date('Y-m-d', strtotime($manual['due_date']));
-                            // Retrieve the status
-                            $status = $manual['status'];
-                            $status_c = 'success';
+                              // Retrieve and format the due date
+                              $due_date = date('j M, Y', strtotime($manual['due_date']));
+                              $due_date2 = date('Y-m-d', strtotime($manual['due_date']));
+                              // Retrieve the status
+                              $status = $manual['status'];
+                              $status_c = 'success';
 
-                            if ($date > $due_date2) {
-                              $status = 'disabled';
-                              $status_c = 'danger';
+                              if ($date > $due_date2) {
+                                $status = 'disabled';
+                                $status_c = 'danger';
                                 if (abs(strtotime($date) - strtotime($due_date2)) > 10 * 24 * 60 * 60) {
                                   $count_row = $count_row - 1;
                                   continue;
                                 }
                               }
 
-                            // Check if the manual is already in the cart
-                            $is_in_cart = in_array($manual_id, $_SESSION["nivas_cart$user_id"]);
+                              // Check if the manual is already in the cart
+                              $is_in_cart = in_array($manual_id, $_SESSION["nivas_cart$user_id"]);
 
-                            // Update the Add to Cart button based on cart status
-                            $button_text = $is_in_cart ? 'Remove' : 'Add to Cart';
-                            $button_class = $is_in_cart ? 'btn-primary' : 'btn-outline-primary';
+                              // Update the Add to Cart button based on cart status
+                              $button_text = $is_in_cart ? 'Remove' : 'Add to Cart';
+                              $button_class = $is_in_cart ? 'btn-primary' : 'btn-outline-primary';
 
-                            ?>
-                          <div class="col-12 col-md-4 grid-margin px-2 stretch-card sortable-card">
-                            <div class="card card-rounded shadow-sm">
-                              <div class="card-body px-2">
-                                <h4 class="card-title"><?php echo $manual['title'] ?> <span class="text-secondary">- <?php echo $manual['course_code'] ?></span></h4>
-                                <div class="media">
-                                  <i class="mdi mdi-book icon-lg text-secondary d-flex align-self-start me-3"></i>
-                                  <div class="media-body">
-                                    <h3 class="fw-bold price">₦ <?php echo number_format($manual['price']) ?></h3>
-                                    <p class="card-text">
-                                      Due date:<span class="fw-bold text-<?php echo $status_c ?> due_date"> <?php echo $due_date ?></span><br>
-                                      <span class="text-secondary"><?php echo $seller_fn.' '. $seller_ln ?> (HOC)</span>
-                                    </p>
-                                  </div>
-                                </div>
-                                <hr>
-                                <div class="d-flex justify-content-between">
-                                  <?php if($status != 'disabled'):?>
-                                    <a href="javascript:;">
-                                      <i class="mdi mdi-share-variant icon-md text-muted" data-title="<?php echo $manual['title']; ?>" data-manual_id="<?php echo $manual['id']; ?>"></i>
-                                    </a>
-                                    <button class="btn <?php echo $button_class; ?> btn-lg m-0 cart-button" data-product-id="<?php echo $manual['id']; ?>">
-                                      <?php echo $button_text; ?>
-                                    </button>
-                                  <?php else: ?>
-                                    <h4 class="fw-bold text-danger">Overdue !</h4>
-                                  <?php endif; ?>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                          <?php
-                              }
-                            if ($count_row == 0) { ?>
-                              <div class="col-12">
-                                  <div class="card card-rounded shadow-sm">
-                                    <div class="card-body px-2">
-                                      <h5 class="card-title">All manuals have been bought</h5>
-                                      <p class="card-text">Check back later when your HOC uploads a new manual.</p>
-                                    </div>
-                                  </div>
-                              </div>
-                            <?php }
-                          } else {
-                              // Display a message when no manuals are found
                               ?>
-                              <div class="col-12">
-                                  <div class="card card-rounded shadow-sm">
-                                    <div class="card-body px-2">
-                                      <h5 class="card-title text-center">No manuals available.</h5>
-                                      <p class="card-text text-center">Check back later when your HOC uploads a new manual.</p>
+                                  <div class="col-12 col-md-4 grid-margin px-2 stretch-card sortable-card">
+                                    <div class="card card-rounded shadow-sm">
+                                      <div class="card-body px-2">
+                                        <h4 class="card-title"><?php echo $manual['title'] ?> <span class="text-secondary">- <?php echo $manual['course_code'] ?></span></h4>
+                                        <div class="media">
+                                          <i class="mdi mdi-book icon-lg text-secondary d-flex align-self-start me-3"></i>
+                                          <div class="media-body">
+                                            <h3 class="fw-bold price">₦ <?php echo number_format($manual['price']) ?></h3>
+                                            <p class="card-text">
+                                              Due date:<span class="fw-bold text-<?php echo $status_c ?> due_date"> <?php echo $due_date ?></span><br>
+                                              <span class="text-secondary"><?php echo $seller_fn . ' ' . $seller_ln ?> (HOC)</span>
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <hr>
+                                        <div class="d-flex justify-content-between">
+                                          <?php if ($status != 'disabled'): ?>
+                                                <a href="javascript:;">
+                                                  <i class="mdi mdi-share-variant icon-md text-muted" data-title="<?php echo $manual['title']; ?>" data-manual_id="<?php echo $manual['id']; ?>"></i>
+                                                </a>
+                                                <button class="btn <?php echo $button_class; ?> btn-lg m-0 cart-button" data-product-id="<?php echo $manual['id']; ?>">
+                                                  <?php echo $button_text; ?>
+                                                </button>
+                                          <?php else: ?>
+                                                <h4 class="fw-bold text-danger">Overdue !</h4>
+                                          <?php endif; ?>
+                                          </div>
+                                        </div>
+                                      </div>
                                     </div>
+
+                                  <?php
+                            }
+                            if ($count_row == 0) { ?>
+                                      <div class="col-12">
+                                          <div class="card card-rounded shadow-sm">
+                                            <div class="card-body px-2">
+                                              <h5 class="card-title">All manuals have been bought</h5>
+                                              <p class="card-text">Check back later when your HOC uploads a new manual.</p>
+                                            </div>
+                                          </div>
+                                      </div>
+                                <?php }
+                          } else {
+                            // Display a message when no manuals are found
+                            ?>
+                                  <div class="col-12">
+                                      <div class="card card-rounded shadow-sm">
+                                        <div class="card-body px-2">
+                                          <h5 class="card-title text-center">No manuals available.</h5>
+                                          <p class="card-text text-center">Check back later when your HOC uploads a new manual.</p>
+                                        </div>
+                                      </div>
                                   </div>
-                              </div>
                               <?php } ?>
                         </div>
                       </div>
@@ -195,14 +195,14 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                                 foreach ($_SESSION["nivas_cart$user_id"] as $cart_item_id) {
                                   // Fetch details of the carted item based on $cart_item_id
                                   $cart_item = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE id = $cart_item_id"));
-                                  
+
                                   // Retrieve and format the due date
                                   $due_date = date('j M, Y', strtotime($cart_item['due_date']));
                                   $due_date2 = date('Y-m-d', strtotime($cart_item['due_date']));
                                   // Retrieve the status
                                   $status = $cart_item['status'];
                                   $status_c = '';
-                                  
+
                                   $seller = $cart_item['user_id'];
                                   $seller_code = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE user_id = $seller"))['subaccount_code'];
 
@@ -213,27 +213,27 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                                     $total_cart_price = $total_cart_price + $cart_item['price'];
                                   }
                                   ?>
-                                  <tr>
-                                    <td>
-                                      <div class="d-flex">
-                                        <div>
-                                          <h6><?php echo $cart_item['course_code'] ?></h6>
-                                          <?php if($status_c == 'danger'): ?>
-                                            <p class="text-danger fw-bold">Item Overdue</p>
-                                          <?php endif; ?>
-                                          </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                      <h6>&#8358; <?php echo number_format($cart_item['price']) ?></h6>
-                                    </td>
-                                    <td>
-                                      <h6 class="text-<?php echo $status_c ?>"><?php echo $due_date ?></h6>
-                                    </td>
-                                    <td>
-                                        <button class="btn btn-sm btn-outline-primary mb-0 btn-block remove-cart" data-cart_id="<?php echo $cart_item_id?>">Remove</button>
-                                    </td>
-                                  </tr>
+                                      <tr>
+                                        <td>
+                                          <div class="d-flex">
+                                            <div>
+                                              <h6><?php echo $cart_item['course_code'] ?></h6>
+                                              <?php if ($status_c == 'danger'): ?>
+                                                    <p class="text-danger fw-bold">Item Overdue</p>
+                                              <?php endif; ?>
+                                              </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                          <h6>&#8358; <?php echo number_format($cart_item['price']) ?></h6>
+                                        </td>
+                                        <td>
+                                          <h6 class="text-<?php echo $status_c ?>"><?php echo $due_date ?></h6>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary mb-0 btn-block remove-cart" data-cart_id="<?php echo $cart_item_id ?>">Remove</button>
+                                        </td>
+                                      </tr>
                                 <?php } ?>
                                 </tbody>
                               </table>
@@ -253,33 +253,31 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                               <p>Subtotal</p>
                               <h4>₦ <?php echo number_format($total_cart_price) ?></h4>
                             </div>
-                            <?php 
-                              // Assuming $transferAmount contains the transfer amount
-                              $transferAmount = $total_cart_price;
+                            <?php
+                            // Assuming $transferAmount contains the transfer amount
+                            $transferAmount = $total_cart_price;
 
-                              $charge = 0;                              
-                              if ($transferAmount == 0) {
-                                $charge = 0;
-                              } elseif ($transferAmount < 2500) {
-                                $charge = 65;
-                              } elseif ($transferAmount >= 2500) {
-                                // Add 1.5% to the transferAmount
-                                $charge += ($transferAmount * 0.015);
+                            $charge = 0;
+                            if ($transferAmount == 0) {
+                              $charge = 0;
+                            } elseif ($transferAmount < 2500) {
+                              $charge = 45;
+                            } elseif ($transferAmount >= 2500) {
+                              // Add 1.4% to the transferAmount
+                              $charge += ($transferAmount * 0.014);
 
-                                // Adjust the charge accordingly
-                                if ($transferAmount < 2500) {
-                                  $charge += 120;
-                                } elseif ($transferAmount >= 2500 && $transferAmount < 5000) {
-                                  $charge += 125;
-                                } elseif ($transferAmount >= 5000 && $transferAmount < 10000) {
-                                  $charge += 130;
-                                } else {
-                                  $charge += 135;
-                                }
+                              // Adjust the charge accordingly
+                              if ($transferAmount >= 2500 && $transferAmount < 5000) {
+                                $charge += 20;
+                              } elseif ($transferAmount >= 5000 && $transferAmount < 10000) {
+                                $charge += 30;
+                              } else {
+                                $charge += 35;
                               }
+                            }
 
                             // Add the charge to the total
-                              $transferAmount += $charge;
+                            $transferAmount += $charge;
                             ?>
                             <div class="d-flex justify-content-between mt-0 mb-3 fw-bold">
                               <p>Handling fee</p>
@@ -289,10 +287,13 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                               <h5 class="fw-bold">Total Due</h5>
                               <h5 class="fw-bold">₦ <?php echo number_format($transferAmount) ?></h5>
                             </div>
-                            <?php if($total_cart_price > 0): ?>
-                              <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-charge="<?php echo $charge ?>" data-seller="<?php echo $seller_code ?>" data-transfer_amount="<?php echo $transferAmount ?>">CHECKOUT</button>
+                            <?php if ($total_cart_price > 0): ?>
+                                  <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart"
+                                    data-charge="<?php echo $charge ?>" data-seller="<?php echo $seller_code ?>" 
+                                    data-subaccount_amount="<?php echo $total_cart_price ?>" 
+                                    data-transfer_amount="<?php echo $transferAmount ?>">CHECKOUT</button>
                             <?php else: ?>
-                              <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>
+                                  <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>
                             <?php endif; ?>
                           </div>
                         </div>
@@ -509,7 +510,10 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
         amount = $(this).data('transfer_amount');
         seller = $(this).data('seller');
         charge = $(this).data('charge');
+        subaccount_amount = $(this).data('subaccount_amount');
         email = "<?php echo $user_email ?>";
+        phone = "<?php echo $user_phone ?>";
+        u_name = "<?php echo $user_name ?>";
 
         function generateUniqueID() {
           const currentDate = new Date();
@@ -520,68 +524,59 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
         const myUniqueID = generateUniqueID();
 
         // Make another API call to your server to create a split transaction
-        $.ajax({
-          url: 'model/handle-ps-payment.php',
-          type: 'POST',
-          data: {
-            amount: amount*100,
-            email: email,
-            seller: seller,
-            charge: charge*100,
-            nivas_ref: myUniqueID
-          },
-          dataType: 'json',
-          success: function(response) {
-            var payment_link = response.data.authorization_url;
-            // alert(payment_link);
-
-            // Redirect to the Paystack payment page
-            window.location.href = payment_link;
-          },
-          error: function(jqXHR, textStatus, errorThrown) {
-              console.error('Ajax request failed:', textStatus, errorThrown);
-          }
-        });
         // $.ajax({
-        //   url: 'model/getKey.php',
+        //   url: 'model/handle-ps-payment.php',
         //   type: 'POST',
-        //   data: { getKey: 'get-Key'},
-        //   success: function (data) {
-        //     var paystack_pk = data.paystack_pk;
+        //   data: {
+        //     amount: amount*100,
+        //     email: email,
+        //     seller: seller,
+        //     charge: charge*100,
+        //     nivas_ref: myUniqueID
+        //   },
+        //   dataType: 'json',
+        //   success: function(response) {
+        //     var payment_link = response.data.authorization_url;
+        //     // alert(payment_link);
 
+        //     // Redirect to the Paystack payment page
+        //     window.location.href = payment_link;
+        //   },
+        //   error: function(jqXHR, textStatus, errorThrown) {
+        //       console.error('Ajax request failed:', textStatus, errorThrown);
+        //   }
+        // });
+        $.ajax({
+          url: 'model/getKey.php',
+          type: 'POST',
+          data: { getKey: 'get-Key'},
+          success: function (data) {
+            var flw_pk = data.flw_pk;
+            alert(seller);
 
             // Call FlutterwaveCheckout with the retrieved flw_pk
-            // FlutterwaveCheckout({
-            //   public_key: flw_pk,
-            //   tx_ref: myUniqueID,
-            //   amount: amount,
-            //   currency: "NGN",
-            //   subaccounts: [
-            //     {
-            //       id: "RS_96A0AE6B6C1F9347B538451A1E4F6C0E",
-            //       transaction_charge_type: "flat_subaccount",
-            //       transaction_charge: subaccount_amount,
-            //     }
-            //   ],
-            //   payment_options: "card, banktransfer, ussd",
-            //   redirect_url: "https://stage.nivasity.com/model/handle-fw-payment.php",
-            //   meta: {
-            //     consumer_id: 23,
-            //     consumer_mac: "92a3-912ba-1192a",
-            //   },
-            //   customer: {
-            //     email: "akinyemisamuel170@gmail.com",
-            //     phone_number: "07048706198",
-            //     name: "Samuel Akinyemi",
-            //   },
-            //   customizations: {
-            //     title: "NIVASITY PAY",
-            //     description: "Student manual payment",
-            //     logo: "https://stage.nivasity.com/favicon.ico",
-            //   },
-            // });
-          // }
-        // });
+            FlutterwaveCheckout({
+              public_key: flw_pk,
+              tx_ref: myUniqueID,
+              amount: amount,
+              currency: "NGN",
+              subaccounts: [
+                {
+                  id: seller,
+                  transaction_charge_type: "flat_subaccount",
+                  transaction_charge: subaccount_amount,
+                }
+              ],
+              payment_options: "card, banktransfer, ussd",
+              redirect_url: "https://stage.nivasity.com/model/handle-fw-payment.php",
+              customer: {
+                email: email,
+                phone_number: phone,
+                name: u_name,
+              },
+            });
+          }
+        });
       });
 
     });
