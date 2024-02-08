@@ -67,12 +67,21 @@ if (isset($_GET['transaction_id'])) {
       }
     }
 
-    if ($total_amount <= 5000) {
-      $charge = 25;
-    } elseif ($total_amount <= 50000) {
-      $charge = 65;
-    } else {
-      $charge = 150;
+
+    if ($transferAmount < 2500) {
+      $charge = 45;
+    } elseif ($transferAmount >= 2500) {
+      // Add 1.4% to the transferAmount
+      $charge += ($transferAmount * 0.014);
+
+      // Adjust the charge accordingly
+      if ($transferAmount >= 2500 && $transferAmount < 5000) {
+        $charge += 20;
+      } elseif ($transferAmount >= 5000 && $transferAmount < 10000) {
+        $charge += 30;
+      } else {
+        $charge += 35;
+      }
     }
 
     // Add the charge to the total

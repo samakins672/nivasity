@@ -552,7 +552,6 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
           data: { getKey: 'get-Key'},
           success: function (data) {
             var flw_pk = data.flw_pk;
-            alert(seller);
 
             // Call FlutterwaveCheckout with the retrieved flw_pk
             FlutterwaveCheckout({
