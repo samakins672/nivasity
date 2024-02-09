@@ -671,6 +671,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
 
       $('#addManual').on('hidden.bs.modal', function () {
         // Reset the form by setting its values to empty
+        $('#manual-form input[name="manual_id"]').val(0);
         $('#manual-form')[0].reset();
       });
       
