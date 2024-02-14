@@ -49,12 +49,12 @@
             <img class="img-sm img-fluid rounded rounded-7" src="https://nivasity.com/assets/images/users/<?php echo $user_image?>" alt="Profile image">
             <p class="mb-1 mt-3 fw-bold"><?php echo $user_name?></p>
           </div>
-          <a class="dropdown-item" href="https://nivasity.com/user.php"><i
+          <!-- <a class="dropdown-item" href="https://nivasity.com/user.php"><i
               class="dropdown-item-icon mdi mdi-account-outline text-primary me-2"></i> My
             Profile</a>
           <a class="dropdown-item" href="https://nivasity.com/faq.html"><i
               class="dropdown-item-icon mdi mdi-help-circle-outline text-primary me-2"></i>
-            FAQ</a>
+            FAQ</a> -->
           <a class="dropdown-item" href="https://nivasity.com/signin.html?logout=1"><i
               class="dropdown-item-icon mdi mdi-power text-primary me-2"></i>Sign Out</a>
         </div>

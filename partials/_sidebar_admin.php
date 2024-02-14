@@ -33,7 +33,7 @@
     <?php if ($admin_role): ?>
       <li class="nav-item nav-category">Student Panel</li>
       <li class="nav-item">
-        <a class="nav-link" href="../store.php" target="_blank">
+        <a class="nav-link" href="../store.php">
           <i class="mdi mdi-store menu-icon"></i>
           <span class="menu-title">Go to Store</span>
         </a>
