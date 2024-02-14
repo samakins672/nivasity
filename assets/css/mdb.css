@@ -19,7 +19,7 @@
 :root {
   --mdb-red: #f44336;
   --mdb-pink: #e91e63;
-  --mdb-purple: #7A3B73;
+  --mdb-purple: #7a3b73;
   --mdb-indigo: #3f51b5;
   --mdb-blue: #2196f3;
   --mdb-cyan: #00bcd4;
@@ -51,7 +51,7 @@
   --mdb-light: #fbfbfb;
   --mdb-dark: #332d2d;
   --mdb-primary-rgb: 255, 145, 0;
-  --mdb-secondary-rgb: 159, 166, 178;
+  --mdb-secondary-rgb: 122, 59, 115;
   --mdb-success-rgb: 20, 164, 77;
   --mdb-danger-rgb: 220, 76, 100;
   --mdb-warning-rgb: 228, 161, 27;
