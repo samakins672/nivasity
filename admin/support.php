@@ -37,6 +37,17 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets WHERE user_i
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <link rel="shortcut icon" href="../favicon.ico" />
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-30QJ6DSHBN"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-30QJ6DSHBN');
+  </script>
+  
 </head>
 
 <body>
