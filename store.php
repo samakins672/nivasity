@@ -567,7 +567,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                 }
               ],
               payment_options: "card, banktransfer, ussd",
-              redirect_url: "https://stage.nivasity.com/model/handle-fw-payment.php",
+              redirect_url: "https://nivasity.com/model/handle-fw-payment.php",
               customer: {
                 email: email,
                 phone_number: phone,
