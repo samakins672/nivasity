@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /config/
+
+User-agent: *
+Allow: /
+
+Sitemap: https://nivasity.com/sitemap.xml
+Sitemap: https://www.nivasity.com/sitemap.xml
