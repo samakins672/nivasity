@@ -190,10 +190,10 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets WHERE user_i
                                 <div class="modal-body">
                                   <div>
                                     <h4>Response:</h4>
-                                    <p class="lh-base response_text">No response yet!</p>
+                                    <p class="lh-base fw-bold p-3 bg-secondary text-light rounded response_text">No response yet!</p>
                                     <p class="text-muted response_time"></p><br>
                                     <h4>Complain:</h4>
-                                    <p class="lh-base complaint_text"></p>
+                                    <p class="lh-base bg-light p-3 rounded complaint_text"></p>
                                     <p class="text-muted complaint_time"> Date: 23 Dec, 2023</p><br>
                                   </div>
                                 </div>
@@ -273,7 +273,9 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets WHERE user_i
         // Get the manual details from the data- attributes
         var code = $(this).data('code');
         var subject = $(this).data('subject');
-        var message = $(this).data('message');
+        var message = $(this).data('message');        
+        // retain rending format
+        message = message.replace(/\n/g, '<br>');
         var date = $(this).data('date');
         var response = $(this).data('response');
         var response_time = $(this).data('response_time');

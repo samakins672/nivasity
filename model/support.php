@@ -9,8 +9,8 @@ $user_id = $_SESSION['nivas_userId'];
 
 if (isset($_POST['support_id'])) {
   // Collect form data
-  $subject = $_POST['subject'];
-  $message = $_POST['message'];
+  $subject = mysqli_real_escape_string($conn, $_POST['subject']);
+  $message = mysqli_real_escape_string($conn, $_POST['message']);
 
   $user = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = $user_id"));
   $first_name = $user['first_name'];
@@ -39,7 +39,8 @@ if (isset($_POST['support_id'])) {
   // Send email to support
   $supportEmail = 'support@nivasity.com';
   $supportSubject = "Important: New Support Request - Ticket #$uniqueCode";
-  $supportMessage = "User: $first_name (User id: $user_id)<br>Email: <a href='mailto:$userEmail'>$userEmail</a><br>Message: $message<br>File attached: <a href='https://nivasity.com/assets/images/supports/$picture'>https://nivasity.com/assets/images/supports/$picture</a>";
+  $e_message = str_replace('\r\n', '<br>', $message);
+  $supportMessage = "User: $first_name (User id: $user_id)<br>Email: <a href='mailto:$userEmail'>$userEmail</a><br>Message: <br>$e_message<br><br>File attached: <a href='https://nivasity.com/assets/images/supports/$picture'>https://nivasity.com/assets/images/supports/$picture</a>";
 
   // Send confirmation email to the user
   $userSubject = "Support Request Received - Ticket #$uniqueCode";
