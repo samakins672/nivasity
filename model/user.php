@@ -204,7 +204,7 @@ if (isset($_POST['login'])) {
     }
   } else {
     $statusRes = "failed";
-    $messageRes = "Oops! Login failed. Please make sure you've entered the correct username and password";
+    $messageRes = "Email or Password incorrect!";
   }
 }
 
