@@ -5,7 +5,7 @@ require_once '../config/fw.php';
 $curl = curl_init();
 
 $headers = [
-  'Authorization: Bearer ' . FLW_SECRET_KEY,
+  'Authorization: Bearer ' . FLW_SECRET_KEY_TEST,
   'Content-Type: application/json'
 ];
 
