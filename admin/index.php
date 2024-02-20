@@ -109,7 +109,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                 </div>
                 <div class="tab-content tab-content-basic">
                   <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview">
-                    <?php if ($user_status == 'active'): ?>
+                    <?php if ($user_status == 'verified'): ?>
                     <div class="row flex-grow">
                       <div class="col-12">
                         <div
@@ -317,7 +317,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                             <div class="d-sm-flex justify-content-end">
                               <div>
                                 <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"
-                                  data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'active') ? 'addManual' : 'verificationManual' ?>"><i class="mdi mdi-book"></i>Add new
+                                  data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual' : 'verificationManual' ?>"><i class="mdi mdi-book"></i>Add new
                                   manual</button>
                               </div>
                             </div>
@@ -397,7 +397,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                             data-course_code="<?php echo $manual['course_code']; ?>" data-price="<?php echo $manual['price']; ?>"
                                             data-quantity="<?php echo $manual['quantity']; ?>"
                                             data-due_date="<?php echo date('Y-m-d', strtotime($manual['due_date'])); ?>" 
-                                            data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'active') ? 'addManual': 'verificationManual'?>">Edit</button>
+                                            data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual': 'verificationManual'?>">Edit</button>
                                             <button class="btn btn-md btn-dark mb-0 btn-block export-manual" data-bs-toggle="modal" data-bs-target="#exportManual"
                                               data-manual_id="<?php echo $manual['id']; ?>" data-code="<?php echo $manual['course_code']; ?>"><i class="mdi mdi-file-export m-0 text-white"></i></button>
                                           <?php if($status != 'overdue'): ?>
@@ -570,7 +570,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                   </div>
                 </div>
 
-                <?php if ($user_status == 'active'): ?>
+                <?php if ($user_status == 'verified'): ?>
                 <!-- Add New Manual Modal -->
                 <div class="modal fade" id="addManual" tabindex="-1" role="dialog" aria-labelledby="addManualLabel"
                   aria-hidden="true">
