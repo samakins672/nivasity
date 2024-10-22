@@ -7,12 +7,17 @@ include('model/page_config.php');
 if (!isset($_SESSION["nivas_cart$user_id"])) {
   $_SESSION["nivas_cart$user_id"] = array();
 }
-$total_cart_items = count($_SESSION["nivas_cart$user_id"]);
+if (!isset($_SESSION["nivas_cart_event$user_id"])) {
+  $_SESSION["nivas_cart_event$user_id"] = array();
+}
+$total_cart_items = count($_SESSION["nivas_cart$user_id"] + $_SESSION["nivas_cart_event$user_id"]);
 $total_cart_price = 0;
 
 $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals_$school_id WHERE dept = $user_dept AND status = 'open'"))[0];
 
 $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept = $user_dept AND status = 'open' ORDER BY `id` DESC");
+
+$event_query = mysqli_query($conn, "SELECT * FROM events_$school_id WHERE status = 'open' ORDER BY `id` DESC");
 ?>
 
 <!DOCTYPE html>
@@ -49,8 +54,12 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                         role="tab" aria-controls="store" aria-selected="true">Store</a>
                     </li>
                     <li class="nav-item">
+                      <a class="nav-link px-3 fw-bold" id="events-tab" data-bs-toggle="tab" href="#events"
+                        role="tab" aria-controls="events" aria-selected="true">Events</a>
+                    </li>
+                    <li class="nav-item">
                       <a class="nav-link px-3 fw-bold" id="cart-tab" data-bs-toggle="tab" href="#cart" role="tab"
-                        aria-selected="false">Shopping Cart (<span id="cart-count"><?php echo $total_cart_items; ?></span>)</a>
+                        aria-selected="false">Cart (<span id="cart-count"><?php echo $total_cart_items; ?></span>)</a>
                     </li>
                   </ul>
                 </div>
@@ -116,7 +125,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                               $button_class = $is_in_cart ? 'btn-primary' : 'btn-outline-primary';
 
                               ?>
-                                  <div class="col-12 col-md-4 grid-margin px-2 stretch-card sortable-card">
+                                  <div class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card sortable-card">
                                     <div class="card card-rounded shadow-sm">
                                       <div class="card-body px-2">
                                         <h4 class="card-title"><?php echo $manual['title'] ?> <span class="text-secondary">- <?php echo $manual['course_code'] ?></span></h4>
@@ -167,6 +176,118 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
                                         <div class="card-body px-2">
                                           <h5 class="card-title text-center">No manuals available.</h5>
                                           <p class="card-text text-center">Check back later when your HOC uploads a new manual.</p>
+                                        </div>
+                                      </div>
+                                  </div>
+                              <?php } ?>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tab-pane fade hide" id="events" role="tabpanel" aria-labelledby="events">
+                    <div class="row">
+                      <div class="col-5 col-md-3 offset-md-9 form-group me-2">
+                        <p class="text-muted">Sort By:</p>
+                        <select class="form-control w-100" name="sort-by" id="sort-by">
+                          <option value="1">Due Date</option>
+                          <option value="2">Price: Low to High</option>
+                          <option value="3">Price: High to Low</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div class="row">
+                      <div class="col-lg-12 d-flex flex-column">
+                        <div class="row flex-grow sortables">
+                          <?php
+                          if (mysqli_num_rows($event_query) > 0) {
+                            $count_row = mysqli_num_rows($event_query);
+
+                            while ($event = mysqli_fetch_array($event_query)) {
+                              $event_id = $event['id'];
+                              $seller_id = $event['user_id'];
+
+                              // Check if the event has been bought by the current user
+                              $is_bought_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM events_bought_$school_id WHERE event_id = $event_id AND buyer = $user_id");
+                              $is_bought_result = mysqli_fetch_assoc($is_bought_query);
+
+                              // If the event has been bought, skip it
+                              if ($is_bought_result['count'] > 0) {
+                                $count_row = $count_row - 1;
+                                continue;
+                              }
+
+                              $seller_q = mysqli_fetch_array(mysqli_query($conn, "SELECT first_name, last_name FROM users WHERE id = $seller_id"));
+                              $seller_fn = $seller_q['first_name'];
+                              $seller_ln = $seller_q['last_name'];
+
+                              // Retrieve and format the due date
+                              $due_date = date('j M, Y', strtotime($event['due_date']));
+                              $due_date2 = date('Y-m-d', strtotime($event['due_date']));
+                              // Retrieve the status
+                              $status = $event['status'];
+                              $status_c = 'success';
+
+                              if ($date > $due_date2) {
+                                $status = 'disabled';
+                                $status_c = 'danger';
+                                if (abs(strtotime($date) - strtotime($due_date2)) > 10 * 24 * 60 * 60) {
+                                  $count_row = $count_row - 1;
+                                  continue;
+                                }
+                              }
+
+                              // Check if the event is already in the cart
+                              $is_in_cart = in_array($event_id, $_SESSION["nivas_cart_event$user_id"]);
+
+                              // Update the Add to Cart button based on cart status
+                              $button_text = $is_in_cart ? 'Remove' : 'Add to Cart';
+                              $button_class = $is_in_cart ? 'btn-primary' : 'btn-outline-primary';
+
+                              ?>
+                                  <div class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card sortable-card">
+                                    <div class="card card-rounded shadow-sm">
+                                      <div class="card-body p-0">
+                                        <img src="assets/images/events/image.png" class="img-fluid rounded w-100">
+                                        <div class="p-3">
+                                          <p class="badge bg-inverse-primary">Departmental</p>
+                                          <h4 class="fw-bold">Lagos International Finance Expo 2024</h4>
+                                          <small class="fw-bold">Sat, Nov 9 • 8:00 PM</small>
+                                          <p class="">Location</p>
+                                          <small class="fw-bold text-uppercase">Free</small>
+                                          <p class="fw-bold text-secondary">FoundHerCity</p>
+                                          <hr>
+                                          <div class="d-flex justify-content-between">
+                                            <a href="javascript:;">
+                                              <i class="mdi mdi-share-variant icon-md text-muted" data-title="Lagos International Finance Expo 2024" data-event_id="1"></i>
+                                            </a>
+                                            <button class="btn btn-outline-primary btn-lg m-0 cart-event-button" data-event-id="1" data-mdb-ripple-duration="0">Get Ticket</button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <?php
+                            }
+                            if ($count_row == 0) { ?>
+                                      <div class="col-12">
+                                          <div class="card card-rounded shadow-sm">
+                                            <div class="card-body px-2">
+                                              <h5 class="card-title">All events have been bought</h5>
+                                              <p class="card-text">Check back later when your HOC uploads a new event.</p>
+                                            </div>
+                                          </div>
+                                      </div>
+                                <?php }
+                          } else {
+                            // Display a message when no events are found
+                            ?>
+                                  <div class="col-12">
+                                      <div class="card card-rounded shadow-sm">
+                                        <div class="card-body px-2">
+                                          <h5 class="card-title text-center">No event available.</h5>
+                                          <p class="card-text text-center">Check back later when a new event is uploaded.</p>
                                         </div>
                                       </div>
                                   </div>
@@ -473,8 +594,41 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept
         // Make AJAX request to PHP file
         $.ajax({
           type: 'POST',
-          url: 'model/cart.php', // Replace with your PHP file handling the cart logic
+          url: 'model/cart_manual.php', // Replace with your PHP file handling the cart logic
           data: { product_id: product_id, action: action },
+          success: function (data) {
+            // Update the total number of carted products
+            $('#cart-count').text(data.total);
+
+            // Reload the cart table
+            reloadCartTable();
+          },
+          error: function () {
+            // Handle error
+            console.error('Error in AJAX request');
+          }
+        });
+      });
+
+      // Add to cart-event-button click event
+      $('.cart-event-button').on('click', function () {
+        var button = $(this);
+        var event_id = button.data('event-id');
+
+        // Toggle button appearance and text
+        if (button.hasClass('btn-outline-primary')) {
+          button.toggleClass('btn-outline-primary btn-primary').text('Remove');
+          action = 1;
+        } else {
+          button.toggleClass('btn-outline-primary btn-primary').text('Add to Cart');
+          action = 0;
+        }
+
+        // Make AJAX request to PHP file
+        $.ajax({
+          type: 'POST',
+          url: 'model/cart_event.php', // Replace with your PHP file handling the cart logic
+          data: { event_id: event_id, action: action },
           success: function (data) {
             // Update the total number of carted products
             $('#cart-count').text(data.total);

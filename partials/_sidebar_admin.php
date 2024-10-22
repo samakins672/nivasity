@@ -2,7 +2,7 @@
   <ul class="nav">
     <?php if($url == 'index.php'):?>
     <li class="nav-item active">
-      <a class="nav-link bg-primary" href="javascript:;" data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'active') ? 'addManual' : 'verificationManual' ?>">
+      <a class="nav-link bg-primary" href="javascript:;" data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual' : 'verificationManual' ?>">
         <i class="mdi mdi-plus menu-icon text-white"></i>
         <span class="menu-title text-white fw-bold">New Manual</span>
       </a>

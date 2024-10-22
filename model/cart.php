@@ -5,35 +5,11 @@ include('config.php');
 $user_id = $_SESSION['nivas_userId'];
 $school_id = $_SESSION['nivas_userSch'];
 $cart_ = "nivas_cart$user_id";
+$cart_2 = "nivas_cart_event$user_id";
 $date = date('Y-m-d');
 
 // Get the product ID from the AJAX request
-if (isset($_POST['product_id'])) {
-    $product_id = $_POST['product_id'];
-    $action = $_POST['action'];
-
-    // Simulate adding/removing the product to/from the cart
-    if (!isset($_SESSION[$cart_])) {
-        $_SESSION[$cart_] = array();
-    }
-
-    if ($action == 0) {
-        // Product is in the cart, remove it
-        $_SESSION[$cart_] = array_diff($_SESSION[$cart_], array($product_id));
-    } else {
-        // Product is not in the cart, add it
-        $_SESSION[$cart_][] = $product_id;
-    }
-
-    // Return the total number of carted products
-    $response = array('total' => count($_SESSION[$cart_]));
-
-    // Set the appropriate headers for JSON response
-    header('Content-Type: application/json');
-
-    echo json_encode($response);
-
-} else if (isset($_POST['reload_cart'])) {
+if (isset($_POST['reload_cart'])) {
     $total_cart_items = count($_SESSION["nivas_cart$user_id"]);
     $total_cart_price = 0;
 
@@ -184,8 +160,9 @@ if (isset($_POST['product_id'])) {
         $_SESSION[$cart_][] = $product_id;
     }
 
+    $total = count($_SESSION[$cart_]) + count($_SESSION[$cart_2]);
     // Return the total number of carted products
-    $response = array('total' => count($_SESSION[$cart_]));
+    $response = array('total' => $total);
 
     header('Location: ../store.php');
 }
