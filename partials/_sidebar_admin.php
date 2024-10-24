@@ -16,6 +16,12 @@
       </a>
     </li>
     <li class="nav-item">
+      <a class="nav-link" href="transaction.php">
+        <i class="mdi mdi-receipt menu-icon"></i>
+        <span class="menu-title">Transactions</span>
+      </a>
+    </li>
+    <li class="nav-item">
       <a class="nav-link" href="user.php">
         <i class="mdi mdi-account-outline menu-icon"></i>
         <span class="menu-title">Profile Settings</span>

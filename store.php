@@ -13,11 +13,15 @@ if (!isset($_SESSION["nivas_cart_event$user_id"])) {
 $total_cart_items = count($_SESSION["nivas_cart$user_id"] + $_SESSION["nivas_cart_event$user_id"]);
 $total_cart_price = 0;
 
+if (isset($_SESSION['cart_sellers'])) {
+  $sessionData = json_encode($_SESSION['cart_sellers']);
+}
+
 $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals_$school_id WHERE dept = $user_dept AND status = 'open'"))[0];
 
 $manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept = $user_dept AND status = 'open' ORDER BY `id` DESC");
 
-$event_query = mysqli_query($conn, "SELECT * FROM events_$school_id WHERE status = 'open' ORDER BY `id` DESC");
+$event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' ORDER BY `id` DESC");
 ?>
 
 <!DOCTYPE html>
@@ -208,7 +212,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events_$school_id WHERE status
                               $seller_id = $event['user_id'];
 
                               // Check if the event has been bought by the current user
-                              $is_bought_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM events_bought_$school_id WHERE event_id = $event_id AND buyer = $user_id");
+                              $is_bought_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM event_tickets WHERE event_id = $event_id AND buyer = $user_id");
                               $is_bought_result = mysqli_fetch_assoc($is_bought_query);
 
                               // If the event has been bought, skip it
@@ -222,16 +226,16 @@ $event_query = mysqli_query($conn, "SELECT * FROM events_$school_id WHERE status
                               $seller_ln = $seller_q['last_name'];
 
                               // Retrieve and format the due date
-                              $due_date = date('j M, Y', strtotime($event['due_date']));
-                              $due_date2 = date('Y-m-d', strtotime($event['due_date']));
+                              $event_date = date('j M, Y', strtotime($event['event_date']));
+                              $event_date2 = date('Y-m-d', strtotime($event['event_date']));
                               // Retrieve the status
                               $status = $event['status'];
                               $status_c = 'success';
 
-                              if ($date > $due_date2) {
+                              if ($date > $event_date2) {
                                 $status = 'disabled';
                                 $status_c = 'danger';
-                                if (abs(strtotime($date) - strtotime($due_date2)) > 10 * 24 * 60 * 60) {
+                                if (abs(strtotime($date) - strtotime($event_date2)) > 10 * 24 * 60 * 60) {
                                   $count_row = $count_row - 1;
                                   continue;
                                 }
@@ -259,9 +263,9 @@ $event_query = mysqli_query($conn, "SELECT * FROM events_$school_id WHERE status
                                           <hr>
                                           <div class="d-flex justify-content-between">
                                             <a href="javascript:;">
-                                              <i class="mdi mdi-share-variant icon-md text-muted" data-title="Lagos International Finance Expo 2024" data-event_id="1"></i>
+                                              <i class="mdi mdi-share-variant icon-md text-muted" data-title="Lagos International Finance Expo 2024" data-event_id="2"></i>
                                             </a>
-                                            <button class="btn btn-outline-primary btn-lg m-0 cart-event-button" data-event-id="1" data-mdb-ripple-duration="0">Get Ticket</button>
+                                            <button class="btn btn-outline-primary btn-lg m-0 cart-event-button" data-event-id="2" data-mdb-ripple-duration="0">Get Ticket</button>
                                           </div>
                                         </div>
                                       </div>
@@ -300,9 +304,9 @@ $event_query = mysqli_query($conn, "SELECT * FROM events_$school_id WHERE status
                     <div class="row flex-grow">
                       <div class="col-sm-8 grid-margin px-2 stretch-card">
                         <div class="card card-rounded shadow-sm">
-                          <div class="card-body px-2">
-                            <div class="table-responsive  mt-1">
-                              <table class="table table-hover select-table">
+                          <div class="card-body">
+                            <div class="table-responsive mt-1">
+                              <table class="table table-hover table-striped select-table">
                                 <thead>
                                   <tr>
                                     <th>Product</th>
@@ -352,7 +356,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events_$school_id WHERE status
                                           <h6 class="text-<?php echo $status_c ?>"><?php echo $due_date ?></h6>
                                         </td>
                                         <td>
-                                            <button class="btn btn-sm btn-outline-primary mb-0 btn-block remove-cart" data-cart_id="<?php echo $cart_item_id ?>">Remove</button>
+                                            <button class="btn btn-sm btn-outline-primary mb-0 btn-block remove-cart" data-type="product" data-cart_id="<?php echo $cart_item_id ?>">Remove</button>
                                         </td>
                                       </tr>
                                 <?php } ?>
@@ -553,22 +557,25 @@ $event_query = mysqli_query($conn, "SELECT * FROM events_$school_id WHERE status
       }
 
       // Add to Cart button click event
-      $('.remove-cart').on('click', function () {
+      $(document).on('click', '.remove-cart', function (e) {
         var button = $(this);
+        var type = button.data('type');
         var product_id = button.data('cart_id');
 
         // Make AJAX request to PHP file
         $.ajax({
           type: 'POST',
           url: 'model/cart.php', // Replace with your PHP file handling the cart logic
-          data: { product_id: product_id, action: 0 },
+          data: { product_id: product_id, action: 0, type: type },
           success: function (data) {
             // Update the total number of carted products
             $('#cart-count').text(data.total);
 
             // Reload the cart table
             reloadCartTable();
-            location.reload();
+
+            // Change the button text of the tag with data-product-id as the removed product ID
+            $('button[data-'+type+'-id="' + product_id + '"]').toggleClass('btn-outline-primary btn-primary').text('Add to Cart');
           },
           error: function () {
             // Handle error
@@ -620,7 +627,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events_$school_id WHERE status
           button.toggleClass('btn-outline-primary btn-primary').text('Remove');
           action = 1;
         } else {
-          button.toggleClass('btn-outline-primary btn-primary').text('Add to Cart');
+          button.toggleClass('btn-outline-primary btn-primary').text('Get Ticket');
           action = 0;
         }
 
@@ -661,74 +668,77 @@ $event_query = mysqli_query($conn, "SELECT * FROM events_$school_id WHERE status
 
       // Add to Cart button click event
       $('#cart').on('click', '.checkout-cart', function() {
-        amount = $(this).data('transfer_amount');
-        seller = $(this).data('seller');
-        charge = $(this).data('charge');
-        subaccount_amount = $(this).data('subaccount_amount');
         email = "<?php echo $user_email ?>";
         phone = "<?php echo $user_phone ?>";
         u_name = "<?php echo $user_name ?>";
-
+        transfer_amount = $(this).data('transfer_amount');
+        sessionData = <?php echo $sessionData ?>;
+        
         function generateUniqueID() {
-          const currentDate = new Date();
-          const uniqueID = `nivas_<?php echo $user_id ?>_${currentDate.getTime()}`;
-          return uniqueID;
+            const currentDate = new Date();
+            const uniqueID = `nivas_<?php echo $user_id ?>_${currentDate.getTime()}`;
+            return uniqueID;
         }
 
         const myUniqueID = generateUniqueID();
 
-        // Make another API call to your server to create a split transaction
-        // $.ajax({
-        //   url: 'model/handle-ps-payment.php',
-        //   type: 'POST',
-        //   data: {
-        //     amount: amount*100,
-        //     email: email,
-        //     seller: seller,
-        //     charge: charge*100,
-        //     nivas_ref: myUniqueID
-        //   },
-        //   dataType: 'json',
-        //   success: function(response) {
-        //     var payment_link = response.data.authorization_url;
-        //     // alert(payment_link);
+        // sessionData should return the array of sellers and prices
+        let subaccounts = [];
 
-        //     // Redirect to the Paystack payment page
-        //     window.location.href = payment_link;
-        //   },
-        //   error: function(jqXHR, textStatus, errorThrown) {
-        //       console.error('Ajax request failed:', textStatus, errorThrown);
-        //   }
-        // });
-        $.ajax({
-          url: 'model/getKey.php',
-          type: 'POST',
-          data: { getKey: 'get-Key'},
-          success: function (data) {
-            var flw_pk = data.flw_pk;
-
-            // Call FlutterwaveCheckout with the retrieved flw_pk
-            FlutterwaveCheckout({
-              public_key: flw_pk,
-              tx_ref: myUniqueID,
-              amount: amount,
-              currency: "NGN",
-              subaccounts: [
-                {
-                  id: seller,
-                  transaction_charge_type: "flat_subaccount",
-                  transaction_charge: subaccount_amount,
-                }
-              ],
-              payment_options: "card, banktransfer, ussd",
-              redirect_url: "https://nivasity.com/model/handle-fw-payment.php",
-              customer: {
-                email: email,
-                phone_number: phone,
-                name: u_name,
-              },
+        sessionData.forEach(function(item) {
+            subaccounts.push({
+                id: item.seller,
+                transaction_charge_type: "flat_subaccount",
+                transaction_charge: item.price  // The price or commission to be charged
             });
-          }
+        });
+
+        // Now make the Flutterwave API call
+        $.ajax({
+            url: 'model/getKey.php',
+            type: 'POST',
+            data: { getKey: 'get-Key'},
+            success: function (data) {
+                var flw_pk = data.flw_pk;
+
+                // Call FlutterwaveCheckout with the retrieved flw_pk and dynamically generated subaccounts
+                FlutterwaveCheckout({
+                    public_key: flw_pk,
+                    tx_ref: myUniqueID,
+                    amount: transfer_amount,  // Calculate total amount dynamically
+                    currency: "NGN",
+                    subaccounts: subaccounts,  // Pass the dynamically generated subaccounts
+                    payment_options: "card, banktransfer, ussd",
+                    redirect_url: "http://localhost/nivasity/model/handle-fw-payment.php",
+                    customer: {
+                        email: email,
+                        phone_number: phone,
+                        name: u_name,
+                    },
+                });
+            }
+        });
+      });
+
+      // free checkout button click event
+      $('#cart').on('click', '.free-cart-checkout', function() {
+        function generateUniqueID() {
+            const currentDate = new Date();
+            const uniqueID = `nivas_<?php echo $user_id ?>_${currentDate.getTime()}`;
+            return uniqueID;
+        }
+
+        const tx_ref = generateUniqueID();
+
+        // Now make the Flutterwave API call
+        $.ajax({
+            url: 'model/handle-free-payment.php',
+            type: 'GET',
+            data: { tx_ref: tx_ref},
+            error: function () {
+              // Handle error
+              console.error('Error checking out!');
+            }
         });
       });
 

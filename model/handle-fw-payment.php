@@ -7,6 +7,7 @@ $curl = curl_init();
 $user_id = $_SESSION['nivas_userId'];
 $school_id = $_SESSION['nivas_userSch'];
 $cart_ = $_SESSION["nivas_cart$user_id"];
+$cart_2 = $_SESSION["nivas_cart_event$user_id"]; // Cart for events
 
 $statusRes = "success";
 $messageRes = "All manuals successfully added to manuals_bought_2!";
@@ -25,7 +26,7 @@ if (isset($_GET['transaction_id'])) {
     CURLOPT_CUSTOMREQUEST => 'GET',
     CURLOPT_HTTPHEADER => array(
       'Content-Type: application/json',
-      'Authorization: Bearer ' . FLW_SECRET_KEY
+      'Authorization: Bearer ' . FLW_SECRET_KEY_TEST
     ),
   ));
 
@@ -34,8 +35,10 @@ if (isset($_GET['transaction_id'])) {
 
   // Decode the JSON response
   $response = json_decode($response, true);
+  // var_dump($response);
 
-  if ($response['data']['status'] === "successful" && $response['data']['tx_ref'] === $tx_ref) {
+  // Check if the status is "successful" and data is not NULL
+  if (isset($response['status']) && $response['status'] === "success" && isset($response['data']) && is_array($response['data'])) {
     $status = $response['data']['status'];
     $total_amount = 0;
 
@@ -67,17 +70,44 @@ if (isset($_GET['transaction_id'])) {
       }
     }
 
+    // Process event tickets in the cart (cart_2)
+    foreach ($cart_2 as $event_id) {
+      // Fetch details from events table
+      $event = mysqli_query($conn, "SELECT price, user_id FROM events WHERE id = $event_id");
 
-    if ($transferAmount < 2500) {
+      if ($event && mysqli_num_rows($event) > 0) {
+        $row = mysqli_fetch_assoc($event);
+
+        $price = $row['price'];
+        $total_amount = $total_amount + $price;
+        $seller = $row['user_id'];
+
+        // Insert into event_tickets table
+        mysqli_query($conn, "INSERT INTO event_tickets (event_id, price, seller, buyer, ref_id, status) VALUES ($event_id, $price, $seller, $user_id, '$tx_ref', '$status')");
+
+        if (mysqli_affected_rows($conn) < 1) {
+          $statusRes = "error";
+          $messageRes = "Internal Server Error while adding event ticket. Please try again later!";
+          break; // Stop processing if there is an error
+        }
+      } else {
+        $statusRes = "error";
+        $messageRes = "Unable to fetch details from events. Please try again later!";
+        break;
+      }
+    }
+
+
+    if ($total_amount < 2500) {
       $charge = 45;
-    } elseif ($transferAmount >= 2500) {
-      // Add 1.4% to the transferAmount
-      $charge += ($transferAmount * 0.014);
+    } elseif ($total_amount >= 2500) {
+      // Add 1.4% to the total_amount
+      $charge += ($total_amount * 0.014);
 
       // Adjust the charge accordingly
-      if ($transferAmount >= 2500 && $transferAmount < 5000) {
+      if ($total_amount >= 2500 && $total_amount < 5000) {
         $charge += 20;
-      } elseif ($transferAmount >= 5000 && $transferAmount < 10000) {
+      } elseif ($total_amount >= 5000 && $total_amount < 10000) {
         $charge += 30;
       } else {
         $charge += 35;
@@ -87,13 +117,14 @@ if (isset($_GET['transaction_id'])) {
     // Add the charge to the total
     $total_amount += $charge;
 
-    mysqli_query($conn, "INSERT INTO transactions_$school_id (ref_id, user_id, amount, status) VALUES ('$tx_ref', $user_id, $total_amount, '$status')");
+    mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, status) VALUES ('$tx_ref', $user_id, $total_amount, '$status')");
 
     // Close the database connection if needed
     mysqli_close($conn);
 
-    // Empty the cart variable
+    // Empty the cart variables for both manuals and events
     $_SESSION["nivas_cart$user_id"] = array();
+    $_SESSION["nivas_cart_event$user_id"] = array();
 
     header('Location: ../store.php?payment=successful');
   } else {

@@ -7,6 +7,7 @@ $curl = curl_init();
 $user_id = $_SESSION['nivas_userId'];
 $school_id = $_SESSION['nivas_userSch'];
 $cart_ = $_SESSION["nivas_cart$user_id"];
+$cart_2 = $_SESSION["nivas_cart_event$user_id"]; // Cart for events
 
 if (isset($_POST['nivas_ref'])) {
   $nivas_ref = $_POST['nivas_ref'];
@@ -103,6 +104,33 @@ if (isset($_POST['nivas_ref'])) {
       }
     }
 
+    // Process event tickets in the cart (cart_2)
+    foreach ($cart_2 as $event_id) {
+      // Fetch details from events table
+      $event = mysqli_query($conn, "SELECT price, user_id FROM events WHERE id = $event_id");
+
+      if ($event && mysqli_num_rows($event) > 0) {
+        $row = mysqli_fetch_assoc($event);
+        
+        $price = $row['price'];
+        $total_amount = $total_amount + $price;
+        $seller = $row['user_id'];
+
+        // Insert into event_tickets table
+        mysqli_query($conn, "INSERT INTO event_tickets (event_id, price, seller, buyer, ref_id, status) VALUES ($event_id, $price, $seller, $user_id, '$tx_ref', '$status')");
+
+        if (mysqli_affected_rows($conn) < 1) {
+          $statusRes = "error";
+          $messageRes = "Internal Server Error while adding event ticket. Please try again later!";
+          break; // Stop processing if there is an error
+        }
+      } else {
+        $statusRes = "error";
+        $messageRes = "Unable to fetch details from events. Please try again later!";
+        break;
+      }
+    }
+
     if ($total_amount < 2500) {
       $charge = 65;
     } elseif ($total_amount >= 2500) {
@@ -124,13 +152,14 @@ if (isset($_POST['nivas_ref'])) {
     // Add the charge to the total
     $total_amount += $charge;
 
-    mysqli_query($conn, "INSERT INTO transactions_$school_id (ref_id, user_id, amount, status) VALUES ('$tx_ref', $user_id, $total_amount, '$status')");
+    mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, status) VALUES ('$tx_ref', $user_id, $total_amount, '$status')");
 
     // Close the database connection if needed
     mysqli_close($conn);
 
-    // Empty the cart variable
+    // Empty the cart variables for both manuals and events
     $_SESSION["nivas_cart$user_id"] = array();
+    $_SESSION["nivas_cart_event$user_id"] = array();
 
     header('Location: ../store.php?payment=successful');
   } else {

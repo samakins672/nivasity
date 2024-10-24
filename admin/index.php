@@ -11,7 +11,6 @@ if ($_SESSION['nivas_userRole'] == 'student') {
 $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals_$school_id WHERE user_id = $user_id"))[0];
 $t_manuals_sold = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(manual_id) FROM manuals_bought_$school_id WHERE seller = $user_id"))[0];
 $t_manuals_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM manuals_bought_$school_id WHERE seller = $user_id"))[0];
-$t_manuals_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM manuals_bought_$school_id WHERE seller = $user_id"))[0];
 $t_students = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM users WHERE school = $school_id AND dept = $user_dept"))[0];
 
 $open_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals_$school_id WHERE user_id = $user_id AND status = 'open'"))[0];
@@ -22,6 +21,14 @@ $manual_query2 = mysqli_query($conn, "SELECT manual_id, SUM(price) AS total_sale
     FROM manuals_bought_$school_id
     WHERE seller  = $user_id
     GROUP BY manual_id
+    ORDER BY total_sales DESC
+    LIMIT 3");
+
+$event_query = mysqli_query($conn, "SELECT * FROM events WHERE user_id = $user_id ORDER BY `id` DESC");
+$event_query2 = mysqli_query($conn, "SELECT event_id, SUM(price) AS total_sales
+    FROM event_tickets
+    WHERE seller  = $user_id
+    GROUP BY event_id
     ORDER BY total_sales DESC
     LIMIT 3");
 
@@ -100,8 +107,8 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                         aria-selected="false">Manuals</a>
                     </li>
                     <li class="nav-item">
-                      <a class="nav-link px-3 fw-bold" id="contact-tab" data-bs-toggle="tab" href="#transactions" role="tab"
-                        aria-selected="false">Transactions</a>
+                      <a class="nav-link px-3 fw-bold" id="contact-tab" data-bs-toggle="tab" href="#events" role="tab"
+                        aria-selected="false">Events</a>
                     </li>
                   </ul>
                   <div>
@@ -158,21 +165,6 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                     </div>
                     <div class="row">
                       <div class="col-lg-8 d-flex flex-column">
-                        <!-- <div class="row flex-grow">
-                          <div class="col-12 grid-margin stretch-card">
-                            <div class="card card-rounded shadow-sm table-darkBGImg">
-                              <div class="card-body px-2">
-                                <div class="col-sm-8">
-                                  <h3 class="text-white upgrade-info mb-0">
-                                    Enhance your <span class="fw-bold">Campaign</span> for better outreach
-                                  </h3>
-                                  <a href="#" class="btn btn-info upgrade-btn">Upgrade
-                                    Account!</a>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div> -->
                         <div class="row flex-grow">
                           <div class="col-12 grid-margin stretch-card">
                             <div class="card card-rounded shadow-sm">
@@ -416,78 +408,110 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                       </div>
                     </div>
                   </div>
-                  <div class="tab-pane fade hide" id="transactions" role="tabpanel" aria-labelledby="transactions">
+                  <div class="tab-pane fade hide" id="events" role="tabpanel" aria-labelledby="events">
                     <div class="row flex-grow">
-                      <div class="col-12 grid-margin stretch-card">
-                        <div class="card card-rounded shadow-sm">
-                          <div class="card-body px-2">
-                            <div class="table-responsive  mt-1">
-                              <table id="transaction_table"
-                                class="table table-hover table-striped select-table datatable-opt">
-                                <thead>
-                                  <tr>
-                                    <th class="d-sm-none-2">Transaction Id</th>
-                                    <th>Student Details</th>
-                                    <th>Quantity</th>
-                                    <th>Price</th>
-                                    <th class="d-sm-none-2">Date & Time</th>
-                                    <th class="d-sm-none-2">Status</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                <?php
-                                while ($transaction = mysqli_fetch_array($transaction_query)) {
-                                  $transaction_id = $transaction['ref_id'];
-                                  $buyer_id = $transaction['buyer'];
-
-                                  $buyer = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = $buyer_id"));
-
-                                  $transactions_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(ref_id) FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id'"))[0];
-                                  $transactions_bought_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id'"))[0];
-                                  $created_at = mysqli_fetch_array(mysqli_query($conn, "SELECT created_at FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id' LIMIT 1"))[0];
-                                  
-                                  // Retrieve and format the due date
-                                  $created_date = date('j M, Y', strtotime($created_at));
-                                  $created_time = date('h:i a', strtotime($created_at));
-                                  // Retrieve the status
-                                  $status = mysqli_fetch_array(mysqli_query($conn, "SELECT status FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id' LIMIT 1"))[0];
-                                  $status_bg = 'danger';
-
-                                  if ($status == 'successful') {
-                                    $status_bg = 'success';
-                                  } else if ($status == 'pending') {
-                                    $status_bg = 'warning';
-                                  }
-                                  ?>
+                        <div class="col-12 grid-margin stretch-card">
+                          <div class="card card-rounded shadow-sm">
+                            <div class="card-body px-2">
+                              <div class="d-sm-flex justify-content-end">
+                                <div>
+                                  <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"
+                                    data-bs-toggle="modal" data-bs-target="#<?php echo $event_modal = ($user_status == 'verified') ? 'addEvent' : 'verificationEvent' ?>"><i class="mdi mdi-book"></i>Add new
+                                    event</button>
+                                </div>
+                              </div>
+                              <div class="table-responsive  mt-1">
+                                <table class="table table-hover table-striped select-table datatable-opt">
+                                  <thead>
                                     <tr>
-                                      <td class="d-sm-none-2">
-                                        <h6 class="pl-3">#<?php echo $transaction['ref_id'] ?></h6>
-                                      </td>
-                                      <td>
-                                        <h6 class="text-uppercase"><?php echo $buyer['first_name'] . ' ' . $buyer['last_name'] ?></h6>
-                                        <p>Matric no: <span class="fw-bold"><?php echo $buyer['matric_no'] ?></span></p>
-                                      </td>
-                                      <td>
-                                        <h6><?php echo $transactions_bought_cnt ?></h6>
-                                      </td>
-                                      <td>
-                                        <h6 class="text-success fw-bold">&#8358; <?php echo number_format($transactions_bought_price) ?></h6>
-                                      </td>
-                                      <td class="d-sm-none-2">
-                                        <h6><?php echo $created_date ?></h6>
-                                        <p class="fw-bold"><?php echo $created_time ?></p>
-                                      </td>
-                                      <td class="d-sm-none-2">
-                                        <div class="badge bg-<?php echo $status_bg ?>"><?php echo $status ?></div>
-                                      </td>
+                                      <th>Name</th>
+                                      <th class="d-sm-none-2">Unit Price</th>
+                                      <th>Revenue</th>
+                                      <th class="d-sm-none-2">Availability</th>
+                                      <th class="d-sm-none-2">Due Date</th>
+                                      <th>Status</th>
+                                      <th>Actions</th>
                                     </tr>
-                                  <?php } ?>
-                                </tbody>
-                              </table>
+                                  </thead>
+                                  <tbody id="event_tbody">
+                                  <?php
+                                  while ($event = mysqli_fetch_array($event_query)) {
+                                    $event_id = $event['id'];
+
+                                    $events_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(event_id) FROM event_tickets WHERE event_id = $event_id"))[0];
+                                    $events_bought_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM event_tickets WHERE event_id = $event_id"))[0];
+
+                                    // Calculate the percentage and total sold/quantity text
+                                    $percentage_sold = ($events_bought_cnt / $event['quantity']) * 100;
+                                    $sold_quantity_text = $events_bought_cnt . '/' . $event['quantity'];
+                                    
+                                    // Retrieve and format the due date
+                                    $event_date = date('j M, Y', strtotime($event['event_date']));
+                                    $event_date2 = date('Y-m-d', strtotime($event['event_date']));
+                                    // Retrieve the status
+                                    $status = $event['status'];
+                                    $status_2 = $status;
+                                    
+                                    if ($date > $event_date2) {
+                                      $status = 'overdue';
+                                    }
+                                    ?>
+                                      <tr>
+                                        <td>
+                                          <div class="d-flex ">
+                                            <div>
+                                              <h6><?php echo $event['event_name'] ?></h6>
+                                              <p class="d-sm-none-2">ID: <span class="fw-bold"><?php echo $event['code'] ?></span></p>
+                                            </div>
+                                          </div>
+                                        </td>
+                                        <td class="d-sm-none-2">
+                                          <h6>&#8358; <?php echo number_format($event['price']) ?></h6>
+                                        </td>
+                                        <td>
+                                          <h6 class="text-secondary">&#8358; <?php echo number_format($events_bought_price) ?></h6>
+                                          <p>Qty Sold: <span class="fw-bold"><?php echo $events_bought_cnt ?></span></p>
+                                        </td>
+                                        <td class="d-sm-none-2">
+                                            <div>
+                                              <div class="d-flex justify-content-between align-items-center mb-1 max-width-progress-wrap">
+                                                <p class="text-success"><?php echo round($percentage_sold) . '%' ?></p>
+                                                <p><?php echo $sold_quantity_text ?></p>
+                                              </div>
+                                              <div class="progress progress-md">
+                                                <div class="progress-bar bg-success" role="progressbar" style="width: <?php echo $percentage_sold ?>%"
+                                                    aria-valuenow="<?php echo $percentage_sold ?>" aria-valuemin="0" aria-valuemax="100"></div>
+                                              </div>
+                                            </div>
+                                          </td>
+                                          <td class="d-sm-none-2">
+                                            <h6><?php echo $event_date ?></h6>
+                                          </td>
+                                          <td class="text-center">
+                                            <div class="badge <?php echo ($status == 'open') ? 'bg-success' : 'bg-danger'; ?>"> </div>
+                                          </td>
+                                          <td class="pe-1">
+                                            <button class="btn btn-md btn-primary mb-0 btn-block view-edit-event"
+                                              data-event_id="<?php echo $event['id']; ?>" data-event_name="<?php echo $event['event_name']; ?>"
+                                              data-price="<?php echo $event['price']; ?>" data-quantity="<?php echo $event['quantity']; ?>"
+                                              data-event_date="<?php echo date('Y-m-d', strtotime($event['event_date'])); ?>" 
+                                              data-bs-toggle="modal" data-bs-target="#<?php echo $event_modal = ($user_status == 'verified') ? 'addEvent': 'verificationEvent'?>">Edit</button>
+                                              <button class="btn btn-md btn-dark mb-0 btn-block export-event" data-bs-toggle="modal" data-bs-target="#exportEvent"
+                                                data-event_id="<?php echo $event['id']; ?>"><i class="mdi mdi-file-export m-0 text-white"></i></button>
+                                            <?php if($status != 'overdue'): ?>
+                                              <button class="btn btn-md btn-secondary mb-0 btn-block close-event"
+                                                data-event_id="<?php echo $event['id']; ?>" data-event_name="<?php echo $event['event_name']; ?>" data-action="<?php echo ($status_2 != 'open') ? 1 : 0; ?>"
+                                                    data-bs-toggle="modal" data-bs-target="#closeEvent"><i class="mdi mdi-eye<?php echo ($status_2 != 'open') ? '-off' : ''; ?> m-0 text-white"></i></button>
+                                            <?php endif; ?>
+                                            </td>
+                                          </tr>
+                                    <?php } ?>
+                                  </tbody>
+                                </table>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
                     </div>
                   </div>
                 </div>
