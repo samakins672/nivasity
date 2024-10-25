@@ -24863,7 +24863,7 @@ code {
 
 /* inverse breadcrumb */
 .bg-inverse-primary {
-  background: #6c83e6;
+  background: #FF9100;
   border-color: #FF9100;
 }
 
@@ -24884,7 +24884,7 @@ code {
 }
 
 .bg-inverse-primary.breadcrumb-custom .breadcrumb-item {
-  background: #6c83e6;
+  background: #FF9100;
 }
 
 .bg-inverse-primary.breadcrumb-custom .breadcrumb-item a {
@@ -24893,7 +24893,7 @@ code {
 }
 
 .bg-inverse-primary.breadcrumb-custom .breadcrumb-item a:before {
-  border-left-color: #6c83e6;
+  border-left-color: #FF9100;
 }
 
 .bg-inverse-primary.breadcrumb-custom .breadcrumb-item span {
@@ -24905,7 +24905,7 @@ code {
 }
 
 .bg-inverse-secondary {
-  background: white;
+  background: var(--bs-secondary);
   border-color: var(--bs-secondary);
 }
 

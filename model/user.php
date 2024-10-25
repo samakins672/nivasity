@@ -19,10 +19,15 @@ if (isset($_POST['signup'])) {
     $phone = mysqli_real_escape_string($conn, $_POST['phone']);
     $gender = mysqli_real_escape_string($conn, $_POST['gender']);
     $role = mysqli_real_escape_string($conn, $_POST['role']);
-    $school = mysqli_real_escape_string($conn, $_POST['school']);
+    if (isset($_POST['school'])) {
+      $school = mysqli_real_escape_string($conn, $_POST['school']);
 
-    mysqli_query($conn, "INSERT INTO users (first_name, last_name, email, phone, password, role, school, gender) 
-      VALUES ('$first_name', '$last_name', '$email', '$phone', '$password', '$role', $school, '$gender')");
+      mysqli_query($conn, "INSERT INTO users (first_name, last_name, email, phone, password, role, school, gender) 
+        VALUES ('$first_name', '$last_name', '$email', '$phone', '$password', '$role', $school, '$gender')");
+    } else {
+      mysqli_query($conn, "INSERT INTO users (first_name, last_name, email, phone, password, role, gender) 
+        VALUES ('$first_name', '$last_name', '$email', '$phone', '$password', '$role', '$gender')");
+    }
 
     $user_id = mysqli_insert_id($conn);
 
@@ -41,18 +46,23 @@ if (isset($_POST['signup'])) {
 
       mysqli_query($conn, "INSERT INTO verification_code (user_id, code) VALUES ($user_id, '$verificationCode')");
 
+      $verificationCode = "setup_org.html?verify=$verificationCode";
+      if ($role == 'hoc') {
+        $verificationCode = "setup.html?verify=$verificationCode";
+      }
+
       $subject = "Verify Your Account on NIVASITY";
       $body = "Hello $first_name,
       <br><br>
       Welcome to Nivasity! We're excited to have you on board. To ensure the security of your account and to provide you with the best experience, we kindly ask you to verify your email address.
       <br><br>
-      Click on the following link to verify your account: <a href='https://nivasity.com/setup.html?verify=$verificationCode'>Verify Account</a>
-      <br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://nivasity.com/setup.html?verify=$verificationCode
+      Click on the following link to verify your account: <a href='https://nivasity.com/$verificationCode'>Verify Account</a>
+      <br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://nivasity.com/$verificationCode
       <br><br>
       Thank you for choosing Nivasity. We look forward to serving you!
       <br><br>
       Best regards,
-      <br>The Nivasity Team";
+      <br>Nivasity Team";
 
       // Call the sendMail function and capture the status
       $mailStatus = sendMail($subject, $body, $email);
@@ -145,7 +155,7 @@ if (isset($_POST['setup'])) {
     $user_ = mysqli_query($conn, "SELECT * FROM users WHERE id = $user_id");
     $user = mysqli_fetch_array($user_);
     $status = 'verified';
-    if ($user['role'] !== 'student') {
+    if ($user['role'] == 'hoc') {
       $status = 'inreview';
 
       $user_dept = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM depts_$school_id WHERE id = $dept"))['name'];
@@ -155,9 +165,23 @@ if (isset($_POST['setup'])) {
 
       // Call the sendMail function and capture the status
       $mailStatus = sendMail($subject, $body, 'support@nivasity.com');
+
+      mysqli_query($conn, "UPDATE users SET dept = '$dept', adm_year = '$adm_year', matric_no = '$matric_no', status = '$status' WHERE id = $user_id");
+    } elseif ($user['role'] == 'org_admin') {
+      $status = 'inreview';
+
+      $user_dept = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM depts_$school_id WHERE id = $dept"))['name'];
+
+      $subject = "New Business Owner waiting to be verified";
+      $body = "<b>New HOC Information</b><br>Name: ".$user['first_name'].' '. $user['last_name']."<br>Department: $user_dept<br>Matric Number: $matric_no<br> Phone number: ".$user['phone']."<br> Email: ".$user['email'];
+
+      // Call the sendMail function and capture the status
+      $mailStatus = sendMail($subject, $body, 'support@nivasity.com');
+
+    } else {
+      mysqli_query($conn, "UPDATE users SET dept = '$dept', adm_year = '$adm_year', matric_no = '$matric_no', status = '$status' WHERE id = $user_id");
     }
 
-    mysqli_query($conn, "UPDATE users SET dept = '$dept', adm_year = '$adm_year', matric_no = '$matric_no', status = '$status' WHERE id = $user_id");
 
     if (mysqli_affected_rows($conn) >= 1) {
       $statusRes = "success";

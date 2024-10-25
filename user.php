@@ -69,7 +69,7 @@ include('model/page_config.php');
                                   </div>
                                 </div>
                             </div>
-                            <div class="card-body px-2">
+                            <div class="card-body">
                               <input type="hidden" name="edit_profile" value="1"/>
                               <div class="row">
                                 <div class="col-md-6">
@@ -121,7 +121,7 @@ include('model/page_config.php');
                           <div class="card-header">
                             <h4 class="fw-bold">Change Password</4>
                           </div>
-                          <div class="card-body px-2">
+                          <div class="card-body">
                             <form id="password-form">
                               <input type="hidden" name="change_password" value="1"/>
                               <div class="row">
@@ -171,7 +171,7 @@ include('model/page_config.php');
                       <!-- <div class="col-12 mb-4">
                         <div class="card card-rounded p-3 px-2 shadow-sm">
                           <h4 class="card-header fw-bold pb-3">Two-steps Verification</h4>
-                          <div class="card-body px-2">
+                          <div class="card-body">
                             <h5 class="mb-3">Two factor authentication is not enabled yet.</h5>
                             <p>Two-factor authentication adds an additional layer of security to your
                               account by requiring more
@@ -187,7 +187,7 @@ include('model/page_config.php');
                       <div class="col-12">
                         <div class="card card-rounded p-3 px-2 shadow-sm">
                           <h4 class="card-header fw-bold pb-3">Delete Account</h4>
-                          <div class="card-body px-2">
+                          <div class="card-body">
                             <div class="mb-3 col-12 mb-0">
                               <div class="alert alert-danger">
                                 <h6 class="alert-heading fw-medium mb-1">Are you sure you want to delete your account?
@@ -224,7 +224,7 @@ include('model/page_config.php');
                           <div class="card-header">
                             <h4 class="fw-bold">Academic Information</4>
                           </div>
-                          <div class="card-body px-2">
+                          <div class="card-body">
                             <div class="row">
                               <?php
                               $school = mysqli_fetch_array(mysqli_query($conn, "SELECT name FROM schools WHERE id = $school_id"))[0];

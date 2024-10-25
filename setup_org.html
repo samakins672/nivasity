@@ -60,38 +60,29 @@
           <form id="setup-form">
             <input type="hidden" name="setup">
             <input type="hidden" id="user_id" name="user_id">
-            <input type="hidden" id="school_id" name="school_id">
-            <h4 class="text-secondary text-center mb-4">Let's get started <span
+            <h4 class="text-secondary text-center mb-4 fw-bold">Let's get started <span
                 class="text-primary first_name"></span>
             </h4>
 
-            <div class="row mb-3">
-              <div class="col-12 col-md-4">
-                <label class="form-label fw-bold">Admission Year:</label>
-              </div>
-              <div class="col-12 col-md-8">
-                <div class="form-group">
-                  <select id="admissionYear" name="adm_year" class="form-control form-control-lg searchable-select"
-                    required></select>
-                </div>
-              </div>
-            </div>
-
-            <div class="row mb-3">
-              <div class="col-12 col-md-4">
-                <label class="form-label fw-bold">Your Department:</label>
-              </div>
-              <div class="col-12 col-md-8">
-                <div class="form-group">
-                  <select id="dept" name="dept" class="form-control form-control-lg searchable-select"
-                    required></select>
-                </div>
-              </div>
-            </div>
-
             <div class="form-outline mb-3">
-              <input type="text" name="matric_no" id="matric_no" class="form-control form-control-lg" required />
-              <label class="form-label" for="matric_no">Matric Number</label>
+              <input type="text" name="business_name" id="business_name" class="form-control form-control-lg" required autofocus/>
+              <label class="form-label" for="business_name">Business Name</label>
+            </div>
+            <div class="form-outline mb-3">
+              <input type="text" name="business_address" id="business_address" class="form-control form-control-lg" required />
+              <label class="form-label" for="business_address">Business Address</label>
+            </div>
+            <div class="form-outline mb-3">
+              <input type="url" name="web_url" id="web_url" class="form-control form-control-lg" />
+              <label class="form-label" for="web_url">Business Website (optional)</label>
+            </div>
+            <div class="form-outline mb-3">
+              <input type="email" name="work_email" id="work_email" class="form-control form-control-lg" required />
+              <label class="form-label" for="work_email">Work Email</label>
+            </div>
+            <div class="form-outline mb-3">
+              <input type="text" name="socials" id="socials" class="form-control form-control-lg" />
+              <label class="form-label" for="socials">Social Media (separate with comma)</label>
             </div>
 
             <!-- Submit button -->
@@ -150,7 +141,6 @@
 
             $('#user_id').val(data.user_id);
             $('.first_name').html(data.first_name);
-            $('#school_id').val(data.school_id);
 
             if (data.role == 'hoc') {
               $('.searchable-select').select2({
@@ -161,12 +151,12 @@
             }
 
           } else {
-            window.location.href = 'https://www.nivasity.com';
+            // window.location.href = 'https://www.nivasity.com';
           }
         }
       });
     } else {
-      window.location.href = 'https://www.nivasity.com';
+      // window.location.href = 'https://www.nivasity.com';
     }
 
     $(document).ready(function () {
@@ -199,7 +189,7 @@
         setTimeout(function () {
           $.ajax({
             type: 'POST',
-            url: 'model/user.php',
+            url: 'model/verify_org.php',
             data: $('#setup-form').serialize(),
             success: function (data) {
               $('#alertBanner').html(data.message);

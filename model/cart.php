@@ -107,14 +107,14 @@ if (isset($_POST['reload_cart'])) {
         $event_seller_code = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE user_id = $event_seller"))['subaccount_code'];
 
         // Check if the seller already exists in the session
-        if (isset($_SESSION['cart_sellers'][$seller_code])) {
+        if (isset($_SESSION['cart_sellers'][$event_seller_code])) {
             // If seller exists, update the price by adding the current price
-            $_SESSION['cart_sellers'][$seller_code]['price'] += $cart_item['price'];
+            $_SESSION['cart_sellers'][$event_seller_code]['price'] += $cart_event['price'];
         } else {
             // Otherwise, add a new entry for the seller
-            $_SESSION['cart_sellers'][$seller_code] = [
-                'seller' => $seller_code,
-                'price' => $cart_item['price'],
+            $_SESSION['cart_sellers'][$event_seller_code] = [
+                'seller' => $event_seller_code,
+                'price' => $cart_event['price'],
             ];
         }
 
@@ -123,7 +123,7 @@ if (isset($_POST['reload_cart'])) {
                 <td>
                     <div class="d-flex">
                         <div>
-                            <h6>' . $cart_event['event_name'] . '</h6>
+                            <h6>' . $cart_event['title'] . '</h6>
                         </div>
                     </div>
                 </td>
@@ -186,8 +186,9 @@ if (isset($_POST['reload_cart'])) {
                         <h5 class="fw-bold">₦ ' . number_format($transferAmount) . '</h5>
                     </div>';
     if ($total_cart_price > 0) {
+        $sessionData = htmlspecialchars(json_encode($_SESSION['cart_sellers']), ENT_QUOTES, 'UTF-8');
         echo '
-                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-charge="' . $charge . '" data-transfer_amount="' . $transferAmount . '" data-mdb-ripple-duration="0" >CHECKOUT</button>';
+                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-session_data="'.$sessionData.'" data-charge="'.$charge.'" data-transfer_amount="'.$transferAmount.'" data-mdb-ripple-duration="0" >CHECKOUT</button>';
     } else if ($total_cart_price == 0 && $total_cart_event > 0) {
         echo '
                     <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 free-cart-checkout" data-mdb-ripple-duration="0" >CHECKOUT</button>';
@@ -213,7 +214,10 @@ if (isset($_POST['reload_cart'])) {
         $cart = "nivas_cart_event$user_id";
     }
     
-    $_SESSION[$cart] = array();
+    // Initialize cart if it doesn't exist
+    if (!isset($_SESSION[$cart])) {
+        $_SESSION[$cart] = [];
+    }
 
     if ($action == 0) {
         // Remove product or event from cart
@@ -225,7 +229,7 @@ if (isset($_POST['reload_cart'])) {
 
     $total = count($_SESSION[$cart_]) + count($_SESSION[$cart_2]);
     // Return the total number of carted products/events
-    $response = array('total' => $total);
+    $response = array('total' => $total, 'cart' => $cart_2);
 
     // Set the appropriate headers for JSON response
     header('Content-Type: application/json');

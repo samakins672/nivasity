@@ -77,10 +77,10 @@ if (isset($_GET['tx_ref'])) {
     // Empty the cart variables for both manuals and events
     $_SESSION["nivas_cart$user_id"] = array();
     $_SESSION["nivas_cart_event$user_id"] = array();
-
-    // Redirect to store page with success message
-    header('Location: ../store.php?payment=successful');
 }
+
+// Set the appropriate headers for JSON response
+header('Content-Type: application/json');
 
 // Output the final status and message
 echo json_encode(array('status' => $statusRes, 'message' => $messageRes));

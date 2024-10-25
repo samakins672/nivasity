@@ -6,10 +6,17 @@ include('../model/page_config.php');
 if ($_SESSION['nivas_userRole'] == 'student') {
   header('Location: ../store.php');
   exit();
+} elseif ($_SESSION['nivas_userRole'] == 'hoc') {
+  $item_table = "manuals_$school_id";
+  $item_table2 = "manuals_bought_$school_id";
+  $column_id = "manual_id";
+} else {
+  $item_table = "events";
+  $item_table2 = "event_tickets";
+  $column_id = "event_id";
 }
 
-$transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM manuals_bought_$school_id WHERE seller = $user_id ORDER BY `created_at` DESC");
-$transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM manuals_bought_$school_id WHERE seller = $user_id ORDER BY `created_at` DESC");
+$transaction_query = mysqli_query($conn, "SELECT * FROM $item_table2 WHERE seller = $user_id ORDER BY `created_at` DESC");
 
 ?>
 <!DOCTYPE html>
@@ -72,37 +79,41 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
           <div class="row flex-grow">
             <div class="col-12 grid-margin stretch-card">
               <div class="card card-rounded shadow-sm">
-                <div class="card-body px-2">
+                <div class="card-header">
+                  <h4 class="fw-bold my-3">Transactions</h4> 
+                </div>
+                <div class="card-body">
                   <div class="table-responsive  mt-1">
                     <table id="transaction_table"
                       class="table table-hover table-striped select-table datatable-opt">
                       <thead>
                         <tr>
-                          <th class="d-sm-none-2">Transaction Id</th>
+                          <th>Transaction Id</th>
                           <th>Student Details</th>
-                          <th>Quantity</th>
+                          <th><?php echo ($column_id == 'manual_id') ? ' Manuals' : ' Events'; ?></th>
                           <th>Price</th>
-                          <th class="d-sm-none-2">Date & Time</th>
-                          <th class="d-sm-none-2">Status</th>
+                          <th>Date & Time</th>
+                          <th>Status</th>
                         </tr>
                       </thead>
                       <tbody>
                       <?php
                       while ($transaction = mysqli_fetch_array($transaction_query)) {
+                        $item_id = $transaction[$column_id];
                         $transaction_id = $transaction['ref_id'];
                         $buyer_id = $transaction['buyer'];
 
                         $buyer = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = $buyer_id"));
 
-                        $transactions_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(ref_id) FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id'"))[0];
-                        $transactions_bought_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id'"))[0];
-                        $created_at = mysqli_fetch_array(mysqli_query($conn, "SELECT created_at FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id' LIMIT 1"))[0];
+                        $created_at = mysqli_fetch_array(mysqli_query($conn, "SELECT created_at FROM $item_table2 WHERE ref_id = '$transaction_id' LIMIT 1"))[0];
                         
+                        $item = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM $item_table WHERE id = $item_id"));
+
                         // Retrieve and format the due date
                         $created_date = date('j M, Y', strtotime($created_at));
                         $created_time = date('h:i a', strtotime($created_at));
                         // Retrieve the status
-                        $status = mysqli_fetch_array(mysqli_query($conn, "SELECT status FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id' LIMIT 1"))[0];
+                        $status = mysqli_fetch_array(mysqli_query($conn, "SELECT status FROM $item_table2 WHERE ref_id = '$transaction_id' LIMIT 1"))[0];
                         $status_bg = 'danger';
 
                         if ($status == 'successful') {
@@ -112,24 +123,25 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                         }
                         ?>
                           <tr>
-                            <td class="d-sm-none-2">
-                              <h6 class="pl-3">#<?php echo $transaction['ref_id'] ?></h6>
+                            <td>
+                              #<?php echo $transaction['ref_id'] ?>
                             </td>
                             <td>
-                              <h6 class="text-uppercase"><?php echo $buyer['first_name'] . ' ' . $buyer['last_name'] ?></h6>
+                              <h6 ><?php echo $buyer['first_name'] . ' ' . $buyer['last_name'] ?></h6>
                               <p>Matric no: <span class="fw-bold"><?php echo $buyer['matric_no'] ?></span></p>
                             </td>
                             <td>
-                              <h6><?php echo $transactions_bought_cnt ?></h6>
+                              <h6 class="fw-bold text-secondary text-uppercase"><?php echo $item['title'] ?></h6>
+                              <p class="d-sm-none-2">ID: <span class="fw-bold"><?php echo $item['code'] ?></span></p>
                             </td>
                             <td>
-                              <h6 class="text-success fw-bold">&#8358; <?php echo number_format($transactions_bought_price) ?></h6>
+                              <h6 class="text-success fw-bold">&#8358; <?php echo number_format($item['price']) ?></h6>
                             </td>
-                            <td class="d-sm-none-2">
+                            <td>
                               <h6><?php echo $created_date ?></h6>
                               <p class="fw-bold"><?php echo $created_time ?></p>
                             </td>
-                            <td class="d-sm-none-2">
+                            <td>
                               <div class="badge bg-<?php echo $status_bg ?>"><?php echo $status ?></div>
                             </td>
                           </tr>

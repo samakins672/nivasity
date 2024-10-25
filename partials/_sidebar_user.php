@@ -7,14 +7,22 @@
       </a>
     </li>
     <!-- <li class="nav-item nav-category">Dashboard</li> -->
+    <?php if ($_SESSION['nivas_userRole'] !== 'org_admin'): ?>
     <li class="nav-item">
       <a class="nav-link" href="orders.php">
         <i class="mdi mdi-package menu-icon"></i>
         <span class="menu-title">Orders</span>
       </a>
     </li>
+    <?php endif; ?>
+    <li class="nav-item">
+      <a class="nav-link" href="tickets.php">
+        <i class="mdi mdi-ticket menu-icon"></i>
+        <span class="menu-title">Event Tickets</span>
+      </a>
+    </li>
 
-    <?php if(!$admin_role):?>      
+    <?php if(!$is_admin_role):?>      
     <li class="nav-item nav-category">My Settings</li>
     <li class="nav-item">
       <a class="nav-link" href="user.php">
@@ -24,11 +32,11 @@
     </li>
     <?php endif;?>
 
-    <?php if($admin_role):?>
+    <?php if($is_admin_role):?>
     <li class="nav-item nav-category">Host Panel</li>
     <li class="nav-item">
       <a class="nav-link" href="admin/">
-        <i class="mdi mdi-grid-large menu-icon"></i>
+        <i class="mdi mdi-view-dashboard-outline menu-icon"></i>
         <span class="menu-title">Admin Dashboard</span>
       </a>
     </li>

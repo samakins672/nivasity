@@ -20,9 +20,15 @@ $user_adm_year = $user_['adm_year'];
 $user_dept = $_SESSION['nivas_userDept'] = $user_['dept'];
 $f_name = $user_['first_name'];
 $l_name = $user_['last_name'];
+$l_name = $user_['last_name'];
 $user_name = $f_name .' '. $l_name;
 
-$admin_role = False;
+$is_admin_role = False;
+
+if ($_SESSION['nivas_userRole'] == 'org_admin') {
+  $school_id = 1;
+  $user_dept = 1;
+}
 
 $date = date('Y-m-d');
 $_day = date('w');
@@ -39,7 +45,7 @@ if (isset($_GET['loggedin'])) {
 }
 
 if ($_SESSION['nivas_userRole'] != 'student') {
-  $admin_role = True;
+  $is_admin_role = True;
 }
 
 ?>

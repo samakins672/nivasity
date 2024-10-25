@@ -44,7 +44,7 @@
 </head>
 
 <body>
-  <div class="container vh-100">
+  <div class="container-fluid vh-100 p-0">
     <!-- Bootstrap alert container -->
     <div id="alertBanner"
       class="alert alert-info text-center fw-bold alert-dismissible end-2 top-2 fade show position-fixed w-auto p-2 px-4"
@@ -52,178 +52,168 @@
       An error occurred during the AJAX request.
     </div>
 
-    <div class="row d-flex align-items-center justify-content-center h-100">
-      <div class="d-none d-md-block col-md-8 col-lg-7 col-xl-6">
-        <img src="assets/images/clipart4.svg" class="img-fluid" alt="Phone image">
+    <div class="row mx-0">
+      <div class="d-none d-md-block col-md-7 p-0" style="background-image: url('assets/images/bk-2.jpg'); background-size: cover; background-position: center; background-repeat: no-repeat;">
+        
       </div>
-      <div class="col-md-7 col-lg-5 col-xl-5 offset-xl-1 p-3 px-md-2">
-        <div class="w-50 mb-3 mx-auto">
-          <img src="assets/images/nivasity-manuals.png" class="img-fluid" alt="Phone image">
-        </div>
-
-        <ul class="nav nav-pills nav-justified mb-3" id="ex1" role="tablist">
-          <li class="nav-item" role="presentation">
-            <a class="nav-link fw-bold active" id="tab-login" data-mdb-toggle="pill" href="#pills-login" role="tab"
-              aria-controls="pills-login" aria-selected="true">Login</a>
-          </li>
-          <li class="nav-item" role="presentation">
-            <a class="nav-link fw-bold" id="tab-register" data-mdb-toggle="pill" href="#pills-register" role="tab"
-              aria-controls="pills-register" aria-selected="false">Sign Up</a>
-          </li>
-        </ul>
-
-        <!-- Pills navs -->
-        <div class="tab-content">
-          <div class="tab-pane fade show active" id="pills-login" role="tabpanel" aria-labelledby="tab-login">
-            <form id="login-form">
-              <input type="hidden" name="login" value="login">
-              <!-- Email input -->
-              <div class="form-outline mb-4">
-                <input type="email" name="email" class="form-control form-control-lg" required />
-                <label class="form-label" for="email">Email address</label>
-              </div>
-
-              <!-- Password input -->
-              <div class="form-outline mb-4">
-                <input type="password" name="password" class="form-control form-control-lg" required />
-                <label class="form-label" for="password">Password</label>
-              </div>
-
-              <div class="d-flex justify-content-start align-items-center mb-4">
-                Trouble signing in? <a href="passwordreset.html" class="fw-bold"> &nbsp; Reset password</a>
-              </div>
-
-              <!-- Submit button -->
-              <button id="login" type="submit" class="btn btn-primary fw-bold btn-lg btn-block">Login</button>
-
-              <div class="divider d-flex align-items-center my-3">
-                <p class="text-center fw-bold mx-3 mb-0 text-muted">OR</p>
-              </div>
-
-              <!-- Login with Google Popup and Button -->
-              <div id="g_id_onload"
-                data-client_id="310503296847-97hk6jnt3celij3of2mocmjremh8vct4.apps.googleusercontent.com"
-                data-context="signin" data-ux_mode="popup" data-callback="handleCredentialResponse"
-                data-auto_select="true" data-itp_support="true">
-              </div>
-
-              <div class="g_id_signin btn btn-sm d-flex justify-content-center" data-type="standard"
-                data-shape="rectangular" data-theme="outline" data-text="signin_with" data-size="large"
-                data-logo_alignment="left">
-              </div>
-              <!-- End of Google login -->
-
-            </form>
+      <div class="col-md-5 p-3 px-md-2 d-flex align-items-center vh-100">
+        <div class="p-xl-5 p-2 mx-xl-5 mx-lg-2">
+          <div class="w-50 mb-3 mx-auto">
+            <img src="assets/images/nivasity-main.png" class="img-fluid" alt="Phone image">
           </div>
-          <div class="tab-pane fade" id="pills-register" role="tabpanel" aria-labelledby="tab-register">
-            <form id="signup-form">
-              <input type="hidden" name="signup" value="signup" />
-              <div class="row">
-                <div class="col-md-6">
-                  <div class="form-outline mb-4">
-                    <input type="text" name="first_name" class="form-control form-control-lg" required />
-                    <label class="form-label" for="first_name">First Name</label>
+  
+          <ul class="nav nav-pills nav-justified mb-3" id="ex1" role="tablist">
+            <li class="nav-item" role="presentation">
+              <a class="nav-link fw-bold active" id="tab-login" data-mdb-toggle="pill" href="#pills-login" role="tab"
+                aria-controls="pills-login" aria-selected="true">Login</a>
+            </li>
+            <li class="nav-item" role="presentation">
+              <a class="nav-link fw-bold" id="tab-register" data-mdb-toggle="pill" href="#pills-register" role="tab"
+                aria-controls="pills-register" aria-selected="false">Sign Up</a>
+            </li>
+          </ul>
+  
+          <!-- Pills navs -->
+          <div class="tab-content">
+            <div class="tab-pane fade show active" id="pills-login" role="tabpanel" aria-labelledby="tab-login">
+              <form id="login-form">
+                <input type="hidden" name="login" value="login">
+                <!-- Email input -->
+                <div class="form-outline mb-4">
+                  <input type="email" name="email" class="form-control form-control-lg" required />
+                  <label class="form-label" for="email">Email address</label>
+                </div>
+  
+                <!-- Password input -->
+                <div class="form-outline mb-4">
+                  <input type="password" name="password" class="form-control form-control-lg" required />
+                  <label class="form-label" for="password">Password</label>
+                </div>
+  
+                <div class="d-flex justify-content-start align-items-center mb-4">
+                  Trouble signing in? <a href="passwordreset.html" class="fw-bold"> &nbsp; Reset password</a>
+                </div>
+  
+                <!-- Submit button -->
+                <button id="login" type="submit" class="btn btn-primary fw-bold btn-lg btn-block">Login</button>
+  
+                <div class="divider d-flex align-items-center my-3">
+                  <p class="text-center fw-bold mx-3 mb-0 text-muted">OR</p>
+                </div>
+  
+                <!-- Login with Google Popup and Button -->
+                <div id="g_id_onload"
+                  data-client_id="310503296847-97hk6jnt3celij3of2mocmjremh8vct4.apps.googleusercontent.com"
+                  data-context="signin" data-ux_mode="popup" data-callback="handleCredentialResponse"
+                  data-auto_select="true" data-itp_support="true">
+                </div>
+  
+                <div class="g_id_signin btn btn-sm d-flex justify-content-center" data-type="standard"
+                  data-shape="rectangular" data-theme="outline" data-text="signin_with" data-size="large"
+                  data-logo_alignment="left">
+                </div>
+                <!-- End of Google login -->
+  
+              </form>
+            </div>
+            <div class="tab-pane fade" id="pills-register" role="tabpanel" aria-labelledby="tab-register">
+              <form id="signup-form">
+                <input type="hidden" name="signup" value="signup" />
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="form-outline mb-4">
+                      <input type="text" name="first_name" class="form-control form-control-lg" required />
+                      <label class="form-label" for="first_name">First Name</label>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="form-outline mb-4">
+                      <input type="text" name="last_name" class="form-control form-control-lg" required />
+                      <label class="form-label" for="last_name">Last Name</label>
+                    </div>
                   </div>
                 </div>
-                <div class="col-md-6">
-                  <div class="form-outline mb-4">
-                    <input type="text" name="last_name" class="form-control form-control-lg" required />
-                    <label class="form-label" for="last_name">Last Name</label>
+  
+                <div class="form-outline mb-4">
+                  <input type="email" name="email" class="form-control form-control-lg" required />
+                  <label class="form-label" for="email">Email address</label>
+                </div>
+  
+                <div class="form-outline mb-3">
+                  <input type="number" name="phone" class="form-control form-control-lg" required />
+                  <label class="form-label" for="phone">Phone Number</label>
+                </div>
+  
+                <div class="row">
+                  <div class="col-md-6 mb-4">
+                    <label class="form-check-label fw-bold display-block-inline">Academic/Business Role: &nbsp;</label><br />
+                    <div class="form-group">
+                      <select id="role" name="role" class="form-select form-select-lg">
+                        <option value="student">Student</option>
+                        <option value="hoc">HOC</option>
+                        <option value="org_admin">Business Owner</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="col-md-6 mb-4">
+                    <label class="form-check-label fw-bold display-block-inline">Gender: &nbsp;</label><br />
+                    <div class="form-group">
+                      <select id="gender" name="gender" class="form-select form-select-lg">
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              <div class="form-outline mb-4">
-                <input type="email" name="email" class="form-control form-control-lg" required />
-                <label class="form-label" for="email">Email address</label>
-              </div>
-
-              <div class="row">
-                <div class="col-md-6">
-                  <div class="form-outline mb-3">
-                    <input type="number" name="phone" class="form-control form-control-lg" required />
-                    <label class="form-label" for="phone">Phone Number</label>
+  
+                <div class="form-group mb-4" id="school-container">
+                  <select id="school" name="school" class="form-control form-control-lg searchable-select"></select>
+                </div>
+  
+                <div class="row mb-4">
+                  <div class="col-11">
+                    <div class="form-outline">
+                      <input type="password" id="password" name="password" class="form-control form-control-lg"
+                        onkeyup="checkPasswordStrength()" required="">
+                      <label class="form-label" for="password">Password</label>
+                    </div>
+                  </div>
+                  <div class="col-1 my-auto p-0 text-primary">
+                    <i class="fa fa-eye-slash toogle-password" aria-hidden="true"></i>
                   </div>
                 </div>
-                <div class="col-md-6 mb-3">
-                  <label class="form-check-label fw-bold display-block-inline">Gender: &nbsp;</label><br />
-                  <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="radio" name="gender" id="male" value="male" />
-                    <label class="form-check-label" for="male">Male</label>
-                  </div>
-                  <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="radio" name="gender" id="female" value="female" />
-                    <label class="form-check-label" for="female">Female</label>
-                  </div>
-                </div>
-              </div>
-
-              <div class="form-group mb-4">
-                <select id="school" name="school" class="form-control form-control-lg searchable-select"></select>
-              </div>
-
-              <div class="d-flex justify-content-start mb-4">
-                <label class="form-check-label fw-bold display-block-inline">Academic Role: &nbsp;</label><br />
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="radio" name="role" id="student" value="student" checked />
-                  <label class="form-check-label" for="student">Student</label>
-                </div>
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="radio" name="role" id="hoc" value="hoc" data-toggle="tooltip"
-                    data-placement="top" title="You'll have to verify this role to use the account after sign up!" />
-                  <label class="form-check-label" for="hoc">HOC</label>
-                </div>
-                <!-- <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="radio" name="role" id="lecturer" value="lecturer"
-                    data-toggle="tooltip" data-placement="top"
-                    title="You'll have to verify this role to use the account after sign up!" />
-                  <label class="form-check-label" for="lecturer">Lecturer</label>
-                </div> -->
-              </div>
-
-              <div class="row mb-4">
-                <div class="col-11">
-                  <div class="form-outline">
-                    <input type="password" id="password" name="password" class="form-control form-control-lg"
-                      onkeyup="checkPasswordStrength()" required="">
-                    <label class="form-label" for="password">Password</label>
+                <div id="password-strength-status"></div>
+  
+                <div class="form-outline mb-4">
+                  <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="termsCheckbox" name="termsCheckbox"
+                      data-toggle="tooltip" data-placement="top" title="Give me a high-five!" required>
+                    <label class="form-check-label fw-bold" for="termsCheckbox">I've read the <a
+                        href="t&c.html">Terms and Conditions</a> </label>
                   </div>
                 </div>
-                <div class="col-1 my-auto p-0 text-primary">
-                  <i class="fa fa-eye-slash toogle-password" aria-hidden="true"></i>
+  
+                <!-- Submit button -->
+                <button id="signup" type="submit" class="btn btn-primary fw-bold btn-lg btn-block" disabled>Sign
+                  up</button>
+  
+                <!-- <div class="divider d-flex align-items-center my-3">
+                  <p class="text-center fw-bold mx-3 mb-0 text-muted">OR</p>
                 </div>
-              </div>
-              <div id="password-strength-status"></div>
-
-              <div class="form-outline mb-4">
-                <div class="form-check">
-                  <input type="checkbox" class="form-check-input" id="termsCheckbox" name="termsCheckbox"
-                    data-toggle="tooltip" data-placement="top" title="Give me a high-five!" required>
-                  <label class="form-check-label fw-bold" for="termsCheckbox">I've read the <a
-                      href="t&c.html">Terms and Conditions</a> </label>
-                </div>
-              </div>
-
-              <!-- Submit button -->
-              <button id="signup" type="submit" class="btn btn-primary fw-bold btn-lg btn-block" disabled>Sign
-                up</button>
-
-              <!-- <div class="divider d-flex align-items-center my-3">
-                <p class="text-center fw-bold mx-3 mb-0 text-muted">OR</p>
-              </div>
-
-              <a class="btn btn-lg btn-block fw-bold " href="#!" style="background-color: #f7f7f7" role="button">
-                Sign Up with &nbsp; <img
-                  src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png"
-                  alt="Google Logo" class="google-logo" width="76" height="25">
-              </a>
-              <a class="btn btn-primary btn-lg btn-block" style="background-color: #3b5998" href="#!" role="button">
-                  <i class="fab fa-facebook-f me-2"></i>Continue with Facebook
+  
+                <a class="btn btn-lg btn-block fw-bold " href="#!" style="background-color: #f7f7f7" role="button">
+                  Sign Up with &nbsp; <img
+                    src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png"
+                    alt="Google Logo" class="google-logo" width="76" height="25">
                 </a>
-                <a class="btn btn-primary btn-lg btn-block" style="background-color: #55acee" href="#!" role="button">
-                  <i class="fab fa-twitter me-2"></i>Continue with Twitter</a> -->
-
-            </form>
+                <a class="btn btn-primary btn-lg btn-block" style="background-color: #3b5998" href="#!" role="button">
+                    <i class="fab fa-facebook-f me-2"></i>Continue with Facebook
+                  </a>
+                  <a class="btn btn-primary btn-lg btn-block" style="background-color: #55acee" href="#!" role="button">
+                    <i class="fab fa-twitter me-2"></i>Continue with Twitter</a> -->
+  
+              </form>
+            </div>
           </div>
         </div>
       </div>
@@ -342,6 +332,16 @@
     }
 
     $(document).ready(function () {
+      $('#role').change(function() {
+        if ($(this).val() === 'org_admin') {
+          // Hide the school dropdown if "Business Owner" is selected
+          $('#school-container').hide();
+        } else {
+          // Show the school dropdown for other roles
+          $('#school-container').show();
+        }
+      });
+      
       $.ajax({
         type: 'GET',
         url: 'model/getInfo.php',
@@ -452,7 +452,12 @@
         event.preventDefault();
 
         // Serialize the form data
-        var formData = $(this).serialize();
+        let formData = $(this).serializeArray();
+        
+        // Check if role is 'org_admin' and remove 'school' from form data if so
+        if ($('#role').val() === 'org_admin') {
+          formData = formData.filter(field => field.name !== 'school');
+        }
 
         // Define login button
         var button = $('#signup');

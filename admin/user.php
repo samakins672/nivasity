@@ -111,10 +111,17 @@ $bankName = getBankName($bank, $bankList);
                       <a class="nav-link px-3 active ps-0 fw-bold" id="home-tab" data-bs-toggle="tab" href="#account" role="tab"
                         aria-controls="account" aria-selected="true">Account</a>
                     </li>
-                    <li class="nav-item">
-                      <a class="nav-link px-3 fw-bold" id="contact-tab" data-bs-toggle="tab" href="#academics" role="tab"
-                        aria-selected="false">Academic Info</a>
-                    </li>
+                    <?php if ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'hoc'): ?>
+                      <li class="nav-item">
+                        <a class="nav-link px-3 fw-bold" id="contact-tab" data-bs-toggle="tab" href="#academics" role="tab"
+                          aria-selected="false">Academic Info</a>
+                      </li>
+                    <?php elseif ($user_status == 'inreview' && $_SESSION['nivas_userRole'] == 'org_admin'): ?>
+                      <li class="nav-item">
+                        <a class="nav-link px-3 fw-bold" id="organisation-tab" data-bs-toggle="tab" href="#organisation" role="tab"
+                          aria-selected="false">Organisation Info</a>
+                      </li>
+                    <?php endif; ?>
                     <li class="nav-item">
                       <a class="nav-link px-3 fw-bold" id="profile-tab" data-bs-toggle="tab" href="#security" role="tab"
                         aria-selected="false">Security</a>
@@ -144,7 +151,7 @@ $bankName = getBankName($bank, $bankList);
                                   </div>
                                 </div>
                             </div>
-                            <div class="card-body px-2">
+                            <div class="card-body">
                               <input type="hidden" name="edit_profile" value="1"/>
                               <div class="row">
                                 <div class="col-md-6">
@@ -196,7 +203,7 @@ $bankName = getBankName($bank, $bankList);
                                   class="mdi mdi-briefcase-<?php echo $d_icon ?>"></i><?php echo $d_text ?></button>
                             </div>
                           </h4>
-                          <div class="card-body px-2">
+                          <div class="card-body">
                             <div class="table-responsive  mt-1">
                               <table class="table table-hover select-table">
                                 <thead>
@@ -238,7 +245,7 @@ $bankName = getBankName($bank, $bankList);
                           <div class="card-header">
                             <h4 class="fw-bold">Change Password</4>
                           </div>
-                          <div class="card-body px-2">
+                          <div class="card-body">
                             <form id="password-form">
                               <input type="hidden" name="change_password" value="1"/>
                               <div class="row">
@@ -288,7 +295,7 @@ $bankName = getBankName($bank, $bankList);
                       <!-- <div class="col-12 mb-4">
                         <div class="card card-rounded p-3 shadow-sm">
                           <h4 class="card-header fw-bold pb-3">Two-steps Verification</h4>
-                          <div class="card-body px-2">
+                          <div class="card-body">
                             <h5 class="mb-3">Two factor authentication is not enabled yet.</h5>
                             <p>Two-factor authentication adds an additional layer of security to your
                               account by requiring more
@@ -304,7 +311,7 @@ $bankName = getBankName($bank, $bankList);
                       <div class="col-12">
                         <div class="card card-rounded p-3 shadow-sm">
                           <h4 class="card-header fw-bold pb-3">Delete Account</h4>
-                          <div class="card-body px-2">
+                          <div class="card-body">
                             <div class="mb-3 col-12 mb-0">
                               <div class="alert alert-danger">
                                 <h6 class="alert-heading fw-medium mb-1">Are you sure you want to delete your account?
@@ -334,60 +341,121 @@ $bankName = getBankName($bank, $bankList);
                       </div>
                     </div>
                   </div>
-                  <div class="tab-pane fade hide" id="academics" role="tabpanel" aria-labelledby="academics">
-                    <div class="row">
-                      <div class="col-12">
-                        <div class="card card-rounded p-3 shadow-sm">
-                          <div class="card-header">
-                            <h4 class="fw-bold">Academic Information</4>
-                          </div>
-                          <div class="card-body px-2">
-                            <div class="row">
-                              <?php
-                              $school = mysqli_fetch_array(mysqli_query($conn, "SELECT name FROM schools WHERE id = $school_id"))[0];
-                              $user_dept_name = mysqli_fetch_array(mysqli_query($conn, "SELECT name FROM depts_$school_id WHERE id = $user_dept"))[0];
-
-                              ?>
-                              <div class="col-md-6">
-                                <div class="form-outline mb-4">
-                                  <input type="text" id="new_institution"
-                                    class="form-control form-control-lg w-100"
-                                    value="<?php echo $school ?>" />
-                                  <label class="form-label" for="institution">Institution Name</label>
-                                </div>
-                              </div>
-                              <div class="col-md-6">
-                                <div class="form-outline mb-4">
-                                  <input type="text" id="new_adm_year"
-                                    class="form-control form-control-lg w-100" value="<?php echo $user_adm_year ?>" />
-                                  <label class="form-label" for="adm_year">Admission Year</label>
-                                </div>
-                              </div>
-
-                              <div class="col-md-6">
-                                <div class="form-outline mb-4">
-                                  <input type="text" id="new_department"
-                                    class="form-control form-control-lg w-100" value="<?php echo $user_dept_name ?>" />
-                                  <label class="form-label" for="department">Department</label>
-                                </div>
-                              </div>
-                              <div class="col-md-6">
-                                <div class="form-outline mb-4">
-                                  <input type="text" id="new_matric_no"
-                                    class="form-control form-control-lg w-100" value="<?php echo $user_matric_no ?>" />
-                                  <label class="form-label" for="matric_no">Matric Number</label>
-                                </div>
-                              </div>
+                  <?php if ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'hoc'): ?>
+                    <div class="tab-pane fade hide" id="academics" role="tabpanel" aria-labelledby="academics">
+                      <div class="row">
+                        <div class="col-12">
+                          <div class="card card-rounded p-3 shadow-sm">
+                            <div class="card-header">
+                              <h4 class="fw-bold">Academic Information</4>
                             </div>
-                            <!-- Save button -->
-                            <button id="req-academic-change" type="submit" data-bs-toggle="modal" data-bs-target="#reqAcctChange"
-                              class="btn btn-primary fw-bold btn-lg btn-block mt-2">Request Change</button>
+                            <div class="card-body">
+                              <div class="row">
+                                <?php
+                                $school = mysqli_fetch_array(mysqli_query($conn, "SELECT name FROM schools WHERE id = $school_id"))[0];
+                                $user_dept_name = mysqli_fetch_array(mysqli_query($conn, "SELECT name FROM depts_$school_id WHERE id = $user_dept"))[0];
 
+                                ?>
+                                <div class="col-md-6">
+                                  <div class="form-outline mb-4">
+                                    <input type="text" id="new_institution"
+                                      class="form-control form-control-lg w-100"
+                                      value="<?php echo $school ?>" />
+                                    <label class="form-label" for="institution">Institution Name</label>
+                                  </div>
+                                </div>
+                                <div class="col-md-6">
+                                  <div class="form-outline mb-4">
+                                    <input type="text" id="new_adm_year"
+                                      class="form-control form-control-lg w-100" value="<?php echo $user_adm_year ?>" />
+                                    <label class="form-label" for="adm_year">Admission Year</label>
+                                  </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                  <div class="form-outline mb-4">
+                                    <input type="text" id="new_department"
+                                      class="form-control form-control-lg w-100" value="<?php echo $user_dept_name ?>" />
+                                    <label class="form-label" for="department">Department</label>
+                                  </div>
+                                </div>
+                                <div class="col-md-6">
+                                  <div class="form-outline mb-4">
+                                    <input type="text" id="new_matric_no"
+                                      class="form-control form-control-lg w-100" value="<?php echo $user_matric_no ?>" />
+                                    <label class="form-label" for="matric_no">Matric Number</label>
+                                  </div>
+                                </div>
+                              </div>
+                              <!-- Save button -->
+                              <button id="req-academic-change" type="submit" data-bs-toggle="modal" data-bs-target="#reqAcctChange"
+                                class="btn btn-primary fw-bold btn-lg btn-block mt-2">Request Change</button>
+
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  <?php elseif ($user_status == 'inreview' && $_SESSION['nivas_userRole'] == 'org_admin'): ?>
+                    <div class="tab-pane fade hide" id="organisation" role="tabpanel" aria-labelledby="organisation">
+                      <div class="row">
+                        <div class="col-12">
+                          <div class="card card-rounded p-3 shadow-sm">
+                            <div class="card-header">
+                              <h4 class="fw-bold">Organisation Information</4>
+                            </div>
+                            <div class="card-body">
+                              <div class="row">
+                                <?php
+                                $organisation = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM organisation WHERE user_id = $user_id"));
+
+                                ?>
+                                <div class="col-md-6">
+                                  <div class="form-outline mb-4">
+                                    <input type="text" id="business_name" class="form-control form-control-lg w-100"
+                                      value="<?php echo $organisation['business_name'] ?>" />
+                                    <label class="form-label" for="business_name">Business Name</label>
+                                  </div>
+                                </div>
+                                <div class="col-md-6">
+                                  <div class="form-outline mb-4">
+                                    <input type="text" id="business_address"
+                                      class="form-control form-control-lg w-100" value="<?php echo $organisation['business_address'] ?>" />
+                                    <label class="form-label" for="business_address">Business Address</label>
+                                  </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                  <div class="form-outline mb-4">
+                                    <input type="url" id="web_url"
+                                      class="form-control form-control-lg w-100" value="<?php echo $organisation['web_url'] ?>" />
+                                    <label class="form-label" for="web_url">Business Website</label>
+                                  </div>
+                                </div>
+                                <div class="col-md-6">
+                                  <div class="form-outline mb-4">
+                                    <input type="text" id="work_email"
+                                      class="form-control form-control-lg w-100" value="<?php echo $organisation['work_email'] ?>" />
+                                    <label class="form-label" for="work_email">Work Email</label>
+                                  </div>
+                                </div>
+                                <div class="col-md-6">
+                                  <div class="form-outline mb-4">
+                                    <input type="text" id="socials"
+                                      class="form-control form-control-lg w-100" value="<?php echo $organisation['socials'] ?>" />
+                                    <label class="form-label" for="socials">Social Media</label>
+                                  </div>
+                                </div>
+                              </div>
+                              <!-- Save button -->
+                              <button id="req-organisation-change" type="submit" data-bs-toggle="modal" data-bs-target="#reqOrgChange"
+                                class="btn btn-primary fw-bold btn-lg btn-block mt-2">Request Change</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  <?php endif; ?>
                 </div>
                 
                 <!-- Settlement Account Modal -->
@@ -463,6 +531,38 @@ $bankName = getBankName($bank, $bankList);
                         <div class="modal-footer">
                           <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Close</button>
                           <button id="academic_info_submit" type="submit" class="btn btn-lg btn-primary">Submit</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Request organisation Info Change Modal -->
+                <div class="modal fade" id="reqOrgChange" tabindex="-1" role="dialog" aria-labelledby="reqOrgChangeLabel"
+                  aria-hidden="true">
+                  <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title fw-bold" id="reqOrgChangeLabel">Request Organisation Info Change</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </button>
+                      </div>
+                      <form id="organisation_info-form" enctype="multipart/form-data">
+                        <input type="hidden" name="business_name" value="">
+                        <input type="hidden" name="business_address" value="">
+                        <input type="hidden" name="web_url" value="">
+                        <input type="hidden" name="work_email" value="">
+                        <input type="hidden" name="socials" value="">
+                        <div class="modal-body">
+                          <div class="wysi-editor mb-4">
+                            <label class="form-label" for="message">Why are you making this change?.</label>
+                            <textarea class="form-control w-100 px-3 py-2" id="message" name="message"
+                              required></textarea>
+                          </div>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Close</button>
+                          <button id="organisation_info_submit" type="submit" class="btn btn-lg btn-primary">Submit</button>
                         </div>
                       </form>
                     </div>
@@ -835,51 +935,115 @@ $bankName = getBankName($bank, $bankList);
     });
 
     // Use AJAX to submit the academic_info form
-      $('#academic_info-form').submit(function (event) {
-        event.preventDefault(); // Prevent the default form submission
+    $('#academic_info-form').submit(function (event) {
+      event.preventDefault(); // Prevent the default form submission
 
-        var button = $('#academic_info_submit');
-        var originalText = button.html();
+      var button = $('#academic_info_submit');
+      var originalText = button.html();
 
-        button.html(originalText + '  <div class="spinner-border text-white" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
-        button.prop('disabled', true);
+      button.html(originalText + '  <div class="spinner-border text-white" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
+      button.prop('disabled', true);
 
-        var formData = new FormData($('#academic_info-form')[0]);
+      var formData = new FormData($('#academic_info-form')[0]);
 
-        $.ajax({
-            type: 'POST',
-            url: '../model/academicInfo.php',
-            data: formData,
-            contentType: false,
-            processData: false,
-            success: function (data) {
-              $('#alertBanner').html(data.message);
+      $.ajax({
+          type: 'POST',
+          url: '../model/academicInfo.php',
+          data: formData,
+          contentType: false,
+          processData: false,
+          success: function (data) {
+            $('#alertBanner').html(data.message);
 
-              if (data.status == 'success') {
-                $('#alertBanner').removeClass('alert-info');
-                $('#alertBanner').removeClass('alert-danger');
-                $('#alertBanner').addClass('alert-success');
-
-                setTimeout(function () {
-                  window.location.href = "support.php";
-                }, 1000);
-              } else {
-                $('#alertBanner').removeClass('alert-success');
-                $('#alertBanner').removeClass('alert-info');
-                $('#alertBanner').addClass('alert-danger');
-              }
-
-              $('#alertBanner').fadeIn();
+            if (data.status == 'success') {
+              $('#alertBanner').removeClass('alert-info');
+              $('#alertBanner').removeClass('alert-danger');
+              $('#alertBanner').addClass('alert-success');
 
               setTimeout(function () {
-                  $('#alertBanner').fadeOut();
-              }, 5000);
-
-              button.html(originalText);
-              button.prop("disabled", false);
+                window.location.href = "support.php";
+              }, 1000);
+            } else {
+              $('#alertBanner').removeClass('alert-success');
+              $('#alertBanner').removeClass('alert-info');
+              $('#alertBanner').addClass('alert-danger');
             }
-        });
+
+            $('#alertBanner').fadeIn();
+
+            setTimeout(function () {
+                $('#alertBanner').fadeOut();
+            }, 5000);
+
+            button.html(originalText);
+            button.prop("disabled", false);
+          }
       });
+    });
+
+    // Handle click event of View/Edit button
+    $('#req-organisation-change').on('click', function () {
+      // Get the manual details from the data- attributes
+      var business_name = $('#business_name').val();
+      var business_address = $('#business_address').val();
+      var web_url = $('#web_url').val();
+      var work_email = $('#work_email').val();
+      var socials = $('#socials').val();
+
+      // Set the values in the edit manual modal
+      $('#organisation_info-form input[name="business_name"]').val(business_name);
+      $('#organisation_info-form input[name="business_address"]').val(business_address);
+      $('#organisation_info-form input[name="web_url"]').val(web_url);
+      $('#organisation_info-form input[name="work_email"]').val(work_email);
+      $('#organisation_info-form input[name="socials"]').val(socials);
+    });
+
+    // Use AJAX to submit the organisation_info form
+    $('#organisation_info-form').submit(function (event) {
+      event.preventDefault(); // Prevent the default form submission
+
+      var button = $('#organisation_info_submit');
+      var originalText = button.html();
+
+      button.html(originalText + '  <div class="spinner-border text-white" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
+      button.prop('disabled', true);
+
+      var formData = new FormData($('#organisation_info-form')[0]);
+
+      $.ajax({
+          type: 'POST',
+          url: '../model/organisationInfo.php',
+          data: formData,
+          contentType: false,
+          processData: false,
+          success: function (data) {
+            $('#alertBanner').html(data.message);
+
+            if (data.status == 'success') {
+              $('#alertBanner').removeClass('alert-info');
+              $('#alertBanner').removeClass('alert-danger');
+              $('#alertBanner').addClass('alert-success');
+
+              setTimeout(function () {
+                window.location.href = "support.php";
+              }, 1000);
+            } else {
+              $('#alertBanner').removeClass('alert-success');
+              $('#alertBanner').removeClass('alert-info');
+              $('#alertBanner').addClass('alert-danger');
+            }
+
+            $('#alertBanner').fadeIn();
+
+            setTimeout(function () {
+                $('#alertBanner').fadeOut();
+            }, 5000);
+
+            button.html(originalText);
+            button.prop("disabled", false);
+          }
+      });
+    });
 
     // Use AJAX to deactivate account
       $('#acct_deactivation-form').submit(function (event) {

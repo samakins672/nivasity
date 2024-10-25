@@ -3,7 +3,7 @@ session_start();
 include('model/config.php');
 include('model/page_config.php');
 
-$manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought_$school_id WHERE buyer = $user_id ORDER BY created_at DESC");
+$event_query = mysqli_query($conn, "SELECT * FROM event_tickets WHERE buyer = $user_id ORDER BY created_at DESC");
 
 ?>
 <!DOCTYPE html>
@@ -39,7 +39,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought_$school_id WHE
                     <div class="row flex-grow">
                       <div class="col-12 card card-rounded shadow-sm px-2">
                         <div class="card-header">
-                          <h4 class="fw-bold my-3">Manual Orders</h4> 
+                          <h4 class="fw-bold my-3">Event Tickets</h4> 
                         </div>
                         <div class="card-body">
                           <!-- order Ticket Table -->
@@ -48,7 +48,8 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought_$school_id WHE
                               <thead>
                                 <tr>
                                   <th>Trans. ID</th>
-                                  <th>Name</th>
+                                  <th>Details</th>
+                                  <th>Event Date</th>
                                   <th>Price</th>
                                   <th>Date Bought</th>
                                   <th>Status</th>
@@ -56,31 +57,43 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought_$school_id WHE
                               </thead>
                               <tbody>
                                 <?php
-                              while ($manual = mysqli_fetch_array($manual_query)) {
-                                $manual_id = $manual['manual_id'];
+                              while ($event = mysqli_fetch_array($event_query)) {
+                                $event_id = $event['event_id'];
 
-                                $manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE id = $manual_id"));
+                                $events = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM events WHERE id = $event_id"));
+
+                                // Retrieve and format the event date
+                                $event_date = date('j M, Y', strtotime($events['event_date']));
+                                
+                                $event_time = date('g:i A', strtotime($events['event_time']));
 
                                 // Retrieve and format the due date
-                                $created_date = date('j M, Y', strtotime($manual['created_at']));
-                                $created_time = date('h:i a', strtotime($manual['created_at']));
+                                $created_date = date('j M, Y', strtotime($event['created_at']));
+                                $created_time = date('h:i a', strtotime($event['created_at']));
                                 // Retrieve the status
-                                $status = $manual['status'];
+                                $status = $event['status'];
                                 ?>
                               <tr>
                                 <td>
-                                  #<?php echo $manual['ref_id'] ?>
+                                  #<?php echo $event['ref_id'] ?>
                                 </td>
                                 <td>
-                                  <div class="d-flex ">
+                                  <div class="d-flex justify-content-start">
                                     <div>
-                                      <h6><span class="d-sm-none-2"><?php echo $manuals['title'] ?> -</span> <?php echo $manuals['course_code'] ?></h6>
-                                      <p class="d-sm-none-2">ID: <span class="fw-bold"><?php echo $manuals['code'] ?></span></p>
+                                      <img src="assets/images/events/<?php echo $events['event_banner'] ?>" alt="<?php echo $events['title'] ?>" class="img-fluid rounded-2" style="min-width: 100px">
+                                    </div>
+                                    <div>
+                                      <h6><?php echo $events['title'] ?></h6>
+                                      <p class="d-sm-none-2">ID: <span class="fw-bold"><?php echo $events['code'] ?></span></p>
                                     </div>
                                   </div>
                                 </td>
                                 <td>
-                                  <h6 class="text-success fw-bold">&#8358; <?php echo number_format($manuals['price']) ?></h6>
+                                  <h6><?php echo $event_date ?></h6>
+                                  <p class="fw-bold"><?php echo $event_time ?></p>
+                                </td>
+                                <td>
+                                  <h6 class="text-success fw-bold">&#8358; <?php echo number_format($events['price']) ?></h6>
                                 </td>
                                 <td>
                                   <h6><?php echo $created_date ?></h6>

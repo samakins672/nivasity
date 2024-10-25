@@ -10,12 +10,8 @@ if (!isset($_SESSION["nivas_cart$user_id"])) {
 if (!isset($_SESSION["nivas_cart_event$user_id"])) {
   $_SESSION["nivas_cart_event$user_id"] = array();
 }
-$total_cart_items = count($_SESSION["nivas_cart$user_id"] + $_SESSION["nivas_cart_event$user_id"]);
+$total_cart_items = count($_SESSION["nivas_cart$user_id"]) + count($_SESSION["nivas_cart_event$user_id"]);
 $total_cart_price = 0;
-
-if (isset($_SESSION['cart_sellers'])) {
-  $sessionData = json_encode($_SESSION['cart_sellers']);
-}
 
 $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals_$school_id WHERE dept = $user_dept AND status = 'open'"))[0];
 
@@ -53,12 +49,14 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
               <div class="home-tab">
                 <div class="d-flex align-items-center justify-content-between border-bottom">
                   <ul class="nav nav-tabs d-flex" role="tablist">
+                    <?php if ($_SESSION['nivas_userRole'] !== 'org_admin'): ?>
                     <li class="nav-item">
-                      <a class="nav-link px-3 active ps-0 fw-bold" id="store-tab" data-bs-toggle="tab" href="#store"
-                        role="tab" aria-controls="store" aria-selected="true">Store</a>
+                      <a class="nav-link px-3 ps-0 fw-bold" id="store-tab" data-bs-toggle="tab" href="#store"
+                        role="tab" aria-controls="store" aria-selected="false">Store</a>
                     </li>
+                    <?php endif; ?>
                     <li class="nav-item">
-                      <a class="nav-link px-3 fw-bold" id="events-tab" data-bs-toggle="tab" href="#events"
+                      <a class="nav-link px-3 active fw-bold" id="events-tab" data-bs-toggle="tab" href="#events"
                         role="tab" aria-controls="events" aria-selected="true">Events</a>
                     </li>
                     <li class="nav-item">
@@ -68,7 +66,8 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                   </ul>
                 </div>
                 <div class="tab-content tab-content-basic">
-                  <div class="tab-pane fade show active" id="store" role="tabpanel" aria-labelledby="store">
+                  <?php if ($_SESSION['nivas_userRole'] !== 'org_admin'): ?>
+                  <div class="tab-pane fade hide" id="store" role="tabpanel" aria-labelledby="store">
                     <div class="row">
                       <div class="col-5 col-md-3 offset-md-9 form-group me-2">
                         <p class="text-muted">Sort By:</p>
@@ -131,7 +130,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                               ?>
                                   <div class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card sortable-card">
                                     <div class="card card-rounded shadow-sm">
-                                      <div class="card-body px-2">
+                                      <div class="card-body">
                                         <h4 class="card-title"><?php echo $manual['title'] ?> <span class="text-secondary">- <?php echo $manual['course_code'] ?></span></h4>
                                         <div class="media">
                                           <i class="mdi mdi-book icon-lg text-secondary d-flex align-self-start me-3"></i>
@@ -165,7 +164,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                             if ($count_row == 0) { ?>
                                       <div class="col-12">
                                           <div class="card card-rounded shadow-sm">
-                                            <div class="card-body px-2">
+                                            <div class="card-body">
                                               <h5 class="card-title">All manuals have been bought</h5>
                                               <p class="card-text">Check back later when your HOC uploads a new manual.</p>
                                             </div>
@@ -177,7 +176,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                             ?>
                                   <div class="col-12">
                                       <div class="card card-rounded shadow-sm">
-                                        <div class="card-body px-2">
+                                        <div class="card-body">
                                           <h5 class="card-title text-center">No manuals available.</h5>
                                           <p class="card-text text-center">Check back later when your HOC uploads a new manual.</p>
                                         </div>
@@ -188,12 +187,13 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                       </div>
                     </div>
                   </div>
-                  <div class="tab-pane fade hide" id="events" role="tabpanel" aria-labelledby="events">
+                  <?php endif; ?>
+                  <div class="tab-pane fade show active" id="events" role="tabpanel" aria-labelledby="events">
                     <div class="row">
                       <div class="col-5 col-md-3 offset-md-9 form-group me-2">
                         <p class="text-muted">Sort By:</p>
                         <select class="form-control w-100" name="sort-by" id="sort-by">
-                          <option value="1">Due Date</option>
+                          <option value="1">Event Date</option>
                           <option value="2">Price: Low to High</option>
                           <option value="3">Price: High to Low</option>
                         </select>
@@ -225,9 +225,13 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                               $seller_fn = $seller_q['first_name'];
                               $seller_ln = $seller_q['last_name'];
 
-                              // Retrieve and format the due date
-                              $event_date = date('j M, Y', strtotime($event['event_date']));
+                              // Retrieve and format the event_date and time
+                              $event_date = date('j M', strtotime($event['event_date']));
                               $event_date2 = date('Y-m-d', strtotime($event['event_date']));
+                                    
+                              $event_time = date('g:i A', strtotime($event['event_time']));
+                              $event_time2 = date('H:i', strtotime($event['event_time']));
+
                               // Retrieve the status
                               $status = $event['status'];
                               $status_c = 'success';
@@ -245,27 +249,25 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                               $is_in_cart = in_array($event_id, $_SESSION["nivas_cart_event$user_id"]);
 
                               // Update the Add to Cart button based on cart status
-                              $button_text = $is_in_cart ? 'Remove' : 'Add to Cart';
+                              $button_text = $is_in_cart ? 'Remove' : 'Get Ticket';
                               $button_class = $is_in_cart ? 'btn-primary' : 'btn-outline-primary';
+                              $event_price = number_format($event['price']);
+                              $event_price = $event_price > 0 ? "₦ $event_price" : 'FREE';
 
                               ?>
-                                  <div class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card sortable-card">
+                                  <div class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card">
                                     <div class="card card-rounded shadow-sm">
                                       <div class="card-body p-0">
-                                        <img src="assets/images/events/image.png" class="img-fluid rounded w-100">
+                                        <img src="assets/images/events/<?php echo $event['event_banner'] ?>" class="img-fluid rounded w-100" style="max-height: 140px; object-fit: cover;">
                                         <div class="p-3">
-                                          <p class="badge bg-inverse-primary">Departmental</p>
-                                          <h4 class="fw-bold">Lagos International Finance Expo 2024</h4>
-                                          <small class="fw-bold">Sat, Nov 9 • 8:00 PM</small>
-                                          <p class="">Location</p>
-                                          <small class="fw-bold text-uppercase">Free</small>
-                                          <p class="fw-bold text-secondary">FoundHerCity</p>
+                                          <p class="badge bg-inverse-secondary"><?php echo $event['location'] ?></p>
+                                          <h4 class="fw-bold"><?php echo $event['title'] ?></h4>
+                                          <small class="fw-bold"><?php echo $event_date ?> • <?php echo $event_time ?></small><br>
+                                          <small class="badge badge-success fw-bold text-uppercase mt-2"><?php echo $event_price ?></small>
+                                          <p class="fw-bold text-secondary"><?php echo $seller_fn . ' ' . $seller_ln ?></p>
                                           <hr>
-                                          <div class="d-flex justify-content-between">
-                                            <a href="javascript:;">
-                                              <i class="mdi mdi-share-variant icon-md text-muted" data-title="Lagos International Finance Expo 2024" data-event_id="2"></i>
-                                            </a>
-                                            <button class="btn btn-outline-primary btn-lg m-0 cart-event-button" data-event-id="2" data-mdb-ripple-duration="0">Get Ticket</button>
+                                          <div class="d-flex justify-content-end">
+                                            <button class="btn <?php echo $button_class; ?>  btn-lg m-0 cart-event-button" data-event-id="<?php echo $event['id'] ?>" data-mdb-ripple-duration="0"><?php echo $button_text; ?></button>
                                           </div>
                                         </div>
                                       </div>
@@ -277,9 +279,9 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                             if ($count_row == 0) { ?>
                                       <div class="col-12">
                                           <div class="card card-rounded shadow-sm">
-                                            <div class="card-body px-2">
+                                            <div class="card-body">
                                               <h5 class="card-title">All events have been bought</h5>
-                                              <p class="card-text">Check back later when your HOC uploads a new event.</p>
+                                              <p class="card-text">Check back later when a new event is uploaded.</p>
                                             </div>
                                           </div>
                                       </div>
@@ -289,7 +291,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                             ?>
                                   <div class="col-12">
                                       <div class="card card-rounded shadow-sm">
-                                        <div class="card-body px-2">
+                                        <div class="card-body">
                                           <h5 class="card-title text-center">No event available.</h5>
                                           <p class="card-text text-center">Check back later when a new event is uploaded.</p>
                                         </div>
@@ -301,129 +303,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                     </div>
                   </div>
                   <div class="tab-pane fade hide" id="cart" role="tabpanel" aria-labelledby="cart">
-                    <div class="row flex-grow">
-                      <div class="col-sm-8 grid-margin px-2 stretch-card">
-                        <div class="card card-rounded shadow-sm">
-                          <div class="card-body">
-                            <div class="table-responsive mt-1">
-                              <table class="table table-hover table-striped select-table">
-                                <thead>
-                                  <tr>
-                                    <th>Product</th>
-                                    <th>Price</th>
-                                    <th>Due Date</th>
-                                    <th>Action</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                <?php
-                                foreach ($_SESSION["nivas_cart$user_id"] as $cart_item_id) {
-                                  // Fetch details of the carted item based on $cart_item_id
-                                  $cart_item = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE id = $cart_item_id"));
-
-                                  // Retrieve and format the due date
-                                  $due_date = date('j M, Y', strtotime($cart_item['due_date']));
-                                  $due_date2 = date('Y-m-d', strtotime($cart_item['due_date']));
-                                  // Retrieve the status
-                                  $status = $cart_item['status'];
-                                  $status_c = '';
-
-                                  $seller = $cart_item['user_id'];
-                                  $seller_code = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE user_id = $seller"))['subaccount_code'];
-
-                                  if ($date > $due_date2 || $status == 'closed') {
-                                    $status = 'disabled';
-                                    $status_c = 'danger';
-                                  } else {
-                                    $total_cart_price = $total_cart_price + $cart_item['price'];
-                                  }
-                                  ?>
-                                      <tr>
-                                        <td>
-                                          <div class="d-flex">
-                                            <div>
-                                              <h6><?php echo $cart_item['course_code'] ?></h6>
-                                              <?php if ($status_c == 'danger'): ?>
-                                                    <p class="text-danger fw-bold">Item Overdue</p>
-                                              <?php endif; ?>
-                                              </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                          <h6>&#8358; <?php echo number_format($cart_item['price']) ?></h6>
-                                        </td>
-                                        <td>
-                                          <h6 class="text-<?php echo $status_c ?>"><?php echo $due_date ?></h6>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-sm btn-outline-primary mb-0 btn-block remove-cart" data-type="product" data-cart_id="<?php echo $cart_item_id ?>">Remove</button>
-                                        </td>
-                                      </tr>
-                                <?php } ?>
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div class="col-sm-4 grid-margin px-2">
-                        <div class="card card-rounded shadow-sm">
-                          <div class="card-body px-2">
-                            <div class="d-flex justify-content-between align-items-center">
-                              <div>
-                                <h4 class="card-title card-title-dash">Order Summary</h4>
-                              </div>
-                            </div><hr>
-                            <div class="d-flex justify-content-between mt-3 mb-1 fw-bold">
-                              <p>Subtotal</p>
-                              <h4>₦ <?php echo number_format($total_cart_price) ?></h4>
-                            </div>
-                            <?php
-                            // Assuming $transferAmount contains the transfer amount
-                            $transferAmount = $total_cart_price;
-
-                            $charge = 0;
-                            if ($transferAmount == 0) {
-                              $charge = 0;
-                            } elseif ($transferAmount < 2500) {
-                              $charge = 45;
-                            } elseif ($transferAmount >= 2500) {
-                              // Add 1.4% to the transferAmount
-                              $charge += ($transferAmount * 0.014);
-
-                              // Adjust the charge accordingly
-                              if ($transferAmount >= 2500 && $transferAmount < 5000) {
-                                $charge += 20;
-                              } elseif ($transferAmount >= 5000 && $transferAmount < 10000) {
-                                $charge += 30;
-                              } else {
-                                $charge += 35;
-                              }
-                            }
-
-                            // Add the charge to the total
-                            $transferAmount += $charge;
-                            ?>
-                            <div class="d-flex justify-content-between mt-0 mb-3 fw-bold">
-                              <p>Handling fee</p>
-                              <h5>₦ <?php echo number_format($charge) ?></h5>
-                            </div>
-                            <div class="d-flex justify-content-between my-3 text-secondary fw-bold">
-                              <h5 class="fw-bold">Total Due</h5>
-                              <h5 class="fw-bold">₦ <?php echo number_format($transferAmount) ?></h5>
-                            </div>
-                            <?php if ($total_cart_price > 0): ?>
-                                  <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart"
-                                    data-charge="<?php echo $charge ?>" data-seller="<?php echo $seller_code ?>" 
-                                    data-subaccount_amount="<?php echo $total_cart_price ?>" 
-                                    data-transfer_amount="<?php echo $transferAmount ?>">CHECKOUT</button>
-                            <?php else: ?>
-                                  <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>
-                            <?php endif; ?>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    
                   </div>
 
                   <!-- Spinner Start -->
@@ -485,10 +365,10 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
     $(document).ready(function () {
       $('.btn').attr('data-mdb-ripple-duration', '0');
 
-      $('#sort-by').change(function () {
-        var sortByValue = $(this).val();
-        sortCards(sortByValue);
-      });
+      // $('#sort-by').change(function () {
+      //   var sortByValue = $(this).val();
+      //   sortCards(sortByValue);
+      // });
 
       $('.go-to-cart-button').on('click', function () {
           $('#cart-tab').tab('show');
@@ -516,6 +396,8 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
           alert('Web Share API not supported. You can manually share the link.');
         }
       });
+
+      reloadCartTable()
 
       function sortCards(sortBy) {
         var $container = $('.sortables');
@@ -575,7 +457,11 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
             reloadCartTable();
 
             // Change the button text of the tag with data-product-id as the removed product ID
-            $('button[data-'+type+'-id="' + product_id + '"]').toggleClass('btn-outline-primary btn-primary').text('Add to Cart');
+            btn_text = 'Add to Cart';
+            if (type == 'event') {
+              btn_text = 'Get Ticket';
+            }
+            $('button[data-'+type+'-id="' + product_id + '"]').toggleClass('btn-outline-primary btn-primary').text(btn_text);
           },
           error: function () {
             // Handle error
@@ -672,8 +558,22 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
         phone = "<?php echo $user_phone ?>";
         u_name = "<?php echo $user_name ?>";
         transfer_amount = $(this).data('transfer_amount');
-        sessionData = <?php echo $sessionData ?>;
-        
+            
+        // Retrieve and parse session data safely
+        sessionData = $(this).data('session_data');
+        // Check if sessionData is an object or a string
+        let parsedSessionData;
+        if (typeof sessionData === "string") {
+            try {
+                parsedSessionData = JSON.parse(sessionData); // Parse if it's a string
+            } catch (error) {
+                console.error("Error parsing session data:", error);
+                return; // Exit if parsing fails
+            }
+        } else {
+            parsedSessionData = sessionData; // Use as is if it's already an object
+        }
+
         function generateUniqueID() {
             const currentDate = new Date();
             const uniqueID = `nivas_<?php echo $user_id ?>_${currentDate.getTime()}`;
@@ -682,16 +582,16 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
 
         const myUniqueID = generateUniqueID();
 
-        // sessionData should return the array of sellers and prices
+        // Create the subaccounts array from parsed session data
         let subaccounts = [];
-
-        sessionData.forEach(function(item) {
+        $.each(parsedSessionData, function(key, item) {
             subaccounts.push({
                 id: item.seller,
                 transaction_charge_type: "flat_subaccount",
                 transaction_charge: item.price  // The price or commission to be charged
             });
         });
+
 
         // Now make the Flutterwave API call
         $.ajax({
@@ -735,6 +635,11 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
             url: 'model/handle-free-payment.php',
             type: 'GET',
             data: { tx_ref: tx_ref},
+            success: function (response) {
+              if (response.status === 'success') {
+                location.reload();
+              }
+            },
             error: function () {
               // Handle error
               console.error('Error checking out!');

@@ -2,17 +2,26 @@
   <ul class="nav">
     <?php if($url == 'index.php'):?>
     <li class="nav-item active">
+      <?php if ($_SESSION['nivas_userRole'] == 'hoc'): ?>
       <a class="nav-link bg-primary" href="javascript:;" data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual' : 'verificationManual' ?>">
         <i class="mdi mdi-plus menu-icon text-white"></i>
-        <span class="menu-title text-white fw-bold">New Manual</span>
+        <span class="menu-title text-white fw-bold">
+          New Manual
+      <?php else: ?>
+        <a class="nav-link bg-primary" href="javascript:;" data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addEvent' : 'verificationManual' ?>">
+          <i class="mdi mdi-plus menu-icon text-white"></i>
+          <span class="menu-title text-white fw-bold">
+            New Event
+          <?php endif; ?>
+        </span>
       </a>
     </li>
     <?php endif;?>
     <li class="nav-item nav-category">Dashboard</li>
     <li class="nav-item">
       <a class="nav-link" href="/admin">
-        <i class="mdi mdi-grid-large menu-icon"></i>
-        <span class="menu-title">Overview</span>
+        <i class="mdi mdi-view-dashboard-outline menu-icon"></i>
+        <span class="menu-title">Home</span>
       </a>
     </li>
     <li class="nav-item">
@@ -36,7 +45,7 @@
       </a>
     </li>
 
-    <?php if ($admin_role): ?>
+    <?php if ($is_admin_role): ?>
       <li class="nav-item nav-category">Student Panel</li>
       <li class="nav-item">
         <a class="nav-link" href="../store.php">
@@ -46,8 +55,8 @@
       </li>
     <?php endif; ?>
 
-    <li class="nav-item nav-category">Sign Out</li>
-    <li class="nav-item">
+    <li class="nav-item nav-category d-block d-md-none">Sign Out</li>
+    <li class="nav-item d-block d-md-none">
       <a class="nav-link g_id_signout" href="../signin.html?logout=1">
         <i class="menu-icon mdi mdi-power"></i>
         <span class="menu-title">Sign Out</span>

@@ -6,34 +6,36 @@ include('../model/page_config.php');
 if ($_SESSION['nivas_userRole'] == 'student') {
   header('Location: ../store.php');
   exit();
+} elseif ($_SESSION['nivas_userRole'] == 'hoc') {
+  $item_table = "manuals_$school_id";
+  $item_table2 = "manuals_bought_$school_id";
+  $column_id = "manual_id";
+} else {
+  $item_table = "events";
+  $item_table2 = "event_tickets";
+  $column_id = "event_id";
 }
 
-$t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals_$school_id WHERE user_id = $user_id"))[0];
-$t_manuals_sold = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(manual_id) FROM manuals_bought_$school_id WHERE seller = $user_id"))[0];
-$t_manuals_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM manuals_bought_$school_id WHERE seller = $user_id"))[0];
+$t_items = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM $item_table WHERE user_id = $user_id"))[0];
+$t_items_sold = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT($column_id) FROM $item_table2 WHERE seller = $user_id"))[0];
+$t_items_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM $item_table2 WHERE seller = $user_id"))[0];
 $t_students = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM users WHERE school = $school_id AND dept = $user_dept"))[0];
 
-$open_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals_$school_id WHERE user_id = $user_id AND status = 'open'"))[0];
-$closed_manuals = $t_manuals - $open_manuals;
+$open_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM $item_table WHERE user_id = $user_id AND status = 'open'"))[0];
+$closed_manuals = $t_items - $open_manuals;
 
-$manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE user_id = $user_id ORDER BY `id` DESC");
-$manual_query2 = mysqli_query($conn, "SELECT manual_id, SUM(price) AS total_sales
-    FROM manuals_bought_$school_id
+$manual_query2 = mysqli_query($conn, "SELECT $column_id, SUM(price) AS total_sales
+    FROM $item_table2
     WHERE seller  = $user_id
-    GROUP BY manual_id
+    GROUP BY $column_id
     ORDER BY total_sales DESC
     LIMIT 3");
 
+
+$manual_query = mysqli_query($conn, "SELECT * FROM $item_table WHERE user_id = $user_id ORDER BY `id` DESC");
 $event_query = mysqli_query($conn, "SELECT * FROM events WHERE user_id = $user_id ORDER BY `id` DESC");
-$event_query2 = mysqli_query($conn, "SELECT event_id, SUM(price) AS total_sales
-    FROM event_tickets
-    WHERE seller  = $user_id
-    GROUP BY event_id
-    ORDER BY total_sales DESC
-    LIMIT 3");
 
-$transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM manuals_bought_$school_id WHERE seller = $user_id ORDER BY `created_at` DESC");
-$transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM manuals_bought_$school_id WHERE seller = $user_id ORDER BY `created_at` DESC");
+$transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM $item_table2 WHERE seller = $user_id ORDER BY `created_at` DESC");
 
 ?>
 <!DOCTYPE html>
@@ -102,14 +104,17 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                       <a class="nav-link px-3 active ps-0 fw-bold" id="home-tab" data-bs-toggle="tab" href="#overview"
                         role="tab" aria-controls="overview" aria-selected="true">Overview</a>
                     </li>
+                    <?php if ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'hoc'): ?>
                     <li class="nav-item">
                       <a class="nav-link px-3 fw-bold" id="profile-tab" data-bs-toggle="tab" href="#manuals" role="tab"
                         aria-selected="false">Manuals</a>
                     </li>
+                    <?php elseif ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'org_admin'): ?>
                     <li class="nav-item">
                       <a class="nav-link px-3 fw-bold" id="contact-tab" data-bs-toggle="tab" href="#events" role="tab"
                         aria-selected="false">Events</a>
                     </li>
+                    <?php endif; ?>
                   </ul>
                   <div>
                   </div>
@@ -123,15 +128,15 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                           class="statistics-details d-flex justify-content-between align-items-center mt-0 mt-md-2 mb-4">
                           <div>
                             <p class="statistics-title fw-bold">Revenue Earned</p>
-                            <h3 class="rate-percentage">&#8358; <?php echo number_format($t_manuals_price) ?></h3>
+                            <h3 class="rate-percentage">&#8358; <?php echo number_format($t_items_price) ?></h3>
                           </div>
                           <div>
-                            <p class="statistics-title fw-bold">Total Manuals</p>
-                            <h3 class="rate-percentage"><?php echo $t_manuals ?></h3>
+                            <p class="statistics-title fw-bold">Total<?php echo ($column_id == 'manual_id') ? ' Manuals' : ' Events'; ?></p>
+                            <h3 class="rate-percentage"><?php echo $t_items ?></h3>
                           </div>
                           <div class="d-none d-md-block">
                             <p class="statistics-title fw-bold">Total Sales</p>
-                            <h3 class="rate-percentage"><?php echo $t_manuals_sold ?></h3>
+                            <h3 class="rate-percentage"><?php echo $t_items_sold ?></h3>
                           </div>
                           <div class="d-none d-md-block">
                             <p class="statistics-title fw-bold">Total Students</p>
@@ -145,7 +150,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                         <div class="row flex-grow">
                           <div class="col-12 grid-margin stretch-card">
                             <div class="card card-rounded shadow-sm">
-                              <div class="card-body px-2">
+                              <div class="card-body">
                                 <div class="d-sm-flex justify-content-between align-items-start">
                                   <div>
                                     <h4 class="card-title card-title-dash">Weekly Income Overview</h4>
@@ -168,18 +173,14 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                         <div class="row flex-grow">
                           <div class="col-12 grid-margin stretch-card">
                             <div class="card card-rounded shadow-sm">
-                              <div class="card-body px-2">
+                              <div class="card-body">
                                 <div class="d-sm-flex justify-content-between align-items-start">
                                   <div>
-                                    <h4 class="card-title card-title-dash">Best Selling Manuals</h4>
+                                    <h4 class="card-title card-title-dash">Best Selling<?php echo ($column_id == 'manual_id') ? ' Manuals' : ' Events'; ?></h4>
                                     <p class="card-subtitle card-subtitle-dash">You have <span
-                                        class="text-success fw-bold"><?php echo $open_manuals ?> open</span> manuals and <span
-                                        class="text-warning fw-bold"><?php echo $closed_manuals ?> closed</span> manuals.</p>
+                                        class="text-success fw-bold"><?php echo $open_manuals ?> active</span><?php echo ($column_id == 'manual_id') ? ' manuals' : ' events'; ?> and <span
+                                        class="text-warning fw-bold"><?php echo $closed_manuals ?> expired</span><?php echo ($column_id == 'manual_id') ? ' Manuals' : ' Events'; ?>.</p>
                                   </div>
-                                  <!-- <div>
-                                    <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"><i
-                                        class="mdi mdi-account-plus"></i>Add new member</button>
-                                  </div> -->
                                 </div>
                                 <div class="table-responsive  mt-1">
                                   <table class="table select-table">
@@ -194,10 +195,10 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                       <?php
                                       if (mysqli_num_rows($manual_query2)) {
                                       while ($manual = mysqli_fetch_array($manual_query2)) {
-                                        $manual_id = $manual['manual_id'];
+                                        $manual_id = $manual[$column_id];
 
-                                        $manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE id = $manual_id"));
-                                        $manuals_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(manual_id) FROM manuals_bought_$school_id WHERE manual_id = $manual_id"))[0];
+                                        $manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM $item_table WHERE id = $manual_id"));
+                                        $manuals_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT($column_id) FROM $item_table2 WHERE $column_id = $manual_id"))[0];
 
                                         // Retrieve the status
                                         $status = $manuals['status'];
@@ -206,7 +207,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                         <td>
                                           <div class="d-flex ">
                                             <div>
-                                              <h6><span class="d-sm-none-2"><?php echo $manuals['title'] ?> -</span> <?php echo $manuals['course_code'] ?></h6>
+                                              <h6><?php echo $manuals['title'] ?></h6>
                                               <p class="d-sm-none-2">ID: <span class="fw-bold"><?php echo $manuals['code'] ?></span></p>
                                             </div>
                                           </div>
@@ -215,8 +216,8 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                           <h6 class="text-secondary">&#8358; <?php echo number_format($manual['total_sales']) ?></h6>
                                           <p>Qty Sold: <span class="fw-bold"><?php echo $manuals_bought_cnt ?></span></p>
                                         </td>
-                                        <td class="text-center">
-                                            <div class="badge <?php echo ($status == 'open') ? 'bg-success' : 'bg-danger'; ?>"> </div>
+                                        <td>
+                                            <div class="badge <?php echo ($status == 'open') ? 'bg-success' : 'bg-danger'; ?>"> <?php echo ($status == 'open') ? 'Active' : 'Closed'; ?> </div>
                                         </td>
                                       </tr>
                                       <?php } } else { ?>
@@ -244,16 +245,16 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                             </div>
                             <div class="mt-3">
                             <?php
-                            if (mysqli_num_rows($transaction_query2)) {
-                            while ($transaction = mysqli_fetch_array($transaction_query2)) {
+                            if (mysqli_num_rows($transaction_query)) {
+                            while ($transaction = mysqli_fetch_array($transaction_query)) {
                               $transaction_id = $transaction['ref_id'];
                               $buyer_id = $transaction['buyer'];
 
                               $buyer = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = $buyer_id"));
 
-                              $transactions_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(ref_id) FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id'"))[0];
-                              $transactions_bought_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id'"))[0];
-                              $created_at = mysqli_fetch_array(mysqli_query($conn, "SELECT created_at FROM manuals_bought_$school_id WHERE ref_id = '$transaction_id' LIMIT 1"))[0];
+                              $transactions_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(ref_id) FROM $item_table2 WHERE ref_id = '$transaction_id' AND seller = $user_id"))[0];
+                              $transactions_bought_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM $item_table2 WHERE ref_id = '$transaction_id' AND seller = $user_id"))[0];
+                              $created_at = mysqli_fetch_array(mysqli_query($conn, "SELECT created_at FROM $item_table2 WHERE ref_id = '$transaction_id' LIMIT 1"))[0];
                               
                               // Retrieve and format the due date
                               $created_date = date('M j', strtotime($created_at));
@@ -263,7 +264,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                 <div class="d-flex">
                                   
                                   <div class="wrapper ms-3">
-                                    <p class="mb-1 fw-bold"><?php echo $transactions_bought_cnt ?> manuals bought by <span class="text-capitalize"><?php echo $buyer['first_name']?></span></p>
+                                    <p class="mb-1 fw-bold"><?php echo $transactions_bought_cnt ?><?php echo ($column_id == 'manual_id') ? ' manuals' : ' events'; ?> bought by <span class="text-capitalize"><?php echo $buyer['first_name']?></span></p>
                                     <p class="text-secondary mb-0 fw-bold">&#8358; <?php echo number_format($transactions_bought_price) ?></p>
                                   </div>
                                 </div>
@@ -285,7 +286,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                     <div class="row">
                       <div class="col-12 d-flex flex-column">
                         <div class="card card-rounded shadow-sm bg-secondary">
-                          <div class="card-body px-2">
+                          <div class="card-body">
                             <div class="d-sm-flex justify-content-center align-items-center">
                               <div>
                                 
@@ -293,19 +294,23 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                               </div>
                             </div>
                             <div>
+                              <?php if ($_SESSION['nivas_userRole'] == 'hoc'): ?>
                               <h4 class="lh-base text-center text-white">Our Support team is currently verifying your role at your school. This should be sorted within <span class="text-primary">48 working hours after registration</span>.<br><br>However, please go on to <a href="user.php" class="text-primary fw-bold">profile settings</a> to add your Settlement Account.</h4>
-                            </div>
+                              <?php else: ?>
+                              <h4 class="lh-base text-center text-white">Our Support team is currently verifying your business information. This should be sorted within <span class="text-primary">48 working hours after registration</span>.<br><br>However, please go on to <a href="user.php" class="text-primary fw-bold">profile settings</a> to add your Settlement Account.</h4>
+                              <?php endif; ?></div>
                           </div>
                         </div>
                       </div>
                     </div>  
                     <?php endif; ?>      
                   </div>
+                  <?php if ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'hoc'): ?>
                   <div class="tab-pane fade hide" id="manuals" role="tabpanel" aria-labelledby="manuals">
                     <div class="row flex-grow">
                       <div class="col-12 grid-margin stretch-card">
                         <div class="card card-rounded shadow-sm">
-                          <div class="card-body px-2">
+                          <div class="card-body">
                             <div class="d-sm-flex justify-content-end">
                               <div>
                                 <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"
@@ -331,8 +336,8 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                 while ($manual = mysqli_fetch_array($manual_query)) {
                                   $manual_id = $manual['id'];
 
-                                  $manuals_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(manual_id) FROM manuals_bought_$school_id WHERE manual_id = $manual_id"))[0];
-                                  $manuals_bought_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM manuals_bought_$school_id WHERE manual_id = $manual_id"))[0];
+                                  $manuals_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(manual_id) FROM $item_table2 WHERE manual_id = $manual_id"))[0];
+                                  $manuals_bought_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM $item_table2 WHERE manual_id = $manual_id"))[0];
 
                                   // Calculate the percentage and total sold/quantity text
                                   $percentage_sold = ($manuals_bought_cnt / $manual['quantity']) * 100;
@@ -380,8 +385,8 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                         <td class="d-sm-none-2">
                                           <h6><?php echo $due_date ?></h6>
                                         </td>
-                                        <td class="text-center">
-                                          <div class="badge <?php echo ($status == 'open') ? 'bg-success' : 'bg-danger'; ?>"> </div>
+                                        <td>
+                                          <div class="badge <?php echo ($status == 'open') ? 'bg-success' : 'bg-danger'; ?>"> <?php echo ($status == 'open') ? 'Active' : 'Closed'; ?> </div>
                                         </td>
                                         <td class="pe-1">
                                           <button class="btn btn-md btn-primary mb-0 btn-block view-edit-manual"
@@ -408,11 +413,13 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                       </div>
                     </div>
                   </div>
+                  
+                  <?php elseif ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'org_admin'): ?>
                   <div class="tab-pane fade hide" id="events" role="tabpanel" aria-labelledby="events">
                     <div class="row flex-grow">
                         <div class="col-12 grid-margin stretch-card">
                           <div class="card card-rounded shadow-sm">
-                            <div class="card-body px-2">
+                            <div class="card-body">
                               <div class="d-sm-flex justify-content-end">
                                 <div>
                                   <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"
@@ -424,11 +431,11 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                 <table class="table table-hover table-striped select-table datatable-opt">
                                   <thead>
                                     <tr>
-                                      <th>Name</th>
+                                      <th>Event</th>
                                       <th class="d-sm-none-2">Unit Price</th>
                                       <th>Revenue</th>
                                       <th class="d-sm-none-2">Availability</th>
-                                      <th class="d-sm-none-2">Due Date</th>
+                                      <th class="d-sm-none-2">Date & Time</th>
                                       <th>Status</th>
                                       <th>Actions</th>
                                     </tr>
@@ -445,9 +452,12 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                     $percentage_sold = ($events_bought_cnt / $event['quantity']) * 100;
                                     $sold_quantity_text = $events_bought_cnt . '/' . $event['quantity'];
                                     
-                                    // Retrieve and format the due date
+                                    // Retrieve and format the event date
                                     $event_date = date('j M, Y', strtotime($event['event_date']));
                                     $event_date2 = date('Y-m-d', strtotime($event['event_date']));
+                                    
+                                    $event_time = date('g:i A', strtotime($event['event_time']));
+                                    $event_time2 = date('H:i', strtotime($event['event_time']));
                                     // Retrieve the status
                                     $status = $event['status'];
                                     $status_2 = $status;
@@ -458,9 +468,12 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                     ?>
                                       <tr>
                                         <td>
-                                          <div class="d-flex ">
+                                          <div class="d-flex justify-content-start">
                                             <div>
-                                              <h6><?php echo $event['event_name'] ?></h6>
+                                              <img src="../assets/images/events/<?php echo $event['event_banner'] ?>" alt="<?php echo $event['title'] ?>" class="img-fluid rounded-2" style="min-width: 100px">
+                                            </div>
+                                            <div>
+                                              <h6><?php echo $event['title'] ?></h6>
                                               <p class="d-sm-none-2">ID: <span class="fw-bold"><?php echo $event['code'] ?></span></p>
                                             </div>
                                           </div>
@@ -486,23 +499,20 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                                           </td>
                                           <td class="d-sm-none-2">
                                             <h6><?php echo $event_date ?></h6>
+                                            <p class="fw-bold"><?php echo $event_time ?></p>
                                           </td>
-                                          <td class="text-center">
-                                            <div class="badge <?php echo ($status == 'open') ? 'bg-success' : 'bg-danger'; ?>"> </div>
+                                          <td>
+                                            <div class="badge <?php echo ($status == 'open') ? 'bg-success' : 'bg-danger'; ?>"> <?php echo ($status == 'open') ? 'Active' : 'Closed'; ?> </div>
                                           </td>
                                           <td class="pe-1">
                                             <button class="btn btn-md btn-primary mb-0 btn-block view-edit-event"
-                                              data-event_id="<?php echo $event['id']; ?>" data-event_name="<?php echo $event['event_name']; ?>"
+                                              data-event_id="<?php echo $event['id']; ?>" data-title="<?php echo $event['title']; ?>"
                                               data-price="<?php echo $event['price']; ?>" data-quantity="<?php echo $event['quantity']; ?>"
-                                              data-event_date="<?php echo date('Y-m-d', strtotime($event['event_date'])); ?>" 
+                                              data-location="<?php echo $event['location']; ?>" data-image="<?php echo $event['event_banner']; ?>"
+                                              data-event_time="<?php echo $event_time2; ?>" data-event_date="<?php echo $event_date2; ?>" 
                                               data-bs-toggle="modal" data-bs-target="#<?php echo $event_modal = ($user_status == 'verified') ? 'addEvent': 'verificationEvent'?>">Edit</button>
-                                              <button class="btn btn-md btn-dark mb-0 btn-block export-event" data-bs-toggle="modal" data-bs-target="#exportEvent"
-                                                data-event_id="<?php echo $event['id']; ?>"><i class="mdi mdi-file-export m-0 text-white"></i></button>
-                                            <?php if($status != 'overdue'): ?>
-                                              <button class="btn btn-md btn-secondary mb-0 btn-block close-event"
-                                                data-event_id="<?php echo $event['id']; ?>" data-event_name="<?php echo $event['event_name']; ?>" data-action="<?php echo ($status_2 != 'open') ? 1 : 0; ?>"
-                                                    data-bs-toggle="modal" data-bs-target="#closeEvent"><i class="mdi mdi-eye<?php echo ($status_2 != 'open') ? '-off' : ''; ?> m-0 text-white"></i></button>
-                                            <?php endif; ?>
+                                              <!-- <button class="btn btn-md btn-dark mb-0 btn-block export-event" data-bs-toggle="modal" data-bs-target="#exportEvent"
+                                                data-event_id="<?php #echo $event['id']; ?>"><i class="mdi mdi-file-export m-0 text-white"></i></button> -->
                                             </td>
                                           </tr>
                                     <?php } ?>
@@ -514,6 +524,8 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                         </div>
                     </div>
                   </div>
+                  <?php endif; ?>
+
                 </div>
 
                 <!-- Close Manual Modal -->
@@ -584,7 +596,11 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                       </div>
                       <div class="modal-body">
                         <div>
+                          <?php if ($_SESSION['nivas_userRole'] == 'hoc'): ?>
                           <h4 class="lh-base">Our Support team is currently verifying your role at your school. This should be sorted within <span class="text-primary">48 working hours after registration</span>.<br><br>However, to speed up the proccess, you can use the support tickets and upload means of verification regarding your role at your school.</h4>
+                          <?php else: ?>
+                          <h4 class="lh-base">Our Support team is currently verifying your business information. This should be sorted within <span class="text-primary">48 working hours after registration</span>.<br><br>However, to speed up the proccess, you can use the support tickets and upload means of verification regarding your role at your school.</h4>
+                          <?php endif; ?>
                         </div>
                       </div>
                       <div class="modal-footer">
@@ -594,7 +610,7 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                   </div>
                 </div>
 
-                <?php if ($user_status == 'verified'): ?>
+                <?php if ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'hoc'): ?>
                 <!-- Add New Manual Modal -->
                 <div class="modal fade" id="addManual" tabindex="-1" role="dialog" aria-labelledby="addManualLabel"
                   aria-hidden="true">
@@ -653,7 +669,83 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
                       </form>
                     </div>
                   </div>
-                </div>                
+                </div>
+
+                <?php elseif ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'org_admin'): ?>
+                <!-- Add New Event Modal -->
+                <div class="modal fade" id="addEvent" tabindex="-1" role="dialog" aria-labelledby="addEventLabel"
+                  aria-hidden="true">
+                  <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title" id="addEventLabel">New Event</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </button>
+                      </div>
+                      <form id="event-form">
+                        <input type="hidden" name="event_id" value="0">
+                        <div class="modal-body">
+                          <div class="row mb-4">
+                            <div class="col-8 square-img rounded rounded-10 shadow-sm ms-3 p-0">
+                              <img src="../assets/images/events/image.png" class="square-img-content" alt="Avatar" />
+                            </div>
+                            <div class="col-3 my-auto">
+                              <input type="file" id="upload" name="upload" class="account-file-input" hidden=""
+                                accept="image/png, image/jpeg">
+                              <label for="upload" class="btn btn-primary fw-bold btn-lg btn-block">
+                                <span class="d-none d-md-block">Upload</span>
+                                <i class="icon-upload d-md-none mx-2"></i>
+                              </label>
+                            </div>
+                          </div>
+                          <div class="form-outline mb-4">
+                            <input type="text" name="title" class="form-control form-control-lg w-100" required="">
+                            <label class="form-label" for="title">Title</label>
+                          </div>
+                          <div class="form-outline mb-4">
+                            <input type="text" name="location" class="form-control form-control-lg w-100" required="">
+                            <label class="form-label" for="location">Location</label>
+                          </div>
+                          <div class="row">
+                            <div class="col-md-6">
+                              <div class="form-outline mb-4">
+                                <input type="number" name="price" class="form-control form-control-lg w-100"
+                                  required="">
+                                <label class="form-label" for="price">Unit Price</label>
+                              </div>
+                            </div>
+                            <div class="col-md-6">
+                              <div class="form-outline mb-4">
+                                <input type="number" name="quantity" class="form-control form-control-lg w-100"
+                                  required="">
+                                <label class="form-label" for="quantity">Number of Tickets</label>
+                              </div>
+                            </div>
+                            <div class="col-md-6">
+                              <div class="form-outline mb-4">
+                                <input type="date" name="event_date" class="form-control form-control-lg w-100"
+                                  required="">
+                                <label class="form-label" for="event_date">Date</label>
+                              </div>
+                            </div>
+                            <div class="col-md-6">
+                              <div class="form-outline mb-4">
+                                <input type="time" name="event_time" class="form-control form-control-lg w-100"
+                                  required="">
+                                <label class="form-label" for="event_time">Time</label>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
+                          <button id="event_submit" type="submit" data-mdb-ripple-duration="0"
+                            class="btn btn-lg btn-primary">Submit</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
                 <?php endif; ?>
               </div>
             </div>
@@ -709,10 +801,30 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
         $('#manual-form input[name="manual_id"]').val(0);
         $('#manual-form')[0].reset();
       });
+
+      $('#addEvent').on('hidden.bs.modal', function () {
+        // Reset the form by setting its values to empty
+        $('#event-form input[name="event_id"]').val(0);
+        $('#event-form .square-img-content').attr('src',"../assets/images/events/image.png");
+        $('#event-form')[0].reset();
+      });
       
       $('#exportManual').on('hidden.bs.modal', function () {
         // Reset the form by setting its values to empty
         $('#export-manual-form')[0].reset();
+      });
+      
+      $('#upload').on('change', function (event) {
+        const file = event.target.files[0]; // Get the uploaded file
+        if (file) {
+          const reader = new FileReader();
+
+          reader.onload = function (e) {
+            $('.square-img-content').attr('src', e.target.result); // Set the src attribute of the image
+          };
+
+          reader.readAsDataURL(file); // Read the file as a data URL
+        }
       });
 
       // Handle click event of View/Edit button
@@ -776,6 +888,74 @@ $transaction_query2 = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM ma
             }
           });
         }, 2000); // Simulated AJAX delay of 2 seconds
+      });
+
+      // Handle click event of View/Edit button
+      $('.view-edit-event').on('click', function () {
+        // Get the event details from the data- attributes
+        var eventId = $(this).data('event_id');
+        var title = $(this).data('title');
+        var location = $(this).data('location');
+        var price = $(this).data('price');
+        var quantity = $(this).data('quantity');
+        var event_date = $(this).data('event_date');
+        var event_time = $(this).data('event_time');
+        var image = $(this).data('image');
+
+        // Set the values in the edit event modal
+        $('#event-form input[name="event_id"]').val(eventId);
+        $('#event-form input[name="title"]').val(title);
+        $('#event-form input[name="location"]').val(location);
+        $('#event-form input[name="price"]').val(price);
+        $('#event-form input[name="quantity"]').val(quantity);
+        $('#event-form input[name="event_date"]').val(event_date);
+        $('#event-form input[name="event_time"]').val(event_time);
+        $('#event-form .square-img-content').attr('src',"../assets/images/events/" + image);
+      });
+
+      // Use AJAX to submit the event form
+      $('#event-form').submit(function (event) {
+        event.preventDefault(); // Prevent the default form submission
+
+        // Define event button
+        var button = $('#event_submit');
+        var originalText = button.html();
+
+        // Display the spinner and disable the button
+        button.html('<div class="spinner-border text-white" style="width: 1.5rem; height: 1.5rem;" role="status"><span class="sr-only"></span>');
+        button.prop('disabled', true);
+
+        var formData = new FormData($('#event-form')[0]);
+
+        $.ajax({
+          type: 'POST',
+          url: 'model/events.php',
+          data: formData,
+          contentType: false,
+          processData: false,
+          success: function (data) {
+            $('#alertBanner').html(data.message);
+
+            if (data.status == 'success') {
+              $('#alertBanner').removeClass('alert-info');
+              $('#alertBanner').removeClass('alert-danger');
+              $('#alertBanner').addClass('alert-success');
+
+              location.reload();
+            } else {
+              $('#alertBanner').removeClass('alert-success');
+              $('#alertBanner').removeClass('alert-info');
+              $('#alertBanner').addClass('alert-danger');
+            }
+
+            // Show alert for verified email address
+            showAlert();
+
+            // AJAX call successful, stop the spinner and update button text
+            button.html(originalText);
+            button.prop("disabled", false);
+          }
+        });
       });
 
       // Handle click event of View/Edit button

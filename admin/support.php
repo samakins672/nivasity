@@ -69,7 +69,10 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets WHERE user_i
                   <div class="tab-pane fade show active" id="support" role="tabpanel" aria-labelledby="support">
                     <div class="row flex-grow">
                       <div class="col-12 card card-rounded shadow-sm">
-                        <div class="card-body px-2">
+                        <div class="card-header">
+                          <h4 class="fw-bold my-3">Support Tickets</h4> 
+                        </div>
+                        <div class="card-body">
                           <!-- Button to open ticket modal -->
                           <button type="button" class="btn btn-primary btn-lg mb-3"
                             data-bs-toggle="modal" data-bs-target="#ticketModal">
