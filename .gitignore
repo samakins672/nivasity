@@ -1,3 +1,4 @@
 /config
 # .gitignore
-# assets/images
+assets/images/events/
+assets/images/users/

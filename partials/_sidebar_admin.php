@@ -2,18 +2,26 @@
   <ul class="nav">
     <?php if($url == 'index.php'):?>
     <li class="nav-item active">
-      <?php if ($_SESSION['nivas_userRole'] == 'hoc'): ?>
-      <a class="nav-link bg-primary" href="javascript:;" data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual' : 'verificationManual' ?>">
-        <i class="mdi mdi-plus menu-icon text-white"></i>
-        <span class="menu-title text-white fw-bold">
-          New Manual
-      <?php else: ?>
-        <a class="nav-link bg-primary" href="javascript:;" data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addEvent' : 'verificationManual' ?>">
+      <?php if (mysqli_num_rows($settlement_query) > 0): ?>
+        <?php if ($_SESSION['nivas_userRole'] == 'hoc'): ?>
+        <a class="nav-link bg-primary" href="javascript:;" data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual' : 'verificationManual' ?>">
           <i class="mdi mdi-plus menu-icon text-white"></i>
           <span class="menu-title text-white fw-bold">
-            New Event
-          <?php endif; ?>
+            New Manual
+        <?php else: ?>
+          <a class="nav-link bg-primary" href="javascript:;" data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addEvent' : 'verificationManual' ?>">
+            <i class="mdi mdi-plus menu-icon text-white"></i>
+            <span class="menu-title text-white fw-bold">
+              New Event
+        <?php endif; ?>
         </span>
+      <?php else: ?> 
+        <a class="nav-link bg-primary" href="javascript:;" data-bs-toggle="modal" data-bs-target="#addSettlement">
+          <i class="mdi mdi-plus menu-icon text-white"></i>
+          <span class="menu-title text-white fw-bold">
+            Add Settlement
+        </span>
+      <?php endif; ?> 
       </a>
     </li>
     <?php endif;?>

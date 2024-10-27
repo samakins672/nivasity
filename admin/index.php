@@ -37,6 +37,8 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE user_id = $user_i
 
 $transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM $item_table2 WHERE seller = $user_id ORDER BY `created_at` DESC");
 
+$settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE user_id = $user_id ORDER BY `id` DESC LIMIT 1");
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -313,9 +315,15 @@ $transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM $it
                           <div class="card-body">
                             <div class="d-sm-flex justify-content-end">
                               <div>
+                              <?php if (mysqli_num_rows($settlement_query) > 0): ?>
                                 <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"
                                   data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual' : 'verificationManual' ?>"><i class="mdi mdi-book"></i>Add new
                                   manual</button>
+                              <?php else: ?> 
+                                <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"
+                                  data-bs-toggle="modal" data-bs-target="#addSettlement"><i class="mdi mdi-book"></i>Add new
+                                  manual</button>
+                              <?php endif; ?> 
                               </div>
                             </div>
                             <div class="table-responsive  mt-1">
@@ -422,9 +430,15 @@ $transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM $it
                             <div class="card-body">
                               <div class="d-sm-flex justify-content-end">
                                 <div>
+                                <?php if (mysqli_num_rows($settlement_query) > 0): ?>
                                   <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"
-                                    data-bs-toggle="modal" data-bs-target="#<?php echo $event_modal = ($user_status == 'verified') ? 'addEvent' : 'verificationEvent' ?>"><i class="mdi mdi-book"></i>Add new
+                                    data-bs-toggle="modal" data-bs-target="#<?php echo $event_modal = ($user_status == 'verified') ? 'addEvent' : 'verificationManual' ?>"><i class="mdi mdi-book"></i>Add new
                                     event</button>
+                                <?php else: ?> 
+                                  <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"
+                                    data-bs-toggle="modal" data-bs-target="#addSettlement"><i class="mdi mdi-book"></i>Add new
+                                    manual</button>
+                                <?php endif; ?> 
                                 </div>
                               </div>
                               <div class="table-responsive  mt-1">
@@ -510,7 +524,7 @@ $transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM $it
                                               data-price="<?php echo $event['price']; ?>" data-quantity="<?php echo $event['quantity']; ?>"
                                               data-location="<?php echo $event['location']; ?>" data-image="<?php echo $event['event_banner']; ?>"
                                               data-event_time="<?php echo $event_time2; ?>" data-event_date="<?php echo $event_date2; ?>" 
-                                              data-bs-toggle="modal" data-bs-target="#<?php echo $event_modal = ($user_status == 'verified') ? 'addEvent': 'verificationEvent'?>">Edit</button>
+                                              data-bs-toggle="modal" data-bs-target="#<?php echo $event_modal = ($user_status == 'verified') ? 'addEvent': 'verificationManual'?>">Edit</button>
                                               <!-- <button class="btn btn-md btn-dark mb-0 btn-block export-event" data-bs-toggle="modal" data-bs-target="#exportEvent"
                                                 data-event_id="<?php #echo $event['id']; ?>"><i class="mdi mdi-file-export m-0 text-white"></i></button> -->
                                             </td>
@@ -600,6 +614,32 @@ $transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM $it
                           <h4 class="lh-base">Our Support team is currently verifying your role at your school. This should be sorted within <span class="text-primary">48 working hours after registration</span>.<br><br>However, to speed up the proccess, you can use the support tickets and upload means of verification regarding your role at your school.</h4>
                           <?php else: ?>
                           <h4 class="lh-base">Our Support team is currently verifying your business information. This should be sorted within <span class="text-primary">48 working hours after registration</span>.<br><br>However, to speed up the proccess, you can use the support tickets and upload means of verification regarding your role at your school.</h4>
+                          <?php endif; ?>
+                        </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Close</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- User addSettlement Modal -->
+                <div class="modal fade" id="addSettlement" tabindex="-1" role="dialog" aria-labelledby="addSettlementLabel"
+                  aria-hidden="true">
+                  <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h4 class="modal-title fw-bold" id="addSettlementLabel">Add Settlement Account</h4>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </button>
+                      </div>
+                      <div class="modal-body">
+                        <div>
+                          <?php if ($_SESSION['nivas_userRole'] == 'hoc'): ?>
+                          <h4 class="lh-base">Please go on to <a href="user.php" class="text-primary fw-bold">profile settings</a> to add your Settlement Account before you can create an manual.</h4>
+                          <?php else: ?>
+                          <h4 class="lh-base">Please go on to <a href="user.php" class="text-primary fw-bold">profile settings</a> to add your Settlement Account before you can create an event.</h4>
                           <?php endif; ?>
                         </div>
                       </div>
