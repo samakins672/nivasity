@@ -152,13 +152,13 @@
             $('.first_name').html(data.first_name);
             $('#school_id').val(data.school_id);
 
-            if (data.role == 'hoc') {
-              $('.searchable-select').select2({
-                tags: true
-              });
-            } else {
-              $('.searchable-select').select2();
-            }
+            $('.searchable-select').select2({
+              tags: true
+            });
+            // if (data.role == 'hoc') {
+            // } else {
+            //   $('.searchable-select').select2();
+            // }
 
           } else {
             window.location.href = 'https://www.nivasity.com';

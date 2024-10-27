@@ -17,24 +17,24 @@ if (isset($_POST['verify'])) {
     $user = mysqli_fetch_array($user_query);
 
     if ($user['status'] == 'unverified') {
-      if ($user['role'] == 'hoc') {
-        // Get school and department
-        $school_id = $user['school'];
-    
-        // Retrieve departments with IDs based on school ID
-        $departments_query = mysqli_query($conn, "SELECT * FROM depts_$school_id WHERE status = 'active'");
-        $departments = array();
-    
-        while ($department = mysqli_fetch_assoc($departments_query)) {
-          $departments[] = array(
-            'id' => $department['id'],
-            'name' => $department['name']
-          );
-        }
-      } else {
-        $school_id = 0;
-        $departments = 0;
+      // Get school and department
+      $school_id = $user['school'];
+  
+      // Retrieve departments with IDs based on school ID
+      $departments_query = mysqli_query($conn, "SELECT * FROM depts_$school_id WHERE status = 'active'");
+      $departments = array();
+  
+      while ($department = mysqli_fetch_assoc($departments_query)) {
+        $departments[] = array(
+          'id' => $department['id'],
+          'name' => $department['name']
+        );
       }
+      // if ($user['role'] == 'hoc') {
+      // } else {
+      //   $school_id = 0;
+      //   $departments = 0;
+      // }
       
       if ($user['status'] == 'unverified') {
         session_start();
