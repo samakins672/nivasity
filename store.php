@@ -222,6 +222,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                               }
 
                               $seller_q = mysqli_fetch_array(mysqli_query($conn, "SELECT first_name, last_name FROM users WHERE id = $seller_id"));
+                              $organisation = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM organisation WHERE user_id = $seller_id"));
                               $seller_fn = $seller_q['first_name'];
                               $seller_ln = $seller_q['last_name'];
 
@@ -264,7 +265,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                                           <h4 class="fw-bold"><?php echo $event['title'] ?></h4>
                                           <small class="fw-bold"><?php echo $event_date ?> • <?php echo $event_time ?></small><br>
                                           <small class="badge badge-success fw-bold text-uppercase mt-2"><?php echo $event_price ?></small>
-                                          <p class="fw-bold text-secondary"><?php echo $seller_fn . ' ' . $seller_ln ?></p>
+                                          <p>Host: <span class="fw-bold text-secondary"><?php echo $organisation['business_name'] ?></span></p>
                                           <hr>
                                           <div class="d-flex justify-content-end">
                                             <button class="btn <?php echo $button_class; ?>  btn-lg m-0 cart-event-button" data-event-id="<?php echo $event['id'] ?>" data-mdb-ripple-duration="0"><?php echo $button_text; ?></button>
