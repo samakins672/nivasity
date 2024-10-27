@@ -2,7 +2,7 @@
   <div class="text-center navbar-brand-wrapper d-flex align-items-center justify-content-start">
     <div class="ms-md-0 ms-2">
       <a class="navbar-brand brand-logo" href="https://nivasity.com">
-        <img src="https://stage.nivasity.com/assets/images/nivasity-manuals.png" alt="logo" />
+        <img src="https://stage.nivasity.com/assets/images/nivasity-main.png" alt="logo" />
       </a>
       <a class="navbar-brand brand-logo-mini" href="https://nivasity.com">
         <img src="https://stage.nivasity.com/assets/images/nivasity-logo-tr.png" alt="logo" />
