@@ -46,9 +46,10 @@ if (isset($_POST['signup'])) {
 
       mysqli_query($conn, "INSERT INTO verification_code (user_id, code) VALUES ($user_id, '$verificationCode')");
 
-      $verificationCode = "setup.html?verify=$verificationCode";
       if ($role == 'org_admin') {
         $verificationCode = "setup_org.html?verify=$verificationCode";
+      } else {
+        $verificationCode = "setup.html?verify=$verificationCode";
       }
 
       $subject = "Verify Your Account on NIVASITY";
@@ -167,17 +168,6 @@ if (isset($_POST['setup'])) {
       $mailStatus = sendMail($subject, $body, 'support@nivasity.com');
 
       mysqli_query($conn, "UPDATE users SET dept = '$dept', adm_year = '$adm_year', matric_no = '$matric_no', status = '$status' WHERE id = $user_id");
-    } elseif ($user['role'] == 'org_admin') {
-      $status = 'inreview';
-
-      $user_dept = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM depts_$school_id WHERE id = $dept"))['name'];
-
-      $subject = "New Business Owner waiting to be verified";
-      $body = "<b>New HOC Information</b><br>Name: ".$user['first_name'].' '. $user['last_name']."<br>Department: $user_dept<br>Matric Number: $matric_no<br> Phone number: ".$user['phone']."<br> Email: ".$user['email'];
-
-      // Call the sendMail function and capture the status
-      $mailStatus = sendMail($subject, $body, 'support@nivasity.com');
-
     } else {
       mysqli_query($conn, "UPDATE users SET dept = '$dept', adm_year = '$adm_year', matric_no = '$matric_no', status = '$status' WHERE id = $user_id");
     }
