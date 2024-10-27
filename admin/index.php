@@ -437,7 +437,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                                 <?php else: ?> 
                                   <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"
                                     data-bs-toggle="modal" data-bs-target="#addSettlement"><i class="mdi mdi-book"></i>Add new
-                                    manual</button>
+                                    event</button>
                                 <?php endif; ?> 
                                 </div>
                               </div>
