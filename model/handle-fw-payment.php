@@ -45,7 +45,7 @@ if (isset($_GET['transaction_id'])) {
     // Iterate through each manualId
     foreach ($cart_ as $manual_id) {
       // Fetch details from manuals_2 table
-      $manual = mysqli_query($conn, "SELECT price, user_id FROM manuals_$school_id WHERE id = $manual_id");
+      $manual = mysqli_query($conn, "SELECT price, user_id FROM manuals WHERE id = $manual_id AND school_id = $school_id");
 
       if ($manual && mysqli_num_rows($manual) > 0) {
         $row = mysqli_fetch_assoc($manual);
@@ -54,7 +54,7 @@ if (isset($_GET['transaction_id'])) {
         $total_amount = $total_amount + $price;
         $seller = $row['user_id'];
 
-        mysqli_query($conn, "INSERT INTO manuals_bought_$school_id (manual_id, price, seller, buyer, ref_id, status) VALUES ($manual_id, $price, $seller, $user_id, '$tx_ref', '$status')");
+        mysqli_query($conn, "INSERT INTO manuals_bought (manual_id, price, seller, buyer, ref_id, status, school_id) VALUES ($manual_id, $price, $seller, $user_id, '$tx_ref', '$status', $school_id)");
 
         if (mysqli_affected_rows($conn) < 1) {
           // Insertion failed for a manual

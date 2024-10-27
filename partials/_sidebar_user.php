@@ -1,5 +1,20 @@
 <nav class="sidebar sidebar-offcanvas border-start border-2 border-secondary" id="sidebar">
   <ul class="nav">
+    <li class="nav-item d-md-none d-block">
+      <div class="dropdown-header text-center">
+        <img class="img-sm img-fluid rounded rounded-7" src="https://stage.nivasity.com/assets/images/users/<?php echo $user_image?>" alt="Profile image">
+        <span class="mb-1 mt-1 fw-bold d-block">
+          <?php echo $user_name?><br>
+          <?php if ($_SESSION['nivas_userRole'] == 'student'): ?>
+            <small class="text-secondary">(Student)</small>
+          <?php elseif ($_SESSION['nivas_userRole'] == 'hoc'): ?>
+            <small class="text-secondary">(HOC)</small>
+          <?php else: ?>
+            <small class="text-secondary">(Event Host)</small>
+          <?php endif; ?>
+        </span>
+      </div>
+    </li>
     <li class="nav-item active">
       <a class="nav-link bg-primary" href="store.php">
         <i class="mdi mdi-store menu-icon text-white"></i>

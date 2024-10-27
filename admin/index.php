@@ -7,8 +7,8 @@ if ($_SESSION['nivas_userRole'] == 'student') {
   header('Location: ../store.php');
   exit();
 } elseif ($_SESSION['nivas_userRole'] == 'hoc') {
-  $item_table = "manuals_$school_id";
-  $item_table2 = "manuals_bought_$school_id";
+  $item_table = "manuals";
+  $item_table2 = "manuals_bought";
   $column_id = "manual_id";
 } else {
   $item_table = "events";
@@ -103,7 +103,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                 <div class="d-sm-flex align-items-center justify-content-between border-bottom">
                   <ul class="nav nav-tabs" role="tablist">
                     <li class="nav-item">
-                      <a class="nav-link px-3 active ps-0 fw-bold" id="home-tab" data-bs-toggle="tab" href="#overview"
+                      <a class="nav-link px-3 active fw-bold" id="home-tab" data-bs-toggle="tab" href="#overview"
                         role="tab" aria-controls="overview" aria-selected="true">Overview</a>
                     </li>
                     <?php if ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'hoc'): ?>

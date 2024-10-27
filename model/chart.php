@@ -7,7 +7,7 @@ include('functions.php');
 $user_id = $_SESSION['nivas_userId'];
 $school_id = $_SESSION['nivas_userSch'];
 if ($_SESSION['nivas_userRole'] == 'hoc') {
-  $item_table = "manuals_bought_$school_id";
+  $item_table = "manuals_bought";
 } else {
   $item_table = "event_tickets";
 }

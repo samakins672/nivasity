@@ -36,7 +36,7 @@ if (isset($_POST['reload_cart'])) {
     // Loop through cart items (products)
     foreach ($_SESSION["nivas_cart$user_id"] as $cart_item_id) {
         // Fetch details of the carted item based on $cart_item_id
-        $cart_item = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE id = $cart_item_id"));
+        $cart_item = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM manuals WHERE id = $cart_item_id"));
 
         // Retrieve and format the due date
         $due_date = date('j M, Y', strtotime($cart_item['due_date']));

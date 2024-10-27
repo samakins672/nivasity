@@ -13,9 +13,9 @@ if (!isset($_SESSION["nivas_cart_event$user_id"])) {
 $total_cart_items = count($_SESSION["nivas_cart$user_id"]) + count($_SESSION["nivas_cart_event$user_id"]);
 $total_cart_price = 0;
 
-$t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals_$school_id WHERE dept = $user_dept AND status = 'open'"))[0];
+$t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals WHERE dept = $user_dept AND status = 'open' AND school_id = $school_id"))[0];
 
-$manual_query = mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE dept = $user_dept AND status = 'open' ORDER BY `id` DESC");
+$manual_query = mysqli_query($conn, "SELECT * FROM manuals WHERE dept = $user_dept AND status = 'open' AND school_id = $school_id ORDER BY `id` DESC");
 
 $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' ORDER BY `id` DESC");
 ?>
@@ -51,7 +51,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                   <ul class="nav nav-tabs d-flex" role="tablist">
                     <?php if ($_SESSION['nivas_userRole'] !== 'org_admin'): ?>
                     <li class="nav-item">
-                      <a class="nav-link px-3 ps-0 fw-bold" id="store-tab" data-bs-toggle="tab" href="#store"
+                      <a class="nav-link px-3 fw-bold" id="store-tab" data-bs-toggle="tab" href="#store"
                         role="tab" aria-controls="store" aria-selected="false">Store</a>
                     </li>
                     <?php endif; ?>
@@ -91,7 +91,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                               $seller_id = $manual['user_id'];
 
                               // Check if the manual has been bought by the current user
-                              $is_bought_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM manuals_bought_$school_id WHERE manual_id = $manual_id AND buyer = $user_id");
+                              $is_bought_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM manuals_bought WHERE manual_id = $manual_id AND buyer = $user_id AND school_id = $school_id");
                               $is_bought_result = mysqli_fetch_assoc($is_bought_query);
 
                               // If the manual has been bought, skip it

@@ -47,7 +47,16 @@
         <div class="dropdown-menu dropdown-menu-right navbar-dropdown" aria-labelledby="UserDropdown">
           <div class="dropdown-header text-center">
             <img class="img-sm img-fluid rounded rounded-7" src="https://stage.nivasity.com/assets/images/users/<?php echo $user_image?>" alt="Profile image">
-            <p class="mb-1 mt-3 fw-bold"><?php echo $user_name?></p>
+            <span class="mb-1 mt-1 fw-bold d-block">
+              <?php echo $user_name?><br>
+              <?php if ($_SESSION['nivas_userRole'] == 'student'): ?>
+                <small class="text-secondary">(Student)</small>
+              <?php elseif ($_SESSION['nivas_userRole'] == 'hoc'): ?>
+                <small class="text-secondary">(HOC)</small>
+              <?php else: ?>
+                <small class="text-secondary">(Event Host)</small>
+              <?php endif; ?>
+            </span>
           </div>
           <!-- <a class="dropdown-item" href="https://stage.nivasity.com/user.php"><i
               class="dropdown-item-icon mdi mdi-account-outline text-primary me-2"></i> My

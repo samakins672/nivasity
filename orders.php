@@ -3,7 +3,7 @@ session_start();
 include('model/config.php');
 include('model/page_config.php');
 
-$manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought_$school_id WHERE buyer = $user_id ORDER BY created_at DESC");
+$manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = $user_id AND school_id = $school_id ORDER BY created_at DESC");
 
 ?>
 <!DOCTYPE html>
@@ -59,7 +59,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought_$school_id WHE
                               while ($manual = mysqli_fetch_array($manual_query)) {
                                 $manual_id = $manual['manual_id'];
 
-                                $manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM manuals_$school_id WHERE id = $manual_id"));
+                                $manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM manuals WHERE id = $manual_id AND school_id = $school_id"));
 
                                 // Retrieve and format the due date
                                 $created_date = date('j M, Y', strtotime($manual['created_at']));

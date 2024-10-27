@@ -7,8 +7,8 @@ if ($_SESSION['nivas_userRole'] == 'student') {
   header('Location: ../store.php');
   exit();
 } elseif ($_SESSION['nivas_userRole'] == 'hoc') {
-  $item_table = "manuals_$school_id";
-  $item_table2 = "manuals_bought_$school_id";
+  $item_table = "manuals";
+  $item_table2 = "manuals_bought";
   $column_id = "manual_id";
 } else {
   $item_table = "events";

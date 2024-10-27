@@ -21,7 +21,7 @@ if (isset($_POST['verify'])) {
       $school_id = $user['school'];
   
       // Retrieve departments with IDs based on school ID
-      $departments_query = mysqli_query($conn, "SELECT * FROM depts_$school_id WHERE status = 'active'");
+      $departments_query = mysqli_query($conn, "SELECT * FROM depts WHERE status = 'active' AND school_id = $school_id");
       $departments = array();
   
       while ($department = mysqli_fetch_assoc($departments_query)) {

@@ -228,7 +228,7 @@ include('model/page_config.php');
                             <div class="row">
                               <?php
                               $school = mysqli_fetch_array(mysqli_query($conn, "SELECT name FROM schools WHERE id = $school_id"))[0];
-                              $user_dept_name = mysqli_fetch_array(mysqli_query($conn, "SELECT name FROM depts_$school_id WHERE id = $user_dept"))[0];
+                              $user_dept_name = mysqli_fetch_array(mysqli_query($conn, "SELECT name FROM depts WHERE id = $user_dept AND school_id = $school_id"))[0];
 
                               ?>
                               <div class="col-md-6">

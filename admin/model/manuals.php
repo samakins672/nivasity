@@ -18,7 +18,7 @@ if (isset($_POST['close_manual'])) {
     $curr_status =  'open';
   }
 
-  mysqli_query($conn, "UPDATE manuals_$school_id SET status = '$curr_status' WHERE id = $manual_id");
+  mysqli_query($conn, "UPDATE manuals SET status = '$curr_status' WHERE id = $manual_id");
 
   if (mysqli_affected_rows($conn) >= 1) {
     $statusRes = "success";
@@ -40,14 +40,14 @@ if (isset($_POST['close_manual'])) {
     $manual_code = generateVerificationCode(8);
   
     // Check if the code already exists, regenerate if needed
-    while (!isCodeUnique($manual_code, $conn, "manuals_$school_id")) {
+    while (!isCodeUnique($manual_code, $conn, "manuals")) {
       $manual_code = generateVerificationCode(8);
     }
 
-    mysqli_query($conn, "INSERT INTO manuals_$school_id (title,	course_code,	price, dept,	code,	due_date,	quantity,	user_id) 
-        VALUES ('$title',	'$course_code',	$price, $user_dept,	'$manual_code',	'$due_date',	$quantity,	$user_id)");
+    mysqli_query($conn, "INSERT INTO manuals (title,	course_code,	price, dept,	code,	due_date,	quantity,	user_id, school_id) 
+        VALUES ('$title',	'$course_code',	$price, $user_dept,	'$manual_code',	'$due_date',	$quantity,	$user_id, $school_id)");
   } else {
-    mysqli_query($conn, "UPDATE manuals_$school_id SET title = '$title', course_code = '$course_code', price = $price, due_date = '$due_date', quantity = $quantity 
+    mysqli_query($conn, "UPDATE manuals SET title = '$title', course_code = '$course_code', price = $price, due_date = '$due_date', quantity = $quantity 
         WHERE id = $manual_id");
   }
 

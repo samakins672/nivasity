@@ -149,7 +149,7 @@ if (isset($_POST['setup'])) {
 
   if (mysqli_num_rows($user_query) < 1) {
     if (!is_numeric($dept)) {
-      mysqli_query($conn, "INSERT INTO depts_$school_id (name) VALUES ('$dept')");
+      mysqli_query($conn, "INSERT INTO depts (name, school_id) VALUES ('$dept', $school_id)");
       $dept = mysqli_insert_id($conn);
     }
   
@@ -159,7 +159,7 @@ if (isset($_POST['setup'])) {
     if ($user['role'] == 'hoc') {
       $status = 'inreview';
 
-      $user_dept = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM depts_$school_id WHERE id = $dept"))['name'];
+      $user_dept = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM depts WHERE id = $dept AND school_id = $school_id"))['name'];
 
       $subject = "New HOC waiting to be verified";
       $body = "<b>New HOC Information</b><br>Name: ".$user['first_name'].' '. $user['last_name']."<br>Department: $user_dept<br>Matric Number: $matric_no<br> Phone number: ".$user['phone']."<br> Email: ".$user['email'];
