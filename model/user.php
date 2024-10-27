@@ -62,8 +62,7 @@ if (isset($_POST['signup'])) {
       <br><br>
       Thank you for choosing Nivasity. We look forward to serving you!
       <br><br>
-      Best regards,
-      <br>Nivasity Team";
+      Best regards,<br><b>Nivasity Team</b>";
 
       // Call the sendMail function and capture the status
       $mailStatus = sendMail($subject, $body, $email);
