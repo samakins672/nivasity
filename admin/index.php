@@ -297,9 +297,9 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                             </div>
                             <div>
                               <?php if ($_SESSION['nivas_userRole'] == 'hoc'): ?>
-                              <h4 class="lh-base text-center text-white">Our Support team is currently verifying your role at your school. This should be sorted within <span class="text-primary">48 working hours after registration</span>.<br><br>However, please go on to <a href="user.php" class="text-primary fw-bold">profile settings</a> to add your Settlement Account.</h4>
+                              <h4 class="lh-base text-center text-white">Our Support team is currently verifying your role at your school. This should be sorted within <span class="text-primary">a few hours</span>.<br><br>However, please go on to <a href="user.php" class="text-primary fw-bold">profile settings</a> to add your Settlement Account.</h4>
                               <?php else: ?>
-                              <h4 class="lh-base text-center text-white">Our Support team is currently verifying your business information. This should be sorted within <span class="text-primary">48 working hours after registration</span>.<br><br>However, please go on to <a href="user.php" class="text-primary fw-bold">profile settings</a> to add your Settlement Account.</h4>
+                              <h4 class="lh-base text-center text-white">Our Support team is currently verifying your business information. This should be sorted within <span class="text-primary">a few hours</span>.<br><br>However, please go on to <a href="user.php" class="text-primary fw-bold">profile settings</a> to add your Settlement Account.</h4>
                               <?php endif; ?></div>
                           </div>
                         </div>
@@ -611,9 +611,9 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                       <div class="modal-body">
                         <div>
                           <?php if ($_SESSION['nivas_userRole'] == 'hoc'): ?>
-                          <h4 class="lh-base">Our Support team is currently verifying your role at your school. This should be sorted within <span class="text-primary">48 working hours after registration</span>.<br><br>However, to speed up the proccess, you can use the support tickets and upload means of verification regarding your role at your school.</h4>
+                          <h4 class="lh-base">Our Support team is currently verifying your role at your school. This should be sorted within <span class="text-primary">a few hours</span>.<br><br>However, to speed up the proccess, you can use the support tickets and upload means of verification regarding your role at your school.</h4>
                           <?php else: ?>
-                          <h4 class="lh-base">Our Support team is currently verifying your business information. This should be sorted within <span class="text-primary">48 working hours after registration</span>.<br><br>However, to speed up the proccess, you can use the support tickets and upload means of verification regarding your role at your school.</h4>
+                          <h4 class="lh-base">Our Support team is currently verifying your business information. This should be sorted within <span class="text-primary">a few hours</span>.<br><br>However, to speed up the proccess, you can use the support tickets and upload means of verification regarding your role at your school.</h4>
                           <?php endif; ?>
                         </div>
                       </div>

@@ -6,7 +6,103 @@ require('../config/mail.php');
 use PHPMailer\PHPMailer\PHPMailer;
 
 function sendMail($subject, $body, $to) {
-  
+    
+  // HTML Email Template
+  $body_ = '
+  <html>
+  <head>
+      <style>
+          /* Import Manrope font for supported clients */
+          @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;700&display=swap");
+
+          body {
+              font-family: "Manrope", Arial, sans-serif;
+              background-color: #fff7ec;
+              color: #333;
+              padding: 0;
+              margin: 0;
+          }
+
+          .container {
+              width: 100%;
+              max-width: 600px;
+              margin: 40px auto;
+              box-sizing: border-box;
+              background-color: #fff;
+              padding: 20px;
+              border: 2px solid #7a3b73;
+              border-radius: 8px;
+          }
+
+          .header {
+              padding-left: 10px;
+              padding-top: 10px;
+          }
+
+          .header img {
+              height: 50px;
+          }
+
+          .content {
+              /* border-top: solid px #FF9100;
+                border-bottom: solid px #FF9100; */
+              padding: 20px;
+              font-size: 16px;
+              line-height: 1.6;
+          }
+
+          .content p {
+              margin: 0 0 10px;
+          }
+
+          .btn {
+              display: inline-block;
+              background-color: #FF9100;
+              color: #fff !important;
+              padding: 10px 20px;
+              text-decoration: none;
+              border-radius: 5px;
+              font-weight: bold;
+              text-align: center;
+          }
+
+          a {
+              color: #FF9100;
+          }
+
+          .footer {
+              max-width: 600px;
+              margin: 0 auto;
+              box-sizing: border-box;
+              font-size: 15px;
+              color: #555555;
+              text-align: center;
+          }
+      </style>
+  </head>
+
+  <body>
+      <div class="container">
+          <div class="header">
+              <img src="https://stage.nivasity.com/assets/images/nivasity-main.png" alt="Nivasty">
+          </div>
+          <div class="content">
+              '.$body.'
+          </div>
+      </div>
+      <div class="footer">
+          <p>For any feedback or inquiries, get in touch with us at<br>
+              <a href="mailto:support@nivasity.com">support@nivasity.com</a> <br> <br>
+
+              Nivasity\'s services are provided by Nivasity Web Services.<br>
+              A business duly incorporated under the laws of Nigeria. <br> <br><br>
+
+              Copyright © Nivasity. 2024 All rights reserved.<br>
+      </div>
+  </body>
+
+  </html>';
+
   // Create a new PHPMailer instance
   $mail = new PHPMailer;
   
@@ -25,9 +121,9 @@ function sendMail($subject, $body, $to) {
   
   // Set your email subject and body
   $mail->Subject = $subject;
-  $mail->msgHTML = $body;
-  $mail->Body = $body;
-  $mail->AltBody = $body;
+  $mail->isHTML(true);
+  $mail->Body = $body_;
+  $mail->AltBody = strip_tags($body_);
   
   $mail->addAddress($to);
   

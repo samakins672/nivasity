@@ -44,7 +44,7 @@ if (isset($_POST['support_id'])) {
 
   // Send confirmation email to the user
   $userSubject = "Support Request Received - Ticket #$uniqueCode";
-  $userMessage = "Hi $first_name,<br><br>Thank you for reaching out to us. Your support request has been received, and a ticket has been generated with the reference number #$uniqueCode. <br>Our team will get back to you within 24 working hours.<br><br>Best regards,<br>Support Team<br>Nivasity";
+  $userMessage = "Hi $first_name,<br><br>Thank you for reaching out to us. Your support request has been received, and a ticket has been generated with the <b>reference code #$uniqueCode.</b> <br>Our team will get back to you very soon.<br><br>Best regards,<br>Support Team<br><b>Nivasity</b>";
 
   $mailStatus = sendMail($supportSubject, $supportMessage, $supportEmail);
 
