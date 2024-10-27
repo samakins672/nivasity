@@ -33,17 +33,21 @@
     <?php endif;?>
 
     <?php if($is_admin_role):?>
-    <li class="nav-item nav-category">Host Panel</li>
+    <li class="nav-item nav-category">Change role</li>
     <li class="nav-item">
       <a class="nav-link" href="admin/">
         <i class="mdi mdi-view-dashboard-outline menu-icon"></i>
-        <span class="menu-title">Admin Dashboard</span>
+        <?php if ($_SESSION['nivas_userRole'] !== 'org_admin'): ?>
+          <span class="menu-title">Manage Manuals</span>
+        <?php else: ?>
+          <span class="menu-title">Manage Events</span>
+        <?php endif; ?>
       </a>
     </li>
     <?php endif;?>
 
-    <li class="nav-item nav-category">Sign Out</li>
-    <li class="nav-item">
+    <li class="nav-item nav-category d-block d-md-none">Sign Out</li>
+    <li class="nav-item d-block d-md-none">
       <a class="nav-link g_id_signout" href="signin.html?logout=1">
         <i class="menu-icon mdi mdi-power"></i>
         <span class="menu-title">Sign Out</span>

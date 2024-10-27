@@ -2,7 +2,7 @@
 include('config.php');
 include('mail.php');
 include('functions.php');
-$statusRes = $messageRes = 'failed';
+$statusRes = $messageRes = $roleRes = 'failed';
 
 if (isset($_POST['signup'])) {
   $email = mysqli_real_escape_string($conn, $_POST['email']);
@@ -46,9 +46,9 @@ if (isset($_POST['signup'])) {
 
       mysqli_query($conn, "INSERT INTO verification_code (user_id, code) VALUES ($user_id, '$verificationCode')");
 
-      $verificationCode = "setup_org.html?verify=$verificationCode";
-      if ($role == 'hoc') {
-        $verificationCode = "setup.html?verify=$verificationCode";
+      $verificationCode = "setup.html?verify=$verificationCode";
+      if ($role == 'org_admin') {
+        $verificationCode = "setup_org.html?verify=$verificationCode";
       }
 
       $subject = "Verify Your Account on NIVASITY";
@@ -56,8 +56,8 @@ if (isset($_POST['signup'])) {
       <br><br>
       Welcome to Nivasity! We're excited to have you on board. To ensure the security of your account and to provide you with the best experience, we kindly ask you to verify your email address.
       <br><br>
-      Click on the following link to verify your account: <a href='https://nivasity.com/$verificationCode'>Verify Account</a>
-      <br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://nivasity.com/$verificationCode
+      Click on the following link to verify your account: <a href='https://stage.nivasity.com/$verificationCode'>Verify Account</a>
+      <br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://stage.nivasity.com/$verificationCode
       <br><br>
       Thank you for choosing Nivasity. We look forward to serving you!
       <br><br>
@@ -223,6 +223,10 @@ if (isset($_POST['login'])) {
       $_SESSION['nivas_userRole'] = $user['role'];
       $_SESSION['nivas_userSch'] = $user['school'];
 
+      if ($_SESSION['nivas_userRole'] !== 'student') {
+        $roleRes = 'admin';
+      }
+
       $statusRes = "success";
       $messageRes = "Logged in successfully!";
     }
@@ -263,6 +267,7 @@ if (isset($_POST['logout'])) {
 }
 
 $responseData = array(
+  "role" => "$roleRes",
   "status" => "$statusRes",
   "message" => "$messageRes"
 );

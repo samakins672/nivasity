@@ -36,8 +36,6 @@
         <span class="menu-title">Profile Settings</span>
       </a>
     </li>
-
-    <li class="nav-item nav-category">Support</li>
     <li class="nav-item">
       <a class="nav-link" href="support.php">
         <i class="mdi mdi-comment-outline menu-icon"></i>
@@ -46,11 +44,11 @@
     </li>
 
     <?php if ($is_admin_role): ?>
-      <li class="nav-item nav-category">Student Panel</li>
+      <li class="nav-item nav-category">Change Role</li>
       <li class="nav-item">
         <a class="nav-link" href="../store.php">
           <i class="mdi mdi-store menu-icon"></i>
-          <span class="menu-title">Go to Store</span>
+          <span class="menu-title">Marketplace</span>
         </a>
       </li>
     <?php endif; ?>

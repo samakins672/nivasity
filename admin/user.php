@@ -116,7 +116,7 @@ $bankName = getBankName($bank, $bankList);
                         <a class="nav-link px-3 fw-bold" id="contact-tab" data-bs-toggle="tab" href="#academics" role="tab"
                           aria-selected="false">Academic Info</a>
                       </li>
-                    <?php elseif ($user_status == 'inreview' && $_SESSION['nivas_userRole'] == 'org_admin'): ?>
+                    <?php elseif ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'org_admin'): ?>
                       <li class="nav-item">
                         <a class="nav-link px-3 fw-bold" id="organisation-tab" data-bs-toggle="tab" href="#organisation" role="tab"
                           aria-selected="false">Organisation Info</a>
@@ -396,7 +396,7 @@ $bankName = getBankName($bank, $bankList);
                         </div>
                       </div>
                     </div>
-                  <?php elseif ($user_status == 'inreview' && $_SESSION['nivas_userRole'] == 'org_admin'): ?>
+                  <?php elseif ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'org_admin'): ?>
                     <div class="tab-pane fade hide" id="organisation" role="tabpanel" aria-labelledby="organisation">
                       <div class="row">
                         <div class="col-12">

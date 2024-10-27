@@ -417,7 +417,11 @@
                 $('#alertBanner').addClass('alert-success');
                 setTimeout(function () {
                   // Redirect the browser to the specified page
-                  window.location.href = "store.php?loggedin";
+                  if (data.role == 'admin') {
+                    window.location.href = "admin/?loggedin";
+                  } else {
+                    window.location.href = "store.php?loggedin";
+                  }
                 }, 1000); // 1000 milliseconds (1 second) delay
               } else if (data.status == 'unverified') {
                 $('#alertBanner').removeClass('alert-danger');
