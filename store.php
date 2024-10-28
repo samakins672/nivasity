@@ -259,7 +259,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                                   <div class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card">
                                     <div class="card card-rounded shadow-sm">
                                       <div class="card-body p-0">
-                                        <img src="assets/images/events/<?php echo $event['event_banner'] ?>" class="img-fluid rounded w-100" style="max-height: 140px; object-fit: cover;">
+                                        <img src="assets/images/events/<?php echo $event['event_banner'] ?>" class="img-fluid rounded-top w-100" style="max-height: 140px; object-fit: cover;">
                                         <div class="p-3">
                                           <p class="badge bg-inverse-secondary"><?php echo $event['location'] ?></p>
                                           <h4 class="fw-bold"><?php echo $event['title'] ?></h4>
