@@ -12,11 +12,11 @@ function sendMail($subject, $body, $to) {
   <html>
   <head>
       <style>
-          /* Import Manrope font for supported clients */
-          @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;700&display=swap");
+          /* Import Nunito font for supported clients */
+          @import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap");
 
           body {
-              font-family: "Manrope", Arial, sans-serif;
+              font-family: "Nunito", Arial, sans-serif;
               background-color: #fff7ec;
               color: #333;
               padding: 0;
