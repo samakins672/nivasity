@@ -55,6 +55,11 @@ function sendMail($subject, $body, $to) {
               margin: 0 0 10px;
           }
 
+          .content ol {
+            font-weight: bold;
+            color: #7a3b73;
+          }
+
           .btn {
               display: inline-block;
               background-color: #FF9100;

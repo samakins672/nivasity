@@ -39,7 +39,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
                     <div class="row flex-grow">
                       <div class="col-12 card card-rounded shadow-sm px-2">
                         <div class="card-header">
-                          <h4 class="fw-bold my-3">Manual Orders</h4> 
+                          <h4 class="fw-bold my-3">Course Materials Bought</h4> 
                         </div>
                         <div class="card-body">
                           <!-- order Ticket Table -->
@@ -66,6 +66,8 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
                                 $created_time = date('h:i a', strtotime($manual['created_at']));
                                 // Retrieve the status
                                 $status = $manual['status'];
+                                $event_price = number_format($event['price']);
+                                $event_price = $event_price > 0 ? "₦ $event_price" : 'FREE';
                                 ?>
                               <tr>
                                 <td>
@@ -80,7 +82,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
                                   </div>
                                 </td>
                                 <td>
-                                  <h6 class="text-success fw-bold">&#8358; <?php echo number_format($manuals['price']) ?></h6>
+                                  <h6 class="text-success fw-bold"><?php echo $event_price ?></h6>
                                 </td>
                                 <td>
                                   <h6><?php echo $created_date ?></h6>

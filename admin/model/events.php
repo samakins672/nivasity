@@ -6,8 +6,6 @@ include('../../model/functions.php');
 $statusRes = $messageRes = 'failed';
 
 $user_id = $_SESSION['nivas_userId'];
-$school_id = $_SESSION['nivas_userSch'];
-$user_dept = $_SESSION['nivas_userDept'];
 
 if (isset($_POST['close_event'])) {
   $event_id = mysqli_real_escape_string($conn, $_POST['event_id']);
@@ -30,9 +28,12 @@ if (isset($_POST['close_event'])) {
 } else if (isset($_POST['event_id'])) {
   $event_id = mysqli_real_escape_string($conn, $_POST['event_id']);
   $title = mysqli_real_escape_string($conn, $_POST['title']);
-  $location = mysqli_real_escape_string($conn, $_POST['location']);
   $price = mysqli_real_escape_string($conn, $_POST['price']);
   $quantity = mysqli_real_escape_string($conn, $_POST['quantity']);
+  $event_type = mysqli_real_escape_string($conn, $_POST['event_type']);
+  $event_link = mysqli_real_escape_string($conn, $_POST['event_link']);
+  $school = mysqli_real_escape_string($conn, $_POST['school']);
+  $location = mysqli_real_escape_string($conn, $_POST['location']);
   $event_date = mysqli_real_escape_string($conn, $_POST['event_date']);
   $event_time = mysqli_real_escape_string($conn, $_POST['event_time']);
   $picture = $_FILES['upload']['name'];
@@ -56,8 +57,8 @@ if (isset($_POST['close_event'])) {
       $event_code = generateVerificationCode(8);
     }
     
-    mysqli_query($conn, "INSERT INTO events (title, location, event_banner,	price, code,	event_date, event_time,	quantity,	user_id) 
-        VALUES ('$title', '$location', '$picture',	$price, '$event_code',	'$event_date', '$event_time',	$quantity,	$user_id)");
+    mysqli_query($conn, "INSERT INTO events (title, location, event_banner,	price, code,	event_type, event_link,	school, event_date, event_time,	quantity,	user_id) 
+        VALUES ('$title', '$location', '$picture',	$price, '$event_code',	'$event_type', '$event_link',	$school, '$event_date', '$event_time',	$quantity,	$user_id)");
   } else {
     $last_picture = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM events WHERE id = $event_id"))['event_banner'];
   
@@ -65,7 +66,7 @@ if (isset($_POST['close_event'])) {
       unlink("../../assets/images/events/{$last_picture}");
     }
 
-    mysqli_query($conn, "UPDATE events SET title = '$title', location = '$location', event_banner = '$picture',	price = $price, event_date = '$event_date', event_time = '$event_time', quantity = $quantity 
+    mysqli_query($conn, "UPDATE events SET title = '$title', location = '$location', event_banner = '$picture',	price = $price, event_type = '$event_type', event_link = '$event_link',	school = $school, event_date = '$event_date', event_time = '$event_time', quantity = $quantity 
         WHERE id = $event_id");
   }
 

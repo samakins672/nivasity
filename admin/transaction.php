@@ -89,8 +89,8 @@ $transaction_query = mysqli_query($conn, "SELECT * FROM $item_table2 WHERE selle
                       <thead>
                         <tr>
                           <th>Transaction Id</th>
-                          <th>Student Details</th>
-                          <th><?php echo ($column_id == 'manual_id') ? ' Manuals' : ' Events'; ?></th>
+                          <th>Student Detail</th>
+                          <th><?php echo ($column_id == 'manual_id') ? ' Course material' : ' Events'; ?></th>
                           <th>Price</th>
                           <th>Date & Time</th>
                           <th>Status</th>
@@ -121,6 +121,9 @@ $transaction_query = mysqli_query($conn, "SELECT * FROM $item_table2 WHERE selle
                         } else if ($status == 'pending') {
                           $status_bg = 'warning';
                         }
+
+                        $event_price = number_format($event['price']);
+                        $event_price = $event_price > 0 ? "₦ $event_price" : 'FREE';
                         ?>
                           <tr>
                             <td>
@@ -135,7 +138,7 @@ $transaction_query = mysqli_query($conn, "SELECT * FROM $item_table2 WHERE selle
                               <p class="d-sm-none-2">ID: <span class="fw-bold"><?php echo $item['code'] ?></span></p>
                             </td>
                             <td>
-                              <h6 class="text-success fw-bold">&#8358; <?php echo number_format($item['price']) ?></h6>
+                              <h6 class="text-success fw-bold"><?php echo $event_price ?></h6>
                             </td>
                             <td>
                               <h6><?php echo $created_date ?></h6>

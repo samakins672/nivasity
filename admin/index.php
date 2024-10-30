@@ -64,7 +64,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
   <link rel="stylesheet" href="../assets/css/dashboard/style.css">
   <!-- endinject -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
-
+  
   <!-- main js -->
   <script src="../assets/js/main.js"></script>
   
@@ -109,7 +109,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                     <?php if ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'hoc'): ?>
                     <li class="nav-item">
                       <a class="nav-link px-3 fw-bold" id="profile-tab" data-bs-toggle="tab" href="#manuals" role="tab"
-                        aria-selected="false">Manuals</a>
+                        aria-selected="false">Materials</a>
                     </li>
                     <?php elseif ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'org_admin'): ?>
                     <li class="nav-item">
@@ -133,7 +133,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                             <h3 class="rate-percentage">&#8358; <?php echo number_format($t_items_price) ?></h3>
                           </div>
                           <div>
-                            <p class="statistics-title fw-bold">Total<?php echo ($column_id == 'manual_id') ? ' Manuals' : ' Events'; ?></p>
+                            <p class="statistics-title fw-bold">Total<?php echo ($column_id == 'manual_id') ? ' Materials' : ' Events'; ?></p>
                             <h3 class="rate-percentage"><?php echo $t_items ?></h3>
                           </div>
                           <div class="d-none d-md-block">
@@ -178,10 +178,10 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                               <div class="card-body">
                                 <div class="d-sm-flex justify-content-between align-items-start">
                                   <div>
-                                    <h4 class="card-title card-title-dash">Best Selling<?php echo ($column_id == 'manual_id') ? ' Manuals' : ' Events'; ?></h4>
+                                    <h4 class="card-title card-title-dash">Best Selling<?php echo ($column_id == 'manual_id') ? ' Materials' : ' Events'; ?></h4>
                                     <p class="card-subtitle card-subtitle-dash">You have <span
-                                        class="text-success fw-bold"><?php echo $open_manuals ?> active</span><?php echo ($column_id == 'manual_id') ? ' manuals' : ' events'; ?> and <span
-                                        class="text-warning fw-bold"><?php echo $closed_manuals ?> expired</span><?php echo ($column_id == 'manual_id') ? ' Manuals' : ' Events'; ?>.</p>
+                                        class="text-success fw-bold"><?php echo $open_manuals ?> active</span><?php echo ($column_id == 'manual_id') ? ' materials' : ' events'; ?> and <span
+                                        class="text-warning fw-bold"><?php echo $closed_manuals ?> expired</span><?php echo ($column_id == 'manual_id') ? ' Materials' : ' Events'; ?>.</p>
                                   </div>
                                 </div>
                                 <div class="table-responsive  mt-1">
@@ -266,7 +266,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                                 <div class="d-flex">
                                   
                                   <div class="wrapper ms-3">
-                                    <p class="mb-1 fw-bold"><?php echo $transactions_bought_cnt ?><?php echo ($column_id == 'manual_id') ? ' manuals' : ' events'; ?> bought by <span class="text-capitalize"><?php echo $buyer['first_name']?></span></p>
+                                    <p class="mb-1 fw-bold"><?php echo $transactions_bought_cnt ?><?php echo ($column_id == 'manual_id') ? ' materials' : ' events'; ?> bought by <span class="text-capitalize"><?php echo $buyer['first_name']?></span></p>
                                     <p class="text-secondary mb-0 fw-bold">&#8358; <?php echo number_format($transactions_bought_price) ?></p>
                                   </div>
                                 </div>
@@ -318,11 +318,11 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                               <?php if (mysqli_num_rows($settlement_query) > 0): ?>
                                 <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"
                                   data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual' : 'verificationManual' ?>"><i class="mdi mdi-book"></i>Add new
-                                  manual</button>
+                                  material</button>
                               <?php else: ?> 
                                 <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"
                                   data-bs-toggle="modal" data-bs-target="#addSettlement"><i class="mdi mdi-book"></i>Add new
-                                  manual</button>
+                                  material</button>
                               <?php endif; ?> 
                               </div>
                             </div>
@@ -406,9 +406,9 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                                             <button class="btn btn-md btn-dark mb-0 btn-block export-manual" data-bs-toggle="modal" data-bs-target="#exportManual"
                                               data-manual_id="<?php echo $manual['id']; ?>" data-code="<?php echo $manual['course_code']; ?>"><i class="mdi mdi-file-export m-0 text-white"></i></button>
                                           <?php if($status != 'overdue'): ?>
-                                            <button class="btn btn-md btn-secondary mb-0 btn-block close-manual"
+                                            <button class="btn btn-md btn-<?php echo ($status_2 != 'open') ? 'success' : 'danger'; ?> mb-0 btn-block close-manual"
                                               data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>" data-action="<?php echo ($status_2 != 'open') ? 1 : 0; ?>"
-                                                  data-bs-toggle="modal" data-bs-target="#closeManual"><i class="mdi mdi-eye<?php echo ($status_2 != 'open') ? '-off' : ''; ?> m-0 text-white"></i></button>
+                                                  data-bs-toggle="modal" data-bs-target="#closeManual"><i class="mdi mdi-eye<?php echo ($status_2 != 'open') ? '' : '-off'; ?> m-0 text-white"></i></button>
                                           <?php endif; ?>
                                           </td>
                                         </tr>
@@ -523,6 +523,8 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                                               data-event_id="<?php echo $event['id']; ?>" data-title="<?php echo $event['title']; ?>"
                                               data-price="<?php echo $event['price']; ?>" data-quantity="<?php echo $event['quantity']; ?>"
                                               data-location="<?php echo $event['location']; ?>" data-image="<?php echo $event['event_banner']; ?>"
+                                              data-event_type="<?php echo $event['event_type']; ?>" data-event_link="<?php echo $event['event_link']; ?>"
+                                              data-school="<?php echo $event['school']; ?>" data-location="<?php echo $event['location']; ?>"
                                               data-event_time="<?php echo $event_time2; ?>" data-event_date="<?php echo $event_date2; ?>" 
                                               data-bs-toggle="modal" data-bs-target="#<?php echo $event_modal = ($user_status == 'verified') ? 'addEvent': 'verificationManual'?>">Edit</button>
                                               <!-- <button class="btn btn-md btn-dark mb-0 btn-block export-event" data-bs-toggle="modal" data-bs-target="#exportEvent"
@@ -651,13 +653,13 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                 </div>
 
                 <?php if ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'hoc'): ?>
-                <!-- Add New Manual Modal -->
+                <!-- Add new material Modal -->
                 <div class="modal fade" id="addManual" tabindex="-1" role="dialog" aria-labelledby="addManualLabel"
                   aria-hidden="true">
                   <div class="modal-dialog" role="document">
                     <div class="modal-content">
                       <div class="modal-header">
-                        <h5 class="modal-title" id="addManualLabel">New Manual</h5>
+                        <h5 class="modal-title" id="addManualLabel">New Course Material</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </button>
                       </div>
@@ -742,10 +744,30 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                             <input type="text" name="title" class="form-control form-control-lg w-100" required="">
                             <label class="form-label" for="title">Title</label>
                           </div>
-                          <div class="form-outline mb-4">
-                            <input type="text" name="location" class="form-control form-control-lg w-100" required="">
+                          <label class="form-check-label">Event Type</label><br />
+                          <div class="form-group">
+                            <select id="event_type" name="event_type" class="form-select" required>
+                              <option value="school">School Event</option>
+                              <option value="online">Online Event</option>
+                              <option value="public">Public Event</option>
+                            </select>
+                          </div>
+
+                          <div class="form-outline mb-4" id="event_link-container">
+                            <input type="url" name="event_link" class="form-control form-control-lg w-100">
+                            <label class="form-label" for="event_link">Event Link</label>
+                          </div>
+
+                          <div class="form-group mb-4" id="school-container">
+                            <label class="form-check-label mb-0">School</label><br />
+                            <select id="school" name="school" class="form-select" required></select>
+                          </div>
+
+                          <div class="form-outline mb-4" id="location-container">
+                            <input type="text" name="location" class="form-control form-control-lg w-100">
                             <label class="form-label" for="location">Location</label>
                           </div>
+
                           <div class="row">
                             <div class="col-md-6">
                               <div class="form-outline mb-4">
@@ -847,6 +869,9 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
         $('#event-form input[name="event_id"]').val(0);
         $('#event-form .square-img-content').attr('src',"../assets/images/events/image.png");
         $('#event-form')[0].reset();
+        
+        // Trigger change event on page load to set initial state
+        $('#event_type').trigger('change');
       });
       
       $('#exportManual').on('hidden.bs.modal', function () {
@@ -864,6 +889,44 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
           };
 
           reader.readAsDataURL(file); // Read the file as a data URL
+        }
+      });
+      
+      $('#event_type').change(function() {
+        // Hide all containers and remove the required attribute
+        $('#school-container').hide().find('select').prop('required', false);
+        $('#event_link-container').hide().find('input').prop('required', false);
+        $('#location-container').hide().find('input').prop('required', false);
+
+        // Show the appropriate container and make it required
+        if ($(this).val() === 'school') {
+            $('#school-container').show().find('select').prop('required', true);
+        } else if ($(this).val() === 'online') {
+            $('#event_link-container').show().find('input').prop('required', true);
+        } else if ($(this).val() === 'public') {
+            $('#location-container').show().find('input').prop('required', true);
+        }
+      });
+
+      // Trigger change event on page load to set initial state
+      $('#event_type').trigger('change');
+
+      $.ajax({
+        type: 'GET',
+        url: '../model/getInfo.php',
+        data: { get_data: 'schools' },
+        success: function (data) {
+          // Get the select element
+          var school_select = $('#school');
+
+          // Iterate through the departments and add options
+          $.each(data.schools, function (index, schools) {
+            // Append each department as an option to the select element
+            school_select.append($('<option>', {
+              value: schools.id,
+              text: schools.name
+            }));
+          });
         }
       });
 
@@ -935,9 +998,12 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
         // Get the event details from the data- attributes
         var eventId = $(this).data('event_id');
         var title = $(this).data('title');
-        var location = $(this).data('location');
         var price = $(this).data('price');
         var quantity = $(this).data('quantity');
+        var event_type = $(this).data('event_type');
+        var event_link = $(this).data('event_link');
+        var school = $(this).data('school');
+        var location = $(this).data('location');
         var event_date = $(this).data('event_date');
         var event_time = $(this).data('event_time');
         var image = $(this).data('image');
@@ -945,12 +1011,18 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
         // Set the values in the edit event modal
         $('#event-form input[name="event_id"]').val(eventId);
         $('#event-form input[name="title"]').val(title);
-        $('#event-form input[name="location"]').val(location);
         $('#event-form input[name="price"]').val(price);
+        $('#event-form select[name="event_type"]').val(event_type);
+        $('#event-form input[name="event_link"]').val(event_link);
+        $('#event-form input[name="school"]').val(school);
+        $('#event-form input[name="location"]').val(location);
         $('#event-form input[name="quantity"]').val(quantity);
         $('#event-form input[name="event_date"]').val(event_date);
         $('#event-form input[name="event_time"]').val(event_time);
         $('#event-form .square-img-content').attr('src',"../assets/images/events/" + image);
+
+        // Trigger change event on page load to set initial state
+        $('#event_type').trigger('change');
       });
 
       // Use AJAX to submit the event form

@@ -72,6 +72,8 @@ $event_query = mysqli_query($conn, "SELECT * FROM event_tickets WHERE buyer = $u
                                 $created_time = date('h:i a', strtotime($event['created_at']));
                                 // Retrieve the status
                                 $status = $event['status'];
+                                $event_price = number_format($event['price']);
+                                $event_price = $event_price > 0 ? "₦ $event_price" : 'FREE';
                                 ?>
                               <tr>
                                 <td>
@@ -93,7 +95,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM event_tickets WHERE buyer = $u
                                   <p class="fw-bold"><?php echo $event_time ?></p>
                                 </td>
                                 <td>
-                                  <h6 class="text-success fw-bold">&#8358; <?php echo number_format($events['price']) ?></h6>
+                                  <h6 class="text-success fw-bold"><?php echo $event_price ?></h6>
                                 </td>
                                 <td>
                                   <h6><?php echo $created_date ?></h6>

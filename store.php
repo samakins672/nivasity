@@ -146,7 +146,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                                         <div class="d-flex justify-content-between">
                                           <?php if ($status != 'disabled'): ?>
                                                 <a href="javascript:;">
-                                                  <i class="mdi mdi-share-variant icon-md text-muted" data-title="<?php echo $manual['title']; ?>" data-manual_id="<?php echo $manual['id']; ?>"></i>
+                                                  <i class="mdi mdi-share-variant icon-md text-muted share_button" data-title="<?php echo $manual['title']; ?>" data-product_id="<?php echo $manual['id']; ?>" data-type="product"></i>
                                                 </a>
                                                 <button class="btn <?php echo $button_class; ?> btn-lg m-0 cart-button" data-product-id="<?php echo $manual['id']; ?>">
                                                   <?php echo $button_text; ?>
@@ -246,6 +246,14 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                                 }
                               }
 
+                              if ($event['event_type'] == 'school') {
+                                $location = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM schools WHERE id = ".$event['school']))['code'];
+                              } elseif ($event['event_type'] == 'public') {
+                                $location = $event['location'];
+                              } else {
+                                $location = "Online Event";
+                              }
+
                               // Check if the event is already in the cart
                               $is_in_cart = in_array($event_id, $_SESSION["nivas_cart_event$user_id"]);
 
@@ -261,13 +269,16 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                                       <div class="card-body p-0">
                                         <img src="assets/images/events/<?php echo $event['event_banner'] ?>" class="img-fluid rounded-top w-100" style="max-height: 140px; object-fit: cover;">
                                         <div class="p-3">
-                                          <p class="badge bg-inverse-secondary"><?php echo $event['location'] ?></p>
-                                          <h4 class="fw-bold"><?php echo $event['title'] ?></h4>
+                                          <p class="fw-bold text-secondary"><i class="mdi mdi-map-marker menu-icon"></i> <?php echo $location ?></p>
+                                          <h4 class="fw-bold text-uppercase"><?php echo $event['title'] ?></h4>
                                           <small class="fw-bold"><?php echo $event_date ?> • <?php echo $event_time ?></small><br>
                                           <small class="badge badge-success fw-bold text-uppercase mt-2"><?php echo $event_price ?></small>
                                           <p>Host: <span class="fw-bold text-secondary"><?php echo $organisation['business_name'] ?></span></p>
                                           <hr>
-                                          <div class="d-flex justify-content-end">
+                                          <div class="d-flex justify-content-between">
+                                            <a href="javascript:;">
+                                              <i class="mdi mdi-share-variant icon-md text-muted share_button" data-title="<?php echo $event['title']; ?>" data-product_id="<?php echo $event['id']; ?>" data-type="event"></i>
+                                            </a>
                                             <button class="btn <?php echo $button_class; ?>  btn-lg m-0 cart-event-button" data-event-id="<?php echo $event['id'] ?>" data-mdb-ripple-duration="0"><?php echo $button_text; ?></button>
                                           </div>
                                         </div>
@@ -363,6 +374,20 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
   <script src="assets/js/script.js"></script>
 
   <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    // Get the logout parameter from the URL
+    const cart = urlParams.get('cart');
+
+    // Check if the verify parameter is present
+    if (cart) {
+      $('.nav-link').removeClass('active');
+      $('#cart-tab').addClass('active');
+
+      // Show the corresponding tab content
+      $('.tab-pane').removeClass('show active');
+      $('#cart').addClass('show active');
+    }
+
     $(document).ready(function () {
       $('.btn').attr('data-mdb-ripple-duration', '0');
 
@@ -375,12 +400,13 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
           $('#cart-tab').tab('show');
       });
 
-      $('.mdi-share-variant').on('click', function () {
+      $(document).on('click', '.share_button', function (e) {
         var button = $(this);
-        var manual_id = button.data('manual_id');
+        var product_id = button.data('product_id');
+        var type = button.data('type');
         var title = button.data('title');
-        var shareText = 'Check out "' + title + '" Manual! Get all the details and order now.';
-        var shareUrl = "https://nivasity.com/store.php?manual="+manual_id;
+        var shareText = 'Check out '+title+' on nivasity and order now!';
+        var shareUrl = "https://nivasity.com/model/cart_guest.php?share=1&action=1&type="+type+"&product_id="+product_id;
 
         // Check if the Web Share API is available
         if (navigator.share) {

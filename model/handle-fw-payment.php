@@ -2,6 +2,8 @@
 session_start();
 require_once 'config.php';
 require_once '../config/fw.php';
+include('mail.php');
+include('functions.php');
 $curl = curl_init();
 
 $user_id = $_SESSION['nivas_userId'];
@@ -114,10 +116,13 @@ if (isset($_GET['transaction_id'])) {
       }
     }
 
+    sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $total_amount);
+
     // Add the charge to the total
     $total_amount += $charge;
-
+    
     mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, status) VALUES ('$tx_ref', $user_id, $total_amount, '$status')");
+    
 
     // Close the database connection if needed
     mysqli_close($conn);
@@ -126,10 +131,10 @@ if (isset($_GET['transaction_id'])) {
     $_SESSION["nivas_cart$user_id"] = array();
     $_SESSION["nivas_cart_event$user_id"] = array();
 
-    header('Location: ../store.php?payment=successful');
+    // header('Location: ../store.php?payment=successful');
   } else {
     // Inform the customer their payment was unsuccessful
-    header('Location: ../store.php?payment=unsuccessful');
+    // header('Location: ../store.php?payment=unsuccessful');
   }
 }
 

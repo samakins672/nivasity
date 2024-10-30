@@ -2,6 +2,8 @@
 session_start();
 require_once 'config.php';
 require_once '../config/fw.php';
+include('mail.php');
+include('functions.php');
 $curl = curl_init();
 
 $user_id = $_SESSION['nivas_userId'];
@@ -148,6 +150,8 @@ if (isset($_POST['nivas_ref'])) {
         $charge += 135;
       }
     }
+
+    sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $total_amount);
 
     // Add the charge to the total
     $total_amount += $charge;

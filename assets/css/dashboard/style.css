@@ -28363,6 +28363,7 @@ dl li {
   height: 44px;
   border-radius: 10px;
   margin-right: 15px;
+  object-fit: cover;
 }
 
 .table.select-table td .max-width-progress-wrap {

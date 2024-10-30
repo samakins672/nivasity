@@ -10,6 +10,32 @@ $date = date('Y-m-d');
 
 $_SESSION['cart_sellers'] = [];
 
+
+if (isset($_SESSION["nivas_cart_event"])) {
+    $guest_cart = $_SESSION["nivas_cart_event"];
+    
+    foreach ($guest_cart as $guestItem) {
+        if (!in_array($guestItem, $_SESSION[$cart_2])) {
+            $_SESSION[$cart_2][] = $guestItem;
+        }
+    }
+
+    unset($_SESSION["nivas_cart_event"]);
+} 
+
+if (isset($_SESSION["nivas_cart"])) {
+    $guest_cart = $_SESSION["nivas_cart"];
+    
+    foreach ($guest_cart as $guestItem) {
+        if (!in_array($guestItem, $_SESSION[$cart_])) {
+            $_SESSION[$cart_][] = $guestItem;
+        }
+    }
+
+    unset($_SESSION["nivas_cart"]);
+}
+
+
 // Get the product ID from the AJAX request
 if (isset($_POST['reload_cart'])) {
     $total_cart_items = count($_SESSION["nivas_cart$user_id"]) + count($_SESSION["nivas_cart_event$user_id"]);

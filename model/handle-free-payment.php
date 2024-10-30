@@ -2,6 +2,8 @@
 session_start();
 require_once 'config.php';
 require_once '../config/fw.php';
+include('mail.php');
+include('functions.php');
 $curl = curl_init();
 
 $user_id = $_SESSION['nivas_userId'];
@@ -67,6 +69,8 @@ if (isset($_GET['tx_ref'])) {
             break;
         }
     }
+
+    sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $total_amount);
 
     // Insert the transaction record
     mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, '$status', 'NIVASITY')");

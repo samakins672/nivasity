@@ -26,7 +26,7 @@
     <li class="nav-item">
       <a class="nav-link" href="orders.php">
         <i class="mdi mdi-package menu-icon"></i>
-        <span class="menu-title">Orders</span>
+        <span class="menu-title">Order History</span>
       </a>
     </li>
     <?php endif; ?>
@@ -53,7 +53,7 @@
       <a class="nav-link" href="admin/">
         <i class="mdi mdi-view-dashboard-outline menu-icon"></i>
         <?php if ($_SESSION['nivas_userRole'] !== 'org_admin'): ?>
-          <span class="menu-title">Manage Manuals</span>
+          <span class="menu-title">Manage Materials</span>
         <?php else: ?>
           <span class="menu-title">Manage Events</span>
         <?php endif; ?>
