@@ -82,6 +82,8 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
 
     gtag('config', 'G-30QJ6DSHBN');
   </script>
+  
+  <script src="//code.tidio.co/c6addu5t250jr1lfkue6klfuvpcyheif.js" async></script>
 
 </head>
 
@@ -918,7 +920,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
         success: function (data) {
           // Get the select element
           var school_select = $('#school');
-          
+
           // Sort the schools alphabetically by name
           data.schools.sort(function (a, b) {
               return a.name.localeCompare(b.name);

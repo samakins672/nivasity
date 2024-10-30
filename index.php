@@ -60,13 +60,17 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
   <!-- Main CSS File -->
   <link href="assets/css/main.css" rel="stylesheet">
 
-  <!-- =======================================================
-  * Template Name: Nivasity
-  * Template URL: https://bootstrapmade.com/Nivasity-bootstrap-startup-website-template/
-  * Updated: Aug 07 2024 with Bootstrap v5.3.3
-  * Author: BootstrapMade.com
-  * License: https://bootstrapmade.com/license/
-  ======================================================== -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-30QJ6DSHBN"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+
+    gtag('config', 'G-30QJ6DSHBN');
+  </script>
+  
+  <script src="//code.tidio.co/c6addu5t250jr1lfkue6klfuvpcyheif.js" async></script>
 </head>
 
 <body class="index-page">
