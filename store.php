@@ -636,7 +636,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                     currency: "NGN",
                     subaccounts: subaccounts,  // Pass the dynamically generated subaccounts
                     payment_options: "card, banktransfer, ussd",
-                    redirect_url: "https://stage.nivasity.com/model/handle-fw-payment.php",
+                    redirect_url: "https:///nivasity.com/model/handle-fw-payment.php",
                     customer: {
                         email: email,
                         phone_number: phone,
