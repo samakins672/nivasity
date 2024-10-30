@@ -918,6 +918,11 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
         success: function (data) {
           // Get the select element
           var school_select = $('#school');
+          
+          // Sort the schools alphabetically by name
+          data.schools.sort(function (a, b) {
+              return a.name.localeCompare(b.name);
+          });
 
           // Iterate through the departments and add options
           $.each(data.schools, function (index, schools) {
