@@ -519,29 +519,29 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
 
         <div class="row gy-4">
 
-          <div class="col-md-2 col-4 client-logo text-center">
+          <a href="https://flutterwave.com" target="_blank" class="col-md-2 col-4 client-logo text-center">
             <img src="assets/images/partners/Flutterwave_Logo.png" class="img-fluid w-25" alt="">
-          </div><!-- End Client Item -->
+          </a><!-- End Client Item -->
 
-          <div class="col-md-2 col-4 client-logo text-center">
+          <a href="https://sannex.ng" target="_blank" class="col-md-2 col-4 client-logo text-center">
             <img src="assets/images/partners/logo.png" class="img-fluid w-25" alt="">
-          </div><!-- End Client Item -->
+          </a><!-- End Client Item -->
 
-          <div class="col-md-2 col-4 client-logo text-center">
+          <a href="https://moniepoint.com" target="_blank" class="col-md-2 col-4 client-logo text-center">
             <img src="assets/images/partners/Moniepoint_logo.jpg" class="img-fluid w-25" alt="">
-          </div><!-- End Client Item -->
+          </a><!-- End Client Item -->
 
-          <div class="col-md-2 col-4 client-logo text-center">
+          <a href="https://paystack.com" target="_blank" class="col-md-2 col-4 client-logo text-center">
             <img src="assets/images/partners/Paystack_Logo.png" class="img-fluid w-25" alt="">
-          </div><!-- End Client Item -->
+          </a><!-- End Client Item -->
 
-          <div class="col-md-2 col-4 client-logo text-center">
+          <a href="https://drive.google.com" target="_blank" class="col-md-2 col-4 client-logo text-center">
             <img src="assets/images/partners/google_drive.png" class="img-fluid w-25" alt="">
-          </div><!-- End Client Item -->
+          </a><!-- End Client Item -->
 
-          <div class="col-md-2 col-4 client-logo text-center">
-            <img src="assets/images/partners/Flutterwave_Logo.png" class="img-fluid w-25" alt="">
-          </div><!-- End Client Item -->
+          <a href="https://goldelitedeals.com" target="_blank" class="col-md-2 col-4 client-logo text-center">
+            <img src="assets/images/partners/gold_elite.png" class="img-fluid w-25" alt="">
+          </a><!-- End Client Item -->
 
         </div>
 
