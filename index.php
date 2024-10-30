@@ -5,7 +5,13 @@ include('model/page_config.php');
 
 $manual_query = 0;
 
+$link_to = "signin.html";
+
 if (isset($_SESSION['nivas_userId'])) {
+  $link_to = "store.php";
+  if ($is_admin_role) {
+    $link_to = "admin/";
+  }
   // Simulate adding/removing the product to/from the cart
   if (!isset($_SESSION["nivas_cart$user_id"])) {
     $_SESSION["nivas_cart$user_id"] = array();
@@ -83,7 +89,7 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
           <li><a href="index.html#hero" class="active">Home</a></li>
           <li><a href="index.html#manuals">Browse Materials</a></li>
           <li><a href="index.html#events">Find Events</a></li>
-          <li><a href="signin.html">Sell on Nivasity</a></li>
+          <li><a href="<?php echo $link_to ?>">Sell on Nivasity</a></li>
           <li class="dropdown">
             <a href="javascript:;"><span>More</span>
               <i class="bi bi-chevron-down toggle-dropdown"></i>
@@ -97,7 +103,7 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
         <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
       </nav>
 
-      <a class="btn-getstarted" href="signin.html">Get Started</a>
+      <a class="btn-getstarted" href="<?php echo $link_to ?>">Get Started</a>
 
     </div>
     <div class="container-fluid d-md-none d-flex align-items-center pt-3">
@@ -310,13 +316,6 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
                   <?php
             } ?>
 
-            <a href="signin.html" class="card card-rounded border border-1 border-secondary shadow-sm m-2 w-md-25 min-w-75">
-              <div class="card-body d-flex flex-column align-items-center justify-content-center">
-                <i class="fs-4 text-secondary fw-bold bi bi-box-arrow-up-right"></i>
-                <h5 class="fw-bold text-secondary">See More</h5>
-              </div>
-            </a>
-
             <?php 
             if ($count_row == 0) { ?>
               <div class="col-12">
@@ -327,8 +326,16 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
                   </div>
                 </div>
               </div>
-            <?php }} else{ ?>
+            <?php } else { ?>
 
+            <a href="<?php echo $link_to ?>" class="card card-rounded border border-1 border-secondary shadow-sm m-2 w-md-25 min-w-75">
+              <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                <i class="fs-4 text-secondary fw-bold bi bi-box-arrow-up-right"></i>
+                <h5 class="fw-bold text-secondary">See More</h5>
+              </div>
+            </a>
+
+            <?php } } else{ ?>
               <div class="col-12">
                 <div class="card card-rounded shadow-sm">
                   <div class="card-body d-flex flex-column align-items-center justify-content-center">
@@ -337,7 +344,6 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
                   </div>
                 </div>
               </div>
-
             <?php }} else { ?>
               <div class="col-12">
                 <div class="card card-rounded shadow-sm">
@@ -473,8 +479,17 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
                               </div>
                             </div>
                         </div>
-                  <?php }
-            } else {
+                  <?php } else { ?>
+
+          <a href="<?php echo $link_to ?>" class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card text-dark">
+            <div class="card card-rounded border border-1 border-secondary shadow-sm h-100">
+              <div class="card-body d-flex flex-md-column align-items-center justify-content-center p-2">
+                <i class="fs-4 text-secondary fw-bold bi bi-box-arrow-up-right me-3"></i>
+                <h5 class="fw-bold text-secondary m-0">See More</h5>
+              </div>
+            </div>
+          </a>
+            <?php } } else {
               // Display a message when no events are found
               ?>
                     <div class="col-12">
@@ -486,14 +501,6 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
                         </div>
                     </div>
                 <?php } ?>
-          <a href="#" class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card text-dark">
-            <div class="card card-rounded border border-1 border-secondary shadow-sm h-100">
-              <div class="card-body d-flex flex-md-column align-items-center justify-content-center p-2">
-                <i class="fs-4 text-secondary fw-bold bi bi-box-arrow-up-right me-3"></i>
-                <h5 class="fw-bold text-secondary m-0">See More</h5>
-              </div>
-            </div>
-          </a>
         </div>
       </div>
 
