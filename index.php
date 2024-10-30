@@ -90,9 +90,9 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
                 placeholder="Search for materials, or events...">
             </div>
           </li>
-          <li><a href="index.html#hero" class="active">Home</a></li>
-          <li><a href="index.html#manuals">Browse Materials</a></li>
-          <li><a href="index.html#events">Find Events</a></li>
+          <li><a href="#hero" class="active">Home</a></li>
+          <li><a href="#manuals">Browse Materials</a></li>
+          <li><a href="#events">Find Events</a></li>
           <li><a href="<?php echo $link_to ?>">Sell on Nivasity</a></li>
           <li class="dropdown">
             <a href="javascript:;"><span>More</span>
@@ -680,7 +680,7 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
     <div class="container footer-top">
       <div class="row gy-4">
         <div class="col-lg-4 col-md-6 footer-about">
-          <a href="index.html" class="logo d-flex align-items-center">
+          <a href="" class="logo d-flex align-items-center">
             <img src="assets/images/nivasity-main.png" alt="nivasity">
           </a>
           <div class="footer-contact">
