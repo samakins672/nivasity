@@ -739,7 +739,7 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
     </div>
 
     <div class="container copyright text-center mt-4">
-      <p>© <span>Copyright 2024</span> <strong class="px-1 sitename">Nivasity</strong><span>All Rights Reserved</span>
+      <p>© <span>Copyright <?php echo date('Y')?> </span> <strong class="px-1 sitename">Nivasity</strong><span>All Rights Reserved</span>
       </p>
     </div>
 

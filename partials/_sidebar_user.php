@@ -2,7 +2,7 @@
   <ul class="nav">
     <li class="nav-item d-md-none d-block">
       <div class="dropdown-header text-center">
-        <img class="img-sm img-fluid rounded rounded-7" src="https:///nivasity.com/assets/images/users/<?php echo $user_image?>" alt="Profile image">
+        <img class="img-sm img-fluid rounded rounded-7" src="https://nivasity.com/assets/images/users/<?php echo $user_image?>" alt="Profile image">
         <span class="mb-1 mt-1 fw-bold d-block">
           <?php echo $user_name?><br>
           <?php if ($_SESSION['nivas_userRole'] == 'student'): ?>
