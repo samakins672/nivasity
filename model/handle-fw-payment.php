@@ -28,7 +28,7 @@ if (isset($_GET['transaction_id'])) {
     CURLOPT_CUSTOMREQUEST => 'GET',
     CURLOPT_HTTPHEADER => array(
       'Content-Type: application/json',
-      'Authorization: Bearer ' . FLW_SECRET_KEY_TEST
+      'Authorization: Bearer ' . FLW_SECRET_KEY
     ),
   ));
 

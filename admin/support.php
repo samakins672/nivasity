@@ -48,7 +48,7 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets WHERE user_i
     gtag('config', 'G-30QJ6DSHBN');
   </script>
   
-  <script src="//code.tidio.co/c6addu5t250jr1lfkue6klfuvpcyheif.js" async></script>
+  
   
 </head>
 
@@ -255,6 +255,19 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets WHERE user_i
   <!-- Custom js for this page-->
   <script src="../assets/js/js/dashboard.js"></script>
   <script src="../assets/js/script.js"></script>
+  <!--Start of Tawk.to Script-->
+  <script type="text/javascript">
+    var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+    (function(){
+    var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+    s1.async=true;
+    s1.src='https://embed.tawk.to/6722bbbb4304e3196adae0cd/1ibfqqm4s';
+    s1.charset='UTF-8';
+    s1.setAttribute('crossorigin','*');
+    s0.parentNode.insertBefore(s1,s0);
+    })();
+  </script>
+  <!--End of Tawk.to Script-->
 
   <script>
     $(document).ready(function () {
