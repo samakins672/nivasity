@@ -100,6 +100,7 @@ if (isset($_GET['transaction_id'])) {
     }
 
 
+    $charge = 0;
     if ($total_amount < 2500) {
       $charge = 45;
     } elseif ($total_amount >= 2500) {
@@ -131,10 +132,10 @@ if (isset($_GET['transaction_id'])) {
     $_SESSION["nivas_cart$user_id"] = array();
     $_SESSION["nivas_cart_event$user_id"] = array();
 
-    // header('Location: ../store.php?payment=successful');
+    header('Location: ../store.php?payment=successful');
   } else {
     // Inform the customer their payment was unsuccessful
-    // header('Location: ../store.php?payment=unsuccessful');
+    header('Location: ../store.php?payment=unsuccessful');
   }
 }
 
