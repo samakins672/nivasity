@@ -30,7 +30,7 @@ if (isset($_GET['tx_ref'])) {
             $seller = $row['user_id'];
 
             // Insert into manuals_bought
-            mysqli_query($conn, "INSERT INTO manuals_bought (manual_id, price, seller, buyer, ref_id, status, school_id) VALUES ($manual_id, $price, $seller, $user_id, '$tx_ref', '$status', AND$school_id)");
+            mysqli_query($conn, "INSERT INTO manuals_bought (manual_id, price, seller, buyer, ref_id, status, school_id) VALUES ($manual_id, $price, $seller, $user_id, '$tx_ref', '$status', $school_id)");
 
             if (mysqli_affected_rows($conn) < 1) {
                 $statusRes = "error";

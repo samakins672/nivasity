@@ -317,15 +317,35 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                   <div class="tab-pane fade hide" id="cart" role="tabpanel" aria-labelledby="cart">
                     
                   </div>
+                  
 
-                  <!-- Spinner Start -->
-                  <!-- <div id="spinner"
-                    class="show position-fixed translate-middle top-50 start-50 d-flex align-items-center justify-content-center">
-                    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
-                      <span class="sr-only"></span>
+                  <!-- User verifyTransaction Modal -->
+                  <div class="modal fade" id="verifyTransaction" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" role="dialog" aria-labelledby="verifyTransactionLabel"
+                    aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered" role="document">
+                      <div class="modal-content">
+                        <div class="modal-header">
+                          <h4 class="modal-title fw-bold" id="verifyTransactionLabel">Verifying transaction...</h4>
+                        </div>
+                        <div class="modal-body">
+                          <h4 class="text-center">
+                            <div class="spinner-grow text-secondary spinner-1 me-1 mb-3" role="status">
+                              <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="spinner-grow text-secondary spinner-2 me-1 mb-3" role="status">
+                              <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="spinner-grow text-secondary spinner-3 mb-3" role="status">
+                              <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <br>
+                            Please hang on in just a few seconds so we can verify your payment...
+                          </h4>
+                        </div>
+                      </div>
                     </div>
-                  </div> -->
-                  <!-- Spinner End -->
+                  </div>
+
                 </div>
 
               </div>
@@ -635,57 +655,97 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
 
         // Now make the Flutterwave API call
         $.ajax({
-            url: 'model/getKey.php',
-            type: 'POST',
-            data: { getKey: 'get-Key'},
-            success: function (data) {
-                var flw_pk = data.flw_pk;
+          url: 'model/getKey.php',
+          type: 'POST',
+          data: { getKey: 'get-Key'},
+          success: function (data) {
+            var flw_pk = data.flw_pk;
 
-                // Call FlutterwaveCheckout with the retrieved flw_pk and dynamically generated subaccounts
-                FlutterwaveCheckout({
-                    public_key: flw_pk,
-                    tx_ref: myUniqueID,
-                    amount: transfer_amount,  // Calculate total amount dynamically
-                    currency: "NGN",
-                    subaccounts: subaccounts,  // Pass the dynamically generated subaccounts
-                    payment_options: "card, banktransfer, ussd",
-                    redirect_url: "https://nivasity.com/model/handle-fw-payment.php",
-                    customer: {
-                        email: email,
-                        phone_number: phone,
-                        name: u_name,
-                    },
-                });
-            }
+            // Call FlutterwaveCheckout with the retrieved flw_pk and dynamically generated subaccounts
+            FlutterwaveCheckout({
+              public_key: flw_pk,
+              tx_ref: myUniqueID,
+              amount: transfer_amount,
+              currency: "NGN",
+              subaccounts: subaccounts,
+              payment_options: "card, banktransfer, ussd",
+              // redirect_url: "https://nivasity.com/model/handle-fw-payment.php",
+              callback: function(payment) {
+                console.log(payment);
+                // Send AJAX verification request to backend
+                verifyTransactionOnBackend(payment.transaction_id, payment.tx_ref);
+              },
+              onclose: function(status) {
+                if (!status) {
+                  console.log(status);
+
+                  // Show the modal with jQuery
+                  $('#verifyTransaction').modal({
+                    backdrop: 'static',
+                    keyboard: false
+                  }).modal('show');
+                  
+                  $('.spinner-grow').hide();
+                  
+                  // Show each spinner with a delay for a staggered effect
+                  setTimeout(function() { $('.spinner-1').show(); }, 100);
+                  setTimeout(function() { $('.spinner-2').show(); }, 300);
+                  setTimeout(function() { $('.spinner-3').show(); }, 600);
+                }
+              },
+              customer: {
+                  email: email,
+                  phone_number: phone,
+                  name: u_name,
+              },
+            });
+          }
         });
       });
 
       // free checkout button click event
       $('#cart').on('click', '.free-cart-checkout', function() {
         function generateUniqueID() {
-            const currentDate = new Date();
-            const uniqueID = `nivas_<?php echo $user_id ?>_${currentDate.getTime()}`;
-            return uniqueID;
+          const currentDate = new Date();
+          const uniqueID = `nivas_<?php echo $user_id ?>_${currentDate.getTime()}`;
+          return uniqueID;
         }
 
         const tx_ref = generateUniqueID();
 
         // Now make the Flutterwave API call
         $.ajax({
-            url: 'model/handle-free-payment.php',
-            type: 'GET',
-            data: { tx_ref: tx_ref},
-            success: function (response) {
-              if (response.status === 'success') {
-                location.reload();
-              }
-            },
-            error: function () {
-              // Handle error
-              console.error('Error checking out!');
+          url: 'model/handle-free-payment.php',
+          type: 'GET',
+          data: { tx_ref: tx_ref},
+          success: function (response) {
+            if (response.status === 'success') {
+              location.reload();
             }
+          },
+          error: function () {
+            // Handle error
+            console.error('Error checking out!');
+          }
         });
       });
+
+      function verifyTransactionOnBackend(transaction_id, tx_ref) {
+        $.ajax({
+          url: 'model/handle-fw-payment.php',
+          type: 'GET',
+          data: { tx_ref: tx_ref, transaction_id: transaction_id, callback: 1},
+          success: function (response) {
+            if (response.status === 'success') {
+              location.reload();
+            }
+          },
+          error: function () {
+            // Handle error
+            console.error('Error checking out!');
+          }
+        });
+      }
 
     });
   </script>

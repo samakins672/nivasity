@@ -125,19 +125,23 @@ if (isset($_GET['transaction_id'])) {
     mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, status) VALUES ('$tx_ref', $user_id, $total_amount, '$status')");
     
 
-    // Close the database connection if needed
-    mysqli_close($conn);
-
     // Empty the cart variables for both manuals and events
     $_SESSION["nivas_cart$user_id"] = array();
     $_SESSION["nivas_cart_event$user_id"] = array();
 
-    header('Location: ../store.php?payment=successful');
+    if (!isset($_GET['callback'])) {
+        header('Location: ../store.php?payment=successful');
+    }
   } else {
-    // Inform the customer their payment was unsuccessful
-    header('Location: ../store.php?payment=unsuccessful');
+    if (!isset($_GET['callback'])) {
+        // Inform the customer their payment was unsuccessful
+        header('Location: ../store.php?payment=unsuccessful');
+    }
   }
 }
+
+// Set the appropriate headers for JSON response
+header('Content-Type: application/json');
 
 // Output the final status and message
 echo json_encode(array('status' => $statusRes, 'message' => $messageRes));
