@@ -89,7 +89,7 @@ function sendMail($subject, $body, $to) {
   <body>
       <div class="container">
           <div class="header">
-              <img src="https:///nivasity.com/assets/images/nivasity-main.png" alt="Nivasty">
+              <img src="https://nivasity.com/assets/images/nivasity-main.png" alt="Nivasty">
           </div>
           <div class="content">
               '.$body.'
