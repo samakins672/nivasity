@@ -11959,7 +11959,6 @@ textarea.form-control-lg {
 
 .form-check .form-check-input {
   float: left;
-  margin-left: -1.5em;
 }
 
 .form-check-input {
@@ -11989,9 +11988,9 @@ textarea.form-control-lg {
 }
 
 .form-check-input:focus {
-  border-color: #86b7fe;
+  border-color: #ff933b;
   outline: 0;
-  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+  box-shadow: 0 0 0 0.25rem rgba(253, 149, 13, 0.25);
 }
 
 .form-check-input:checked {
@@ -12030,7 +12029,6 @@ textarea.form-control-lg {
 
 .form-switch .form-check-input {
   width: 2em;
-  margin-left: -2.5em;
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%280, 0, 0, 0.25%29'/%3e%3c/svg%3e");
   background-position: left center;
   border-radius: 2em;

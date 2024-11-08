@@ -529,8 +529,8 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                                               data-school="<?php echo $event['school']; ?>" data-location="<?php echo $event['location']; ?>"
                                               data-event_time="<?php echo $event_time2; ?>" data-event_date="<?php echo $event_date2; ?>" 
                                               data-bs-toggle="modal" data-bs-target="#<?php echo $event_modal = ($user_status == 'verified') ? 'addEvent': 'verificationManual'?>">Edit</button>
-                                              <!-- <button class="btn btn-md btn-dark mb-0 btn-block export-event" data-bs-toggle="modal" data-bs-target="#exportEvent"
-                                                data-event_id="<?php #echo $event['id']; ?>"><i class="mdi mdi-file-export m-0 text-white"></i></button> -->
+                                              <button class="btn btn-md btn-dark mb-0 btn-block export_event" data-title="<?php echo $event['title']; ?>" data-event_id="<?php echo $event['id']; ?>">
+                                                <i class="mdi mdi-file-export m-0 text-white"></i></button>
                                             </td>
                                           </tr>
                                     <?php } ?>
@@ -668,11 +668,17 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                       <form id="manual-form">
                         <input type="hidden" name="manual_id" value="0">
                         <div class="modal-body">
-                          <div class="form-outline mb-4">
+                          <div class="form-outline mb-2">
                             <input type="text" name="title" class="form-control form-control-lg w-100" required="">
-                            <label class="form-label" for="title">Manual Title</label>
+                            <label class="form-label" for="title">Material Title</label>
                           </div>
                           <div class="row">
+                            <div class="col-12">
+                              <div class="form-check form-switch">
+                                <input class="form-check-input form-check-inline free" type="checkbox" id="free">
+                                <label class="form-check-label" for="free">toggle if it is FREE</label>
+                              </div>
+                            </div>
                             <div class="col-md-6">
                               <div class="form-outline mb-4">
                                 <input type="text" name="course_code" class="form-control form-control-lg w-100"
@@ -768,6 +774,10 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                           <div class="form-outline mb-4" id="location-container">
                             <input type="text" name="location" class="form-control form-control-lg w-100">
                             <label class="form-label" for="location">Location</label>
+                          </div>
+                          <div class="form-check form-switch">
+                            <input class="form-check-input form-check-inline free" type="checkbox" id="free">
+                            <label class="form-check-label" for="free">toggle if it is FREE</label>
                           </div>
 
                           <div class="row">
@@ -906,7 +916,19 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
           reader.readAsDataURL(file); // Read the file as a data URL
         }
       });
-      
+
+      // Listen for changes on the checkbox
+      $('.free').change(function () {
+        // Check if the checkbox is checked
+        if ($(this).is(':checked')) {
+          // Set price input to read-only and set value to 0
+          $('input[name="price"]').prop('readonly', true).val(0);
+        } else {
+          // Make price input editable again and clear the value
+          $('input[name="price"]').prop('readonly', false).val('');
+        }
+      });
+
       $('#event_type').change(function() {
         // Hide all containers and remove the required attribute
         $('#school-container').hide().find('select').prop('required', false);
@@ -1208,15 +1230,81 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
 
               // Open a new window with the formatted data
               var exportWindow = window.open("", "_blank");
-              exportWindow.document.write("<html><head><title>Exported Data</title> <style>body {padding: 50px;margin: 0;width: 100%;font-family: sans-serif;box-sizing: border-box;} table{width: 80%} th{text-align: left}</style></head><body>");
+              exportWindow.document.write("<html><head><title>Exported Data</title> <style>body {padding: 50px;margin: 0;width: 100%;font-family: sans-serif;box-sizing: border-box;} table{width: 100%} th{text-align: left}</style></head><body>");
               exportWindow.document.write(heading+table);
               exportWindow.document.write("</body></html>");
 
               // Add a print button in the new window
               exportWindow.document.write("<script>window.print();</scr" + "ipt>");
-                // AJAX call successful, stop the spinner and update button text
-                button.html(originalText);
-                button.prop("disabled", false);
+              // AJAX call successful, stop the spinner and update button text
+              button.html(originalText);
+              button.prop("disabled", false);
+            },
+            error: function () {
+              alert("Error fetching data.");
+            },
+          });
+        }, 2000); // Simulated AJAX delay of 2 seconds
+      });
+
+      $('.export_event').click(function (event) {
+        var event_id = $(this).data('event_id');
+        var title = $(this).data('title');
+
+        // Define export button
+        var button = $(this);
+        var originalText = button.html();
+
+        // Display the spinner and disable the button
+        button.html('<div class="spinner-border text-white" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
+        button.prop('disabled', true);
+
+        // Simulate an AJAX call using setTimeout
+        setTimeout(function () {
+          // Call the Ajax function to get data
+          $.ajax({
+            url: "../model/export.php", // Replace with your server-side script to fetch data
+            type: "POST",
+            data: {event_id: event_id},
+            success: function (data) {
+              heading = "<center><h2 style='text-transform: uppercase'>TICKET LIST FOR "+title+"</h2></center>"
+              
+              // Format data into a table
+              var table = "<table><tr><th>S/N</th><th>NAMES</th><th>DATE</th><th>TICKET ID</th></tr>";
+
+              $.each(data, function (index, item) {
+                // Parse the date
+                var dateObj = new Date(item.created_at);
+                
+                // Format date to 'DD MMM.' 
+                var day = dateObj.getDate().toString().padStart(2, '0');
+                var month = dateObj.toLocaleString("en-US", { month: "short" });
+                var formattedDate = `${day} ${month}.`;
+
+                // Format time to 'HH:MM AM/PM'
+                var formattedTime = dateObj.toLocaleTimeString("en-US", {
+                  hour: '2-digit', minute: '2-digit', hour12: true
+                });
+
+                // Combine date and time
+                var formattedDateTime = formattedDate + " " + formattedTime;
+
+                table += "<tr><td>" + (index + 1) + "</td><td>" + item.name + "</td><td>" + formattedDateTime + "</td><td>" + item.ref_id + "</td></tr>";
+              });
+              
+              table += "</table>";
+
+              // Open a new window with the formatted data
+              var exportWindow = window.open("", "_blank");
+              exportWindow.document.write("<html><head><title>Exported Data</title> <style>body {padding: 50px;margin: 0;width: 100%;font-family: sans-serif;box-sizing: border-box;} table{width: 100%} th{text-align: left}</style></head><body>");
+              exportWindow.document.write(heading+table);
+              exportWindow.document.write("</body></html>");
+
+              // Add a print button in the new window
+              exportWindow.document.write("<script>window.print();</scr" + "ipt>");
+              // AJAX call successful, stop the spinner and update button text
+              button.html(originalText);
+              button.prop("disabled", false);
             },
             error: function () {
               alert("Error fetching data.");

@@ -78,6 +78,7 @@ if (isset($_POST['reload_cart'])) {
             $status_c = 'danger';
         } else {
             $total_cart_price += $cart_item['price'];
+            $total_cart_event += 1;
 
             // Check if the seller already exists in the session
             if (isset($_SESSION['cart_sellers'][$seller_code])) {

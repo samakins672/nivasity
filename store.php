@@ -705,6 +705,14 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
 
       // free checkout button click event
       $('#cart').on('click', '.free-cart-checkout', function() {
+        // Define event button
+        var button = $(this);
+        var originalText = button.html();
+
+        // Display the spinner and disable the button
+        button.html('<div class="spinner-border text-white" style="width: 1.5rem; height: 1.5rem;" role="status"><span class="sr-only"></span>');
+        button.prop('disabled', true);
+
         function generateUniqueID() {
           const currentDate = new Date();
           const uniqueID = `nivas_<?php echo $user_id ?>_${currentDate.getTime()}`;
@@ -722,6 +730,10 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
             if (response.status === 'success') {
               location.reload();
             }
+
+            // AJAX call successful, stop the spinner and update button text
+            button.html(originalText);
+            button.prop("disabled", false);
           },
           error: function () {
             // Handle error
