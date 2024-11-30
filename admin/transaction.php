@@ -146,7 +146,11 @@ $transaction_query = mysqli_query($conn, "SELECT * FROM $item_table2 WHERE selle
                             </td>
                             <td>
                               <h6 ><?php echo $buyer['first_name'] . ' ' . $buyer['last_name'] ?></h6>
-                              <p>Matric no: <span class="fw-bold"><?php echo $buyer['matric_no'] ?></span></p>
+                              <?php if ($buyer['role'] == 'student' || $buyer['role'] == 'hoc'):?>
+                                <p>Matric no: <span class="fw-bold"><?php echo $buyer['matric_no'] ?></span></p>
+                              <?php else: ?>
+                                <p>Public User</p>
+                              <?php endif; ?>
                             </td>
                             <td>
                               <h6 class="fw-bold text-secondary text-uppercase"><?php echo $item['title'] ?></h6>
