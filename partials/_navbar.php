@@ -53,8 +53,10 @@
                 <small class="text-secondary">(Student)</small>
               <?php elseif ($_SESSION['nivas_userRole'] == 'hoc'): ?>
                 <small class="text-secondary">(HOC)</small>
-              <?php else: ?>
+              <?php elseif ($_SESSION['nivas_userRole'] == 'org_admin'): ?>
                 <small class="text-secondary">(Event Host)</small>
+              <?php else: ?>
+                <small class="text-secondary">(Public User)</small>
               <?php endif; ?>
             </span>
           </div>

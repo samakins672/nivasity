@@ -48,6 +48,8 @@ if (isset($_POST['signup'])) {
 
       if ($role == 'org_admin') {
         $verificationCode = "setup_org.html?verify=$verificationCode";
+      } elseif ($role == 'visitor') {
+        $verificationCode = "verify.html?verify=$verificationCode";
       } else {
         $verificationCode = "setup.html?verify=$verificationCode";
       }
@@ -200,10 +202,10 @@ if (isset($_POST['login'])) {
     if ($user['status'] == 'unverified') {
       $statusRes = "unverified";
       $messageRes = "Your email is unverified. <br>Please check your mail inbox for the verification link.";
-    } else if ($user['status'] == 'denied') {
+    } elseif ($user['status'] == 'denied') {
       $statusRes = "denied";
       $messageRes = "Your account is temporarily suspended. Contact our support team for help.";
-    } else if ($user['status'] == 'deactivated') {
+    } elseif ($user['status'] == 'deactivated') {
       $statusRes = "deactivated";
       $messageRes = "Your account has been deactivated. Contact our support team to reopen your account.";
     } else {
@@ -212,7 +214,7 @@ if (isset($_POST['login'])) {
       $_SESSION['nivas_userRole'] = $user['role'];
       $_SESSION['nivas_userSch'] = $user['school'];
 
-      if ($_SESSION['nivas_userRole'] !== 'student') {
+      if ($_SESSION['nivas_userRole'] !== 'student' && $_SESSION['nivas_userRole'] !== 'visitor') {
         $roleRes = 'admin';
       }
 

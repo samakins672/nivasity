@@ -6,7 +6,7 @@
         <span class="mb-1 mt-1 fw-bold d-block">
           <?php echo $user_name?><br>
           <?php if ($_SESSION['nivas_userRole'] == 'hoc'): ?>
-            <small class="text-secondary">(HOC)</small>
+            <small class="text-secondary">(HOC/Lecturer)</small>
           <?php else: ?>
             <small class="text-secondary">(Event Host)</small>
           <?php endif; ?>

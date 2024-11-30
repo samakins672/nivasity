@@ -188,7 +188,7 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
             <div class="service-item d-flex">
               <div class="icon rounded-circle flex-shrink-0"><i class="bi bi-person-badge-fill"></i></div>
               <div>
-                <h4 class="title"><a class="stretched-link">Are you an HOC?</a></h4>
+                <h4 class="title"><a class="stretched-link">Are you an HOC or Lecturer?</a></h4>
                 <p class="description">Easily upload and sell your course materials to help fellow students. Reach more
                   learners and earn as you share valuable knowledge.</p>
               </div>
@@ -232,7 +232,7 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
             <div class="content">
               <h3>Get the Right Course Materials at Your Fingertips</h3>
               <p>
-                Nivasity connects students with essential course materials curated by HOCs, making studying easier and
+                Nivasity connects students with essential course materials curated by HOC or Lecturers, making studying easier and
                 more targeted for every school and department.
               </p>
               <ul>
@@ -241,7 +241,7 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
                 <li><i class="bi bi-search"></i> <strong>Easy to Find:</strong> Materials are filtered by school,
                   department, or course to find what you need instantly.</li>
                 <li><i class="bi bi-cash-coin"></i> <strong>Affordable and Reliable:</strong> Quality materials from
-                  trusted HOCs, priced for student budgets.</li>
+                  trusted HOC or Lecturers, priced for student budgets.</li>
               </ul>
             </div>
           </div>
@@ -301,7 +301,7 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
                             <h4 class="fw-bold price">₦ <?php echo number_format($manual['price']) ?></h4>
                             <p class="card-text">
                               Due date:<span class="fw-bold text-<?php echo $status_c ?> due_date"> <?php echo $due_date ?></span><br>
-                              <span class="text-secondary"><?php echo $seller_fn . ' ' . $seller_ln ?> (HOC)</span>
+                              <span class="text-secondary"><?php echo $seller_fn . ' ' . $seller_ln ?> (HOC or Lecturer)</span>
                             </p>
                           </div>
                         </div>
@@ -326,7 +326,7 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
                 <div class="card card-rounded shadow-sm">
                   <div class="card-body">
                     <h5 class="card-title">All manuals have been bought</h5>
-                    <p class="card-text">Check back later when your HOC uploads a new manual.</p>
+                    <p class="card-text">Check back later when your HOC or Lecturer uploads a new manual.</p>
                   </div>
                 </div>
               </div>
@@ -573,7 +573,7 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
                 <h3>What is Nivasity?</h3>
                 <div class="faq-content">
                   <p>Nivasity is an online platform that allows students to buy academic materials from Heads of Courses
-                    (HOCs) and purchase event tickets from various organizers.</p>
+                    (HOC) or Lecturer and purchase event tickets from various organizers.</p>
                 </div>
                 <i class="faq-toggle bi bi-chevron-right"></i>
               </div><!-- End Faq item-->
@@ -601,7 +601,7 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
                 <div class="faq-content">
                   <p>We offer a wide range of course materials covering different subjects and courses, all provided by
                     trusted
-                    Heads of Courses (HOCs).</p>
+                    Heads of Courses (HOC) or Lecturers.</p>
                 </div>
                 <i class="faq-toggle bi bi-chevron-right"></i>
               </div><!-- End Faq item-->

@@ -146,12 +146,14 @@
   
                 <div class="row">
                   <div class="col-md-6 mb-4">
-                    <label class="form-check-label fw-bold display-block-inline">Account Type: &nbsp;</label><br />
+                    <label class="form-check-label fw-bold display-block-inline">What best describe you? &nbsp;</label><br />
                     <div class="form-group">
                       <select id="role" name="role" class="form-select form-select-lg">
-                        <option value="student">Student</option>
-                        <option value="hoc">HOC</option>
-                        <option value="org_admin">Event Organiser</option>
+                        <option value="hoc">I'm an HOC or Department Governor</option>
+                        <option value="student">I'm a Student</option>
+                        <option value="hoc">I'm a Lecturer or HOD</option>
+                        <option value="org_admin">I'm Here to Host Events</option>
+                        <option value="visitor">I'm a Public User</option>
                       </select>
                     </div>
                   </div>
@@ -333,7 +335,7 @@
 
     $(document).ready(function () {
       $('#role').change(function() {
-        if ($(this).val() === 'org_admin') {
+        if ($(this).val() === 'org_admin' || $(this).val() === 'visitor') {
           // Hide the school dropdown if "Business Owner" is selected
           $('#school-container').hide();
         } else {
@@ -458,8 +460,8 @@
         // Serialize the form data
         let formData = $(this).serializeArray();
         
-        // Check if role is 'org_admin' and remove 'school' from form data if so
-        if ($('#role').val() === 'org_admin') {
+        // Check if role is 'org_admin' or 'visitor' and remove 'school' from form data if so
+        if ($('#role').val() === 'org_admin' || $('#role').val() === 'visitor') {
           formData = formData.filter(field => field.name !== 'school');
         }
 

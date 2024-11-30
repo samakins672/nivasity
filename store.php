@@ -49,7 +49,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
               <div class="home-tab">
                 <div class="d-flex align-items-center justify-content-between border-bottom">
                   <ul class="nav nav-tabs d-flex" role="tablist">
-                    <?php if ($_SESSION['nivas_userRole'] !== 'org_admin'): ?>
+                    <?php if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !== 'visitor'): ?>
                     <li class="nav-item">
                       <a class="nav-link px-3 fw-bold" id="store-tab" data-bs-toggle="tab" href="#store"
                         role="tab" aria-controls="store" aria-selected="false">Store</a>
@@ -66,7 +66,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                   </ul>
                 </div>
                 <div class="tab-content tab-content-basic">
-                  <?php if ($_SESSION['nivas_userRole'] !== 'org_admin'): ?>
+                  <?php if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !== 'visitor'): ?>
                   <div class="tab-pane fade hide" id="store" role="tabpanel" aria-labelledby="store">
                     <div class="row">
                       <div class="col-5 col-md-3 offset-md-9 form-group me-2">
@@ -138,7 +138,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                                             <h3 class="fw-bold price">₦ <?php echo number_format($manual['price']) ?></h3>
                                             <p class="card-text">
                                               Due date:<span class="fw-bold text-<?php echo $status_c ?> due_date"> <?php echo $due_date ?></span><br>
-                                              <span class="text-secondary"><?php echo $seller_fn . ' ' . $seller_ln ?> (HOC)</span>
+                                              <span class="text-secondary"><?php echo $seller_fn . ' ' . $seller_ln ?> (HOC/Lecturer)</span>
                                             </p>
                                           </div>
                                         </div>
@@ -165,20 +165,20 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                                       <div class="col-12">
                                           <div class="card card-rounded shadow-sm">
                                             <div class="card-body">
-                                              <h5 class="card-title">All manuals have been bought</h5>
-                                              <p class="card-text">Check back later when your HOC uploads a new manual.</p>
+                                              <h5 class="card-title">All materials have been bought</h5>
+                                              <p class="card-text">Check back later when your HOC/Lecturer uploads a new manual.</p>
                                             </div>
                                           </div>
                                       </div>
                                 <?php }
                           } else {
-                            // Display a message when no manuals are found
+                            // Display a message when no materials are found
                             ?>
                                   <div class="col-12">
                                       <div class="card card-rounded shadow-sm">
                                         <div class="card-body">
-                                          <h5 class="card-title text-center">No manuals available.</h5>
-                                          <p class="card-text text-center">Check back later when your HOC uploads a new manual.</p>
+                                          <h5 class="card-title text-center">No material available.</h5>
+                                          <p class="card-text text-center">Check back later when your HOC/Lecturer uploads a new manual.</p>
                                         </div>
                                       </div>
                                   </div>

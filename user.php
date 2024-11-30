@@ -36,10 +36,12 @@ include('model/page_config.php');
                       <a class="nav-link px-3 active ps-0 fw-bold" id="home-tab" data-bs-toggle="tab" href="#account" role="tab"
                         aria-controls="account" aria-selected="true">Account</a>
                     </li>
+                    <?php if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !== 'visitor'): ?>
                     <li class="nav-item">
                       <a class="nav-link px-3 fw-bold" id="contact-tab" data-bs-toggle="tab" href="#academics" role="tab"
                         aria-selected="false">Academic Info</a>
                     </li>
+                    <?php endif; ?>
                     <li class="nav-item">
                       <a class="nav-link px-3 fw-bold" id="profile-tab" data-bs-toggle="tab" href="#security" role="tab"
                         aria-selected="false">Security</a>
@@ -217,6 +219,7 @@ include('model/page_config.php');
                       </div>
                     </div>
                   </div>
+                  <?php if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !== 'visitor'): ?>
                   <div class="tab-pane fade hide" id="academics" role="tabpanel" aria-labelledby="academics">
                     <div class="row">
                       <div class="col-12">
@@ -271,6 +274,7 @@ include('model/page_config.php');
                       </div>
                     </div>
                   </div>
+                  <?php endif; ?>
                 </div>
                 
                                                 

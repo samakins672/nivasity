@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>User Verify - Nivasity</title>
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+
+  <!-- MDB -->
+  <link href="assets/css/mdb.css" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/vendors/mdi/css/materialdesignicons.min.css">
+  <!-- Select2 -->
+  <link href="assets/vendors/select2/select2.min.css" rel="stylesheet" />
+  <!-- Font Awesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
+  <link href="assets/css/style.css" rel="stylesheet">
+
+  <!-- main js -->
+  <script src="assets/js/main.js"></script>
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-30QJ6DSHBN"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+
+    gtag('config', 'G-30QJ6DSHBN');
+  </script>
+
+  <style>
+    .divider:after,
+    .divider:before {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: #eee;
+    }
+  </style>
+</head>
+
+<body class="bg-image">
+  <div class="container vh-100">
+    <!-- Bootstrap alert container -->
+    <div id="alertBanner"
+      class="alert alert-success text-center -2 alert-dismissible end-2 top-2 fade show position-fixed w-auto p-2 px-4"
+      role="alert" style="z-index: 1000; display: none;">
+      Your email has been verified successfully!
+    </div>
+
+    <div class="row d-flex align-items-center justify-content-center h-100 p-3">
+      <div class="card rounded rounded-7 col-md-6 px-2 py-5 p-md-3 bg-white mx-3 mx-md-5">
+        <div class="card-body">
+          <div class="w-75 w-md-50 mb-4 mx-auto">
+            <img src="assets/images/nivasity-main.png" class="img-fluid" alt="Phone image">
+          </div>
+          
+          <div class="d-flex flex-column justify-content-center">
+            <span class="spinner-border spinner-border-md text-dark mt-5 mb-3 mx-auto" role="status"
+              aria-hidden="true"></span>
+            <span class="success_icon text-center"><span class="mdi mdi-check-all text-success fw-bold fs-1 mt-5 mb-3"></span></span>
+            <span class="error_icon text-center"><span class="mdi mdi-alert-circle text-danger fs-1 mt-5 mb-3"></span></span>
+            <h5 class="fw-bold text-dark text-center">Verifying . . .</h5>
+  
+            <p class="error_icon text-center">
+              <a class="fw-bold" href="signin.html"><span class="mdi mdi-keyboard-backspace"></span> Go to Signin Page</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.1/mdb.min.js"></script>
+  <script src="assets/vendors/select2/select2.min.js"></script>
+
+  <!-- main js -->
+  <script src="assets/js/script.js"></script>
+  <!-- Initialize Bootstrap tooltips -->
+  <script>
+    $('.success_icon').hide();
+    $('.error_icon').hide();
+
+    $(document).ready(function () {
+      const urlParams = new URLSearchParams(window.location.search);
+      const verify = urlParams.get('verify');
+
+      // Gather form data
+      const formData = {
+        verify: verify,
+      };
+      $.ajax({
+        type: 'POST',
+        url: 'model/verify_visitor.php',
+        data: {verify: verify},
+        success: function (data) {
+          if (data.status == 'success') {
+            $('.spinner-border').hide();
+            $('.success_icon').show();
+          $('h5').html(`Yay 🎉<br> Your Account has been verified successfully!<br>
+                        <small class="text-success pt-2">Redirecting in few seconds...<br>
+                          <div class="spinner-grow text-primary spinner-1 mt-3" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                          </div>
+                          <div class="spinner-grow text-primary spinner-2 mt-3" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                          </div>
+                          <div class="spinner-grow text-primary spinner-3 mt-3"status">
+                            <span class="visually-hidden">Loading...</span>
+                          </div>
+                        </small>`);
+
+          $('.spinner-grow').hide();
+          
+          // Show each spinner with a delay for a staggered effect
+          setTimeout(function() { $('.spinner-1').show(); }, 100);
+          setTimeout(function() { $('.spinner-2').show(); }, 300);
+          setTimeout(function() { $('.spinner-3').show(); }, 600);
+            
+            // Wait 3 seconds and redirect to the sign-in page
+            setTimeout(function () {
+              window.location.href = '/signin.html';
+            }, 3000);
+          } else {
+            $('.spinner-border').hide();
+            $('.error_icon').show();
+            $('h5').html('<small class="text-danger">This link is wrong or has expired!</small>');
+            
+            showToast('bg-danger', 'An error occurred.');
+          }
+        },
+        error: function (xhr, status, error) {
+          $('.spinner-border').hide();
+          $('.error_icon').show();
+          $('h5').html('<small class="text-danger">This link is wrong or has expired!</small>');
+
+          showToast('bg-danger', 'An error occurred.');
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>

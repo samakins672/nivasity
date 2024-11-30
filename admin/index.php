@@ -3,7 +3,7 @@ session_start();
 include('../model/config.php');
 include('../model/page_config.php');
 
-if ($_SESSION['nivas_userRole'] == 'student') {
+if ($_SESSION['nivas_userRole'] == 'student' || $_SESSION['nivas_userRole'] == 'visitor') {
   header('Location: ../store.php');
   exit();
 } elseif ($_SESSION['nivas_userRole'] == 'hoc') {

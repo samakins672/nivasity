@@ -26,11 +26,11 @@ if (isset($_SESSION['nivas_userId'])) {
   
   $is_admin_role = False;
   
-  if ($_SESSION['nivas_userRole'] == 'org_admin') {
+  if ($_SESSION['nivas_userRole'] == 'org_admin' || $_SESSION['nivas_userRole'] == 'visitor') {
     $school_id = 1;
     $user_dept = 1;
   }
-  if ($_SESSION['nivas_userRole'] != 'student') {
+  if ($_SESSION['nivas_userRole'] !== 'student' && $_SESSION['nivas_userRole'] !== 'visitor') {
     $is_admin_role = True;
   }
 }
