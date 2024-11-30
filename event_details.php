@@ -184,7 +184,7 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
                 alt="nivasity_user_<?php echo $seller_fn ?>">
               <div class="ms-3 d-flex flex-column">
                 <h6 class="fw-bold mb-0"><?php echo $organisation['business_name'] ?></h6>
-                <small class="fw-bold text-primary">Verified</small>
+                <small class="fw-bold text-primary"><i class="bi bi-patch-check-fill"></i> Verified</small>
               </div>
             </div>
 
