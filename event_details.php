@@ -48,12 +48,12 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
 <head>
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title>Nivasity Web Services</title>
+  <title><?php echo $event_title; ?> | Nivasity</title>
   <meta name="description" content="">
   <meta name="keywords" content="">
 
   <!-- Open Graph Meta Tags -->
-  <meta property="og:title" content="<?php echo $event_title; ?>">
+  <meta property="og:title" content="<?php echo $event_title; ?> | Nivasity">
   <meta property="og:description" content="<?php echo $event_description; ?>">
   <meta property="og:image" content="<?php echo $event_image; ?>">
   <meta property="og:url" content="<?php echo $event_url; ?>">

@@ -1,7 +1,7 @@
 <?php
 $url = substr($_SERVER["SCRIPT_NAME"], strrpos($_SERVER["SCRIPT_NAME"], "/") + 1);
 
-if (!isset($_SESSION['nivas_userId']) && $url !== 'index.php' && $url !== '' && $url !== '/') {
+if (!isset($_SESSION['nivas_userId']) && $url !== 'index.php' && $url !== 'event_details.php' && $url !== '' && $url !== '/') {
   header('Location: ../signin.html');
   exit();
 }
