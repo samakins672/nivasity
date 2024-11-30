@@ -27,6 +27,20 @@ if (!isset($_GET['event_id']) || empty($_GET['event_id'])) {
 $event_query = mysqli_query($conn, "SELECT * FROM events WHERE id = $event_id");
 $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' ORDER BY `id` DESC LIMIT 5");
 
+// Fetch event details to populate Open Graph meta tags
+if ($event_query && mysqli_num_rows($event_query) > 0) {
+  $event = mysqli_fetch_array($event_query);
+  $event_title = htmlspecialchars($event['title']);
+  $event_description = htmlspecialchars($event['description'] ?: "Join us for an exciting event filled with opportunities to connect, learn, and explore. Don't miss out on this experience—more details coming soon!");
+  $event_description = substr($event_description, 0, 150) . (strlen($event_description) > 150 ? '...' : ''); // Limit to 150 characters
+  $event_image = "https://nivasity.com/assets/events/" . urlencode($event['image']);
+  $event_url = "https://nivasity.com/event_details.php?event_id=" . urlencode($event_id);
+} else {
+  // Redirect to $link_to if event is not found
+  header("Location: $link_to");
+  exit();
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -37,6 +51,19 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
   <title>Nivasity Web Services</title>
   <meta name="description" content="">
   <meta name="keywords" content="">
+
+  <!-- Open Graph Meta Tags -->
+  <meta property="og:title" content="<?php echo $event_title; ?>">
+  <meta property="og:description" content="<?php echo $event_description; ?>">
+  <meta property="og:image" content="<?php echo $event_image; ?>">
+  <meta property="og:url" content="<?php echo $event_url; ?>">
+  <meta property="og:type" content="website">
+
+  <!-- Twitter Meta Tags -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="<?php echo $event_title; ?>">
+  <meta name="twitter:description" content="<?php echo $event_description; ?>">
+  <meta name="twitter:image" content="<?php echo $event_image; ?>">
 
   <!-- Favicons -->
   <link href="favicon.ico" rel="icon">
@@ -126,8 +153,6 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
         <div class="row gy-4 justify-content-between features-item mb-5">
           <div class="col-lg-8 px-5" data-aos="fade-up" data-aos-delay="100">
             <?php 
-              $event = mysqli_fetch_array($event_query);
-              $event_id = $event['id'];
               $seller_id = $event['user_id'];
 
               $seller_q = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = $seller_id"));

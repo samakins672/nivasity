@@ -38,6 +38,19 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
   <meta name="description" content="">
   <meta name="keywords" content="">
 
+  <!-- Open Graph Meta Tags -->
+  <meta property="og:title" content="Nivasity - Empowering Students and Educators">
+  <meta property="og:description" content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
+  <meta property="og:image" content="https://nivasity.com/assets/images/nivasity-main.png">
+  <meta property="og:url" content="https://nivasity.com">
+  <meta property="og:type" content="website">
+
+  <!-- Twitter Meta Tags -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Nivasity - Empowering Students and Educators">
+  <meta name="twitter:description" content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
+  <meta name="twitter:image" content="https://nivasity.com/assets/images/nivasity-main.png">
+
   <!-- Favicons -->
   <link href="favicon.ico" rel="icon">
   <link href="logo.png" rel="apple-touch-icon">
@@ -785,7 +798,7 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
         var type = button.data('type');
         var title = button.data('title');
         var shareText = 'Check out '+title+' on nivasity and order now!';
-        
+
         if (type == 'product') {
           var shareUrl = "https://nivasity.com/model/cart_guest.php?share=1&action=1&type="+type+"&product_id="+product_id;
         } else {
