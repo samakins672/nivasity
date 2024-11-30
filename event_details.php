@@ -24,8 +24,8 @@ if (isset($_SESSION['nivas_userId'])) {
   $manual_query = mysqli_query($conn, "SELECT * FROM manuals WHERE dept = $user_dept AND status = 'open' AND school_id = $school_id ORDER BY `id` DESC");
 }
 
-$event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' ORDER BY `event_date` DESC LIMIT 7");
-$event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' ORDER BY `id` DESC LIMIT 3");
+$event_query = mysqli_query($conn, "SELECT * FROM events WHERE id = 9");
+$event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' ORDER BY `id` DESC LIMIT 5");
 
 ?>
 <!DOCTYPE html>
@@ -121,152 +121,89 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
 
     <!-- Manual Section -->
     <section id="manuals" class="manuals section pb-2">
-      <!-- Section Title -->
-      <div class="container section-title" data-aos="fade-up">
-        <h2 class="pb-2">Course Materials/Manuals</h2>
-      </div><!-- End Section Title -->
-
+      
       <div class="container mb-3">
         <div class="row gy-4 justify-content-between features-item">
-          <div class="col-lg-5" data-aos="fade-up" data-aos-delay="100">
-            <img src="assets/images/dashboard/banner-1.png" class="img-fluid"
-              alt="Students studying with course materials">
+          <div class="col-lg-8 px-5" data-aos="fade-up" data-aos-delay="100">
+            <?php 
+              $event = mysqli_fetch_array($event_query);
+              $event_id = $event['id'];
+              $seller_id = $event['user_id'];
+
+              $seller_q = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = $seller_id"));
+              $organisation = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM organisation WHERE user_id = $seller_id"));
+              $seller_fn = $seller_q['first_name'];
+              $seller_ln = $seller_q['last_name'];
+
+              // Retrieve and format the event_date and time
+              $event_date = date('l, j F', strtotime($event['event_date']));
+              $event_date2 = date('Y-m-d', strtotime($event['event_date']));
+                    
+              $event_time = date('g:i A', strtotime($event['event_time']));
+              $event_time2 = date('H:i', strtotime($event['event_time']));
+
+              // Retrieve the status
+              $status = $event['status'];
+              $status_c = 'success';
+
+              if ($date > $event_date2) {
+                $status = 'disabled';
+                $status_c = 'danger';
+              }
+
+              if ($event['event_type'] == 'school') {
+                $location = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM schools WHERE id = ".$event['school']))['code'];
+              } elseif ($event['event_type'] == 'public') {
+                $location = $event['location'];
+              } else {
+                $location = "Online Event";
+              }
+
+              $event_price = number_format($event['price']);
+              $event_price = $event_price > 0 ? "₦ $event_price" : 'FREE';
+
+              ?>
+            <img src="assets/images/events/<?php echo $event['event_banner'] ?>" class="img-fluid w-100 mb-4"
+              alt="<?php echo $event['title'] ?>">
+            <p class="fw-bold text-secondary mb-1"><?php echo $event_date ?></p>
+            <h1 class="fw-bold text-uppercase"><?php echo $event['title'] ?></h1>
+            <p class="fw-bold text-muted mt-2 mb-4">
+              In a whimsical yet perilous kingdom, the tyrannical Evil Queen Janice and her daughters - Lazy Susan and the twins, Sam 'n Ella - have decreed that only baked beans are fit for consumption. Her iron-fisted rule has smothered the kingdom's culinary spirit, leaving its citizens craving a taste of freedom.
+              <br><br>
+              Enter Sorted Food and their brave culinary crew, who have hatched a daring plan to topple the Queen's tasteless regime. Their mission: infiltrate Janice's castle, navigate through a series of treacherous and thrilling cooking challenges, and reclaim the kingdom's gastronomic glory. Each chamber presents a new test, from devouring chocolate-dipped scorpions to mastering the art of elusive flavours.
+              <br><br>
+              But the team's journey is fraught with danger. Unbeknownst to them, Queen Janice has embedded a devious traitor within their ranks. This saboteur will stop at nothing to ensure their failure, undermining their efforts from within, all whilst trying to avoid detection by the team and on-looking community.
+            </p>
+            <h5 class="fw-bold">Date and Time</h5>
+            <p class="fw-bold text-secondary mb-4"><i class="bi bi-calendar-check"></i> <?php echo $event_date ?> • <?php echo $event_time ?></p>
+            <h5 class="fw-bold">Location</h5>
+            <p class="fw-bold text-secondary mb-4"><i class="bi bi-geo-alt-fill"></i> <?php echo $location ?></p>
+            
+            <h5 class="fw-bold">Organised by</h5>
+            <div class="light-background d-flex align-items-center justify-content-start p-3 rounded-6">
+              <img src="assets/images/users/<?php echo $seller_q['profile_pic'] ?>" class="img-fluid rounded rounded-7" width="50px"
+                alt="nivasity_user_<?php echo $seller_fn ?>">
+              <div class="ms-3 d-flex lex-column align-items-center">
+                <h6 class="fw-bold mb-0"><?php echo $organisation['business_name'] ?></h6>
+                <small class="fw-bold text-muted">Verified</small>
+              </div>
+            </div>
+
           </div>
 
-          <div class="col-lg-6 d-flex align-items-center" data-aos="fade-up" data-aos-delay="200">
+          <div class="col-lg-4" data-aos="fade-up" data-aos-delay="200">
             <div class="content">
               <h3>Get the Right Course Materials at Your Fingertips</h3>
               <p>
                 Nivasity connects students with essential course materials curated by HOC or Lecturers, making studying easier and
                 more targeted for every school and department.
               </p>
-              <ul>
-                <li><i class="bi bi-book-half"></i> <strong>Wide Selection:</strong> Access a variety of course
-                  materials across different subjects and courses.</li>
-                <li><i class="bi bi-search"></i> <strong>Easy to Find:</strong> Materials are filtered by school,
-                  department, or course to find what you need instantly.</li>
-                <li><i class="bi bi-cash-coin"></i> <strong>Affordable and Reliable:</strong> Quality materials from
-                  trusted HOC or Lecturers, priced for student budgets.</li>
-              </ul>
+              
+              <buttton class="btn btn-primary w-100">Get Ticket</buttton>
+              <buttton class="btn btn-light w-100 mt-2">Add to Cart</buttton>
             </div>
           </div>
         </div><!-- Features Item -->
-      </div>
-
-
-      <div class="container pt-5">
-        <h4 class="fw-bold">Recently Posted Materials</h4>
-        <div class="d-flex overflow-auto py-3">
-          <?php
-          if ($manual_query !== 0) {
-          if (mysqli_num_rows($manual_query) > 0) {
-            $count_row = mysqli_num_rows($manual_query);
-
-            while ($manual = mysqli_fetch_array($manual_query)) {
-              $manual_id = $manual['id'];
-              $seller_id = $manual['user_id'];
-
-              // Check if the manual has been bought by the current user
-              $is_bought_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM manuals_bought WHERE manual_id = $manual_id AND buyer = $user_id AND school_id = $school_id");
-              $is_bought_result = mysqli_fetch_assoc($is_bought_query);
-
-              // If the manual has been bought, skip it
-              if ($is_bought_result['count'] > 0) {
-                $count_row = $count_row - 1;
-                continue;
-              }
-
-              $seller_q = mysqli_fetch_array(mysqli_query($conn, "SELECT first_name, last_name FROM users WHERE id = $seller_id"));
-              $seller_fn = $seller_q['first_name'];
-              $seller_ln = $seller_q['last_name'];
-
-              // Retrieve and format the due date
-              $due_date = date('j M, Y', strtotime($manual['due_date']));
-              $due_date2 = date('Y-m-d', strtotime($manual['due_date']));
-              // Retrieve the status
-              $status = $manual['status'];
-              $status_c = 'success';
-
-              if ($date > $due_date2) {
-                $status = 'disabled';
-                $status_c = 'danger';
-                if (abs(strtotime($date) - strtotime($due_date2)) > 10 * 24 * 60 * 60) {
-                  $count_row = $count_row - 1;
-                  continue;
-                }
-              }
-
-              ?>
-                    <div class="card card-rounded border border-1 border-secondary shadow-sm m-2 w-md-25 min-w-75">
-                      <div class="card-body">
-                        <h6 class="card-title"><?php echo $manual['title'] ?> <span class="text-secondary">- <?php echo $manual['course_code'] ?></span></h6>
-                        <div class="d-flex">
-                          <i class="bi bi-journal-bookmark-fill fs-1 text-secondary d-flex align-self-start me-3"></i>
-                          <div class="media-body">
-                            <h4 class="fw-bold price">₦ <?php echo number_format($manual['price']) ?></h4>
-                            <p class="card-text">
-                              Due date:<span class="fw-bold text-<?php echo $status_c ?> due_date"> <?php echo $due_date ?></span><br>
-                              <span class="text-secondary"><?php echo $seller_fn . ' ' . $seller_ln ?> (HOC or Lecturer)</span>
-                            </p>
-                          </div>
-                        </div>
-                        <hr>
-                        <div class="d-flex justify-content-between">
-                          <a href="javascript:;">
-                            <i class="bi bi-share-fill fs-3 text-muted share_button" data-title="<?php echo $manual['title']; ?>" data-product_id="<?php echo $manual['id']; ?>" data-type="product"></i>
-                          </a>
-                          <button class="btn btn-outline-primary m-0 cart-button" data-product-id="<?php echo $manual_id ?>"
-                            data-mdb-ripple-duration="0"> Buy now
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                  <?php
-            } ?>
-
-            <?php 
-            if ($count_row == 0) { ?>
-              <div class="col-12">
-                <div class="card card-rounded shadow-sm">
-                  <div class="card-body">
-                    <h5 class="card-title">All manuals have been bought</h5>
-                    <p class="card-text">Check back later when your HOC or Lecturer uploads a new manual.</p>
-                  </div>
-                </div>
-              </div>
-            <?php } else { ?>
-
-            <a href="<?php echo $link_to ?>" class="card card-rounded border border-1 border-secondary shadow-sm m-2 w-md-25 min-w-75">
-              <div class="card-body d-flex flex-column align-items-center justify-content-center">
-                <i class="fs-4 text-secondary fw-bold bi bi-box-arrow-up-right"></i>
-                <h5 class="fw-bold text-secondary">See More</h5>
-              </div>
-            </a>
-
-            <?php } } else{ ?>
-              <div class="col-12">
-                <div class="card card-rounded shadow-sm">
-                  <div class="card-body d-flex flex-column align-items-center justify-content-center">
-                    <h5 class="card-title fw-bold">Opps!</h5>
-                    <p class="card-text">Only students can view available manuals!</p>
-                  </div>
-                </div>
-              </div>
-            <?php }} else { ?>
-              <div class="col-12">
-                <div class="card card-rounded shadow-sm">
-                  <div class="card-body d-flex flex-column align-items-center justify-content-center">
-                    <h5 class="card-title fw-bold">Let's make it personal</h5>
-                    <p class="card-text">Log in and we'll find manuals available for you!</p>
-                    <a class="btn btn-primary" href="signin.html">Get Started</a>
-                  </div>
-                </div>
-              </div>
-            <?php } ?>
-
-          <!-- Add more cards as needed -->
-        </div>
       </div>
 
     </section>
@@ -280,38 +217,11 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
       </div>
       <!-- End Section Title -->
 
-      <div class="container mb-3">
-        <div class="row gy-4 justify-content-between features-item">
-          <div class="col-lg-6 d-flex align-items-center" data-aos="fade-up" data-aos-delay="200">
-            <div class="content">
-              <h3>Discover Events and Get Your Tickets Hassle-Free</h3>
-              <p>
-                Nivasity connects you with campus events and beyond, making it easy to find, book, and enjoy events
-                relevant to you.
-              </p>
-              <ul>
-                <li><i class="bi bi-calendar-event flex-shrink-0"></i> <strong>Wide Range of Events:</strong> From
-                  social gatherings to educational workshops, find events that matter.</li>
-                <li><i class="bi bi-cart-check flex-shrink-0"></i> <strong>Seamless Booking:</strong> Secure your spot
-                  in a few clicks with student-friendly prices.</li>
-                <li><i class="bi bi-person-lines-fill flex-shrink-0"></i> <strong>Personalized Experience:</strong> See
-                  events tailored to your school, interests, and preferences.</li>
-              </ul>
-            </div>
-          </div>
-
-          <div class="col-lg-5" data-aos="fade-up" data-aos-delay="100">
-            <img src="assets/images/dashboard/banner-2.png" class="img-fluid rounded-6"
-              alt="Event tickets available on Nivasity">
-          </div>
-        </div><!-- Features Item -->
-      </div>
-
       <div class="container pt-5">
         <h4 class="fw-bold">Upcoming Events</h4>
         <div class="row flex-grow g-3 sortables mt-1">
           <?php
-            if (mysqli_num_rows($event_query) > 0) {
+            if (mysqli_num_rows($event_query2) > 0) {
               $count_row = mysqli_num_rows($event_query);
 
               while ($event = mysqli_fetch_array($event_query)) {
@@ -415,168 +325,6 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
 
     </section>
     <!-- /About Section -->
-
-    <!-- partners Section -->
-    <section id="partners" class="partners section light-background">
-      <!-- Section Title -->
-      <div class="container section-title" data-aos="fade-up">
-        <h2 class="pb-2">Our Partners</h2>
-      </div>
-      <!-- End Section Title -->
-
-      <div class="container" data-aos="fade-up">
-
-        <div class="row gy-4">
-
-          <a href="https://flutterwave.com" target="_blank" class="col-md-2 col-4 client-logo text-center">
-            <img src="assets/images/partners/Flutterwave_Logo.png" class="img-fluid w-25" alt="">
-          </a><!-- End Client Item -->
-
-          <a href="https://sannex.ng" target="_blank" class="col-md-2 col-4 client-logo text-center">
-            <img src="assets/images/partners/logo.png" class="img-fluid w-25" alt="">
-          </a><!-- End Client Item -->
-
-          <a href="https://moniepoint.com" target="_blank" class="col-md-2 col-4 client-logo text-center">
-            <img src="assets/images/partners/Moniepoint_logo.jpg" class="img-fluid w-25" alt="">
-          </a><!-- End Client Item -->
-
-          <a href="https://paystack.com" target="_blank" class="col-md-2 col-4 client-logo text-center">
-            <img src="assets/images/partners/Paystack_Logo.png" class="img-fluid w-25" alt="">
-          </a><!-- End Client Item -->
-
-          <a href="https://drive.google.com" target="_blank" class="col-md-2 col-4 client-logo text-center">
-            <img src="assets/images/partners/google_drive.png" class="img-fluid w-25" alt="">
-          </a><!-- End Client Item -->
-
-          <a href="https://goldelitedeals.com" target="_blank" class="col-md-2 col-4 client-logo text-center">
-            <img src="assets/images/partners/gold_elite.png" class="img-fluid w-25" alt="">
-          </a><!-- End Client Item -->
-
-        </div>
-
-      </div>
-
-    </section>
-    <!-- /partners Section -->
-
-    <!-- Faq Section -->
-    <section id="faq" class="faq section">
-
-      <!-- Section Title -->
-      <div class="container section-title" data-aos="fade-up">
-        <h2>Frequently Asked Questions</h2>
-      </div><!-- End Section Title -->
-
-      <div class="container">
-
-        <div class="row justify-content-center">
-
-          <div class="col-lg-10" data-aos="fade-up" data-aos-delay="100">
-            <div class="faq-container">
-
-              <div class="faq-item faq-active">
-                <h3>What is Nivasity?</h3>
-                <div class="faq-content">
-                  <p>Nivasity is an online platform that allows students to buy academic materials from Heads of Courses
-                    (HOC) or Lecturer and purchase event tickets from various organizers.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-              <div class="faq-item">
-                <h3>How do I create an account on Nivasity?</h3>
-                <div class="faq-content">
-                  <p>To create an account, click on the "Sign Up" button on the homepage and fill in the required
-                    information, including your email, password, and other relevant details.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-              <div class="faq-item">
-                <h3>Can I access course materials without logging in?</h3>
-                <div class="faq-content">
-                  <p>No, you need to log in or create an account to access course materials filtered by your school and
-                    department.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-              <div class="faq-item">
-                <h3>What types of course materials are available on the platform?</h3>
-                <div class="faq-content">
-                  <p>We offer a wide range of course materials covering different subjects and courses, all provided by
-                    trusted
-                    Heads of Courses (HOC) or Lecturers.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-              <div class="faq-item">
-                <h3>How can I purchase a course material?</h3>
-                <div class="faq-content">
-                  <p>Once you find the course material you need, simply click on the "Add to Cart" button, proceed to
-                    checkout,
-                    and follow the payment instructions.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-              <div class="faq-item">
-                <h3>Are the course materials affordable?</h3>
-                <div class="faq-content">
-                  <p>Yes, we aim to provide quality materials at student-friendly prices, making it easier for you to
-                    access necessary resources.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-              <div class="faq-item">
-                <h3>What types of events can I find tickets for?</h3>
-                <div class="faq-content">
-                  <p>You can find tickets for school events, online events, and public events, all listed on our
-                    platform for easy access.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-              <div class="faq-item">
-                <h3>How do I purchase an event ticket?</h3>
-                <div class="faq-content">
-                  <p>Navigate to the event listing, click on the "Buy Ticket" button, and follow the checkout process to
-                    secure your ticket.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-              <div class="faq-item">
-                <h3>Can I get a refund if I can't attend an event?</h3>
-                <div class="faq-content">
-                  <p>Refund policies vary by event organizer. Please check the specific event details or contact
-                    customer support for assistance regarding refunds.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-              <div class="faq-item">
-                <h3>How can I contact customer support?</h3>
-                <div class="faq-content">
-                  <p>If you have any questions or issues, you can reach our customer support team through the "Contact
-                    Us" page on our website, and we will assist you as soon as possible.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-            </div>
-
-
-          </div><!-- End Faq Column-->
-
-        </div>
-
-      </div>
-
-    </section>
-    <!-- /Faq Section -->
 
   </main>
 
