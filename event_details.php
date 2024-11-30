@@ -151,7 +151,7 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
       
       <div class="container my-3">
         <div class="row gy-4 justify-content-between features-item mb-5">
-          <div class="col-lg-8 px-5" data-aos="fade-up" data-aos-delay="100">
+          <div class="col-lg-8 px-3" data-aos="fade-up" data-aos-delay="100">
             <?php 
               $seller_id = $event['user_id'];
 
