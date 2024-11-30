@@ -137,7 +137,7 @@ $transaction_query = mysqli_query($conn, "SELECT * FROM $item_table2 WHERE selle
                           $status_bg = 'warning';
                         }
 
-                        $event_price = number_format($event['price']);
+                        $event_price = number_format($item['price']);
                         $event_price = $event_price > 0 ? "₦ $event_price" : 'FREE';
                         ?>
                           <tr>
