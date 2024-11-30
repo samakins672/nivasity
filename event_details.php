@@ -150,7 +150,7 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
     <section id="manuals" class="manuals section pb-2">
       
       <div class="container my-3">
-        <div class="row gy-4 justify-content-between features-item mb-5">
+        <div class="row gy-4 justify-content-between features-item mb-md-5">
           <div class="col-lg-8 px-3" data-aos="fade-up" data-aos-delay="100">
             <?php 
               $seller_id = $event['user_id'];
@@ -204,7 +204,7 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
             <p class="fw-bold text-secondary mb-4"><i class="bi bi-geo-alt-fill"></i> <?php echo $location ?></p>
             
             <h5 class="fw-bold">Organised by</h5>
-            <div class="light-background mb-5 d-flex align-items-center justify-content-start p-3 rounded-6">
+            <div class="light-background mb-md-5 d-flex align-items-center justify-content-start p-3 rounded-6">
               <img src="assets/images/users/<?php echo $seller_q['profile_pic'] ?>" class="img-fluid border border-3 border-primary rounded rounded-circle" width="50px"
                 alt="nivasity_user_<?php echo $seller_fn ?>">
               <div class="ms-3 d-flex flex-column">
@@ -215,7 +215,7 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
 
           </div>
 
-          <div class="col-lg-4 mb-5 p-md-0 p-5" data-aos="fade-up" data-aos-delay="200">
+          <div class="col-lg-4 mb-md-5 p-md-0 p-3 mt-0" data-aos="fade-up" data-aos-delay="200">
             <div class="content">
               <div class="fs-5 text-center mb-3">
                 Price: <small class="fw-bold text-uppercase"><?php echo $event_price ?></small>
