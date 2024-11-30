@@ -538,7 +538,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                                               </button>
                                               <div class="dropdown-menu">
                                                 <a class="dropdown-item view-edit-event border-bottom" href="javascript:;"
-                                                data-event_id="<?php echo $event['id']; ?>" data-title="<?php echo $event['title']; ?>"
+                                                data-event_id="<?php echo $event['id']; ?>" data-title="<?php echo $event['title']; ?>" data-description="<?php echo $event['description']; ?>"
                                                 data-price="<?php echo $event['price']; ?>" data-quantity="<?php echo $event['quantity']; ?>"
                                                 data-location="<?php echo $event['location']; ?>" data-image="<?php echo $event['event_banner']; ?>"
                                                 data-event_type="<?php echo $event['event_type']; ?>" data-event_link="<?php echo $event['event_link']; ?>"
@@ -778,6 +778,10 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                           <div class="form-outline mb-4">
                             <input type="text" name="title" class="form-control form-control-lg w-100" required="">
                             <label class="form-label" for="title">Title</label>
+                          </div>
+                          <div class="wysi-editor mb-4">
+                            <label class="form-label" for="description">Description</label>
+                            <textarea class="form-control w-100 px-3 py-2" name="description" required></textarea>
                           </div>
                           <label class="form-check-label">Event Type</label><br />
                           <div class="form-group">
@@ -1076,10 +1080,12 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
         var event_date = $(this).data('event_date');
         var event_time = $(this).data('event_time');
         var image = $(this).data('image');
+        var description = $(this).data('description');
 
         // Set the values in the edit event modal
         $('#event-form input[name="event_id"]').val(eventId);
         $('#event-form input[name="title"]').val(title);
+        $('#event-form textarea[name="description"]').val(description);
         $('#event-form input[name="price"]').val(price);
         $('#event-form select[name="event_type"]').val(event_type);
         $('#event-form input[name="event_link"]').val(event_link);

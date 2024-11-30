@@ -439,14 +439,13 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
         var type = button.data('type');
         var title = button.data('title');
         var shareText = 'Check out '+title+' on nivasity and order now!';
-        var shareUrl = "https://nivasity.com/model/cart_guest.php?share=1&action=1&type="+type+"&product_id="+product_id;
 
         if (type == 'product') {
           var shareUrl = "https://nivasity.com/model/cart_guest.php?share=1&action=1&type="+type+"&product_id="+product_id;
         } else {
           var shareUrl = "https://nivasity.com/event_details.php?event_id="+product_id;
         }
-        
+
         // Check if the Web Share API is available
         if (navigator.share) {
           navigator.share({

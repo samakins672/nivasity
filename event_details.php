@@ -12,19 +12,19 @@ if (isset($_SESSION['nivas_userId'])) {
   if ($is_admin_role) {
     $link_to = "admin/";
   }
-  // Simulate adding/removing the product to/from the cart
-  if (!isset($_SESSION["nivas_cart$user_id"])) {
-    $_SESSION["nivas_cart$user_id"] = array();
-  }
-  if (!isset($_SESSION["nivas_cart_event$user_id"])) {
-    $_SESSION["nivas_cart_event$user_id"] = array();
-  }
-  $total_cart_items = count($_SESSION["nivas_cart$user_id"]) + count($_SESSION["nivas_cart_event$user_id"]);
-
-  $manual_query = mysqli_query($conn, "SELECT * FROM manuals WHERE dept = $user_dept AND status = 'open' AND school_id = $school_id ORDER BY `id` DESC");
 }
 
-$event_query = mysqli_query($conn, "SELECT * FROM events WHERE id = 9");
+// Check if event_id is passed in the URL
+if (!isset($_GET['event_id']) || empty($_GET['event_id'])) {
+  // Redirect to $link_to if event_id is not found
+  header("Location: $link_to");
+  exit();
+} else {
+  // Sanitize and retrieve the event_id
+  $event_id = mysqli_real_escape_string($conn, $_GET['event_id']);
+}
+
+$event_query = mysqli_query($conn, "SELECT * FROM events WHERE id = $event_id");
 $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' ORDER BY `id` DESC LIMIT 5");
 
 ?>
@@ -122,8 +122,8 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
     <!-- Manual Section -->
     <section id="manuals" class="manuals section pb-2">
       
-      <div class="container mb-3">
-        <div class="row gy-4 justify-content-between features-item">
+      <div class="container my-3">
+        <div class="row gy-4 justify-content-between features-item mb-5">
           <div class="col-lg-8 px-5" data-aos="fade-up" data-aos-delay="100">
             <?php 
               $event = mysqli_fetch_array($event_query);
@@ -152,7 +152,7 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
               }
 
               if ($event['event_type'] == 'school') {
-                $location = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM schools WHERE id = ".$event['school']))['code'];
+                $location = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM schools WHERE id = ".$event['school']))['name'];
               } elseif ($event['event_type'] == 'public') {
                 $location = $event['location'];
               } else {
@@ -161,18 +161,17 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
 
               $event_price = number_format($event['price']);
               $event_price = $event_price > 0 ? "₦ $event_price" : 'FREE';
-
-              ?>
-            <img src="assets/images/events/<?php echo $event['event_banner'] ?>" class="img-fluid w-100 mb-4"
+              
+              $description = $event['description'] !== null 
+                ? nl2br($event['description']) 
+                : "Join us for an exciting event filled with opportunities to connect, learn, and explore. Don't miss out on this experience—more details coming soon!";
+            ?>
+            <img src="assets/images/events/<?php echo $event['event_banner'] ?>" class="img-fluid w-100 mb-4" style="max-height: 400px; object-fit: cover;"
               alt="<?php echo $event['title'] ?>">
             <p class="fw-bold text-secondary mb-1"><?php echo $event_date ?></p>
             <h1 class="fw-bold text-uppercase"><?php echo $event['title'] ?></h1>
             <p class="fw-bold text-muted mt-2 mb-4">
-              In a whimsical yet perilous kingdom, the tyrannical Evil Queen Janice and her daughters - Lazy Susan and the twins, Sam 'n Ella - have decreed that only baked beans are fit for consumption. Her iron-fisted rule has smothered the kingdom's culinary spirit, leaving its citizens craving a taste of freedom.
-              <br><br>
-              Enter Sorted Food and their brave culinary crew, who have hatched a daring plan to topple the Queen's tasteless regime. Their mission: infiltrate Janice's castle, navigate through a series of treacherous and thrilling cooking challenges, and reclaim the kingdom's gastronomic glory. Each chamber presents a new test, from devouring chocolate-dipped scorpions to mastering the art of elusive flavours.
-              <br><br>
-              But the team's journey is fraught with danger. Unbeknownst to them, Queen Janice has embedded a devious traitor within their ranks. This saboteur will stop at nothing to ensure their failure, undermining their efforts from within, all whilst trying to avoid detection by the team and on-looking community.
+              <?php echo $description ?>
             </p>
             <h5 class="fw-bold">Date and Time</h5>
             <p class="fw-bold text-secondary mb-4"><i class="bi bi-calendar-check"></i> <?php echo $event_date ?> • <?php echo $event_time ?></p>
@@ -180,27 +179,27 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
             <p class="fw-bold text-secondary mb-4"><i class="bi bi-geo-alt-fill"></i> <?php echo $location ?></p>
             
             <h5 class="fw-bold">Organised by</h5>
-            <div class="light-background d-flex align-items-center justify-content-start p-3 rounded-6">
-              <img src="assets/images/users/<?php echo $seller_q['profile_pic'] ?>" class="img-fluid rounded rounded-7" width="50px"
+            <div class="light-background mb-5 d-flex align-items-center justify-content-start p-3 rounded-6">
+              <img src="assets/images/users/<?php echo $seller_q['profile_pic'] ?>" class="img-fluid border border-3 border-primary rounded rounded-circle" width="50px"
                 alt="nivasity_user_<?php echo $seller_fn ?>">
-              <div class="ms-3 d-flex lex-column align-items-center">
+              <div class="ms-3 d-flex flex-column">
                 <h6 class="fw-bold mb-0"><?php echo $organisation['business_name'] ?></h6>
-                <small class="fw-bold text-muted">Verified</small>
+                <small class="fw-bold text-primary">Verified</small>
               </div>
             </div>
 
           </div>
 
-          <div class="col-lg-4" data-aos="fade-up" data-aos-delay="200">
+          <div class="col-lg-4 mb-5 p-md-0 p-5" data-aos="fade-up" data-aos-delay="200">
             <div class="content">
-              <h3>Get the Right Course Materials at Your Fingertips</h3>
-              <p>
-                Nivasity connects students with essential course materials curated by HOC or Lecturers, making studying easier and
-                more targeted for every school and department.
-              </p>
+              <div class="fs-5 text-center mb-3">
+                Price: <small class="fw-bold text-uppercase"><?php echo $event_price ?></small>
+              </div>
               
-              <buttton class="btn btn-primary w-100">Get Ticket</buttton>
-              <buttton class="btn btn-light w-100 mt-2">Add to Cart</buttton>
+              <a href="/model/cart_guest.php?share=1&action=1&type=event&product_id=<?php echo $event_id ?>" class="btn btn-primary w-100">Get Ticket</a>
+              <a class="btn btn-light w-100 mt-2 share_button" data-title="<?php echo $event['title']; ?>" data-product_id="<?php echo $event_id ?>">
+                <i class="bi bi-share-fill pe-2"></i> Share Event
+              </a>
             </div>
           </div>
         </div><!-- Features Item -->
@@ -208,123 +207,6 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
 
     </section>
     <!-- /Manual Section -->
-
-    <!-- About Section -->
-    <section id="events" class="about section mb-5">
-      <!-- Section Title -->
-      <div class="container section-title" data-aos="fade-up">
-        <h2 class="pb-2">Events Booking</h2>
-      </div>
-      <!-- End Section Title -->
-
-      <div class="container pt-5">
-        <h4 class="fw-bold">Upcoming Events</h4>
-        <div class="row flex-grow g-3 sortables mt-1">
-          <?php
-            if (mysqli_num_rows($event_query2) > 0) {
-              $count_row = mysqli_num_rows($event_query);
-
-              while ($event = mysqli_fetch_array($event_query)) {
-                $event_id = $event['id'];
-                $seller_id = $event['user_id'];
-
-                $seller_q = mysqli_fetch_array(mysqli_query($conn, "SELECT first_name, last_name FROM users WHERE id = $seller_id"));
-                $organisation = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM organisation WHERE user_id = $seller_id"));
-                $seller_fn = $seller_q['first_name'];
-                $seller_ln = $seller_q['last_name'];
-
-                // Retrieve and format the event_date and time
-                $event_date = date('j M', strtotime($event['event_date']));
-                $event_date2 = date('Y-m-d', strtotime($event['event_date']));
-                      
-                $event_time = date('g:i A', strtotime($event['event_time']));
-                $event_time2 = date('H:i', strtotime($event['event_time']));
-
-                // Retrieve the status
-                $status = $event['status'];
-                $status_c = 'success';
-
-                if ($date > $event_date2) {
-                  $status = 'disabled';
-                  $status_c = 'danger';
-                  if (abs(strtotime($date) - strtotime($event_date2)) > 10 * 24 * 60 * 60) {
-                    $count_row = $count_row - 1;
-                    continue;
-                  }
-                }
-
-                if ($event['event_type'] == 'school') {
-                  $location = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM schools WHERE id = ".$event['school']))['code'];
-                } elseif ($event['event_type'] == 'public') {
-                  $location = $event['location'];
-                } else {
-                  $location = "Online Event";
-                }
-
-                $event_price = number_format($event['price']);
-                $event_price = $event_price > 0 ? "₦ $event_price" : 'FREE';
-
-                ?>
-                    <div class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card text-dark">
-                      <div class="card card-rounded border border-1 border-secondary shadow-sm">
-                        <div class="card-body p-0">
-                          <img src="assets/images/events/<?php echo $event['event_banner'] ?>" class="img-fluid rounded-top w-100" style="max-height: 140px; object-fit: cover;">
-                          <div class="p-3">
-                            <p class="fw-bold text-secondary mb-1"><i class="bi bi-geo-alt-fill"></i> <?php echo $location ?></p>
-                            <h6 class="fw-bold text-uppercase"><?php echo $event['title'] ?></h6>
-                            <small class="fw-bold"><?php echo $event_date ?> • <?php echo $event_time ?></small><br>
-                            <small class="badge badge-success fw-bold text-uppercase mt-2"><?php echo $event_price ?></small>
-                            <p>Host: <span class="fw-bold text-secondary"><?php echo $organisation['business_name'] ?></span></p>
-                            <hr>
-                            <div class="d-flex justify-content-between">
-                              <a href="javascript:;">
-                                <i class="bi bi-share-fill fs-3 text-muted share_button" data-title="<?php echo $event['title']; ?>" data-product_id="<?php echo $event['id']; ?>" data-type="event"></i>
-                              </a>
-                              <button class="btn btn-outline-primary m-0 cart-event-button" data-event-id="<?php echo $event['id'] ?>" data-mdb-ripple-duration="0">Get Ticket</button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <?php
-              }
-              if ($count_row == 0) { ?>
-                        <div class="col-12">
-                            <div class="card card-rounded shadow-sm">
-                              <div class="card-body">
-                                <h5 class="card-title">All events have been bought</h5>
-                                <p class="card-text">Check back later when a new event is uploaded.</p>
-                              </div>
-                            </div>
-                        </div>
-                  <?php } else { ?>
-
-          <a href="<?php echo $link_to ?>" class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card text-dark">
-            <div class="card card-rounded border border-1 border-secondary shadow-sm h-100">
-              <div class="card-body d-flex flex-md-column align-items-center justify-content-center p-2">
-                <i class="fs-4 text-secondary fw-bold bi bi-box-arrow-up-right me-3"></i>
-                <h5 class="fw-bold text-secondary m-0">See More</h5>
-              </div>
-            </div>
-          </a>
-            <?php } } else {
-              // Display a message when no events are found
-              ?>
-                    <div class="col-12">
-                        <div class="card card-rounded shadow-sm">
-                          <div class="card-body">
-                            <h5 class="card-title text-center">No event available.</h5>
-                            <p class="card-text text-center">Check back later when a new event is uploaded.</p>
-                          </div>
-                        </div>
-                    </div>
-                <?php } ?>
-        </div>
-      </div>
-
-    </section>
-    <!-- /About Section -->
 
   </main>
 
@@ -430,15 +312,56 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
   <!--End of Tawk.to Script-->
   <script>
     $(document).ready(function () {
+      var myDiv = $(".content");
+      var offsetTop = myDiv.offset().top; // The initial top offset of the div
+
+      function toggleFixedPosition() {
+        if ($(window).width() >= 768) {
+          // For desktop/tablet view
+          $(window).on("scroll", function () {
+            if ($(this).scrollTop() > offsetTop) {
+              // Apply fixed position and retain original width
+              myDiv.css({
+                position: "fixed",
+                top: "130px",
+                left: myDiv.offset().left + "px", // Retain original horizontal position
+                width: myDiv.outerWidth() + "px", // Retain original width
+              });
+            } else {
+              // Revert to static positioning
+              myDiv.css({
+                position: "static",
+                width: "auto",
+              });
+            }
+          });
+        } else {
+          // For mobile view
+          $(window).off("scroll"); // Remove scroll event
+          myDiv.css({
+            position: "static",
+            width: "auto",
+          });
+        }
+      }
+
+      // Adjust on page load and window resize
+      toggleFixedPosition();
+      $(window).resize(function () {
+        // Recalculate the offset in case of layout changes
+        offsetTop = myDiv.offset().top;
+        toggleFixedPosition();
+      });
+      
+
       $('.searchable-select').select2();
       
       $(document).on('click', '.share_button', function (e) {
         var button = $(this);
         var product_id = button.data('product_id');
-        var type = button.data('type');
         var title = button.data('title');
         var shareText = 'Check out '+title+' on nivasity and order now!';
-        var shareUrl = "https://nivasity.com/model/cart_guest.php?share=1&action=1&type="+type+"&product_id="+product_id;
+        var shareUrl = "https://nivasity.com/event_details.php?event_id="+product_id;
 
         // Check if the Web Share API is available
         if (navigator.share) {

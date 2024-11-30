@@ -28,6 +28,7 @@ if (isset($_POST['close_event'])) {
 } else if (isset($_POST['event_id'])) {
   $event_id = mysqli_real_escape_string($conn, $_POST['event_id']);
   $title = mysqli_real_escape_string($conn, $_POST['title']);
+  $description = mysqli_real_escape_string($conn, $_POST['description']);
   $price = mysqli_real_escape_string($conn, $_POST['price']);
   $quantity = mysqli_real_escape_string($conn, $_POST['quantity']);
   $event_type = mysqli_real_escape_string($conn, $_POST['event_type']);
@@ -57,8 +58,8 @@ if (isset($_POST['close_event'])) {
       $event_code = generateVerificationCode(8);
     }
     
-    mysqli_query($conn, "INSERT INTO events (title, location, event_banner,	price, code,	event_type, event_link,	school, event_date, event_time,	quantity,	user_id) 
-        VALUES ('$title', '$location', '$picture',	$price, '$event_code',	'$event_type', '$event_link',	$school, '$event_date', '$event_time',	$quantity,	$user_id)");
+    mysqli_query($conn, "INSERT INTO events (title, description, location, event_banner,	price, code,	event_type, event_link,	school, event_date, event_time,	quantity,	user_id) 
+        VALUES ('$title', '$description', '$location', '$picture',	$price, '$event_code',	'$event_type', '$event_link',	$school, '$event_date', '$event_time',	$quantity,	$user_id)");
   } else {
     $last_picture = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM events WHERE id = $event_id"))['event_banner'];
   
@@ -66,7 +67,7 @@ if (isset($_POST['close_event'])) {
       unlink("../../assets/images/events/{$last_picture}");
     }
 
-    mysqli_query($conn, "UPDATE events SET title = '$title', location = '$location', event_banner = '$picture',	price = $price, event_type = '$event_type', event_link = '$event_link',	school = $school, event_date = '$event_date', event_time = '$event_time', quantity = $quantity 
+    mysqli_query($conn, "UPDATE events SET title = '$title', description = '$description', location = '$location', event_banner = '$picture',	price = $price, event_type = '$event_type', event_link = '$event_link',	school = $school, event_date = '$event_date', event_time = '$event_time', quantity = $quantity 
         WHERE id = $event_id");
   }
 

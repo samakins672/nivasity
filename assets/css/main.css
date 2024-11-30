@@ -537,7 +537,6 @@ h6 {
 --------------------------------------------------------------*/
 .footer {
   color: var(--default-color);
-  background-color: var(--background-color);
   font-size: 14px;
   padding-bottom: 50px;
   position: relative;
@@ -1230,10 +1229,12 @@ section,
 }
 
 .manuals .features-item .content {
+  position: static;
   background-color: color-mix(in srgb, var(--accent-color), transparent 95%);
   color: color-mix(in srgb, var(--default-color), transparent 40%);
   padding: 30px;
   border-radius: 10px;
+  transition: top 0.3s ease, width 0.3s ease;
 }
 
 .manuals .features-item h3 {
