@@ -378,7 +378,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                                       </td>
                                       <td>
                                         <h6 class="text-secondary">&#8358; <?php echo number_format($manuals_bought_price) ?></h6>
-                                        <p>Qty Sold: <span class="fw-bold"><?php echo $manuals_bought_cnt ?></span></p>
+                                        <p>Sold: <span class="fw-bold"><?php echo $manuals_bought_cnt ?></span></p>
                                       </td>
                                       <td class="d-sm-none-2">
                                           <div>
@@ -429,7 +429,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                     <div class="row flex-grow">
                         <div class="col-12 grid-margin stretch-card">
                           <div class="card card-rounded shadow-sm">
-                            <div class="card-body">
+                            <div class="card-body p-2">
                               <div class="d-sm-flex justify-content-end">
                                 <div>
                                 <?php if (mysqli_num_rows($settlement_query) > 0): ?>
@@ -443,7 +443,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                                 <?php endif; ?> 
                                 </div>
                               </div>
-                              <div class="table-responsive  mt-1">
+                              <div class="table-responsive mt-1">
                                 <table class="table table-hover table-striped select-table datatable-opt">
                                   <thead>
                                     <tr>
@@ -484,10 +484,10 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                                     ?>
                                       <tr>
                                         <td>
-                                          <div class="d-flex justify-content-start">
-                                            <div>
+                                          <div class="d-md-flex justify-content-start">
+                                            <a href="#">
                                               <img src="../assets/images/events/<?php echo $event['event_banner'] ?>" alt="<?php echo $event['title'] ?>" class="img-fluid rounded-2" style="min-width: 100px">
-                                            </div>
+                                            </a>
                                             <div>
                                               <h6><?php echo $event['title'] ?></h6>
                                               <p class="d-sm-none-2">ID: <span class="fw-bold"><?php echo $event['code'] ?></span></p>
@@ -499,7 +499,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                                         </td>
                                         <td>
                                           <h6 class="text-secondary">&#8358; <?php echo number_format($events_bought_price) ?></h6>
-                                          <p>Qty Sold: <span class="fw-bold"><?php echo $events_bought_cnt ?></span></p>
+                                          <p>Sold: <span class="fw-bold"><?php echo $events_bought_cnt ?></span></p>
                                         </td>
                                         <td class="d-sm-none-2">
                                             <div>
@@ -520,19 +520,26 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                                           <td>
                                             <div class="badge <?php echo ($status == 'open') ? 'bg-success' : 'bg-danger'; ?>"> <?php echo ($status == 'open') ? 'Active' : 'Closed'; ?> </div>
                                           </td>
-                                          <td class="pe-1">
-                                            <button class="btn btn-md btn-primary mb-0 btn-block view-edit-event"
-                                              data-event_id="<?php echo $event['id']; ?>" data-title="<?php echo $event['title']; ?>"
-                                              data-price="<?php echo $event['price']; ?>" data-quantity="<?php echo $event['quantity']; ?>"
-                                              data-location="<?php echo $event['location']; ?>" data-image="<?php echo $event['event_banner']; ?>"
-                                              data-event_type="<?php echo $event['event_type']; ?>" data-event_link="<?php echo $event['event_link']; ?>"
-                                              data-school="<?php echo $event['school']; ?>" data-location="<?php echo $event['location']; ?>"
-                                              data-event_time="<?php echo $event_time2; ?>" data-event_date="<?php echo $event_date2; ?>" 
-                                              data-bs-toggle="modal" data-bs-target="#<?php echo $event_modal = ($user_status == 'verified') ? 'addEvent': 'verificationManual'?>">Edit</button>
-                                              <button class="btn btn-md btn-dark mb-0 btn-block export_event" data-title="<?php echo $event['title']; ?>" data-event_id="<?php echo $event['id']; ?>">
-                                                <i class="mdi mdi-file-export m-0 text-white"></i></button>
-                                            </td>
-                                          </tr>
+                                          <td>
+                                            <div class="dropdown">
+                                              <button type="button" class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="true">
+                                                <i class="mdi mdi-dots-vertical fs-4"></i>
+                                              </button>
+                                              <div class="dropdown-menu">
+                                                <a class="dropdown-item view-edit-event border-bottom" href="javascript:;"
+                                                data-event_id="<?php echo $event['id']; ?>" data-title="<?php echo $event['title']; ?>"
+                                                data-price="<?php echo $event['price']; ?>" data-quantity="<?php echo $event['quantity']; ?>"
+                                                data-location="<?php echo $event['location']; ?>" data-image="<?php echo $event['event_banner']; ?>"
+                                                data-event_type="<?php echo $event['event_type']; ?>" data-event_link="<?php echo $event['event_link']; ?>"
+                                                data-school="<?php echo $event['school']; ?>" data-location="<?php echo $event['location']; ?>"
+                                                data-event_time="<?php echo $event_time2; ?>" data-event_date="<?php echo $event_date2; ?>" 
+                                                data-bs-toggle="modal" data-bs-target="#<?php echo $event_modal = ($user_status == 'verified') ? 'addEvent': 'verificationManual'?>"> Edit</a>
+                                                <a class="dropdown-item export_event border-bottom" href="javascript:;" data-title="<?php echo $event['title']; ?>" data-event_id="<?php echo $event['id']; ?>">Export</a>
+                                                <a class="dropdown-item" href="javascript:;"> Share</a>
+                                              </div>
+                                            </div>
+                                          </td>
+                                        </tr>
                                     <?php } ?>
                                   </tbody>
                                 </table>
