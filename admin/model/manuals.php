@@ -27,6 +27,23 @@ if (isset($_POST['close_manual'])) {
     $statusRes = "error";
     $messageRes = "Internal Server Error.$curr_status Please $action try again$manual_id later!";
   }
+} else if (isset($_POST['delete_manual'])) {
+  $product_id = mysqli_real_escape_string($conn, $_POST['product_id']);
+  $product_type = mysqli_real_escape_string($conn, $_POST['product_type']);
+
+  if ($product_type == 'event') {
+    mysqli_query($conn, "DELETE FROM events WHERE id = $product_id");
+  } else {
+    mysqli_query($conn, "DELETE FROM manuals WHERE id = $product_id");
+  }
+
+  if (mysqli_affected_rows($conn) >= 1) {
+    $statusRes = "success";
+    $messageRes = "Manual successfully deleted!";
+  } else {
+    $statusRes = "error";
+    $messageRes = "Internal Server Error. Please try again later!";
+  }
 } else if (isset($_POST['manual_id'])) {
   $manual_id = mysqli_real_escape_string($conn, $_POST['manual_id']);
   $title = mysqli_real_escape_string($conn, $_POST['title']);

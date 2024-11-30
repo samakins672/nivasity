@@ -53,7 +53,17 @@ function sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $tot
             if ($event_query && mysqli_num_rows($event_query) > 0) {
                 $event = mysqli_fetch_array($event_query);
                 $message .= "<li>Event Title - " . htmlspecialchars($event['title']) . "<br>";
-                $message .= "Location - " . htmlspecialchars($event['location']) . "<br>";
+
+                if ($event['event_type'] == 'school') {
+                    $school_query = mysqli_query($conn, "SELECT * FROM schools WHERE id = ".$event['school']);
+                    $school_name = mysqli_fetch_array($school_query)['name'];
+                    $message .= "School - $school_name<br>";
+                } elseif ($event['event_type'] == 'online') {
+                    $message .= "Event Link - ". $event['event_link'] . "<br>";
+                } else {
+                    $message .= "Location - " . htmlspecialchars($event['location']) . "<br>";
+                }
+                
                 $message .= "Date - " . date('j M', strtotime($event['event_date'])) . " • " . date('g:i A', strtotime($event['event_time'])) . "<br>";
                 $message .= "Price - ₦ " . number_format($event['price'], 2) . "</li><br>";
             }

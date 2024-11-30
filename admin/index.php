@@ -329,7 +329,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                               </div>
                             </div>
                             <div class="table-responsive  mt-1">
-                              <table class="table table-hover table-striped select-table datatable-opt">
+                              <table class="table table-hover select-table datatable-opt">
                                 <thead>
                                   <tr>
                                     <th>Name</th>
@@ -398,22 +398,33 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                                         <td>
                                           <div class="badge <?php echo ($status == 'open') ? 'bg-success' : 'bg-danger'; ?>"> <?php echo ($status == 'open') ? 'Active' : 'Closed'; ?> </div>
                                         </td>
-                                        <td class="pe-1">
-                                          <button class="btn btn-md btn-primary mb-0 btn-block view-edit-manual"
-                                            data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>"
-                                            data-course_code="<?php echo $manual['course_code']; ?>" data-price="<?php echo $manual['price']; ?>"
-                                            data-quantity="<?php echo $manual['quantity']; ?>"
-                                            data-due_date="<?php echo date('Y-m-d', strtotime($manual['due_date'])); ?>" 
-                                            data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual': 'verificationManual'?>">Edit</button>
-                                            <button class="btn btn-md btn-dark mb-0 btn-block export-manual" data-bs-toggle="modal" data-bs-target="#exportManual"
-                                              data-manual_id="<?php echo $manual['id']; ?>" data-code="<?php echo $manual['course_code']; ?>"><i class="mdi mdi-file-export m-0 text-white"></i></button>
-                                          <?php if($status != 'overdue'): ?>
-                                            <button class="btn btn-md btn-<?php echo ($status_2 != 'open') ? 'success' : 'danger'; ?> mb-0 btn-block close-manual"
-                                              data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>" data-action="<?php echo ($status_2 != 'open') ? 1 : 0; ?>"
-                                                  data-bs-toggle="modal" data-bs-target="#closeManual"><i class="mdi mdi-eye<?php echo ($status_2 != 'open') ? '' : '-off'; ?> m-0 text-white"></i></button>
-                                          <?php endif; ?>
-                                          </td>
-                                        </tr>
+                                        <td>
+                                          <div class="dropdown">
+                                            <button type="button" class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="true">
+                                              <i class="mdi mdi-dots-vertical fs-4"></i>
+                                            </button>
+                                            <div class="dropdown-menu">
+                                              <a class="dropdown-item view-edit-manual border-bottom" href="javascript:;"
+                                                data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>"
+                                                data-course_code="<?php echo $manual['course_code']; ?>" data-price="<?php echo $manual['price']; ?>"
+                                                data-quantity="<?php echo $manual['quantity']; ?>"
+                                                data-due_date="<?php echo date('Y-m-d', strtotime($manual['due_date'])); ?>" 
+                                                data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual': 'verificationManual'?>"> Edit material</a>
+                                              <?php if($manuals_bought_cnt >= 1): ?>
+                                                <a class="dropdown-item export-manual border-bottom" href="javascript:;" data-bs-toggle="modal" data-bs-target="#exportManual"
+                                                  data-manual_id="<?php echo $manual['id']; ?>" data-code="<?php echo $manual['course_code']; ?>">Export list</a>
+                                              <?php endif; ?>
+                                              <a class="dropdown-item <?php echo ($manuals_bought_cnt < 1) ? 'border-bottom' : '' ?> share_button" data-title="<?php echo $manual['title']; ?>" 
+                                                data-product_id="<?php echo $manual['id']; ?>" data-type="product" href="javascript:;"> Share material</a>
+                                              <?php if($manuals_bought_cnt < 1): ?>
+                                                <a class="dropdown-item close-manual" href="javascript:;"
+                                                  data-product_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>" data-type="product"
+                                                  data-bs-toggle="modal" data-bs-target="#closeManual">Delete material</a>
+                                              <?php endif; ?>
+                                            </div>
+                                          </div>
+                                        </td>
+                                      </tr>
                                   <?php } ?>
                                 </tbody>
                               </table>
@@ -444,7 +455,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                                 </div>
                               </div>
                               <div class="table-responsive mt-1">
-                                <table class="table table-hover table-striped select-table datatable-opt">
+                                <table class="table table-hover select-table datatable-opt">
                                   <thead>
                                     <tr>
                                       <th>Event</th>
@@ -533,9 +544,17 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                                                 data-event_type="<?php echo $event['event_type']; ?>" data-event_link="<?php echo $event['event_link']; ?>"
                                                 data-school="<?php echo $event['school']; ?>" data-location="<?php echo $event['location']; ?>"
                                                 data-event_time="<?php echo $event_time2; ?>" data-event_date="<?php echo $event_date2; ?>" 
-                                                data-bs-toggle="modal" data-bs-target="#<?php echo $event_modal = ($user_status == 'verified') ? 'addEvent': 'verificationManual'?>"> Edit</a>
-                                                <a class="dropdown-item export_event border-bottom" href="javascript:;" data-title="<?php echo $event['title']; ?>" data-event_id="<?php echo $event['id']; ?>">Export</a>
-                                                <a class="dropdown-item" href="javascript:;"> Share</a>
+                                                data-bs-toggle="modal" data-bs-target="#<?php echo $event_modal = ($user_status == 'verified') ? 'addEvent': 'verificationManual'?>"> Edit event</a>
+                                                <?php if($events_bought_cnt >= 1): ?>
+                                                  <a class="dropdown-item export_event border-bottom" href="javascript:;" data-title="<?php echo $event['title']; ?>" data-event_id="<?php echo $event['id']; ?>">Export guest list</a>
+                                                <?php endif; ?>
+                                                <a class="dropdown-item <?php echo ($events_bought_cnt < 1) ? 'border-bottom' : '' ?> share_button" data-title="<?php echo $event['title']; ?>" 
+                                                data-product_id="<?php echo $event['id']; ?>" data-type="event" href="javascript:;"> Share event</a>
+                                                <?php if($events_bought_cnt < 1): ?>
+                                                  <a class="dropdown-item close-manual" href="javascript:;"
+                                                    data-product_id="<?php echo $event['id']; ?>" data-title="<?php echo $event['title']; ?>" data-type="event"
+                                                    data-bs-toggle="modal" data-bs-target="#closeManual">Delete event</a>
+                                                <?php endif; ?>
                                               </div>
                                             </div>
                                           </td>
@@ -559,16 +578,17 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                   <div class="modal-dialog" role="document">
                     <div class="modal-content">
                       <div class="modal-header">
-                        <h4 class="modal-title fw-bold" id="closeManualLabel">Change Manual Visibility</h4>
+                        <h4 class="modal-title fw-bold" id="closeManualLabel">Delete Material</h4>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </button>
                       </div>
                       <form id="close-manual-form">
-                        <input type="hidden" name="close_manual" value="1">
-                        <input type="hidden" name="manual_id" value="0">
+                        <input type="hidden" name="delete_manual" value="1">
+                        <input type="hidden" name="product_type" value="0">
+                        <input type="hidden" name="product_id" value="0">
                         <div class="modal-body">
                           <div>
-                            <h4 class="lh-base">Are you sure you want to change <span class="manual_title text-primary">Manual Title</span> manual visibility before the due date?</h4>
+                            <h4 class="lh-base">Are you sure you want to delete <span class="manual_title text-primary">Manual Title</span>?</h4>
                           </div>
                         </div>
                         <div class="modal-footer">
@@ -1039,7 +1059,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
               button.prop("disabled", false);
             }
           });
-        }, 2000); // Simulated AJAX delay of 2 seconds
+        }, 2000);
       });
 
       // Handle click event of View/Edit button
@@ -1072,6 +1092,34 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
 
         // Trigger change event on page load to set initial state
         $('#event_type').trigger('change');
+      });
+
+      $(document).on('click', '.share_button', function (e) {
+        var button = $(this);
+        var product_id = button.data('product_id');
+        var type = button.data('type');
+        var title = button.data('title');
+        var shareText = 'Check out '+title+' on nivasity and order now!';
+        if (type == 'product') {
+          var shareUrl = "https://nivasity.com/model/cart_guest.php?share=1&action=1&type="+type+"&product_id="+product_id;
+        } else {
+          var shareUrl = "https://nivasity.com/event_details.php?event_id="+product_id;
+        }
+
+        // Check if the Web Share API is available
+        if (navigator.share) {
+          navigator.share({
+            title: document.title,
+            text: shareText,
+            url: shareUrl,
+          })
+            .then(() => console.log('Shared successfully'))
+            .catch((error) => console.error('Error sharing:', error));
+        } else {
+          // Fallback for platforms that do not support Web Share API
+          // You can add specific share URLs for each platform here
+          alert('Web Share API not supported. You can manually share the link.');
+        }
       });
 
       // Use AJAX to submit the event form
@@ -1122,13 +1170,19 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
       // Handle click event of View/Edit button
       $('.close-manual').on('click', function () {
         // Get the manual details from the data- attributes
-        var manualId = $(this).data('manual_id');
+        var product_id = $(this).data('product_id');
+        var type = $(this).data('type');
         var title = $(this).data('title');
-        var action = $(this).data('action');
+
+        if (type == 'event') {
+          $('#closeManualLabel').html('Delete Event');
+        } else {
+          $('#closeManualLabel').html('Delete Material');
+        }
 
         // Set the values in the edit manual modal
-        $('#close-manual-form input[name="manual_id"]').val(manualId);
-        $('#close-manual-form input[name="close_manual"]').val(action);
+        $('#close-manual-form input[name="product_id"]').val(product_id);
+        $('#close-manual-form input[name="product_type"]').val(type);
         $('.manual_title').html(title);
       });
       
@@ -1172,7 +1226,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
               button.prop("disabled", false);
             }
           });
-        }, 2000); // Simulated AJAX delay of 2 seconds
+        }, 2000);
       });
 
       // Event listener for the export button click
@@ -1251,7 +1305,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
               alert("Error fetching data.");
             },
           });
-        }, 2000); // Simulated AJAX delay of 2 seconds
+        }, 2000);
       });
 
       $('.export_event').click(function (event) {
@@ -1317,7 +1371,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
               alert("Error fetching data.");
             },
           });
-        }, 2000); // Simulated AJAX delay of 2 seconds
+        }, 2000);
       });
     });
   </script>
