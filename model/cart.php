@@ -89,6 +89,8 @@ if (isset($_POST['reload_cart'])) {
                 $_SESSION['cart_sellers'][$seller_code] = [
                     'seller' => $seller_code,
                     'price' => $cart_item['price'],
+                    'type' => 'manual',
+                    'product_id' => $cart_item_id,
                 ];
             }
         }
@@ -142,6 +144,8 @@ if (isset($_POST['reload_cart'])) {
             $_SESSION['cart_sellers'][$event_seller_code] = [
                 'seller' => $event_seller_code,
                 'price' => $cart_event['price'],
+                'type' => 'event',
+                'product_id' => $cart_item_id,
             ];
         }
 

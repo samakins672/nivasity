@@ -638,6 +638,15 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
         } else {
             parsedSessionData = sessionData; // Use as is if it's already an object
         }
+                
+        // Convert parsedSessionData to an array if it's an object
+        if (typeof parsedSessionData === "object" && !Array.isArray(parsedSessionData)) {
+          parsedSessionData = Object.values(parsedSessionData);
+        }
+
+        // Check the type and log the parsed session data for debugging
+        console.log('parsedSessionData:', parsedSessionData);
+        console.log('Type of parsedSessionData:', typeof parsedSessionData);
 
         function generateUniqueID() {
             const currentDate = new Date();
@@ -657,6 +666,26 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
             });
         });
 
+        $.ajax({
+          url: 'model/saveCart.php',
+          type: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({
+            ref_id: myUniqueID,
+            user_id: "<?php echo $user_id; ?>",
+            items: parsedSessionData.map(item => ({
+              item_id: item.product_id,
+              type: item.type
+            }))
+          }),
+          success: function(response) {
+            if (response.success) {
+              console.log("Cart saved:", response.message);
+            } else {
+              console.error("Error saving cart:", response.message);
+            }
+          }
+        });
 
         // Now make the Flutterwave API call
         $.ajax({
