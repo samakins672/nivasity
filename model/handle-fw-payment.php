@@ -124,6 +124,8 @@ if (isset($_GET['transaction_id'])) {
     
     mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, status) VALUES ('$tx_ref', $user_id, $total_amount, '$status')");
     
+    mysqli_query($conn, "DELETE FROM cart WHERE ref_id = '$tx_ref'");
+    
 
     // Empty the cart variables for both manuals and events
     $_SESSION["nivas_cart$user_id"] = array();
