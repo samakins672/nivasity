@@ -10,10 +10,10 @@ include('functions.php');
 
 // Retrieve the webhook payload
 $payload = file_get_contents('php://input');
-$verificationHash = isset($_SERVER['HTTP_X_SIGNATURE']) ? $_SERVER['HTTP_X_SIGNATURE'] : null;
+$headers = getallheaders();
 
-// Check if the verification hash is present
-if (!isset($verificationHash) || $verificationHash !== FLW_VERIF_HASH) {
+// Verify the Verif-Hash header
+if (!isset($headers['verif-hash']) || $headers['verif-hash'] !== FLW_VERIF_HASH) {
     http_response_code(403);
     echo json_encode(['status' => 'error', 'message' => 'Invalid verification hash']);
     exit;

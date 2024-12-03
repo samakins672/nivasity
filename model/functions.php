@@ -1,4 +1,18 @@
 <?php
+if (!function_exists('getallheaders')) {
+    function getallheaders() {
+        $headers = [];
+        foreach ($_SERVER as $name => $value) {
+            if (substr($name, 0, 5) == 'HTTP_') {
+                $headerName = str_replace('_', ' ', substr($name, 5));
+                $headerName = str_replace(' ', '-', ucwords(strtolower($headerName)));
+                $headers[$headerName] = $value;
+            }
+        }
+        return $headers;
+    }
+}
+
 function generateVerificationCode($length) {
     // Generate a random verification code of the specified length
     $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
