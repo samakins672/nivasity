@@ -79,9 +79,12 @@ foreach ($cartItems as $refId) {
         $total_amount = $total_amount + $price;
         $seller = $row['user_id'];
 
+        $user = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = $user_id"));
+        $school = $user['school'];
+
         $manual_ids[] = $item_id;
 
-        mysqli_query($conn, "INSERT INTO manuals_bought (manual_id, price, seller, buyer, ref_id, status) VALUES ($item_id, $price, $seller, $user_id, '$tx_ref', 'successful')");
+        mysqli_query($conn, "INSERT INTO manuals_bought (manual_id, price, seller, buyer, ref_id, status, school) VALUES ($item_id, $price, $seller, $user_id, '$tx_ref', 'successful', $school)");
       } elseif ($type === 'event') {
         $event = mysqli_query($conn, "SELECT price, user_id FROM events WHERE id = $item_id");
         $row = mysqli_fetch_assoc($event);
