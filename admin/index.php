@@ -422,8 +422,8 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                                                 data-course_code="<?php echo $manual['course_code']; ?>" data-price="<?php echo $manual['price']; ?>"
                                                 data-quantity="<?php echo $manual['quantity']; ?>"
                                                 data-due_date="<?php echo date('Y-m-d', strtotime($manual['due_date'])); ?>" 
-                                                data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual': 'verificationManual'?>"> \
-                                                <i class="mdi mdi-calendar-edit pe-2"></i> Edit material
+                                                data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual': 'verificationManual'?>">
+                                                <i class="mdi mdi-book-edit pe-2"></i> Edit material
                                               </a>
                                               <?php if($manuals_bought_cnt >= 1): ?>
                                                 <a class="dropdown-item export-manual border-bottom d-flex" href="javascript:;" data-bs-toggle="modal" data-bs-target="#exportManual"
