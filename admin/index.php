@@ -417,22 +417,30 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                                               <i class="mdi mdi-dots-vertical fs-4"></i>
                                             </button>
                                             <div class="dropdown-menu">
-                                              <a class="dropdown-item view-edit-manual border-bottom" href="javascript:;"
+                                              <a class="dropdown-item view-edit-manual border-bottom d-flex" href="javascript:;"
                                                 data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>"
                                                 data-course_code="<?php echo $manual['course_code']; ?>" data-price="<?php echo $manual['price']; ?>"
                                                 data-quantity="<?php echo $manual['quantity']; ?>"
                                                 data-due_date="<?php echo date('Y-m-d', strtotime($manual['due_date'])); ?>" 
-                                                data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual': 'verificationManual'?>"> Edit material</a>
+                                                data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual': 'verificationManual'?>"> \
+                                                <i class="mdi mdi-calendar-edit pe-2"></i> Edit material
+                                              </a>
                                               <?php if($manuals_bought_cnt >= 1): ?>
-                                                <a class="dropdown-item export-manual border-bottom" href="javascript:;" data-bs-toggle="modal" data-bs-target="#exportManual"
-                                                  data-manual_id="<?php echo $manual['id']; ?>" data-code="<?php echo $manual['course_code']; ?>">Export list</a>
+                                                <a class="dropdown-item export-manual border-bottom d-flex" href="javascript:;" data-bs-toggle="modal" data-bs-target="#exportManual"
+                                                  data-manual_id="<?php echo $manual['id']; ?>" data-code="<?php echo $manual['course_code']; ?>">
+                                                  <i class="mdi mdi-export-variant pe-2"></i> Export list
+                                                </a>
                                               <?php endif; ?>
-                                              <a class="dropdown-item <?php echo ($manuals_bought_cnt < 1) ? 'border-bottom' : '' ?> share_button" data-title="<?php echo $manual['title']; ?>" 
-                                                data-product_id="<?php echo $manual['id']; ?>" data-type="product" href="javascript:;"> Share material</a>
+                                              <a class="dropdown-item <?php echo ($manuals_bought_cnt < 1) ? 'border-bottom' : '' ?> share_button d-flex" data-title="<?php echo $manual['title']; ?>" 
+                                                data-product_id="<?php echo $manual['id']; ?>" data-type="product" href="javascript:;"> 
+                                                <i class="mdi mdi-share pe-2"></i> Share material
+                                              </a>
                                               <?php if($manuals_bought_cnt < 1): ?>
-                                                <a class="dropdown-item close-manual" href="javascript:;"
+                                                <a class="dropdown-item close-manual d-flex" href="javascript:;"
                                                   data-product_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>" data-type="product"
-                                                  data-bs-toggle="modal" data-bs-target="#closeManual">Delete material</a>
+                                                  data-bs-toggle="modal" data-bs-target="#closeManual">
+                                                  <i class="mdi mdi-delete pe-2"></i> Delete material
+                                                </a>
                                               <?php endif; ?>
                                             </div>
                                           </div>
@@ -550,23 +558,35 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                                                 <i class="mdi mdi-dots-vertical fs-4"></i>
                                               </button>
                                               <div class="dropdown-menu">
-                                                <a class="dropdown-item view-edit-event border-bottom" href="javascript:;"
+                                                <a class="dropdown-item view-edit-event border-bottom d-flex" href="javascript:;"
                                                 data-event_id="<?php echo $event['id']; ?>" data-title="<?php echo $event['title']; ?>" data-description="<?php echo $event['description']; ?>"
                                                 data-price="<?php echo $event['price']; ?>" data-quantity="<?php echo $event['quantity']; ?>"
                                                 data-location="<?php echo $event['location']; ?>" data-image="<?php echo $event['event_banner']; ?>"
                                                 data-event_type="<?php echo $event['event_type']; ?>" data-event_link="<?php echo $event['event_link']; ?>"
                                                 data-school="<?php echo $event['school']; ?>" data-location="<?php echo $event['location']; ?>"
                                                 data-event_time="<?php echo $event_time2; ?>" data-event_date="<?php echo $event_date2; ?>" 
-                                                data-bs-toggle="modal" data-bs-target="#<?php echo $event_modal = ($user_status == 'verified') ? 'addEvent': 'verificationManual'?>"> Edit event</a>
+                                                data-bs-toggle="modal" data-bs-target="#<?php echo $event_modal = ($user_status == 'verified') ? 'addEvent': 'verificationManual'?>"> 
+                                                  <i class="mdi mdi-calendar-edit pe-2"></i> Edit event
+                                                </a>
                                                 <?php if($events_bought_cnt >= 1): ?>
-                                                  <a class="dropdown-item export_event border-bottom" href="javascript:;" data-title="<?php echo $event['title']; ?>" data-event_id="<?php echo $event['id']; ?>">Export guest list</a>
+                                                  <a class="dropdown-item export_event border-bottom d-flex" href="javascript:;" data-title="<?php echo $event['title']; ?>" data-event_id="<?php echo $event['id']; ?>">
+                                                    <i class="mdi mdi-export-variant pe-2"></i> Export guest list
+                                                  </a>
+                                                  <a class="dropdown-item email_event_guests border-bottom d-flex" href="javascript:;" data-title="<?php echo $event['title']; ?>" data-event_id="<?php echo $event['id']; ?>"
+                                                    data-bs-toggle="modal" data-bs-target="#emailGuests">
+                                                    <i class="mdi mdi-email-multiple pe-2"></i> Email guests
+                                                  </a>
                                                 <?php endif; ?>
-                                                <a class="dropdown-item <?php echo ($events_bought_cnt < 1) ? 'border-bottom' : '' ?> share_button" data-title="<?php echo $event['title']; ?>" 
-                                                data-product_id="<?php echo $event['id']; ?>" data-type="event" href="javascript:;"> Share event</a>
+                                                <a class="dropdown-item <?php echo ($events_bought_cnt < 1) ? 'border-bottom' : '' ?> share_button d-flex" data-title="<?php echo $event['title']; ?>" 
+                                                data-product_id="<?php echo $event['id']; ?>" data-type="event" href="javascript:;">
+                                                  <i class="mdi mdi-share pe-2"></i> Share event
+                                                </a>
                                                 <?php if($events_bought_cnt < 1): ?>
-                                                  <a class="dropdown-item close-manual" href="javascript:;"
+                                                  <a class="dropdown-item close-manual d-flex" href="javascript:;"
                                                     data-product_id="<?php echo $event['id']; ?>" data-title="<?php echo $event['title']; ?>" data-type="event"
-                                                    data-bs-toggle="modal" data-bs-target="#closeManual">Delete event</a>
+                                                    data-bs-toggle="modal" data-bs-target="#closeManual">
+                                                    <i class="mdi mdi-delete pe-2"></i> Delete event
+                                                  </a>
                                                 <?php endif; ?>
                                               </div>
                                             </div>
@@ -762,6 +782,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                 </div>
 
                 <?php elseif ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'org_admin'): ?>
+                  
                 <!-- Add New Event Modal -->
                 <div class="modal fade" id="addEvent" tabindex="-1" role="dialog" aria-labelledby="addEventLabel"
                   aria-hidden="true">
@@ -864,6 +885,37 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
                     </div>
                   </div>
                 </div>
+
+                <!-- Email Event Guests Modal -->
+                <div class="modal fade" id="emailGuests" tabindex="-1" role="dialog" aria-labelledby="emailGuestsLabel"
+                  aria-hidden="true">
+                  <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title" id="emailGuestsLabel">Email <span class="event_title_ fw-bold"></span> Guests</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </button>
+                      </div>
+                      <form id="email-guest-form">
+                        <input type="hidden" name="email_guests" value="1">
+                        <input type="hidden" name="event_id" value="0">
+                        <input type="hidden" name="title" value="0">
+                        <div class="modal-body">
+                          <div class="wysi-editor mb-4">
+                            <label class="form-label" for="message">Message</label>
+                            <textarea class="form-control w-100 px-3 py-2" name="message" required></textarea>
+                          </div>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
+                          <button id="email_submit" type="submit" data-mdb-ripple-duration="0"
+                            class="btn btn-lg btn-primary">Submit</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+
                 <?php endif; ?>
               </div>
             </div>
@@ -1037,14 +1089,14 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
 
       // Use AJAX to submit the manual form
       $('#manual-form').submit(function (event) {
-        event.preventDefault(); // Prevent the default form submission
+        event.preventDefault();
 
         // Define manual button
         var button = $('#manual_submit');
         var originalText = button.html();
 
         // Display the spinner and disable the button
-        button.html('<div class="spinner-border text-white" style="width: 1.5rem; height: 1.5rem;" role="status"><span class="sr-only"></span>');
+        button.html('<div class="spinner-border spinner-border-sm text-white" style="width: 1.5rem; height: 1.5rem;" role="status"><span class="sr-only"></span>');
         button.prop('disabled', true);
 
         // Simulate an AJAX call using setTimeout
@@ -1113,6 +1165,20 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
         $('#event_type').trigger('change');
       });
 
+      // Handle click event of email_event_guests button
+      $('.email_event_guests').on('click', function () {
+        // Get the event details from the data- attributes
+        var eventId = $(this).data('event_id');
+        var title = $(this).data('title');
+
+        // Set the values in the email guests modal
+        $('#email-guest-form input[name="event_id"]').val(eventId);
+        $('#email-guest-form input[name="title"]').val(title);
+        $('.event_title_').text(title);
+
+        $('#email-guest-form')[0].reset();
+      });
+
       $(document).on('click', '.share_button', function (e) {
         var button = $(this);
         var product_id = button.data('product_id');
@@ -1143,17 +1209,62 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
 
       // Use AJAX to submit the event form
       $('#event-form').submit(function (event) {
-        event.preventDefault(); // Prevent the default form submission
+        event.preventDefault();
 
         // Define event button
         var button = $('#event_submit');
         var originalText = button.html();
 
         // Display the spinner and disable the button
-        button.html('<div class="spinner-border text-white" style="width: 1.5rem; height: 1.5rem;" role="status"><span class="sr-only"></span>');
+        button.html('<div class="spinner-border spinner-border-sm text-white" style="width: 1.5rem; height: 1.5rem;" role="status"><span class="sr-only"></span>');
         button.prop('disabled', true);
 
         var formData = new FormData($('#event-form')[0]);
+
+        $.ajax({
+          type: 'POST',
+          url: 'model/events.php',
+          data: formData,
+          contentType: false,
+          processData: false,
+          success: function (data) {
+            $('#alertBanner').html(data.message);
+
+            if (data.status == 'success') {
+              $('#alertBanner').removeClass('alert-info');
+              $('#alertBanner').removeClass('alert-danger');
+              $('#alertBanner').addClass('alert-success');
+
+              location.reload();
+            } else {
+              $('#alertBanner').removeClass('alert-success');
+              $('#alertBanner').removeClass('alert-info');
+              $('#alertBanner').addClass('alert-danger');
+            }
+
+            // Show alert for verified email address
+            showAlert();
+
+            // AJAX call successful, stop the spinner and update button text
+            button.html(originalText);
+            button.prop("disabled", false);
+          }
+        });
+      });
+
+      // Use AJAX to submit the email guest form
+      $('#email-guest-form').submit(function (event) {
+        event.preventDefault();
+
+        // Define event button
+        var button = $('#email_submit');
+        var originalText = button.html();
+
+        // Display the spinner and disable the button
+        button.html('<div class="spinner-border spinner-border-sm text-white" style="width: 1.5rem; height: 1.5rem;" role="status"><span class="sr-only"></span>');
+        button.prop('disabled', true);
+
+        var formData = new FormData($('#email-guest-form')[0]);
 
         $.ajax({
           type: 'POST',
@@ -1206,14 +1317,14 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
       });
       
       $('#close-manual-form').submit(function (event) {
-        event.preventDefault(); // Prevent the default form submission
+        event.preventDefault();
 
         // Define manual button
         var button = $('#close_manual_submit');
         var originalText = button.html();
 
         // Display the spinner and disable the button
-        button.html('<div class="spinner-border text-white" style="width: 1.5rem; height: 1.5rem;" role="status"><span class="sr-only"></span>');
+        button.html('<div class="spinner-border spinner-border-sm text-white" style="width: 1.5rem; height: 1.5rem;" role="status"><span class="sr-only"></span>');
         button.prop('disabled', true);
 
         // Simulate an AJAX call using setTimeout
@@ -1260,7 +1371,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
       });
 
       $('#export-manual-form').submit(function (event) {
-        event.preventDefault(); // Prevent the default form submission
+        event.preventDefault();
 
         var manualId = $('#export-manual-form input[name="manual_id"]').val();
         var code = $('#export-manual-form input[name="code"]').val();
@@ -1271,7 +1382,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
         var originalText = button.html();
 
         // Display the spinner and disable the button
-        button.html('<div class="spinner-border text-white" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
+        button.html('<div class="spinner-border spinner-border-sm text-white" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
         button.prop('disabled', true);
 
         // Simulate an AJAX call using setTimeout
@@ -1336,7 +1447,7 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
         var originalText = button.html();
 
         // Display the spinner and disable the button
-        button.html('<div class="spinner-border text-white" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
+        button.html('<div class="spinner-border spinner-border-sm text-white" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
         button.prop('disabled', true);
 
         // Simulate an AJAX call using setTimeout

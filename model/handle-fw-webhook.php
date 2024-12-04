@@ -10,7 +10,7 @@ include('functions.php');
 
 // Function to verify the transaction via the Flutterwave API
 function verifyTransaction($txRef) {
-  $secretKey = FLW_SECRET_KEY_TEST;
+  $secretKey = FLW_SECRET_KEY;
 
   // API request setup
   $url = "https://api.flutterwave.com/v3/transactions?tx_ref=$txRef";
