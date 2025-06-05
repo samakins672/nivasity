@@ -133,21 +133,29 @@ if (isset($_POST['nivas_ref'])) {
       }
     }
 
-    if ($total_amount < 2500) {
-      $charge = 65;
-    } elseif ($total_amount >= 2500) {
-      // Add 1.5% to the transferAmount
-      $charge += ($total_amount * 0.015);
-
-      // Adjust the charge accordingly
+    if ($total_amount == 0) {
+      $charge = 0;
+    } elseif ($total_amount <= 4500) {
+      // Flat fee for transactions up to ₦4,500
+      $charge = 100;
+    } else {
+      // Preserve the previous calculation for amounts above ₦4,500
       if ($total_amount < 2500) {
-        $charge += 120;
-      } elseif ($total_amount >= 2500 && $total_amount < 5000) {
-        $charge += 125;
-      } elseif ($total_amount >= 5000 && $total_amount < 10000) {
-        $charge += 130;
+        $charge = 65;
       } else {
-        $charge += 135;
+        // Add 1.5% to the transferAmount
+        $charge += ($total_amount * 0.015);
+
+        // Adjust the charge accordingly
+        if ($total_amount < 2500) {
+          $charge += 120;
+        } elseif ($total_amount >= 2500 && $total_amount < 5000) {
+          $charge += 125;
+        } elseif ($total_amount >= 5000 && $total_amount < 10000) {
+          $charge += 130;
+        } else {
+          $charge += 135;
+        }
       }
     }
 
