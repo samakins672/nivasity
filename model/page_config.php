@@ -27,8 +27,7 @@ if (isset($_SESSION['nivas_userId'])) {
   $is_admin_role = False;
   
   if ($_SESSION['nivas_userRole'] == 'org_admin' || $_SESSION['nivas_userRole'] == 'visitor') {
-    $redirected_path = $_SERVER['REQUEST_URI'];
-    header("Location: https://nivasity.com$redirected_path");
+    header("Location: https://funaab.nivasity.com/signin.html?logout=1&not_allowed=1");
     exit();
   }
   if ($_SESSION['nivas_userRole'] !== 'student' && $_SESSION['nivas_userRole'] !== 'visitor') {
