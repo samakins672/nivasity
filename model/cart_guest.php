@@ -42,7 +42,7 @@ if (isset($_GET['product_id'])) {
 
     if (isset($_GET['share'])) {
         if ($active == 1) {
-            header('Location: ../store.php?cart=1');
+            header('Location: /?cart=1');
         } else {
             header('Location: ../signin.html');
         }

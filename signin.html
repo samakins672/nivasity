@@ -320,7 +320,7 @@
             $('#alertBanner').removeClass('alert-warning');
             $('#alertBanner').addClass('alert-success');
 
-            window.location.href = "store.php?loggedin";
+            window.location.href = "/?loggedin";
           } else if (data.status == 'unverified') {
             $('#alertBanner').removeClass('alert-danger');
             $('#alertBanner').removeClass('alert-success');
@@ -401,7 +401,7 @@
                   if (data.role == 'admin') {
                     window.location.href = "admin/?loggedin";
                   } else {
-                    window.location.href = "store.php?loggedin";
+                    window.location.href = "/?loggedin";
                   }
                 }, 1000); // 1000 milliseconds (1 second) delay
               } else if (data.status == 'unverified') {

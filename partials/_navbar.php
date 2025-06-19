@@ -33,7 +33,7 @@
           <input type="search" class="form-control" placeholder="Search Here" title="Search here">
         </form>
       </li>
-      <?php if($url == 'store.php'):?>
+      <?php if($url == 'index.php'):?>
       <li class="nav-item dropdown d-md-none d-inline">
         <a class="nav-link count-indicator mt-2 go-to-cart-button" data-bs-toggle="tab" href="javascript:;">
           <i class="mdi mdi-cart-outline"></i>

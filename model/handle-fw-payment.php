@@ -132,12 +132,12 @@ if (isset($_GET['transaction_id'])) {
     $_SESSION["nivas_cart_event$user_id"] = array();
 
     if (!isset($_GET['callback'])) {
-        header('Location: ../store.php?payment=successful');
+        header('Location: /?payment=successful');
     }
   } else {
     if (!isset($_GET['callback'])) {
         // Inform the customer their payment was unsuccessful
-        header('Location: ../store.php?payment=unsuccessful');
+        header('Location: /?payment=unsuccessful');
     }
   }
 }

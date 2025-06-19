@@ -4,7 +4,7 @@ include('../model/config.php');
 include('../model/page_config.php');
 
 if ($_SESSION['nivas_userRole'] == 'student' || $_SESSION['nivas_userRole'] == 'visitor') {
-  header('Location: ../store.php');
+  header('Location: /');
   exit();
 } elseif ($_SESSION['nivas_userRole'] == 'hoc') {
   $item_table = "manuals";

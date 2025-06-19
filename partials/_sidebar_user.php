@@ -18,7 +18,7 @@
       </div>
     </li>
     <li class="nav-item active">
-      <a class="nav-link bg-primary" href="store.php">
+      <a class="nav-link bg-primary" href="/">
         <i class="mdi mdi-store menu-icon text-white"></i>
         <span class="menu-title text-white fw-bold">Store</span>
       </a>
