@@ -173,10 +173,10 @@ if (isset($_POST['nivas_ref'])) {
     $_SESSION["nivas_cart$user_id"] = array();
     $_SESSION["nivas_cart_event$user_id"] = array();
 
-    header('Location: ../store.php?payment=successful');
+    header('Location: /?payment=successful');
   } else {
     // Inform the customer their payment was unsuccessful
-    header('Location: ../store.php?payment=unsuccessful');
+    header('Location: /?payment=unsuccessful');
   }
 }
 ?>

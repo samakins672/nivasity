@@ -8,7 +8,7 @@ $manual_query = 0;
 $link_to = "signin.html";
 
 if (isset($_SESSION['nivas_userId'])) {
-  $link_to = "store.php";
+  $link_to = "/";
   if ($is_admin_role) {
     $link_to = "admin/";
   }
@@ -415,7 +415,7 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
           url: 'model/cart_guest.php', // Replace with your PHP file handling the cart logic
           data: { type: 'product', product_id: product_id, action: 1 },
           success: function (data) {
-            window.location.href = "store.php?cart=1";
+            window.location.href = "/?cart=1";
           },
           error: function () {
             // Handle error
@@ -436,7 +436,7 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
           data: { type: 'event', product_id: event_id, action: 1 },
           success: function (data) {
             if (data.active = 1) {
-              window.location.href = "store.php?cart=1";
+              window.location.href = "/?cart=1";
             } else {
               window.location.href = "signin.html";
             }
