@@ -33,6 +33,11 @@ if (isset($_SESSION['nivas_userId'])) {
   if ($_SESSION['nivas_userRole'] !== 'student' && $_SESSION['nivas_userRole'] !== 'visitor') {
     $is_admin_role = True;
   }
+
+  if ($school_id == 1) {
+    header("Location: https://funaab.nivasity.com");
+    exit();
+  }
 }
 
 $date = date('Y-m-d');
