@@ -1,15 +1,15 @@
 <!-- Open Graph Meta Tags -->
 <meta property="og:title" content="Nivasity - Empowering Students and Educators">
 <meta property="og:description" content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
-<meta property="og:image" content="https://nivasity.com/assets/images/nivasity-main.png">
-<meta property="og:url" content="https://nivasity.com">
+<meta property="og:image" content="https://funaab.nivasity.com/assets/images/nivasity-main.png">
+<meta property="og:url" content="https://funaab.nivasity.com">
 <meta property="og:type" content="website">
 
 <!-- Twitter Meta Tags -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Nivasity - Empowering Students and Educators">
 <meta name="twitter:description" content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
-<meta name="twitter:image" content="https://nivasity.com/assets/images/nivasity-main.png">
+<meta name="twitter:image" content="https://funaab.nivasity.com/assets/images/nivasity-main.png">
 
 <!-- plugins:css -->
 <link rel="stylesheet" href="assets/vendors/feather/feather.css">

@@ -441,9 +441,9 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
         var shareText = 'Check out '+title+' on nivasity and order now!';
 
         if (type == 'product') {
-          var shareUrl = "https://nivasity.com/model/cart_guest.php?share=1&action=1&type="+type+"&product_id="+product_id;
+          var shareUrl = "https://funaab.nivasity.com/model/cart_guest.php?share=1&action=1&type="+type+"&product_id="+product_id;
         } else {
-          var shareUrl = "https://nivasity.com/event_details.php?event_id="+product_id;
+          var shareUrl = "https://funaab.nivasity.com/event_details.php?event_id="+product_id;
         }
 
         // Check if the Web Share API is available
@@ -703,7 +703,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
               currency: "NGN",
               subaccounts: subaccounts,
               payment_options: "card, banktransfer, ussd",
-              // redirect_url: "https://nivasity.com/model/handle-fw-payment.php",
+              // redirect_url: "https://funaab.nivasity.com/model/handle-fw-payment.php",
               callback: function(payment) {
                 console.log(payment);
                 // Send AJAX verification request to backend

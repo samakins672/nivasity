@@ -33,7 +33,7 @@ if (isset($_POST['nivas_ref'])) {
       'reference' => $nivas_ref,
       'subaccount' => $seller,
       'transaction_charge' => $charge,
-      'callback_url' => 'https://nivasity.com/model/handle-ps-payment.php'
+      'callback_url' => 'https://funaab.nivasity.com/model/handle-ps-payment.php'
     ]),
     CURLOPT_HTTPHEADER => array(
       'Content-Type: application/json',
