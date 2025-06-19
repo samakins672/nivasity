@@ -19,16 +19,9 @@ if (isset($_POST['signup'])) {
     $phone = mysqli_real_escape_string($conn, $_POST['phone']);
     $gender = mysqli_real_escape_string($conn, $_POST['gender']);
     $role = mysqli_real_escape_string($conn, $_POST['role']);
-    if (isset($_POST['school'])) {
-      $school = mysqli_real_escape_string($conn, $_POST['school']);
-
-      mysqli_query($conn, "INSERT INTO users (first_name, last_name, email, phone, password, role, school, gender) 
-        VALUES ('$first_name', '$last_name', '$email', '$phone', '$password', '$role', $school, '$gender')");
-    } else {
-      mysqli_query($conn, "INSERT INTO users (first_name, last_name, email, phone, password, role, gender) 
-        VALUES ('$first_name', '$last_name', '$email', '$phone', '$password', '$role', '$gender')");
-    }
-
+    $school = 1;
+    mysqli_query($conn, "INSERT INTO users (first_name, last_name, email, phone, password, role, school, gender)"
+        . " VALUES ('$first_name', '$last_name', '$email', '$phone', '$password', '$role', $school, '$gender')");
     $user_id = mysqli_insert_id($conn);
 
     if (mysqli_affected_rows($conn) < 1) {
@@ -59,8 +52,8 @@ if (isset($_POST['signup'])) {
       <br><br>
       Welcome to Nivasity! We're excited to have you on board. To ensure the security of your account and to provide you with the best experience, we kindly ask you to verify your email address.
       <br><br>
-      Click on the following link to verify your account: <a href='https://nivasity.com/$verificationCode'>Verify Account</a>
-      <br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://nivasity.com/$verificationCode
+      Click on the following link to verify your account: <a href='https://funaab.nivasity.com/$verificationCode'>Verify Account</a>
+      <br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationCode
       <br><br>
       Thank you for choosing Nivasity. We look forward to serving you!
       <br><br>

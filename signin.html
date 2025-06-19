@@ -12,15 +12,15 @@
   <!-- Open Graph Meta Tags -->
   <meta property="og:title" content="Get started - Nivasity">
   <meta property="og:description" content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
-  <meta property="og:image" content="https://nivasity.com/assets/images/nivasity-main.png">
-  <meta property="og:url" content="https://nivasity.com">
+  <meta property="og:image" content="https://funaab.nivasity.com/assets/images/nivasity-main.png">
+  <meta property="og:url" content="https://funaab.nivasity.com">
   <meta property="og:type" content="website">
 
   <!-- Twitter Meta Tags -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Get started - Nivasity">
   <meta name="twitter:description" content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
-  <meta name="twitter:image" content="https://nivasity.com/assets/images/nivasity-main.png">
+  <meta name="twitter:image" content="https://funaab.nivasity.com/assets/images/nivasity-main.png">
 
   <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
 
@@ -167,9 +167,6 @@
                       <select id="role" name="role" class="form-select form-select-lg">
                         <option value="hoc">I'm an HOC or Department Governor</option>
                         <option value="student">I'm a Student</option>
-                        <option value="hoc">I'm a Lecturer or HOD</option>
-                        <option value="org_admin">I'm Here to Host Events</option>
-                        <option value="visitor">I'm a Public User</option>
                       </select>
                     </div>
                   </div>
@@ -184,9 +181,6 @@
                   </div>
                 </div>
   
-                <div class="form-group mb-4" id="school-container">
-                  <select id="school" name="school" class="form-control form-control-lg searchable-select"></select>
-                </div>
   
                 <div class="row mb-4">
                   <div class="col-11">
@@ -350,37 +344,6 @@
     }
 
     $(document).ready(function () {
-      $('#role').change(function() {
-        if ($(this).val() === 'org_admin' || $(this).val() === 'visitor') {
-          // Hide the school dropdown if "Business Owner" is selected
-          $('#school-container').hide();
-        } else {
-          // Show the school dropdown for other roles
-          $('#school-container').show();
-        }
-      });
-      
-      $.ajax({
-        type: 'GET',
-        url: 'model/getInfo.php',
-        data: { get_data: 'schools' },
-        success: function (data) {
-          // Get the select element
-          var school_select = $('#school');
-
-          // Iterate through the departments and add options
-          $.each(data.schools, function (index, schools) {
-            // Append each department as an option to the select element
-            school_select.append($('<option>', {
-              value: schools.id,
-              text: schools.name
-            }));
-          });
-        }
-      });
-
-      $('.searchable-select').select2();
-
       $('[data-toggle="tooltip"]').tooltip();
 
       $(".form-check-input").click(function () {
@@ -475,11 +438,6 @@
 
         // Serialize the form data
         let formData = $(this).serializeArray();
-        
-        // Check if role is 'org_admin' or 'visitor' and remove 'school' from form data if so
-        if ($('#role').val() === 'org_admin' || $('#role').val() === 'visitor') {
-          formData = formData.filter(field => field.name !== 'school');
-        }
 
         // Define login button
         var button = $('#signup');

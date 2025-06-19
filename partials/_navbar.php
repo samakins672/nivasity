@@ -1,11 +1,11 @@
 <nav class="navbar default-layout col-lg-12 col-12 p-0 fixed-top d-flex align-items-top flex-row">
   <div class="text-center navbar-brand-wrapper d-flex align-items-center justify-content-start">
     <div class="ms-md-0 ms-2">
-      <a class="navbar-brand brand-logo" href="https://nivasity.com">
-        <img src="https://nivasity.com/assets/images/nivasity-main.png" alt="logo" />
+      <a class="navbar-brand brand-logo" href="https://funaab.nivasity.com">
+        <img src="https://funaab.nivasity.com/assets/images/nivasity-main.png" alt="logo" />
       </a>
-      <a class="navbar-brand brand-logo-mini" href="https://nivasity.com">
-        <img src="https://nivasity.com/assets/images/nivasity-logo-tr.png" alt="logo" />
+      <a class="navbar-brand brand-logo-mini" href="https://funaab.nivasity.com">
+        <img src="https://funaab.nivasity.com/assets/images/nivasity-logo-tr.png" alt="logo" />
       </a>
     </div>
   </div>
@@ -43,10 +43,10 @@
       <?php endif;?>
       <li class="nav-item dropdown d-none d-lg-block user-dropdown">
         <a class="nav-link" id="UserDropdown" href="#" data-bs-toggle="dropdown" aria-expanded="false">
-          <img class="img-xs rounded rounded-7" src="https://nivasity.com/assets/images/users/<?php echo $user_image?>" alt="Profile image"> </a>
+          <img class="img-xs rounded rounded-7" src="https://funaab.nivasity.com/assets/images/users/<?php echo $user_image?>" alt="Profile image"> </a>
         <div class="dropdown-menu dropdown-menu-right navbar-dropdown" aria-labelledby="UserDropdown">
           <div class="dropdown-header text-center">
-            <img class="img-sm img-fluid rounded rounded-7" src="https://nivasity.com/assets/images/users/<?php echo $user_image?>" alt="Profile image">
+            <img class="img-sm img-fluid rounded rounded-7" src="https://funaab.nivasity.com/assets/images/users/<?php echo $user_image?>" alt="Profile image">
             <span class="mb-1 mt-1 fw-bold d-block">
               <?php echo $user_name?><br>
               <?php if ($_SESSION['nivas_userRole'] == 'student'): ?>
@@ -60,13 +60,13 @@
               <?php endif; ?>
             </span>
           </div>
-          <!-- <a class="dropdown-item" href="https://nivasity.com/user.php"><i
+          <!-- <a class="dropdown-item" href="https://funaab.nivasity.com/user.php"><i
               class="dropdown-item-icon mdi mdi-account-outline text-primary me-2"></i> My
             Profile</a>
-          <a class="dropdown-item" href="https://nivasity.com/faq.html"><i
+          <a class="dropdown-item" href="https://funaab.nivasity.com/faq.html"><i
               class="dropdown-item-icon mdi mdi-help-circle-outline text-primary me-2"></i>
             FAQ</a> -->
-          <a class="dropdown-item" href="https://nivasity.com/signin.html?logout=1"><i
+          <a class="dropdown-item" href="https://funaab.nivasity.com/signin.html?logout=1"><i
               class="dropdown-item-icon mdi mdi-power text-primary me-2"></i>Sign Out</a>
         </div>
       </li>
