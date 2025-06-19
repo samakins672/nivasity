@@ -107,17 +107,21 @@ foreach ($cartItems as $refId) {
 
     // Calculate additional charges
     $charge = 0;
-    if ($total_amount < 2500) {
-      $charge = 45;
-    } elseif ($total_amount >= 2500) {
-      $charge += ($total_amount * 0.014);
+    if ($total_amount == 0) {
+      $charge = 0;
+    } elseif ($total_amount < 2500) {
+      // Flat fee for transactions less than ₦2500
+      $charge = 70;
+    } else {
+      // Use the previous calculation for amounts above ₦4,500
+      $charge += ($total_amount * 0.02);
 
       if ($total_amount >= 2500 && $total_amount < 5000) {
         $charge += 20;
       } elseif ($total_amount >= 5000 && $total_amount < 10000) {
         $charge += 30;
       } else {
-        $charge += 35;
+        $charge += 50;
       }
     }
 
