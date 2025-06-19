@@ -34,7 +34,7 @@ if (isset($_SESSION['nivas_userId'])) {
     $is_admin_role = True;
   }
 
-  if ($school_id == 1) {
+  if ($school_id == 1 && ($_SESSION['nivas_userRole'] == 'student' || $_SESSION['nivas_userRole'] == 'hoc')) {
     header("Location: https://funaab.nivasity.com");
     exit();
   }
