@@ -71,7 +71,11 @@ if (isset($_POST['reload_cart'])) {
         $status_c = '';
 
         $seller = $cart_item['user_id'];
-        $seller_code = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE user_id = $seller"))['subaccount_code'];
+        $sett_query = mysqli_query($conn, "SELECT subaccount_code FROM settlement_accounts WHERE school_id = $school_id AND type = 'school' ORDER BY id DESC LIMIT 1");
+        if (mysqli_num_rows($sett_query) == 0) {
+            $sett_query = mysqli_query($conn, "SELECT subaccount_code FROM settlement_accounts WHERE user_id = $seller ORDER BY id DESC LIMIT 1");
+        }
+        $seller_code = mysqli_fetch_array($sett_query)['subaccount_code'];
 
         if ($date > $due_date2 || $status == 'closed') {
             $status = 'disabled';
