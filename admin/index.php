@@ -37,7 +37,10 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE user_id = $user_i
 
 $transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM $item_table2 WHERE seller = $user_id ORDER BY `created_at` DESC");
 
-$settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE user_id = $user_id ORDER BY `id` DESC LIMIT 1");
+$settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE school_id = $school_id AND type = 'school' ORDER BY `id` DESC LIMIT 1");
+if (mysqli_num_rows($settlement_query) == 0) {
+  $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE user_id = $user_id ORDER BY `id` DESC LIMIT 1");
+}
 
 ?>
 <!DOCTYPE html>

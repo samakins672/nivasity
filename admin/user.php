@@ -8,7 +8,13 @@ if ($_SESSION['nivas_userRole'] == 'student') {
   exit();
 }
 
-$settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE user_id = $user_id ORDER BY `id` DESC LIMIT 1");
+$settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE school_id = $school_id AND type = 'school' ORDER BY `id` DESC LIMIT 1");
+$from_school = false;
+if (mysqli_num_rows($settlement_query) == 0) {
+  $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE user_id = $user_id ORDER BY `id` DESC LIMIT 1");
+} else {
+  $from_school = true;
+}
 
 $d_icon = 'plus';
 $d_text = 'Add new account';
@@ -19,14 +25,17 @@ $acct_number = '';
 $bank = '1';
 
 if (mysqli_num_rows($settlement_query) == 1) {
-  $d_icon = 'edit';
-  $d_text = 'Edit account';
-  $settlement_id = 1;
   $acct = mysqli_fetch_array($settlement_query);
 
   $acct_name = $acct['acct_name'];
   $acct_number = $acct['acct_number'];
   $bank = $acct['bank'];
+
+  if (!$from_school) {
+    $d_icon = 'edit';
+    $d_text = 'Edit account';
+    $settlement_id = 1;
+  }
 }
 
 $filePath = '../model/all-banks-NG-flw.json';
@@ -200,9 +209,13 @@ $bankName = getBankName($bank, $bankList);
                           <h4 class="card-header pb-3">
                             <div class="d-sm-flex justify-content-between align-items-center">
                               <h4 class="fw-bold">Settlement Account</h4>
-                              <button class="btn btn-primary btn-lg fw-bold text-white mb-0 me-0 view-edit-account" type="button" data-bs-toggle="modal" data-bs-target="#addSettlement"
-                              data-settlement_id="<?php echo $settlement_id ?>" data-acct_name="<?php echo $acct_name ?>" data-acct_number="<?php echo $acct_number ?>" data-bank="<?php echo $bank ?>"><i
-                                  class="mdi mdi-briefcase-<?php echo $d_icon ?>"></i><?php echo $d_text ?></button>
+                              <?php if (!$from_school): ?>
+                                <button class="btn btn-primary btn-lg fw-bold text-white mb-0 me-0 view-edit-account" type="button" data-bs-toggle="modal" data-bs-target="#addSettlement"
+                                data-settlement_id="<?php echo $settlement_id ?>" data-acct_name="<?php echo $acct_name ?>" data-acct_number="<?php echo $acct_number ?>" data-bank="<?php echo $bank ?>"><i
+                                    class="mdi mdi-briefcase-<?php echo $d_icon ?>"></i><?php echo $d_text ?></button>
+                              <?php else: ?>
+                                <span class="badge bg-success">Using school account</span>
+                              <?php endif; ?>
                             </div>
                           </h4>
                           <div class="card-body">
