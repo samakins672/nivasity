@@ -34,7 +34,7 @@ if (isset($_SESSION['nivas_userId'])) {
     $is_admin_role = True;
   }
 
-  if ($school_id != 1) {
+  if ($school_id != 1 || $_SESSION['nivas_userRole'] == 'org_admin') {
     $redirected_path = $_SERVER['REQUEST_URI'];
     header("Location: https://nivasity.com$redirected_path");
     exit();
