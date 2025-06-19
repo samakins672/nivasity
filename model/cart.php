@@ -179,18 +179,18 @@ if (isset($_POST['reload_cart'])) {
     $charge = 0;
     if ($transferAmount == 0) {
         $charge = 0;
-    } elseif ($transferAmount <= 4500) {
-        // Flat fee for transactions up to ₦4,500
-        $charge = 100;
+    } elseif ($transferAmount < 2500) {
+        // Flat fee for transactions less than ₦2500
+        $charge = 70;
     } else {
         // Use the previous calculation for amounts above ₦4,500
-        $charge += ($transferAmount * 0.014);
+        $charge += ($transferAmount * 0.02);
         if ($transferAmount >= 2500 && $transferAmount < 5000) {
             $charge += 20;
         } elseif ($transferAmount >= 5000 && $transferAmount < 10000) {
             $charge += 30;
         } else {
-            $charge += 35;
+            $charge += 50;
         }
     }
     $transferAmount += $charge;
