@@ -91,7 +91,7 @@ function sendMail($subject, $body, $to)
   <body>
       <div class="container">
           <div class="header">
-              <img src="https://nivasity.com/assets/images/nivasity-main.png" alt="Nivasty">
+              <img src="https://funaab.nivasity.com/assets/images/nivasity-main.png" alt="Nivasty">
           </div>
           <div class="content">
               ' . $body . '
@@ -230,7 +230,7 @@ function sendBulkMail($subject, $body, $recipients, $replyToEmail)
   <body>
       <div class="container">
           <div class="header">
-              <img src="https://nivasity.com/assets/images/nivasity-main.png" alt="Nivasty">
+              <img src="https://funaab.nivasity.com/assets/images/nivasity-main.png" alt="Nivasty">
           </div>
           <div class="content">
               ' . $body . '

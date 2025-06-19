@@ -33,7 +33,7 @@ if (isset($_POST['nivas_ref'])) {
       'reference' => $nivas_ref,
       'subaccount' => $seller,
       'transaction_charge' => $charge,
-      'callback_url' => 'https://nivasity.com/model/handle-ps-payment.php'
+      'callback_url' => 'https://funaab.nivasity.com/model/handle-ps-payment.php'
     ]),
     CURLOPT_HTTPHEADER => array(
       'Content-Type: application/json',
@@ -173,10 +173,10 @@ if (isset($_POST['nivas_ref'])) {
     $_SESSION["nivas_cart$user_id"] = array();
     $_SESSION["nivas_cart_event$user_id"] = array();
 
-    header('Location: ../store.php?payment=successful');
+    header('Location: /?payment=successful');
   } else {
     // Inform the customer their payment was unsuccessful
-    header('Location: ../store.php?payment=unsuccessful');
+    header('Location: /?payment=unsuccessful');
   }
 }
 ?>

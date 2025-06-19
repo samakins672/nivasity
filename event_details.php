@@ -8,7 +8,7 @@ $manual_query = 0;
 $link_to = "signin.html";
 
 if (isset($_SESSION['nivas_userId'])) {
-  $link_to = "store.php";
+  $link_to = "/";
   if ($is_admin_role) {
     $link_to = "admin/";
   }
@@ -33,8 +33,8 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
   $event_title = htmlspecialchars($event['title']);
   $event_description = htmlspecialchars($event['description'] ?: "Join us for an exciting event filled with opportunities to connect, learn, and explore. Don't miss out on this experience—more details coming soon!");
   $event_description = substr($event_description, 0, 150) . (strlen($event_description) > 150 ? '...' : ''); // Limit to 150 characters
-  $event_image = "https://nivasity.com/assets/images/events/" . urlencode($event['event_banner']);
-  $event_url = "https://nivasity.com/event_details.php?event_id=" . urlencode($event_id);
+  $event_image = "https://funaab.nivasity.com/assets/images/events/" . urlencode($event['event_banner']);
+  $event_url = "https://funaab.nivasity.com/event_details.php?event_id=" . urlencode($event_id);
 } else {
   // Redirect to $link_to if event is not found
   header("Location: $link_to");
@@ -386,7 +386,7 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
         var product_id = button.data('product_id');
         var title = button.data('title');
         var shareText = 'Check out '+title+' on nivasity and order now!';
-        var shareUrl = "https://nivasity.com/event_details.php?event_id="+product_id;
+        var shareUrl = "https://funaab.nivasity.com/event_details.php?event_id="+product_id;
 
         // Check if the Web Share API is available
         if (navigator.share) {
@@ -415,7 +415,7 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
           url: 'model/cart_guest.php', // Replace with your PHP file handling the cart logic
           data: { type: 'product', product_id: product_id, action: 1 },
           success: function (data) {
-            window.location.href = "store.php?cart=1";
+            window.location.href = "/?cart=1";
           },
           error: function () {
             // Handle error
@@ -436,7 +436,7 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
           data: { type: 'event', product_id: event_id, action: 1 },
           success: function (data) {
             if (data.active = 1) {
-              window.location.href = "store.php?cart=1";
+              window.location.href = "/?cart=1";
             } else {
               window.location.href = "signin.html";
             }

@@ -4,7 +4,7 @@ include('../model/config.php');
 include('../model/page_config.php');
 
 if ($_SESSION['nivas_userRole'] == 'student' || $_SESSION['nivas_userRole'] == 'visitor') {
-  header('Location: ../store.php');
+  header('Location: /');
   exit();
 } elseif ($_SESSION['nivas_userRole'] == 'hoc') {
   $item_table = "manuals";
@@ -52,15 +52,15 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
   <!-- Open Graph Meta Tags -->
   <meta property="og:title" content="Dashboard - Nivasity">
   <meta property="og:description" content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
-  <meta property="og:image" content="https://nivasity.com/assets/images/nivasity-main.png">
-  <meta property="og:url" content="https://nivasity.com">
+  <meta property="og:image" content="https://funaab.nivasity.com/assets/images/nivasity-main.png">
+  <meta property="og:url" content="https://funaab.nivasity.com">
   <meta property="og:type" content="website">
 
   <!-- Twitter Meta Tags -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Dashboard - Nivasity">
   <meta name="twitter:description" content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
-  <meta name="twitter:image" content="https://nivasity.com/assets/images/nivasity-main.png">
+  <meta name="twitter:image" content="https://funaab.nivasity.com/assets/images/nivasity-main.png">
 
   <!-- plugins:css -->
   <link rel="stylesheet" href="../assets/vendors/feather/feather.css">
@@ -1186,9 +1186,9 @@ $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE
         var title = button.data('title');
         var shareText = 'Check out '+title+' on nivasity and order now!';
         if (type == 'product') {
-          var shareUrl = "https://nivasity.com/model/cart_guest.php?share=1&action=1&type="+type+"&product_id="+product_id;
+          var shareUrl = "https://funaab.nivasity.com/model/cart_guest.php?share=1&action=1&type="+type+"&product_id="+product_id;
         } else {
-          var shareUrl = "https://nivasity.com/event_details.php?event_id="+product_id;
+          var shareUrl = "https://funaab.nivasity.com/event_details.php?event_id="+product_id;
         }
 
         // Check if the Web Share API is available

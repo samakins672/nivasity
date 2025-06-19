@@ -40,7 +40,7 @@ if (isset($_POST['support_id'])) {
   $supportEmail = 'support@nivasity.com';
   $supportSubject = "Important: New Support Request - Ticket #$uniqueCode";
   $e_message = str_replace('\r\n', '<br>', $message);
-  $supportMessage = "User: $first_name (User id: $user_id)<br>Email: <a href='mailto:$userEmail'>$userEmail</a><br>Message: <br>$e_message<br><br>File attached: <a href='https://nivasity.com/assets/images/supports/$picture'>https://nivasity.com/assets/images/supports/$picture</a>";
+  $supportMessage = "User: $first_name (User id: $user_id)<br>Email: <a href='mailto:$userEmail'>$userEmail</a><br>Message: <br>$e_message<br><br>File attached: <a href='https://funaab.nivasity.com/assets/images/supports/$picture'>https://funaab.nivasity.com/assets/images/supports/$picture</a>";
 
   // Send confirmation email to the user
   $userSubject = "Support Request Received - Ticket #$uniqueCode";

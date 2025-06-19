@@ -3,778 +3,395 @@ session_start();
 include('model/config.php');
 include('model/page_config.php');
 
-$manual_query = 0;
-
-$link_to = "signin.html";
-
-if (isset($_SESSION['nivas_userId'])) {
-  $link_to = "store.php";
-  if ($is_admin_role) {
-    $link_to = "admin/";
-  }
-  // Simulate adding/removing the product to/from the cart
-  if (!isset($_SESSION["nivas_cart$user_id"])) {
-    $_SESSION["nivas_cart$user_id"] = array();
-  }
-  if (!isset($_SESSION["nivas_cart_event$user_id"])) {
-    $_SESSION["nivas_cart_event$user_id"] = array();
-  }
-  $total_cart_items = count($_SESSION["nivas_cart$user_id"]) + count($_SESSION["nivas_cart_event$user_id"]);
-
-  $manual_query = mysqli_query($conn, "SELECT * FROM manuals WHERE dept = $user_dept AND status = 'open' AND school_id = $school_id ORDER BY `id` DESC");
+// Simulate adding/removing the product to/from the cart
+if (!isset($_SESSION["nivas_cart$user_id"])) {
+  $_SESSION["nivas_cart$user_id"] = array();
 }
+if (!isset($_SESSION["nivas_cart_event$user_id"])) {
+  $_SESSION["nivas_cart_event$user_id"] = array();
+}
+$total_cart_items = count($_SESSION["nivas_cart$user_id"]) + count($_SESSION["nivas_cart_event$user_id"]);
+$total_cart_price = 0;
 
-$event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' ORDER BY `event_date` DESC LIMIT 7");
-$event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' ORDER BY `id` DESC LIMIT 3");
+$t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals WHERE dept = $user_dept AND status = 'open' AND school_id = $school_id"))[0];
 
+$manual_query = mysqli_query($conn, "SELECT * FROM manuals WHERE dept = $user_dept AND status = 'open' AND school_id = $school_id ORDER BY `id` DESC");
+
+$event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' ORDER BY `id` DESC");
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
+  <!-- Required meta tags -->
   <meta charset="utf-8">
-  <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title>Nivasity Web Services</title>
-  <meta name="description" content="">
-  <meta name="keywords" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>Store - Nivasity</title>
 
-  <!-- Open Graph Meta Tags -->
-  <meta property="og:title" content="Nivasity - Empowering Students and Educators">
-  <meta property="og:description" content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
-  <meta property="og:image" content="https://nivasity.com/assets/images/nivasity-main.png">
-  <meta property="og:url" content="https://nivasity.com">
-  <meta property="og:type" content="website">
-
-  <!-- Twitter Meta Tags -->
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Nivasity - Empowering Students and Educators">
-  <meta name="twitter:description" content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
-  <meta name="twitter:image" content="https://nivasity.com/assets/images/nivasity-main.png">
-
-  <!-- Favicons -->
-  <link href="favicon.ico" rel="icon">
-  <link href="logo.png" rel="apple-touch-icon">
-
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com" rel="preconnect">
-  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Nunito:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
-    rel="stylesheet">
-
-  <!-- Vendor CSS Files -->
-  <link href="assets/css/mdb.css" rel="stylesheet" />
-  <link href="assets/vendors/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
-  <link href="assets/vendors/aos/aos.css" rel="stylesheet">
-  <link href="assets/vendors/glightbox/css/glightbox.min.css" rel="stylesheet">
-  <link href="assets/vendors/swiper/swiper-bundle.min.css" rel="stylesheet">
-  <link href="assets/vendors/select2/select2.min.css" rel="stylesheet" />
-
-  <!-- Main CSS File -->
-  <link href="assets/css/main.css" rel="stylesheet">
-
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-30QJ6DSHBN"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag() { dataLayer.push(arguments); }
-    gtag('js', new Date());
-
-    gtag('config', 'G-30QJ6DSHBN');
-  </script>
-  
-  
+  <?php include('partials/_head.php') ?>
 </head>
 
-<body class="index-page">
+<body>
+  <div class="container-scroller sidebar-fixed">
+    <!-- partial:partials/_navbar.html -->
+    <?php include('partials/_navbar.php') ?>
+    <!-- partial -->
+    <div class="container-fluid page-body-wrapper">
+      <!-- partial:partials/_sidebar_user.php -->
+      <?php include('partials/_sidebar_user.php') ?>
+      <!-- partial -->
+      <div class="main-panel">
 
-  <header id="header" class="header d-flex flex-column align-items-center fixed-top">
-    <div class="container-fluid position-relative d-flex align-items-center justify-content-around">
-
-      <a href="/" class="logo d-flex align-items-center">
-        <img src="assets/images/nivasity-main.png" alt="">
-      </a>
-
-      <nav id="navmenu" class="navmenu">
-        <ul>
-          <li class="me-md-4 mx-3 mb-md-0 mb-3 d-md-block d-none">
-            <div class="input-group input-group-lg search_input">
-              <input type="text" class="form-control rounded-pill" name="q"
-                placeholder="Search for materials, or events...">
-            </div>
-          </li>
-          <li><a href="#hero" class="active">Home</a></li>
-          <li><a href="#manuals">Browse Materials</a></li>
-          <li><a href="#events">Find Events</a></li>
-          <li><a href="<?php echo $link_to ?>">Sell on Nivasity</a></li>
-          <li class="dropdown">
-            <a href="javascript:;"><span>More</span>
-              <i class="bi bi-chevron-down toggle-dropdown"></i>
-            </a>
-            <ul>
-              <li><a href="#partners">Our Partners</a></li>
-              <li><a href="#faq">FAQs</a></li>
-            </ul>
-          </li>
-        </ul>
-        <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
-      </nav>
-
-      <a class="btn-getstarted" href="<?php echo $link_to ?>">Get Started</a>
-
-    </div>
-    <div class="container-fluid d-md-none d-flex align-items-center pt-3">
-      <div class="input-group input-group-lg search_input">
-        <input type="text" class="form-control rounded-pill" name="q" placeholder="Search for materials, or events...">
-      </div>
-    </div>
-  </header>
-
-  <main class="main">
-
-    <!-- Hero Section -->
-    <section id="hero" class="hero section flex-column">
-      <div class="hero-bg">
-        <img src="assets/images/background.jpg" alt="">
-      </div>
-      <div class="container text-center">
-        <div id="carouselExampleIndicators" class="carousel slide w-100" data-bs-ride="carousel">
-          <div class="carousel-indicators">
-            <button class="btn btn-sm me-2 p-2 rounded-circle active" data-bs-target="#carouselExampleIndicators"
-              data-bs-slide-to="0" aria-current="true" aria-label="Slide 1"></button>
-            <!-- <button class="btn btn-sm me-2 p-2 rounded-circle" data-bs-target="#carouselExampleIndicators"
-              data-bs-slide-to="1" aria-label="Slide 2"></button>
-            <button class="btn btn-sm me-2 p-2 rounded-circle" data-bs-target="#carouselExampleIndicators"
-              data-bs-slide-to="2" aria-label="Slide 3"></button> -->
-          </div>
-          <div class="carousel-inner">
-            <div class="carousel-item active">
-            <?php
-            // while ($event = mysqli_fetch_array($event_query2)) {
-            //     $event_id = $event['id'];
-            //     $seller_id = $event['user_id'];
-            ?>
-              <img src="assets/images/banner-1.jpg" class="d-block rounded-7 w-100" alt="...">
-            </div>
-            <!-- <div class="carousel-item">
-              <img src="assets/images/events/image.png" class="d-block rounded-7 w-100" alt="...">
-            </div>
-            <div class="carousel-item">
-              <img src="assets/images/events/image.png" class="d-block rounded-7 w-100" alt="...">
-            </div> -->
-            <?php 
-          // } ?>
-          </div>
-          <button class="carousel-control-prev fs-2 text-primary" type="button"
-            data-bs-target="#carouselExampleIndicators" data-bs-slide="prev">
-            <i class="bi bi-arrow-left-circle" aria-hidden="true"></i>
-          </button>
-          <button class="carousel-control-next fs-2 text-primary" type="button"
-            data-bs-target="#carouselExampleIndicators" data-bs-slide="next">
-            <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
-          </button>
-        </div>
-      </div>
-
-    </section><!-- /Hero Section -->
-
-    <!-- Featured Services Section -->
-    <section id="featured-services" class="featured-services section light-background">
-
-      <div class="container">
-
-        <div class="row gy-4">
-
-          <div class="col-xl-4 col-lg-6" data-aos="fade-up" data-aos-delay="100">
-            <div class="service-item d-flex">
-              <div class="icon rounded-circle flex-shrink-0"><i class="bi bi-person-rolodex"></i></div>
-              <div>
-                <h4 class="title"><a class="stretched-link">Are you a Student?</a></h4>
-                <p class="description">Discover and purchase study materials tailored to your school and department.
-                  Simplify your academic journey with resources created by your peers.</p>
-              </div>
-            </div>
-          </div>
-          <!-- End Service Item -->
-
-          <div class="col-xl-4 col-lg-6" data-aos="fade-up" data-aos-delay="200">
-            <div class="service-item d-flex">
-              <div class="icon rounded-circle flex-shrink-0"><i class="bi bi-person-badge-fill"></i></div>
-              <div>
-                <h4 class="title"><a class="stretched-link">Are you an HOC or Lecturer?</a></h4>
-                <p class="description">Easily upload and sell your course materials to help fellow students. Reach more
-                  learners and earn as you share valuable knowledge.</p>
-              </div>
-            </div>
-          </div>
-          <!-- End Service Item -->
-
-          <div class="col-xl-4 col-lg-6" data-aos="fade-up" data-aos-delay="300">
-            <div class="service-item d-flex">
-              <div class="icon rounded-circle flex-shrink-0"><i class="bi bi-person-vcard-fill"></i></div>
-              <div>
-                <h4 class="title"><a class="stretched-link">Planning an Event?</a></h4>
-                <p class="description">Host your next event on Nivasity! Reach students with ease and make ticketing
-                  simple for both organizers and attendees.</p>
-              </div>
-            </div>
-          </div>
-          <!-- End Service Item -->
-
-        </div>
-
-      </div>
-
-    </section><!-- /Featured Services Section -->
-
-    <!-- Manual Section -->
-    <section id="manuals" class="manuals section pb-2">
-      <!-- Section Title -->
-      <div class="container section-title" data-aos="fade-up">
-        <h2 class="pb-2">Course Materials/Manuals</h2>
-      </div><!-- End Section Title -->
-
-      <div class="container mb-3">
-        <div class="row gy-4 justify-content-between features-item">
-          <div class="col-lg-5" data-aos="fade-up" data-aos-delay="100">
-            <img src="assets/images/dashboard/banner-1.png" class="img-fluid"
-              alt="Students studying with course materials">
-          </div>
-
-          <div class="col-lg-6 d-flex align-items-center" data-aos="fade-up" data-aos-delay="200">
-            <div class="content">
-              <h3>Get the Right Course Materials at Your Fingertips</h3>
-              <p>
-                Nivasity connects students with essential course materials curated by HOC or Lecturers, making studying easier and
-                more targeted for every school and department.
-              </p>
-              <ul>
-                <li><i class="bi bi-book-half"></i> <strong>Wide Selection:</strong> Access a variety of course
-                  materials across different subjects and courses.</li>
-                <li><i class="bi bi-search"></i> <strong>Easy to Find:</strong> Materials are filtered by school,
-                  department, or course to find what you need instantly.</li>
-                <li><i class="bi bi-cash-coin"></i> <strong>Affordable and Reliable:</strong> Quality materials from
-                  trusted HOC or Lecturers, priced for student budgets.</li>
-              </ul>
-            </div>
-          </div>
-        </div><!-- Features Item -->
-      </div>
-
-
-      <div class="container pt-5">
-        <h4 class="fw-bold">Recently Posted Materials</h4>
-        <div class="d-flex overflow-auto py-3">
-          <?php
-          if ($manual_query !== 0) {
-          if (mysqli_num_rows($manual_query) > 0) {
-            $count_row = mysqli_num_rows($manual_query);
-
-            while ($manual = mysqli_fetch_array($manual_query)) {
-              $manual_id = $manual['id'];
-              $seller_id = $manual['user_id'];
-
-              // Check if the manual has been bought by the current user
-              $is_bought_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM manuals_bought WHERE manual_id = $manual_id AND buyer = $user_id AND school_id = $school_id");
-              $is_bought_result = mysqli_fetch_assoc($is_bought_query);
-
-              // If the manual has been bought, skip it
-              if ($is_bought_result['count'] > 0) {
-                $count_row = $count_row - 1;
-                continue;
-              }
-
-              $seller_q = mysqli_fetch_array(mysqli_query($conn, "SELECT first_name, last_name FROM users WHERE id = $seller_id"));
-              $seller_fn = $seller_q['first_name'];
-              $seller_ln = $seller_q['last_name'];
-
-              // Retrieve and format the due date
-              $due_date = date('j M, Y', strtotime($manual['due_date']));
-              $due_date2 = date('Y-m-d', strtotime($manual['due_date']));
-              // Retrieve the status
-              $status = $manual['status'];
-              $status_c = 'success';
-
-              if ($date > $due_date2) {
-                $status = 'disabled';
-                $status_c = 'danger';
-                if (abs(strtotime($date) - strtotime($due_date2)) > 10 * 24 * 60 * 60) {
-                  $count_row = $count_row - 1;
-                  continue;
-                }
-              }
-
-              ?>
-                    <div class="card card-rounded border border-1 border-secondary shadow-sm m-2 w-md-25 min-w-75">
-                      <div class="card-body">
-                        <h6 class="card-title"><?php echo $manual['title'] ?> <span class="text-secondary">- <?php echo $manual['course_code'] ?></span></h6>
-                        <div class="d-flex">
-                          <i class="bi bi-journal-bookmark-fill fs-1 text-secondary d-flex align-self-start me-3"></i>
-                          <div class="media-body">
-                            <h4 class="fw-bold price">₦ <?php echo number_format($manual['price']) ?></h4>
-                            <p class="card-text">
-                              Due date:<span class="fw-bold text-<?php echo $status_c ?> due_date"> <?php echo $due_date ?></span><br>
-                              <span class="text-secondary"><?php echo $seller_fn . ' ' . $seller_ln ?> (HOC or Lecturer)</span>
-                            </p>
-                          </div>
-                        </div>
-                        <hr>
-                        <div class="d-flex justify-content-between">
-                          <a href="javascript:;">
-                            <i class="bi bi-share-fill fs-3 text-muted share_button" data-title="<?php echo $manual['title']; ?>" data-product_id="<?php echo $manual['id']; ?>" data-type="product"></i>
-                          </a>
-                          <button class="btn btn-outline-primary m-0 cart-button" data-product-id="<?php echo $manual_id ?>"
-                            data-mdb-ripple-duration="0"> Buy now
-                          </button>
-                        </div>
+        <div class="content-wrapper">
+          <div class="row">
+            <div class="col-sm-12 px-2">
+              <div class="home-tab">
+                <div class="d-flex align-items-center justify-content-between border-bottom">
+                  <ul class="nav nav-tabs d-flex" role="tablist">
+                    <?php if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !== 'visitor'): ?>
+                    <li class="nav-item">
+                      <a class="nav-link px-3 fw-bold" id="store-tab" data-bs-toggle="tab" href="#store"
+                        role="tab" aria-controls="store" aria-selected="false">Store</a>
+                    </li>
+                    <?php endif; ?>
+                    <li class="nav-item">
+                      <a class="nav-link px-3 active fw-bold" id="events-tab" data-bs-toggle="tab" href="#events"
+                        role="tab" aria-controls="events" aria-selected="true">Events</a>
+                    </li>
+                    <li class="nav-item">
+                      <a class="nav-link px-3 fw-bold" id="cart-tab" data-bs-toggle="tab" href="#cart" role="tab"
+                        aria-selected="false">Cart (<span id="cart-count"><?php echo $total_cart_items; ?></span>)</a>
+                    </li>
+                  </ul>
+                </div>
+                <div class="tab-content tab-content-basic">
+                  <?php if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !== 'visitor'): ?>
+                  <div class="tab-pane fade hide" id="store" role="tabpanel" aria-labelledby="store">
+                    <div class="row">
+                      <div class="col-5 col-md-3 offset-md-9 form-group me-2">
+                        <p class="text-muted">Sort By:</p>
+                        <select class="form-control w-100" name="sort-by" id="sort-by">
+                          <option value="1">Due Date</option>
+                          <option value="2">Price: Low to High</option>
+                          <option value="3">Price: High to Low</option>
+                        </select>
                       </div>
                     </div>
 
-                  <?php
-            } ?>
+                    <div class="row">
+                      <div class="col-lg-12 d-flex flex-column">
+                        <div class="row flex-grow sortables">
+                          <?php
+                          if (mysqli_num_rows($manual_query) > 0) {
+                            $count_row = mysqli_num_rows($manual_query);
 
-            <?php 
-            if ($count_row == 0) { ?>
-              <div class="col-12">
-                <div class="card card-rounded shadow-sm">
-                  <div class="card-body">
-                    <h5 class="card-title">All manuals have been bought</h5>
-                    <p class="card-text">Check back later when your HOC or Lecturer uploads a new manual.</p>
-                  </div>
-                </div>
-              </div>
-            <?php } else { ?>
+                            while ($manual = mysqli_fetch_array($manual_query)) {
+                              $manual_id = $manual['id'];
+                              $seller_id = $manual['user_id'];
 
-            <a href="<?php echo $link_to ?>" class="card card-rounded border border-1 border-secondary shadow-sm m-2 w-md-25 min-w-75">
-              <div class="card-body d-flex flex-column align-items-center justify-content-center">
-                <i class="fs-4 text-secondary fw-bold bi bi-box-arrow-up-right"></i>
-                <h5 class="fw-bold text-secondary">See More</h5>
-              </div>
-            </a>
+                              // Check if the manual has been bought by the current user
+                              $is_bought_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM manuals_bought WHERE manual_id = $manual_id AND buyer = $user_id AND school_id = $school_id");
+                              $is_bought_result = mysqli_fetch_assoc($is_bought_query);
 
-            <?php } } else{ ?>
-              <div class="col-12">
-                <div class="card card-rounded shadow-sm">
-                  <div class="card-body d-flex flex-column align-items-center justify-content-center">
-                    <h5 class="card-title fw-bold">Opps!</h5>
-                    <p class="card-text">Only students can view available manuals!</p>
-                  </div>
-                </div>
-              </div>
-            <?php }} else { ?>
-              <div class="col-12">
-                <div class="card card-rounded shadow-sm">
-                  <div class="card-body d-flex flex-column align-items-center justify-content-center">
-                    <h5 class="card-title fw-bold">Let's make it personal</h5>
-                    <p class="card-text">Log in and we'll find manuals available for you!</p>
-                    <a class="btn btn-primary" href="signin.html">Get Started</a>
-                  </div>
-                </div>
-              </div>
-            <?php } ?>
+                              // If the manual has been bought, skip it
+                              if ($is_bought_result['count'] > 0) {
+                                $count_row = $count_row - 1;
+                                continue;
+                              }
 
-          <!-- Add more cards as needed -->
-        </div>
-      </div>
+                              $seller_q = mysqli_fetch_array(mysqli_query($conn, "SELECT first_name, last_name FROM users WHERE id = $seller_id"));
+                              $seller_fn = $seller_q['first_name'];
+                              $seller_ln = $seller_q['last_name'];
 
-    </section>
-    <!-- /Manual Section -->
+                              // Retrieve and format the due date
+                              $due_date = date('j M, Y', strtotime($manual['due_date']));
+                              $due_date2 = date('Y-m-d', strtotime($manual['due_date']));
+                              // Retrieve the status
+                              $status = $manual['status'];
+                              $status_c = 'success';
 
-    <!-- About Section -->
-    <section id="events" class="about section mb-5">
-      <!-- Section Title -->
-      <div class="container section-title" data-aos="fade-up">
-        <h2 class="pb-2">Events Booking</h2>
-      </div>
-      <!-- End Section Title -->
+                              if ($date > $due_date2) {
+                                $status = 'disabled';
+                                $status_c = 'danger';
+                                if (abs(strtotime($date) - strtotime($due_date2)) > 10 * 24 * 60 * 60) {
+                                  $count_row = $count_row - 1;
+                                  continue;
+                                }
+                              }
 
-      <div class="container mb-3">
-        <div class="row gy-4 justify-content-between features-item">
-          <div class="col-lg-6 d-flex align-items-center" data-aos="fade-up" data-aos-delay="200">
-            <div class="content">
-              <h3>Discover Events and Get Your Tickets Hassle-Free</h3>
-              <p>
-                Nivasity connects you with campus events and beyond, making it easy to find, book, and enjoy events
-                relevant to you.
-              </p>
-              <ul>
-                <li><i class="bi bi-calendar-event flex-shrink-0"></i> <strong>Wide Range of Events:</strong> From
-                  social gatherings to educational workshops, find events that matter.</li>
-                <li><i class="bi bi-cart-check flex-shrink-0"></i> <strong>Seamless Booking:</strong> Secure your spot
-                  in a few clicks with student-friendly prices.</li>
-                <li><i class="bi bi-person-lines-fill flex-shrink-0"></i> <strong>Personalized Experience:</strong> See
-                  events tailored to your school, interests, and preferences.</li>
-              </ul>
-            </div>
-          </div>
+                              // Check if the manual is already in the cart
+                              $is_in_cart = in_array($manual_id, $_SESSION["nivas_cart$user_id"]);
 
-          <div class="col-lg-5" data-aos="fade-up" data-aos-delay="100">
-            <img src="assets/images/dashboard/banner-2.png" class="img-fluid rounded-6"
-              alt="Event tickets available on Nivasity">
-          </div>
-        </div><!-- Features Item -->
-      </div>
+                              // Update the Add to Cart button based on cart status
+                              $button_text = $is_in_cart ? 'Remove' : 'Add to Cart';
+                              $button_class = $is_in_cart ? 'btn-primary' : 'btn-outline-primary';
 
-      <div class="container pt-5">
-        <h4 class="fw-bold">Upcoming Events</h4>
-        <div class="row flex-grow g-3 sortables mt-1">
-          <?php
-            if (mysqli_num_rows($event_query) > 0) {
-              $count_row = mysqli_num_rows($event_query);
+                              ?>
+                                  <div class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card sortable-card">
+                                    <div class="card card-rounded shadow-sm">
+                                      <div class="card-body">
+                                        <h4 class="card-title"><?php echo $manual['title'] ?> <span class="text-secondary">- <?php echo $manual['course_code'] ?></span></h4>
+                                        <div class="media">
+                                          <i class="mdi mdi-book icon-lg text-secondary d-flex align-self-start me-3"></i>
+                                          <div class="media-body">
+                                            <h3 class="fw-bold price">₦ <?php echo number_format($manual['price']) ?></h3>
+                                            <p class="card-text">
+                                              Due date:<span class="fw-bold text-<?php echo $status_c ?> due_date"> <?php echo $due_date ?></span><br>
+                                              <span class="text-secondary"><?php echo $seller_fn . ' ' . $seller_ln ?> (HOC/Lecturer)</span>
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <hr>
+                                        <div class="d-flex justify-content-between">
+                                          <?php if ($status != 'disabled'): ?>
+                                                <a href="javascript:;">
+                                                  <i class="mdi mdi-share-variant icon-md text-muted share_button" data-title="<?php echo $manual['title']; ?>" data-product_id="<?php echo $manual['id']; ?>" data-type="product"></i>
+                                                </a>
+                                                <button class="btn <?php echo $button_class; ?> btn-lg m-0 cart-button" data-product-id="<?php echo $manual['id']; ?>">
+                                                  <?php echo $button_text; ?>
+                                                </button>
+                                          <?php else: ?>
+                                                <h4 class="fw-bold text-danger">Overdue !</h4>
+                                          <?php endif; ?>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
 
-              while ($event = mysqli_fetch_array($event_query)) {
-                $event_id = $event['id'];
-                $seller_id = $event['user_id'];
-
-                $seller_q = mysqli_fetch_array(mysqli_query($conn, "SELECT first_name, last_name FROM users WHERE id = $seller_id"));
-                $organisation = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM organisation WHERE user_id = $seller_id"));
-                $seller_fn = $seller_q['first_name'];
-                $seller_ln = $seller_q['last_name'];
-
-                // Retrieve and format the event_date and time
-                $event_date = date('j M', strtotime($event['event_date']));
-                $event_date2 = date('Y-m-d', strtotime($event['event_date']));
-                      
-                $event_time = date('g:i A', strtotime($event['event_time']));
-                $event_time2 = date('H:i', strtotime($event['event_time']));
-
-                // Retrieve the status
-                $status = $event['status'];
-                $status_c = 'success';
-
-                if ($date > $event_date2) {
-                  $status = 'disabled';
-                  $status_c = 'danger';
-                  if (abs(strtotime($date) - strtotime($event_date2)) > 10 * 24 * 60 * 60) {
-                    $count_row = $count_row - 1;
-                    continue;
-                  }
-                }
-
-                if ($event['event_type'] == 'school') {
-                  $location = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM schools WHERE id = ".$event['school']))['code'];
-                } elseif ($event['event_type'] == 'public') {
-                  $location = $event['location'];
-                } else {
-                  $location = "Online Event";
-                }
-
-                $event_price = number_format($event['price']);
-                $event_price = $event_price > 0 ? "₦ $event_price" : 'FREE';
-
-                ?>
-                    <div class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card text-dark">
-                      <div class="card card-rounded border border-1 border-secondary shadow-sm">
-                        <div class="card-body p-0">
-                          <img src="assets/images/events/<?php echo $event['event_banner'] ?>" class="img-fluid rounded-top w-100" style="max-height: 140px; object-fit: cover;">
-                          <div class="p-3">
-                            <p class="fw-bold text-secondary mb-1"><i class="bi bi-geo-alt-fill"></i> <?php echo $location ?></p>
-                            <h6 class="fw-bold text-uppercase"><?php echo $event['title'] ?></h6>
-                            <small class="fw-bold"><?php echo $event_date ?> • <?php echo $event_time ?></small><br>
-                            <small class="badge badge-success fw-bold text-uppercase mt-2"><?php echo $event_price ?></small>
-                            <p>Host: <span class="fw-bold text-secondary"><?php echo $organisation['business_name'] ?></span></p>
-                            <hr>
-                            <div class="d-flex justify-content-between">
-                              <a href="javascript:;">
-                                <i class="bi bi-share-fill fs-3 text-muted share_button" data-title="<?php echo $event['title']; ?>" data-product_id="<?php echo $event['id']; ?>" data-type="event"></i>
-                              </a>
-                              <button class="btn btn-outline-primary m-0 cart-event-button" data-event-id="<?php echo $event['id'] ?>" data-mdb-ripple-duration="0">Get Ticket</button>
-                            </div>
-                          </div>
+                                  <?php
+                            }
+                            if ($count_row == 0) { ?>
+                                      <div class="col-12">
+                                          <div class="card card-rounded shadow-sm">
+                                            <div class="card-body">
+                                              <h5 class="card-title">All materials have been bought</h5>
+                                              <p class="card-text">Check back later when your HOC/Lecturer uploads a new manual.</p>
+                                            </div>
+                                          </div>
+                                      </div>
+                                <?php }
+                          } else {
+                            // Display a message when no materials are found
+                            ?>
+                                  <div class="col-12">
+                                      <div class="card card-rounded shadow-sm">
+                                        <div class="card-body">
+                                          <h5 class="card-title text-center">No material available.</h5>
+                                          <p class="card-text text-center">Check back later when your HOC/Lecturer uploads a new manual.</p>
+                                        </div>
+                                      </div>
+                                  </div>
+                              <?php } ?>
                         </div>
                       </div>
                     </div>
+                  </div>
+                  <?php endif; ?>
+                  <div class="tab-pane fade show active" id="events" role="tabpanel" aria-labelledby="events">
+                    <div class="row">
+                      <div class="col-5 col-md-3 offset-md-9 form-group me-2">
+                        <p class="text-muted">Sort By:</p>
+                        <select class="form-control w-100" name="sort-by" id="sort-by">
+                          <option value="1">Event Date</option>
+                          <option value="2">Price: Low to High</option>
+                          <option value="3">Price: High to Low</option>
+                        </select>
+                      </div>
+                    </div>
 
-                    <?php
-              }
-              if ($count_row == 0) { ?>
-                        <div class="col-12">
-                            <div class="card card-rounded shadow-sm">
-                              <div class="card-body">
-                                <h5 class="card-title">All events have been bought</h5>
-                                <p class="card-text">Check back later when a new event is uploaded.</p>
-                              </div>
-                            </div>
+                    <div class="row">
+                      <div class="col-lg-12 d-flex flex-column">
+                        <div class="row flex-grow sortables">
+                          <?php
+                          if (mysqli_num_rows($event_query) > 0) {
+                            $count_row = mysqli_num_rows($event_query);
+
+                            while ($event = mysqli_fetch_array($event_query)) {
+                              $event_id = $event['id'];
+                              $seller_id = $event['user_id'];
+
+                              // Check if the event has been bought by the current user
+                              $is_bought_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM event_tickets WHERE event_id = $event_id AND buyer = $user_id");
+                              $is_bought_result = mysqli_fetch_assoc($is_bought_query);
+
+                              // If the event has been bought, skip it
+                              if ($is_bought_result['count'] > 0) {
+                                $count_row = $count_row - 1;
+                                continue;
+                              }
+
+                              $seller_q = mysqli_fetch_array(mysqli_query($conn, "SELECT first_name, last_name FROM users WHERE id = $seller_id"));
+                              $organisation = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM organisation WHERE user_id = $seller_id"));
+                              $seller_fn = $seller_q['first_name'];
+                              $seller_ln = $seller_q['last_name'];
+
+                              // Retrieve and format the event_date and time
+                              $event_date = date('j M', strtotime($event['event_date']));
+                              $event_date2 = date('Y-m-d', strtotime($event['event_date']));
+                                    
+                              $event_time = date('g:i A', strtotime($event['event_time']));
+                              $event_time2 = date('H:i', strtotime($event['event_time']));
+
+                              // Retrieve the status
+                              $status = $event['status'];
+                              $status_c = 'success';
+
+                              if ($date > $event_date2) {
+                                $status = 'disabled';
+                                $status_c = 'danger';
+                                if (abs(strtotime($date) - strtotime($event_date2)) > 10 * 24 * 60 * 60) {
+                                  $count_row = $count_row - 1;
+                                  continue;
+                                }
+                              }
+
+                              if ($event['event_type'] == 'school') {
+                                $location = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM schools WHERE id = ".$event['school']))['code'];
+                              } elseif ($event['event_type'] == 'public') {
+                                $location = $event['location'];
+                              } else {
+                                $location = "Online Event";
+                              }
+
+                              // Check if the event is already in the cart
+                              $is_in_cart = in_array($event_id, $_SESSION["nivas_cart_event$user_id"]);
+
+                              // Update the Add to Cart button based on cart status
+                              $button_text = $is_in_cart ? 'Remove' : 'Get Ticket';
+                              $button_class = $is_in_cart ? 'btn-primary' : 'btn-outline-primary';
+                              $event_price = number_format($event['price']);
+                              $event_price = $event_price > 0 ? "₦ $event_price" : 'FREE';
+
+                              ?>
+                                  <div class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card">
+                                    <div class="card card-rounded shadow-sm">
+                                      <div class="card-body p-0">
+                                        <img src="assets/images/events/<?php echo $event['event_banner'] ?>" class="img-fluid rounded-top w-100" style="max-height: 140px; object-fit: cover;">
+                                        <div class="p-3">
+                                          <p class="fw-bold text-secondary"><i class="mdi mdi-map-marker menu-icon"></i> <?php echo $location ?></p>
+                                          <h4 class="fw-bold text-uppercase"><?php echo $event['title'] ?></h4>
+                                          <small class="fw-bold"><?php echo $event_date ?> • <?php echo $event_time ?></small><br>
+                                          <small class="badge badge-success fw-bold text-uppercase mt-2"><?php echo $event_price ?></small>
+                                          <p>Host: <span class="fw-bold text-secondary"><?php echo $organisation['business_name'] ?></span></p>
+                                          <hr>
+                                          <div class="d-flex justify-content-between">
+                                            <a href="javascript:;">
+                                              <i class="mdi mdi-share-variant icon-md text-muted share_button" data-title="<?php echo $event['title']; ?>" data-product_id="<?php echo $event['id']; ?>" data-type="event"></i>
+                                            </a>
+                                            <button class="btn <?php echo $button_class; ?>  btn-lg m-0 cart-event-button" data-event-id="<?php echo $event['id'] ?>" data-mdb-ripple-duration="0"><?php echo $button_text; ?></button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <?php
+                            }
+                            if ($count_row == 0) { ?>
+                                      <div class="col-12">
+                                          <div class="card card-rounded shadow-sm">
+                                            <div class="card-body">
+                                              <h5 class="card-title">All events have been bought</h5>
+                                              <p class="card-text">Check back later when a new event is uploaded.</p>
+                                            </div>
+                                          </div>
+                                      </div>
+                                <?php }
+                          } else {
+                            // Display a message when no events are found
+                            ?>
+                                  <div class="col-12">
+                                      <div class="card card-rounded shadow-sm">
+                                        <div class="card-body">
+                                          <h5 class="card-title text-center">No event available.</h5>
+                                          <p class="card-text text-center">Check back later when a new event is uploaded.</p>
+                                        </div>
+                                      </div>
+                                  </div>
+                              <?php } ?>
                         </div>
-                  <?php } else { ?>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tab-pane fade hide" id="cart" role="tabpanel" aria-labelledby="cart">
+                    
+                  </div>
+                  
 
-          <a href="<?php echo $link_to ?>" class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card text-dark">
-            <div class="card card-rounded border border-1 border-secondary shadow-sm h-100">
-              <div class="card-body d-flex flex-md-column align-items-center justify-content-center p-2">
-                <i class="fs-4 text-secondary fw-bold bi bi-box-arrow-up-right me-3"></i>
-                <h5 class="fw-bold text-secondary m-0">See More</h5>
+                  <!-- User verifyTransaction Modal -->
+                  <div class="modal fade" id="verifyTransaction" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" role="dialog" aria-labelledby="verifyTransactionLabel"
+                    aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered" role="document">
+                      <div class="modal-content">
+                        <div class="modal-header">
+                          <h4 class="modal-title fw-bold" id="verifyTransactionLabel">Verifying transaction...</h4>
+                        </div>
+                        <div class="modal-body">
+                          <h4 class="text-center">
+                            <div class="spinner-grow text-secondary spinner-1 me-1 mb-3" role="status">
+                              <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="spinner-grow text-secondary spinner-2 me-1 mb-3" role="status">
+                              <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="spinner-grow text-secondary spinner-3 mb-3" role="status">
+                              <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <br>
+                            Please hang on in just a few seconds so we can verify your payment...
+                          </h4>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
               </div>
             </div>
-          </a>
-            <?php } } else {
-              // Display a message when no events are found
-              ?>
-                    <div class="col-12">
-                        <div class="card card-rounded shadow-sm">
-                          <div class="card-body">
-                            <h5 class="card-title text-center">No event available.</h5>
-                            <p class="card-text text-center">Check back later when a new event is uploaded.</p>
-                          </div>
-                        </div>
-                    </div>
-                <?php } ?>
-        </div>
-      </div>
-
-    </section>
-    <!-- /About Section -->
-
-    <!-- partners Section -->
-    <section id="partners" class="partners section light-background">
-      <!-- Section Title -->
-      <div class="container section-title" data-aos="fade-up">
-        <h2 class="pb-2">Our Partners</h2>
-      </div>
-      <!-- End Section Title -->
-
-      <div class="container" data-aos="fade-up">
-
-        <div class="row gy-4">
-
-          <a href="https://flutterwave.com" target="_blank" class="col-md-2 col-4 client-logo text-center">
-            <img src="assets/images/partners/Flutterwave_Logo.png" class="img-fluid w-25" alt="">
-          </a><!-- End Client Item -->
-
-          <a href="https://sannex.ng" target="_blank" class="col-md-2 col-4 client-logo text-center">
-            <img src="assets/images/partners/logo.png" class="img-fluid w-25" alt="">
-          </a><!-- End Client Item -->
-
-          <a href="https://moniepoint.com" target="_blank" class="col-md-2 col-4 client-logo text-center">
-            <img src="assets/images/partners/Moniepoint_logo.jpg" class="img-fluid w-25" alt="">
-          </a><!-- End Client Item -->
-
-          <a href="https://paystack.com" target="_blank" class="col-md-2 col-4 client-logo text-center">
-            <img src="assets/images/partners/Paystack_Logo.png" class="img-fluid w-25" alt="">
-          </a><!-- End Client Item -->
-
-          <a href="https://drive.google.com" target="_blank" class="col-md-2 col-4 client-logo text-center">
-            <img src="assets/images/partners/google_drive.png" class="img-fluid w-25" alt="">
-          </a><!-- End Client Item -->
-
-          <a href="https://goldelitedeals.com" target="_blank" class="col-md-2 col-4 client-logo text-center">
-            <img src="assets/images/partners/gold_elite.png" class="img-fluid w-25" alt="">
-          </a><!-- End Client Item -->
-
-        </div>
-
-      </div>
-
-    </section>
-    <!-- /partners Section -->
-
-    <!-- Faq Section -->
-    <section id="faq" class="faq section">
-
-      <!-- Section Title -->
-      <div class="container section-title" data-aos="fade-up">
-        <h2>Frequently Asked Questions</h2>
-      </div><!-- End Section Title -->
-
-      <div class="container">
-
-        <div class="row justify-content-center">
-
-          <div class="col-lg-10" data-aos="fade-up" data-aos-delay="100">
-            <div class="faq-container">
-
-              <div class="faq-item faq-active">
-                <h3>What is Nivasity?</h3>
-                <div class="faq-content">
-                  <p>Nivasity is an online platform that allows students to buy academic materials from Heads of Courses
-                    (HOC) or Lecturer and purchase event tickets from various organizers.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-              <div class="faq-item">
-                <h3>How do I create an account on Nivasity?</h3>
-                <div class="faq-content">
-                  <p>To create an account, click on the "Sign Up" button on the homepage and fill in the required
-                    information, including your email, password, and other relevant details.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-              <div class="faq-item">
-                <h3>Can I access course materials without logging in?</h3>
-                <div class="faq-content">
-                  <p>No, you need to log in or create an account to access course materials filtered by your school and
-                    department.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-              <div class="faq-item">
-                <h3>What types of course materials are available on the platform?</h3>
-                <div class="faq-content">
-                  <p>We offer a wide range of course materials covering different subjects and courses, all provided by
-                    trusted
-                    Heads of Courses (HOC) or Lecturers.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-              <div class="faq-item">
-                <h3>How can I purchase a course material?</h3>
-                <div class="faq-content">
-                  <p>Once you find the course material you need, simply click on the "Add to Cart" button, proceed to
-                    checkout,
-                    and follow the payment instructions.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-              <div class="faq-item">
-                <h3>Are the course materials affordable?</h3>
-                <div class="faq-content">
-                  <p>Yes, we aim to provide quality materials at student-friendly prices, making it easier for you to
-                    access necessary resources.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-              <div class="faq-item">
-                <h3>What types of events can I find tickets for?</h3>
-                <div class="faq-content">
-                  <p>You can find tickets for school events, online events, and public events, all listed on our
-                    platform for easy access.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-              <div class="faq-item">
-                <h3>How do I purchase an event ticket?</h3>
-                <div class="faq-content">
-                  <p>Navigate to the event listing, click on the "Buy Ticket" button, and follow the checkout process to
-                    secure your ticket.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-              <div class="faq-item">
-                <h3>Can I get a refund if I can't attend an event?</h3>
-                <div class="faq-content">
-                  <p>Refund policies vary by event organizer. Please check the specific event details or contact
-                    customer support for assistance regarding refunds.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-              <div class="faq-item">
-                <h3>How can I contact customer support?</h3>
-                <div class="faq-content">
-                  <p>If you have any questions or issues, you can reach our customer support team through the "Contact
-                    Us" page on our website, and we will assist you as soon as possible.</p>
-                </div>
-                <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
-
-            </div>
-
-
-          </div><!-- End Faq Column-->
-
-        </div>
-
-      </div>
-
-    </section>
-    <!-- /Faq Section -->
-
-  </main>
-
-  <footer id="footer" class="footer position-relative light-background">
-
-    <div class="container footer-top">
-      <div class="row gy-4">
-        <div class="col-lg-4 col-md-6 footer-about">
-          <a href="" class="logo d-flex align-items-center">
-            <img src="assets/images/nivasity-main.png" alt="nivasity">
-          </a>
-          <div class="footer-contact">
-            <p>The leading secure and convenient platform for purchasing</p>
-            <p>Course materials, school event tickets, and much more</p>
           </div>
 
         </div>
-
-        <div class="col-md-3 footer-links">
-          <h4>Useful Links</h4>
-          <ul>
-            <li><a href="t&c.html">Terms and Conditions</a></li>
-            <li><a href="p&p.html">Privacy and Policy</a></li>
-            <li><a href="sitemap.xml">Sitemap</a></li>
-          </ul>
-        </div>
-        
-        <div class="col-md-3 footer-links">
-          <h4>Our Services</h4>
-          <ul>
-            <li><a>Course Materials</a></li>
-            <li><a>Event Tickets</a></li>
-            <li><a>Cloud Storage</a></li>
-          </ul>
-        </div>
-
-        <div class="col-md-2 footer-links">
-          <h4>Contact Us</h4>
-          <ul>
-            <li>
-              <a href="https://x.com/nivasity" target="_blank"><i class="bi bi-twitter-x fs-4 pe-3"></i></a>
-              <a href="https://facebook.com/nivasity" target="_blank"><i class="bi bi-facebook fs-4 pe-3"></i></a>
-              <a href="https://instagram.com/nivasity" target="_blank"><i class="bi bi-instagram fs-4 pe-3"></i></a>
-              <a href="https://linkedin.com/company/nivasity" target="_blank"><i class="bi bi-linkedin fs-4"></i></a>
-            </li>
-            <li class="d-block">
-              <span><strong>Phone:</strong> +234 814 891 9310</span> <br>
-               <a href="mailto:support@nivasity.com" class="text-dark d-block"><strong>Email:</strong> support@nivasity.com</a>
-            </li>
-          </ul>
-        </div>
-
-        <!-- <div class="col-lg-3 col-md-12 footer-newsletter">
-          <h4>Our Newsletter</h4>
-          <p>Subscribe to our newsletter and receive the latest news about our products and services!</p>
-          <form action="forms/newsletter.php" method="post" class="php-email-form">
-            <div class="newsletter-form"><input type="email" name="email"><input type="submit" value="Subscribe"></div>
-            <div class="loading">Loading</div>
-            <div class="error-message"></div>
-            <div class="sent-message">Your subscription request has been sent. Thank you!</div>
-          </form>
-        </div> -->
-
+        <!-- content-wrapper ends -->
+        <!-- partial:partials/_footer.php -->
+        <?php include('partials/_footer.php') ?>
+        <!-- partial -->
       </div>
+
+      <!-- Bootstrap alert container -->
+      <div id="alertBanner"
+        class="alert alert-success text-center alert-dismissible end-2 top-2 fade show position-fixed w-auto p-2 px-4"
+        role="alert" style="z-index: 5000; display: none;">
+        An error occurred during the AJAX request.
+      </div>
+      <!-- main-panel ends -->
     </div>
+    <!-- page-body-wrapper ends -->
+  </div>
+  <!-- container-scroller -->
 
-    <div class="container copyright text-center mt-4">
-      <p>© <span>Copyright <?php echo date('Y')?> </span> <strong class="px-1 sitename">Nivasity</strong><span>All Rights Reserved</span>
-      </p>
-    </div>
-
-  </footer>
-
-  <!-- Scroll Top -->
-  <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i
-      class="bi bi-arrow-up-short"></i></a>
-
-  <!-- Preloader -->
-  <div id="preloader"></div>
-
-  <!-- Vendor JS Files -->
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-  <script src="assets/vendors/bootstrap/js/bootstrap.bundle.min.js"></script>
-  <script src="assets/vendors/glightbox/js/glightbox.min.js"></script>
-  <script src="assets/vendors/aos/aos.js"></script>
-  <script src="assets/vendors/swiper/swiper-bundle.min.js"></script>
-  <script src="assets/vendors/select2/select2.min.js"></script>
-
-  <!-- Main JS File -->
-  <script src="assets/js/home-main.js"></script>
+  <!-- plugins:js -->
+  <script src="assets/vendors/js/vendor.bundle.base.js"></script>
+  <!-- endinject -->
+  <!-- Plugin js for this page -->
+  <script src="assets/vendors/chart.js/Chart.min.js"></script>
+  <script src="assets/vendors/bootstrap-datepicker/bootstrap-datepicker.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.1/mdb.min.js"></script>
+  <script src="assets/vendors/progressbar.js/progressbar.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
+  <!-- End plugin js for this page -->
+  <!-- inject:js -->
+  <script src="assets/js/js/off-canvas.js"></script>
+  <script src="assets/js/js/hoverable-collapse.js"></script>
+  <script src="assets/js/js/template.js"></script>
+  <script src="assets/js/js/settings.js"></script>
+  <script src="assets/js/js/data-table.js"></script>
+  <!-- endinject -->
+  <!-- Custom js for this page-->
+  <script src="assets/js/js/dashboard.js"></script>
+  <script src="assets/js/script.js"></script>
   <!--Start of Tawk.to Script-->
   <script type="text/javascript">
     var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
@@ -788,10 +405,34 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
     })();
   </script>
   <!--End of Tawk.to Script-->
+
   <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    // Get the logout parameter from the URL
+    const cart = urlParams.get('cart');
+
+    // Check if the verify parameter is present
+    if (cart) {
+      $('.nav-link').removeClass('active');
+      $('#cart-tab').addClass('active');
+
+      // Show the corresponding tab content
+      $('.tab-pane').removeClass('show active');
+      $('#cart').addClass('show active');
+    }
+
     $(document).ready(function () {
-      $('.searchable-select').select2();
-      
+      $('.btn').attr('data-mdb-ripple-duration', '0');
+
+      // $('#sort-by').change(function () {
+      //   var sortByValue = $(this).val();
+      //   sortCards(sortByValue);
+      // });
+
+      $('.go-to-cart-button').on('click', function () {
+          $('#cart-tab').tab('show');
+      });
+
       $(document).on('click', '.share_button', function (e) {
         var button = $(this);
         var product_id = button.data('product_id');
@@ -800,9 +441,9 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
         var shareText = 'Check out '+title+' on nivasity and order now!';
 
         if (type == 'product') {
-          var shareUrl = "https://nivasity.com/model/cart_guest.php?share=1&action=1&type="+type+"&product_id="+product_id;
+          var shareUrl = "https://funaab.nivasity.com/model/cart_guest.php?share=1&action=1&type="+type+"&product_id="+product_id;
         } else {
-          var shareUrl = "https://nivasity.com/event_details.php?event_id="+product_id;
+          var shareUrl = "https://funaab.nivasity.com/event_details.php?event_id="+product_id;
         }
 
         // Check if the Web Share API is available
@@ -820,19 +461,105 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
           alert('Web Share API not supported. You can manually share the link.');
         }
       });
-      
+
+      reloadCartTable()
+
+      function sortCards(sortBy) {
+        var $container = $('.sortables');
+        var $cards = $container.children('.sortable-card');
+
+        // Fade out the cards before sorting
+        $cards.fadeOut(400, function () {
+
+          $cards.sort(function (a, b) {
+            var aValue, bValue;
+
+            // Extract values based on the selected option
+            switch (sortBy) {
+              case '1': // Latest product (Assuming the due date is in the format 'Sun, Dec 4')
+                aValue = new Date($(a).find('.due_date').text()).getTime();
+                bValue = new Date($(b).find('.due_date').text()).getTime();
+                break;
+              case '2': // Lowest price
+                aValue = parseFloat($(a).find('.price').text().replace('₦ ', ''));
+                bValue = parseFloat($(b).find('.price').text().replace('₦ ', ''));
+                break;
+              case '3': // Highest price
+                aValue = parseFloat($(b).find('.price').text().replace('₦ ', ''));
+                bValue = parseFloat($(a).find('.price').text().replace('₦ ', ''));
+                break;
+              default:
+                break;
+            }
+
+            // Compare the values
+            return aValue - bValue;
+          });
+
+          $container.html($cards);
+
+          // Fade in the cards after sorting
+          $cards.fadeIn(400);
+        });
+      }
+
+      // Add to Cart button click event
+      $(document).on('click', '.remove-cart', function (e) {
+        var button = $(this);
+        var type = button.data('type');
+        var product_id = button.data('cart_id');
+
+        // Make AJAX request to PHP file
+        $.ajax({
+          type: 'POST',
+          url: 'model/cart.php', // Replace with your PHP file handling the cart logic
+          data: { product_id: product_id, action: 0, type: type },
+          success: function (data) {
+            // Update the total number of carted products
+            $('#cart-count').text(data.total);
+
+            // Reload the cart table
+            reloadCartTable();
+
+            // Change the button text of the tag with data-product-id as the removed product ID
+            btn_text = 'Add to Cart';
+            if (type == 'event') {
+              btn_text = 'Get Ticket';
+            }
+            $('button[data-'+type+'-id="' + product_id + '"]').toggleClass('btn-outline-primary btn-primary').text(btn_text);
+          },
+          error: function () {
+            // Handle error
+            console.error('Error in AJAX request');
+          }
+        });
+      });
+
       // Add to Cart button click event
       $('.cart-button').on('click', function () {
         var button = $(this);
         var product_id = button.data('product-id');
 
+        // Toggle button appearance and text
+        if (button.hasClass('btn-outline-primary')) {
+          button.toggleClass('btn-outline-primary btn-primary').text('Remove');
+          action = 1;
+        } else {
+          button.toggleClass('btn-outline-primary btn-primary').text('Add to Cart');
+          action = 0;
+        }
+
         // Make AJAX request to PHP file
         $.ajax({
-          type: 'GET',
-          url: 'model/cart_guest.php', // Replace with your PHP file handling the cart logic
-          data: { type: 'product', product_id: product_id, action: 1 },
+          type: 'POST',
+          url: 'model/cart_manual.php', // Replace with your PHP file handling the cart logic
+          data: { product_id: product_id, action: action },
           success: function (data) {
-            window.location.href = "store.php?cart=1";
+            // Update the total number of carted products
+            $('#cart-count').text(data.total);
+
+            // Reload the cart table
+            reloadCartTable();
           },
           error: function () {
             // Handle error
@@ -846,17 +573,26 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
         var button = $(this);
         var event_id = button.data('event-id');
 
+        // Toggle button appearance and text
+        if (button.hasClass('btn-outline-primary')) {
+          button.toggleClass('btn-outline-primary btn-primary').text('Remove');
+          action = 1;
+        } else {
+          button.toggleClass('btn-outline-primary btn-primary').text('Get Ticket');
+          action = 0;
+        }
+
         // Make AJAX request to PHP file
         $.ajax({
-          type: 'GET',
-          url: 'model/cart_guest.php', // Replace with your PHP file handling the cart logic
-          data: { type: 'event', product_id: event_id, action: 1 },
+          type: 'POST',
+          url: 'model/cart_event.php', // Replace with your PHP file handling the cart logic
+          data: { event_id: event_id, action: action },
           success: function (data) {
-            if (data.active = 1) {
-              window.location.href = "store.php?cart=1";
-            } else {
-              window.location.href = "signin.html";
-            }
+            // Update the total number of carted products
+            $('#cart-count').text(data.total);
+
+            // Reload the cart table
+            reloadCartTable();
           },
           error: function () {
             // Handle error
@@ -865,9 +601,201 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
         });
       });
 
+      // Function to reload the cart table
+      function reloadCartTable() {
+        $.ajax({
+          type: 'POST',
+          url: 'model/cart.php',
+          data: { reload_cart: 'reload_cart' },
+          success: function (html) {
+            $('#cart').html(html);
+          },
+          error: function () {
+            // Handle error
+            console.error('Error in reloading cart table');
+          }
+        });
+      }
+
+      // Add to Cart button click event
+      $('#cart').on('click', '.checkout-cart', function() {
+        email = "<?php echo $user_email ?>";
+        phone = "<?php echo $user_phone ?>";
+        u_name = "<?php echo $user_name ?>";
+        transfer_amount = $(this).data('transfer_amount');
+            
+        // Retrieve and parse session data safely
+        sessionData = $(this).data('session_data');
+        // Check if sessionData is an object or a string
+        let parsedSessionData;
+        if (typeof sessionData === "string") {
+            try {
+                parsedSessionData = JSON.parse(sessionData); // Parse if it's a string
+            } catch (error) {
+                console.error("Error parsing session data:", error);
+                return; // Exit if parsing fails
+            }
+        } else {
+            parsedSessionData = sessionData; // Use as is if it's already an object
+        }
+                
+        // Convert parsedSessionData to an array if it's an object
+        if (typeof parsedSessionData === "object" && !Array.isArray(parsedSessionData)) {
+          parsedSessionData = Object.values(parsedSessionData);
+        }
+
+        // Check the type and log the parsed session data for debugging
+        console.log('parsedSessionData:', parsedSessionData);
+        console.log('Type of parsedSessionData:', typeof parsedSessionData);
+
+        function generateUniqueID() {
+            const currentDate = new Date();
+            const uniqueID = `nivas_<?php echo $user_id ?>_${currentDate.getTime()}`;
+            return uniqueID;
+        }
+
+        const myUniqueID = generateUniqueID();
+
+        // Create the subaccounts array from parsed session data
+        let subaccounts = [];
+        $.each(parsedSessionData, function(key, item) {
+            subaccounts.push({
+                id: item.seller,
+                transaction_charge_type: "flat_subaccount",
+                transaction_charge: item.price  // The price or commission to be charged
+            });
+        });
+
+        $.ajax({
+          url: 'model/saveCart.php',
+          type: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({
+            ref_id: myUniqueID,
+            user_id: "<?php echo $user_id; ?>",
+            items: parsedSessionData.map(item => ({
+              item_id: item.product_id,
+              type: item.type
+            }))
+          }),
+          success: function(response) {
+            if (response.success) {
+              console.log("Cart saved:", response.message);
+            } else {
+              console.error("Error saving cart:", response.message);
+            }
+          }
+        });
+
+        // Now make the Flutterwave API call
+        $.ajax({
+          url: 'model/getKey.php',
+          type: 'POST',
+          data: { getKey: 'get-Key'},
+          success: function (data) {
+            var flw_pk = data.flw_pk;
+
+            // Call FlutterwaveCheckout with the retrieved flw_pk and dynamically generated subaccounts
+            FlutterwaveCheckout({
+              public_key: flw_pk,
+              tx_ref: myUniqueID,
+              amount: transfer_amount,
+              currency: "NGN",
+              subaccounts: subaccounts,
+              payment_options: "card, banktransfer, ussd",
+              // redirect_url: "https://funaab.nivasity.com/model/handle-fw-payment.php",
+              callback: function(payment) {
+                console.log(payment);
+                // Send AJAX verification request to backend
+                verifyTransactionOnBackend(payment.transaction_id, payment.tx_ref);
+              },
+              onclose: function(status) {
+                if (!status) {
+                  console.log(status);
+
+                  // Show the modal with jQuery
+                  $('#verifyTransaction').modal({
+                    backdrop: 'static',
+                    keyboard: false
+                  }).modal('show');
+                  
+                  $('.spinner-grow').hide();
+                  
+                  // Show each spinner with a delay for a staggered effect
+                  setTimeout(function() { $('.spinner-1').show(); }, 100);
+                  setTimeout(function() { $('.spinner-2').show(); }, 300);
+                  setTimeout(function() { $('.spinner-3').show(); }, 600);
+                }
+              },
+              customer: {
+                  email: email,
+                  phone_number: phone,
+                  name: u_name,
+              },
+            });
+          }
+        });
+      });
+
+      // free checkout button click event
+      $('#cart').on('click', '.free-cart-checkout', function() {
+        // Define event button
+        var button = $(this);
+        var originalText = button.html();
+
+        // Display the spinner and disable the button
+        button.html('<div class="spinner-border text-white" style="width: 1.5rem; height: 1.5rem;" role="status"><span class="sr-only"></span>');
+        button.prop('disabled', true);
+
+        function generateUniqueID() {
+          const currentDate = new Date();
+          const uniqueID = `nivas_<?php echo $user_id ?>_${currentDate.getTime()}`;
+          return uniqueID;
+        }
+
+        const tx_ref = generateUniqueID();
+
+        // Now make the Flutterwave API call
+        $.ajax({
+          url: 'model/handle-free-payment.php',
+          type: 'GET',
+          data: { tx_ref: tx_ref},
+          success: function (response) {
+            if (response.status === 'success') {
+              location.reload();
+            }
+
+            // AJAX call successful, stop the spinner and update button text
+            button.html(originalText);
+            button.prop("disabled", false);
+          },
+          error: function () {
+            // Handle error
+            console.error('Error checking out!');
+          }
+        });
+      });
+
+      function verifyTransactionOnBackend(transaction_id, tx_ref) {
+        $.ajax({
+          url: 'model/handle-fw-payment.php',
+          type: 'GET',
+          data: { tx_ref: tx_ref, transaction_id: transaction_id, callback: 1},
+          success: function (response) {
+            if (response.status === 'success') {
+              location.reload();
+            }
+          },
+          error: function () {
+            // Handle error
+            console.error('Error checking out!');
+          }
+        });
+      }
+
     });
   </script>
-
+  <!-- End custom js for this page-->
 </body>
 
 </html>
