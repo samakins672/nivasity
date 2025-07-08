@@ -1424,14 +1424,14 @@ if (mysqli_num_rows($settlement_query) == 0) {
 
               // Open a new window with the formatted data
               var exportWindow = window.open("", "_blank");
-              var logoUrl = window.location.origin + "/assets/images/nivasity-main.png";
-              exportWindow.document.write("<html><head><title>Exported Data</title> <style>body {padding: 50px;margin: 0;width: 100%;font-family: sans-serif;box-sizing: border-box;position: relative;} table{width: 100%} th{text-align: left}.watermark{position: fixed;top: 50%;left: 50%;transform: translate(-50%, -50%);opacity: 0.1;width: 80%;z-index:-1;}</style></head><body>");
+              var logoUrl = "https://nivasity.com/assets/images/nivasity-main.png";
+              exportWindow.document.write("<html><head><title>Exported Data</title> <style>body {padding: 50px;margin: 0;width: 100%;font-family: sans-serif;box-sizing: border-box;position: relative;} table{width: 100%} th{text-align: left}.watermark{position: fixed;top: 50%;left: 50%;transform: translate(-50%, -50%) rotate(-45deg);opacity: 0.1;width: 80%;z-index:-1;}</style></head><body>");
               exportWindow.document.write('<img src="' + logoUrl + '" class="watermark" />');
               exportWindow.document.write(heading + table);
               exportWindow.document.write("</body></html>");
 
               // Add a print button in the new window
-              exportWindow.document.write("<script>window.print();</scr" + "ipt>");
+              exportWindow.document.write("<script>setTimeout(function(){window.print();},3000);</scr" + "ipt>");
               // AJAX call successful, stop the spinner and update button text
               button.html(originalText);
               button.prop("disabled", false);
