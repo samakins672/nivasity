@@ -246,8 +246,13 @@ if (isset($_POST['logout'])) {
   session_unset();
   session_destroy();
 
-  $statusRes = "success";
-  $messageRes = "You have successfully logged out!";
+  if (isset($_POST['not_allowed']) && $_POST['not_allowed'] == 1) {
+    $statusRes = "failed";
+    $messageRes = "You are not allowed on this domain, kindly visity nivasity.com!";
+  } else {
+    $statusRes = "success";
+    $messageRes = "You have successfully logged out!";
+  }
 }
 
 $responseData = array(

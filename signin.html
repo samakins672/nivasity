@@ -258,15 +258,20 @@
     const urlParams = new URLSearchParams(window.location.search);
     // Get the logout parameter from the URL
     const logout = urlParams.get('logout');
+    const not_allowed = urlParams.get('not_allowed');
+    let data = {
+      logout: 'logout',
+      not_allowed: not_allowed ? not_allowed : ''
+    };
 
     // Check if the verify parameter is present
     if (logout) {
       $.ajax({
         type: 'POST',
         url: 'model/user.php',
-        data: { logout: 'logout' },
+        data: data,
         success: function (data) {
-          if (data.status == 'success') {
+          if (data.status) {
             $('#alertBanner').html(data.message);
 
             if (data.status == 'success') {
@@ -274,6 +279,16 @@
               $('#alertBanner').removeClass('alert-danger');
               $('#alertBanner').removeClass('alert-warning');
               $('#alertBanner').addClass('alert-success');
+            } else if (data.status == 'warning') {
+              $('#alertBanner').removeClass('alert-danger');
+              $('#alertBanner').removeClass('alert-success');
+              $('#alertBanner').removeClass('alert-info');
+              $('#alertBanner').addClass('alert-warning');
+            } else {
+              $('#alertBanner').removeClass('alert-warning');
+              $('#alertBanner').removeClass('alert-success');
+              $('#alertBanner').removeClass('alert-info');
+              $('#alertBanner').addClass('alert-danger');
             }
 
             // Automatically show and hide the alert after 5 seconds
