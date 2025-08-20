@@ -72,8 +72,8 @@ if (isset($_GET['tx_ref'])) {
 
     sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $total_amount);
 
-    // Insert the transaction record
-    mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, '$status', 'NIVASITY')");
+    // Insert the transaction record with zero charge and profit
+    mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, 0, 0, '$status', 'NIVASITY')");
 
     // Close the database connection
     mysqli_close($conn);

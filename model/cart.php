@@ -174,7 +174,7 @@ if (isset($_POST['reload_cart'])) {
             </tr>';
     }
 
-    // Handling fee logic updated
+    // Handling fee based on existing charge structure
     $transferAmount = $total_cart_price;
     $charge = 0;
     if ($transferAmount == 0) {
@@ -183,7 +183,7 @@ if (isset($_POST['reload_cart'])) {
         // Flat fee for transactions less than ₦2500
         $charge = 70;
     } else {
-        // Use the previous calculation for amounts above ₦4,500
+        // Previous calculation for higher amounts
         $charge += ($transferAmount * 0.02);
         if ($transferAmount >= 2500 && $transferAmount < 5000) {
             $charge += 20;
