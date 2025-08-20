@@ -133,6 +133,7 @@ if (isset($_POST['nivas_ref'])) {
       }
     }
 
+    // Calculate charges using existing Paystack structure
     if ($total_amount == 0) {
       $charge = 0;
     } elseif ($total_amount <= 4500) {
@@ -159,12 +160,17 @@ if (isset($_POST['nivas_ref'])) {
       }
     }
 
-    sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $total_amount);
-
     // Add the charge to the total
     $total_amount += $charge;
 
-    mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, status) VALUES ('$tx_ref', $user_id, $total_amount, '$status')");
+    // Payment gateway fee (2% of the final amount)
+    $gateway_fee = round($total_amount * 0.02, 2);
+    // Profit is the remaining charge after gateway fee
+    $profit = round(max($charge - $gateway_fee, 0), 2);
+
+    sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $total_amount);
+
+    mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, '$status')");
 
     // Close the database connection if needed
     mysqli_close($conn);

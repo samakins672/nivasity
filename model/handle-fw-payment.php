@@ -100,6 +100,7 @@ if (isset($_GET['transaction_id'])) {
     }
 
 
+    // Calculate charges using the existing structure
     $charge = 0;
     if ($total_amount == 0) {
       $charge = 0;
@@ -107,10 +108,9 @@ if (isset($_GET['transaction_id'])) {
       // Flat fee for transactions less than ₦2500
       $charge = 70;
     } else {
-      // Use the previous calculation for amounts above ₦4,500
+      // Previous calculation for higher amounts
       $charge += ($total_amount * 0.02);
 
-      // Adjust the charge accordingly
       if ($total_amount >= 2500 && $total_amount < 5000) {
         $charge += 20;
       } elseif ($total_amount >= 5000 && $total_amount < 10000) {
@@ -120,12 +120,17 @@ if (isset($_GET['transaction_id'])) {
       }
     }
 
+    // Add the charge to the total amount paid by the user
+    $total_amount += $charge;
+
+    // Flutterwave fee (2% of the final amount)
+    $flutterwave_fee = round($total_amount * 0.02, 2);
+    // Profit is the remaining charge after Flutterwave fee
+    $profit = round(max($charge - $flutterwave_fee, 0), 2);
+
     sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $total_amount);
 
-    // Add the charge to the total
-    $total_amount += $charge;
-    
-    mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, status) VALUES ('$tx_ref', $user_id, $total_amount, '$status')");
+    mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, '$status')");
     
     mysqli_query($conn, "DELETE FROM cart WHERE ref_id = '$tx_ref'");
     
