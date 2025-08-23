@@ -1,6 +1,7 @@
 User-agent: *
 Disallow: /admin/
 Disallow: /config/
+Disallow: /sql/
 
 User-agent: *
 Allow: /
