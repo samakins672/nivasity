@@ -18,6 +18,9 @@ $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manua
 $manual_query = mysqli_query($conn, "SELECT * FROM manuals WHERE dept = $user_dept AND status = 'open' AND school_id = $school_id ORDER BY `id` DESC");
 
 $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' ORDER BY `id` DESC");
+
+// Determine if the Store tab should be shown
+$show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !== 'visitor');
 ?>
 
 <!DOCTYPE html>
@@ -49,15 +52,15 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
               <div class="home-tab">
                 <div class="d-flex align-items-center justify-content-between border-bottom">
                   <ul class="nav nav-tabs d-flex" role="tablist">
-                    <?php if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !== 'visitor'): ?>
+                    <?php if ($show_store): ?>
                     <li class="nav-item">
-                      <a class="nav-link px-3 fw-bold" id="store-tab" data-bs-toggle="tab" href="#store"
-                        role="tab" aria-controls="store" aria-selected="false">Store</a>
+                      <a class="nav-link px-3 fw-bold active" id="store-tab" data-bs-toggle="tab" href="#store"
+                        role="tab" aria-controls="store" aria-selected="true">Store</a>
                     </li>
                     <?php endif; ?>
                     <li class="nav-item">
-                      <a class="nav-link px-3 active fw-bold" id="events-tab" data-bs-toggle="tab" href="#events"
-                        role="tab" aria-controls="events" aria-selected="true">Events</a>
+                      <a class="nav-link px-3 fw-bold<?php echo $show_store ? '' : ' active'; ?>" id="events-tab" data-bs-toggle="tab" href="#events"
+                        role="tab" aria-controls="events" aria-selected="<?php echo $show_store ? 'false' : 'true'; ?>">Events</a>
                     </li>
                     <li class="nav-item">
                       <a class="nav-link px-3 fw-bold" id="cart-tab" data-bs-toggle="tab" href="#cart" role="tab"
@@ -66,8 +69,8 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                   </ul>
                 </div>
                 <div class="tab-content tab-content-basic">
-                  <?php if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !== 'visitor'): ?>
-                  <div class="tab-pane fade hide" id="store" role="tabpanel" aria-labelledby="store">
+                  <?php if ($show_store): ?>
+                  <div class="tab-pane fade show active" id="store" role="tabpanel" aria-labelledby="store">
                     <div class="row">
                       <div class="col-5 col-md-3 offset-md-9 form-group me-2">
                         <p class="text-muted">Sort By:</p>
@@ -188,7 +191,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' O
                     </div>
                   </div>
                   <?php endif; ?>
-                  <div class="tab-pane fade show active" id="events" role="tabpanel" aria-labelledby="events">
+                  <div class="tab-pane fade <?php echo $show_store ? 'hide' : 'show active'; ?>" id="events" role="tabpanel" aria-labelledby="events">
                     <div class="row">
                       <div class="col-5 col-md-3 offset-md-9 form-group me-2">
                         <p class="text-muted">Sort By:</p>
