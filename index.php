@@ -148,7 +148,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                                         <hr>
                                         <div class="d-flex justify-content-between">
                                           <?php if ($status != 'disabled'): ?>
-                                                <a href="javascript:;">
+                                                <a href="javascript:;" title="Copy share link">
                                                   <i class="mdi mdi-share-variant icon-md text-muted share_button" data-title="<?php echo $manual['title']; ?>" data-product_id="<?php echo $manual['id']; ?>" data-type="product"></i>
                                                 </a>
                                                 <button class="btn <?php echo $button_class; ?> btn-lg m-0 cart-button" data-product-id="<?php echo $manual['id']; ?>">
@@ -280,7 +280,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                                           <hr>
                                           <div class="d-flex justify-content-between">
                                             <a href="javascript:;">
-                                              <i class="mdi mdi-share-variant icon-md text-muted share_button" data-title="<?php echo $event['title']; ?>" data-product_id="<?php echo $event['id']; ?>" data-type="event"></i>
+                                              <i class="mdi mdi-share-variant icon-md text-muted share_button" title="Copy share link" data-title="<?php echo $event['title']; ?>" data-product_id="<?php echo $event['id']; ?>" data-type="event"></i>
                                             </a>
                                             <button class="btn <?php echo $button_class; ?>  btn-lg m-0 cart-event-button" data-event-id="<?php echo $event['id'] ?>" data-mdb-ripple-duration="0"><?php echo $button_text; ?></button>
                                           </div>
@@ -413,6 +413,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
     const urlParams = new URLSearchParams(window.location.search);
     // Get the logout parameter from the URL
     const cart = urlParams.get('cart');
+    const manualId = urlParams.get('manual_id') || urlParams.get('product_id');
 
     // Check if the verify parameter is present
     if (cart) {
@@ -422,6 +423,29 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       // Show the corresponding tab content
       $('.tab-pane').removeClass('show active');
       $('#cart').addClass('show active');
+    }
+    
+    // If a manual is specified in the URL, open Store and show modal
+    if (manualId) {
+      $('.nav-link').removeClass('active');
+      $('#store-tab').addClass('active');
+
+      $('.tab-pane').removeClass('show active');
+      $('#store').addClass('show active');
+
+      // Load and show the manual details modal
+      $.ajax({
+        type: 'GET',
+        url: 'model/manual_details.php',
+        data: { manual_id: manualId },
+        success: function (html) {
+          $('#manualModal .modal-content').html(html);
+          $('#manualModal').modal('show');
+        },
+        error: function () {
+          console.error('Failed to load material details');
+        }
+      });
     }
 
     $(document).ready(function () {
@@ -436,6 +460,39 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           $('#cart-tab').tab('show');
       });
 
+      function copyToClipboard(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text).then(function(){
+            $('#alertBanner').removeClass('alert-info alert-danger').addClass('alert-success');
+            $('#alertBanner').html('Link copied to clipboard');
+            if (typeof showAlert === 'function') { showAlert(); }
+          }, function(){
+            // Fallback
+            var temp = $('<input>');
+            $('body').append(temp);
+            temp.val(text).select();
+            document.execCommand('copy');
+            temp.remove();
+            $('#alertBanner').removeClass('alert-info alert-danger').addClass('alert-success');
+            $('#alertBanner').html('Link copied to clipboard');
+            if (typeof showAlert === 'function') { showAlert(); }
+          });
+        } else {
+          var temp = $('<input>');
+          $('body').append(temp);
+          temp.val(text).select();
+          document.execCommand('copy');
+          temp.remove();
+          $('#alertBanner').removeClass('alert-info alert-danger').addClass('alert-success');
+          $('#alertBanner').html('Link copied to clipboard');
+          if (typeof showAlert === 'function') { showAlert(); }
+        }
+      }
+
+      function isMobileDevice() {
+        return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      }
+
       $(document).on('click', '.share_button', function (e) {
         var button = $(this);
         var product_id = button.data('product_id');
@@ -444,24 +501,17 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         var shareText = 'Check out '+title+' on nivasity and order now!';
 
         if (type == 'product') {
-          var shareUrl = "https://funaab.nivasity.com/model/cart_guest.php?share=1&action=1&type="+type+"&product_id="+product_id;
+          var shareUrl = "https://funaab.nivasity.com/store_share.php?manual_id="+product_id;
         } else {
           var shareUrl = "https://funaab.nivasity.com/event_details.php?event_id="+product_id;
         }
 
-        // Check if the Web Share API is available
-        if (navigator.share) {
-          navigator.share({
-            title: document.title,
-            text: shareText,
-            url: shareUrl,
-          })
-            .then(() => console.log('Shared successfully'))
-            .catch((error) => console.error('Error sharing:', error));
+        // Mobile uses native share; desktop copies link
+        if (isMobileDevice() && navigator.share) {
+          navigator.share({ title: document.title, text: shareText, url: shareUrl })
+            .catch(function(){ copyToClipboard(shareUrl); });
         } else {
-          // Fallback for platforms that do not support Web Share API
-          // You can add specific share URLs for each platform here
-          alert('Web Share API not supported. You can manually share the link.');
+          copyToClipboard(shareUrl);
         }
       });
 
@@ -538,9 +588,12 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         });
       });
 
-      // Add to Cart button click event
-      $('.cart-button').on('click', function () {
+      // Add to Cart button click event (delegated for dynamic content)
+      $(document).on('click', '.cart-button', function () {
         var button = $(this);
+        if (button.prop('disabled') || button.hasClass('disabled')) {
+          return;
+        }
         var product_id = button.data('product-id');
 
         // Toggle button appearance and text
@@ -799,6 +852,15 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
     });
   </script>
   <!-- End custom js for this page-->
+
+  <!-- Manual Details Modal -->
+  <div class="modal fade" id="manualModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <!-- dynamic content loads here via AJAX -->
+      </div>
+    </div>
+  </div>
 </body>
 
 </html>

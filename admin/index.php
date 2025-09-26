@@ -436,7 +436,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                               <?php endif; ?>
                                               <a class="dropdown-item <?php echo ($manuals_bought_cnt < 1) ? 'border-bottom' : '' ?> share_button d-flex" data-title="<?php echo $manual['title']; ?>" 
                                                 data-product_id="<?php echo $manual['id']; ?>" data-type="product" href="javascript:;"> 
-                                                <i class="mdi mdi-share pe-2"></i> Share material
+                                                <i class="mdi mdi-content-copy pe-2"></i> Copy share link
                                               </a>
                                               <?php if($manuals_bought_cnt < 1): ?>
                                                 <a class="dropdown-item close-manual d-flex" href="javascript:;"
@@ -582,7 +582,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                                 <?php endif; ?>
                                                 <a class="dropdown-item <?php echo ($events_bought_cnt < 1) ? 'border-bottom' : '' ?> share_button d-flex" data-title="<?php echo $event['title']; ?>" 
                                                 data-product_id="<?php echo $event['id']; ?>" data-type="event" href="javascript:;">
-                                                  <i class="mdi mdi-share pe-2"></i> Share event
+                                                  <i class="mdi mdi-content-copy pe-2"></i> Copy share link
                                                 </a>
                                                 <?php if($events_bought_cnt < 1): ?>
                                                   <a class="dropdown-item close-manual d-flex" href="javascript:;"
@@ -1182,32 +1182,57 @@ if (mysqli_num_rows($settlement_query) == 0) {
         $('#email-guest-form')[0].reset();
       });
 
+      function copyToClipboard(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text).then(function(){
+            $('#alertBanner').removeClass('alert-info alert-danger').addClass('alert-success');
+            $('#alertBanner').html('Link copied to clipboard');
+            if (typeof showAlert === 'function') { showAlert(); }
+          }, function(){
+            var temp = $('<input>');
+            $('body').append(temp);
+            temp.val(text).select();
+            document.execCommand('copy');
+            temp.remove();
+            $('#alertBanner').removeClass('alert-info alert-danger').addClass('alert-success');
+            $('#alertBanner').html('Link copied to clipboard');
+            if (typeof showAlert === 'function') { showAlert(); }
+          });
+        } else {
+          var temp = $('<input>');
+          $('body').append(temp);
+          temp.val(text).select();
+          document.execCommand('copy');
+          temp.remove();
+          $('#alertBanner').removeClass('alert-info alert-danger').addClass('alert-success');
+          $('#alertBanner').html('Link copied to clipboard');
+          if (typeof showAlert === 'function') { showAlert(); }
+        }
+      }
+
+      function isMobileDevice() {
+        return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      }
+
       $(document).on('click', '.share_button', function (e) {
         var button = $(this);
         var product_id = button.data('product_id');
         var type = button.data('type');
         var title = button.data('title');
         var shareText = 'Check out '+title+' on nivasity and order now!';
-        if (type == 'product') {
-          var shareUrl = "https://funaab.nivasity.com/model/cart_guest.php?share=1&action=1&type="+type+"&product_id="+product_id;
-        } else {
-          var shareUrl = "https://funaab.nivasity.com/event_details.php?event_id="+product_id;
-        }
+        var shareUrl = (type == 'product')
+          ? ("https://funaab.nivasity.com/store_share.php?manual_id="+product_id)
+          : ("https://funaab.nivasity.com/event_details.php?event_id="+product_id);
 
-        // Check if the Web Share API is available
-        if (navigator.share) {
+        if (isMobileDevice() && navigator.share) {
           navigator.share({
             title: document.title,
             text: shareText,
             url: shareUrl,
           })
             .then(() => console.log('Shared successfully'))
-            .catch((error) => console.error('Error sharing:', error));
-        } else {
-          // Fallback for platforms that do not support Web Share API
-          // You can add specific share URLs for each platform here
-          alert('Web Share API not supported. You can manually share the link.');
-        }
+            .catch(function(){ copyToClipboard(shareUrl); });
+        } else { copyToClipboard(shareUrl); }
       });
 
       // Use AJAX to submit the event form

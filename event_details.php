@@ -96,6 +96,16 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
 
     gtag('config', 'G-30QJ6DSHBN');
   </script>
+
+  <!-- Copy Toast -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 11000;">
+    <div id="copyToast" class="toast align-items-center text-bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">Link copied to clipboard</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
   
   
 </head>
@@ -381,6 +391,40 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
 
       $('.searchable-select').select2();
       
+      function showToast(message) {
+        var el = document.getElementById('copyToast');
+        if (!el || typeof bootstrap === 'undefined' || !bootstrap.Toast) { alert(message); return; }
+        el.querySelector('.toast-body').textContent = message;
+        var t = new bootstrap.Toast(el);
+        t.show();
+      }
+
+      function copyToClipboard(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text).then(function(){
+            showToast('Link copied to clipboard');
+          }, function(){
+            var temp = $('<input>');
+            $('body').append(temp);
+            temp.val(text).select();
+            document.execCommand('copy');
+            temp.remove();
+            showToast('Link copied to clipboard');
+          });
+        } else {
+          var temp = $('<input>');
+          $('body').append(temp);
+          temp.val(text).select();
+          document.execCommand('copy');
+          temp.remove();
+          showToast('Link copied to clipboard');
+        }
+      }
+
+      function isMobileDevice() {
+        return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      }
+
       $(document).on('click', '.share_button', function (e) {
         var button = $(this);
         var product_id = button.data('product_id');
@@ -388,20 +432,10 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
         var shareText = 'Check out '+title+' on nivasity and order now!';
         var shareUrl = "https://funaab.nivasity.com/event_details.php?event_id="+product_id;
 
-        // Check if the Web Share API is available
-        if (navigator.share) {
-          navigator.share({
-            title: document.title,
-            text: shareText,
-            url: shareUrl,
-          })
-            .then(() => console.log('Shared successfully'))
-            .catch((error) => console.error('Error sharing:', error));
-        } else {
-          // Fallback for platforms that do not support Web Share API
-          // You can add specific share URLs for each platform here
-          alert('Web Share API not supported. You can manually share the link.');
-        }
+        if (isMobileDevice() && navigator.share) {
+          navigator.share({ title: document.title, text: shareText, url: shareUrl })
+            .catch(function(){ copyToClipboard(shareUrl); });
+        } else { copyToClipboard(shareUrl); }
       });
       
       // Add to Cart button click event
