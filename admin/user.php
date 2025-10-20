@@ -59,6 +59,15 @@ function getBankName($code, $bankList)
 
 // Get the bank name based on the bank code
 $bankName = getBankName($bank, $bankList);
+
+$faculties = [];
+if ($_SESSION['nivas_userRole'] == 'hoc') {
+  $faculties_query = mysqli_query($conn, "SELECT id, name FROM faculties WHERE school_id = $school_id AND status = 'active' ORDER BY name ASC");
+
+  while ($faculty = mysqli_fetch_assoc($faculties_query)) {
+    $faculties[$faculty['id']] = $faculty['name'];
+  }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -600,6 +609,15 @@ $bankName = getBankName($bank, $bankList);
                           <div class="form-outline mb-4">
                             <input type="text" name="title" class="form-control form-control-lg w-100" required="">
                             <label class="form-label" for="title">Manual Title</label>
+                          </div>
+                          <div class="form-group mb-4">
+                            <label class="form-check-label mb-0" for="manual_faculty">Associated Faculty</label><br />
+                            <select id="manual_faculty" name="faculty" class="form-select form-select-lg" <?php echo empty($faculties) ? 'disabled' : 'required'; ?>>
+                              <option value="" selected disabled><?php echo empty($faculties) ? 'No faculties available' : 'Select faculty'; ?></option>
+                              <?php foreach ($faculties as $faculty_id => $faculty_name): ?>
+                                <option value="<?php echo (int) $faculty_id; ?>"><?php echo htmlspecialchars($faculty_name); ?></option>
+                              <?php endforeach; ?>
+                            </select>
                           </div>
                           <div class="row">
                             <div class="col-md-6">

@@ -169,6 +169,7 @@ CREATE TABLE `manuals` (
   `due_date` datetime NOT NULL,
   `quantity` int(11) NOT NULL,
   `dept` int(11) NOT NULL,
+  `faculty` int(11) DEFAULT NULL,
   `user_id` int(11) NOT NULL,
   `currency` varchar(30) NOT NULL DEFAULT 'NGN',
   `school_id` int(11) NOT NULL DEFAULT 1,
