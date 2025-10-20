@@ -59,6 +59,15 @@ function getBankName($code, $bankList)
 
 // Get the bank name based on the bank code
 $bankName = getBankName($bank, $bankList);
+
+$faculties = [];
+if ($_SESSION['nivas_userRole'] == 'hoc') {
+  $faculties_query = mysqli_query($conn, "SELECT id, name FROM faculties WHERE school_id = $school_id AND status = 'active' ORDER BY name ASC");
+
+  while ($faculty = mysqli_fetch_assoc($faculties_query)) {
+    $faculties[$faculty['id']] = $faculty['name'];
+  }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -82,6 +91,17 @@ $bankName = getBankName($bank, $bankList);
   <!-- inject:css -->
   <link rel="stylesheet" href="../assets/css/dashboard/style.css">
   <!-- endinject -->
+  <style>
+    .manual-faculty-select {
+      width: 100%;
+    }
+
+    .manual-faculty-select:focus {
+      border-color: var(--bs-primary, #FF9100);
+      box-shadow: 0 0 0 0.25rem rgba(255, 145, 0, 0.25);
+      outline: 0;
+    }
+  </style>
 
   <!-- Google Sign-In API library -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -632,6 +652,17 @@ $bankName = getBankName($bank, $bankList);
                                 <label class="form-label" for="due_date">Due Date</label>
                               </div>
                             </div>
+                          </div>
+                          <div class="form-group mb-0">
+                            <label class="form-label" for="manual_faculty">Associated Faculty</label>
+                            <select id="manual_faculty" name="faculty"
+                              class="form-control form-control-lg manual-faculty-select" <?php echo empty($faculties) ? 'disabled' : 'required'; ?>>
+                              <option value="" selected disabled><?php echo empty($faculties) ? 'No faculties available' : 'Select faculty'; ?></option>
+                              <?php foreach ($faculties as $faculty_id => $faculty_name): ?>
+                                <option value="<?php echo (int) $faculty_id; ?>"><?php echo htmlspecialchars($faculty_name); ?></option>
+                              <?php endforeach; ?>
+                            </select>
+                            <p class="form-text mt-2">This doesn't mean your faculty/college, but where the material is being collected from</p>
                           </div>
                         </div>
                         <div class="modal-footer">

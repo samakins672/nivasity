@@ -51,6 +51,8 @@ if (isset($_POST['close_manual'])) {
   $price = mysqli_real_escape_string($conn, $_POST['price']);
   $quantity = mysqli_real_escape_string($conn, $_POST['quantity']);
   $due_date = mysqli_real_escape_string($conn, $_POST['due_date']);
+  $faculty = isset($_POST['faculty']) ? (int) $_POST['faculty'] : 0;
+  $faculty_value = ($faculty > 0) ? $faculty : 'NULL';
 
   if ($manual_id == 0) {
     // Generate a unique verification code
@@ -61,10 +63,10 @@ if (isset($_POST['close_manual'])) {
       $manual_code = generateVerificationCode(8);
     }
 
-    mysqli_query($conn, "INSERT INTO manuals (title,	course_code,	price, dept,	code,	due_date,	quantity,	user_id, school_id) 
-        VALUES ('$title',	'$course_code',	$price, $user_dept,	'$manual_code',	'$due_date',	$quantity,	$user_id, $school_id)");
+    mysqli_query($conn, "INSERT INTO manuals (title,	course_code,	price, dept,	faculty,	code,	due_date,	quantity,	user_id, school_id) 
+        VALUES ('$title',	'$course_code',	$price, $user_dept,	$faculty_value,	'$manual_code',	'$due_date',	$quantity,	$user_id, $school_id)");
   } else {
-    mysqli_query($conn, "UPDATE manuals SET title = '$title', course_code = '$course_code', price = $price, due_date = '$due_date', quantity = $quantity 
+    mysqli_query($conn, "UPDATE manuals SET title = '$title', course_code = '$course_code', price = $price, due_date = '$due_date', quantity = $quantity, faculty = $faculty_value 
         WHERE id = $manual_id");
   }
 

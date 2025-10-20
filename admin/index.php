@@ -33,6 +33,14 @@ $manual_query2 = mysqli_query($conn, "SELECT $column_id, SUM(price) AS total_sal
 
 
 $manual_query = mysqli_query($conn, "SELECT * FROM $item_table WHERE user_id = $user_id ORDER BY `id` DESC");
+$faculties = [];
+if ($_SESSION['nivas_userRole'] == 'hoc') {
+  $faculties_query = mysqli_query($conn, "SELECT id, name FROM faculties WHERE school_id = $school_id AND status = 'active' ORDER BY name ASC");
+
+  while ($faculty = mysqli_fetch_assoc($faculties_query)) {
+    $faculties[$faculty['id']] = $faculty['name'];
+  }
+}
 $event_query = mysqli_query($conn, "SELECT * FROM events WHERE user_id = $user_id ORDER BY `id` DESC");
 
 $transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM $item_table2 WHERE seller = $user_id ORDER BY `created_at` DESC");
@@ -79,6 +87,17 @@ if (mysqli_num_rows($settlement_query) == 0) {
   <!-- inject:css -->
   <link rel="stylesheet" href="../assets/css/dashboard/style.css">
   <!-- endinject -->
+  <style>
+    .manual-faculty-select {
+      width: 100%;
+    }
+
+    .manual-faculty-select:focus {
+      border-color: var(--bs-primary, #FF9100);
+      box-shadow: 0 0 0 0.25rem rgba(255, 145, 0, 0.25);
+      outline: 0;
+    }
+  </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
   
   <!-- main js -->
@@ -349,6 +368,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                 <thead>
                                   <tr>
                                     <th>Name</th>
+                                    <th class="d-sm-none-2">Faculty</th>
                                     <th class="d-sm-none-2">Unit Price</th>
                                     <th>Revenue</th>
                                     <th class="d-sm-none-2">Availability</th>
@@ -390,6 +410,9 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                         </div>
                                       </td>
                                       <td class="d-sm-none-2">
+                                        <h6><?php echo isset($manual['faculty'], $faculties[$manual['faculty']]) ? htmlspecialchars($faculties[$manual['faculty']]) : '&mdash;'; ?></h6>
+                                      </td>
+                                      <td class="d-sm-none-2">
                                         <h6>&#8358; <?php echo number_format($manual['price']) ?></h6>
                                       </td>
                                       <td>
@@ -424,7 +447,8 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                                 data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>"
                                                 data-course_code="<?php echo $manual['course_code']; ?>" data-price="<?php echo $manual['price']; ?>"
                                                 data-quantity="<?php echo $manual['quantity']; ?>"
-                                                data-due_date="<?php echo date('Y-m-d', strtotime($manual['due_date'])); ?>" 
+                                                data-due_date="<?php echo date('Y-m-d', strtotime($manual['due_date'])); ?>"
+                                                data-faculty="<?php echo isset($manual['faculty']) ? (int) $manual['faculty'] : ''; ?>"
                                                 data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual': 'verificationManual'?>">
                                                 <i class="mdi mdi-book-edit pe-2"></i> Edit material
                                               </a>
@@ -773,6 +797,17 @@ if (mysqli_num_rows($settlement_query) == 0) {
                               </div>
                             </div>
                           </div>
+                          <div class="form-group mb-0">
+                            <label class="form-label" for="manual_faculty">Associated Faculty</label>
+                            <select id="manual_faculty" name="faculty"
+                              class="form-control form-control-lg manual-faculty-select" <?php echo empty($faculties) ? 'disabled' : 'required'; ?>>
+                              <option value="" selected disabled><?php echo empty($faculties) ? 'No faculties available' : 'Select faculty'; ?></option>
+                              <?php foreach ($faculties as $faculty_id => $faculty_name): ?>
+                                <option value="<?php echo (int) $faculty_id; ?>"><?php echo htmlspecialchars($faculty_name); ?></option>
+                              <?php endforeach; ?>
+                            </select>
+                            <p class="form-text mt-2">This doesn't mean your faculty/college, but where the material is being collected from</p>
+                          </div>
                         </div>
                         <div class="modal-footer">
                           <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
@@ -986,6 +1021,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
         // Reset the form by setting its values to empty
         $('#manual-form input[name="manual_id"]').val(0);
         $('#manual-form')[0].reset();
+        $('#manual_faculty').prop('selectedIndex', 0).trigger('change');
       });
 
       $('#addEvent').on('hidden.bs.modal', function () {
@@ -1080,6 +1116,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
         var price = $(this).data('price');
         var quantity = $(this).data('quantity');
         var dueDateISO = $(this).data('due_date');
+        var facultyId = $(this).data('faculty');
 
         // Set the values in the edit manual modal
         $('#manual-form input[name="manual_id"]').val(manualId);
@@ -1088,6 +1125,11 @@ if (mysqli_num_rows($settlement_query) == 0) {
         $('#manual-form input[name="price"]').val(price);
         $('#manual-form input[name="quantity"]').val(quantity);
         $('#manual-form input[name="due_date"]').val(dueDateISO);
+        if (facultyId) {
+          $('#manual_faculty').val(facultyId).trigger('change');
+        } else {
+          $('#manual_faculty').prop('selectedIndex', 0).trigger('change');
+        }
       });
 
       // Use AJAX to submit the manual form
