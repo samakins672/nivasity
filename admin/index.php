@@ -806,6 +806,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                 <option value="<?php echo (int) $faculty_id; ?>"><?php echo htmlspecialchars($faculty_name); ?></option>
                               <?php endforeach; ?>
                             </select>
+                            <p class="form-text mt-2">This doesn't mean your faculty/college, but where the material is being collected from</p>
                           </div>
                         </div>
                         <div class="modal-footer">
