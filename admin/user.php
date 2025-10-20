@@ -92,6 +92,10 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
   <link rel="stylesheet" href="../assets/css/dashboard/style.css">
   <!-- endinject -->
   <style>
+    .manual-faculty-select {
+      width: 100%;
+    }
+
     .manual-faculty-select:focus {
       border-color: var(--bs-primary, #FF9100);
       box-shadow: 0 0 0 0.25rem rgba(255, 145, 0, 0.25);
