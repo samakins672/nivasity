@@ -91,6 +91,13 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
   <!-- inject:css -->
   <link rel="stylesheet" href="../assets/css/dashboard/style.css">
   <!-- endinject -->
+  <style>
+    .manual-faculty-select:focus {
+      border-color: var(--bs-primary, #FF9100);
+      box-shadow: 0 0 0 0.25rem rgba(255, 145, 0, 0.25);
+      outline: 0;
+    }
+  </style>
 
   <!-- Google Sign-In API library -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -610,15 +617,6 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
                             <input type="text" name="title" class="form-control form-control-lg w-100" required="">
                             <label class="form-label" for="title">Manual Title</label>
                           </div>
-                          <div class="form-group mb-4">
-                            <label class="form-check-label mb-0" for="manual_faculty">Associated Faculty</label><br />
-                            <select id="manual_faculty" name="faculty" class="form-select form-select-lg" <?php echo empty($faculties) ? 'disabled' : 'required'; ?>>
-                              <option value="" selected disabled><?php echo empty($faculties) ? 'No faculties available' : 'Select faculty'; ?></option>
-                              <?php foreach ($faculties as $faculty_id => $faculty_name): ?>
-                                <option value="<?php echo (int) $faculty_id; ?>"><?php echo htmlspecialchars($faculty_name); ?></option>
-                              <?php endforeach; ?>
-                            </select>
-                          </div>
                           <div class="row">
                             <div class="col-md-6">
                               <div class="form-outline mb-4">
@@ -650,6 +648,16 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
                                 <label class="form-label" for="due_date">Due Date</label>
                               </div>
                             </div>
+                          </div>
+                          <div class="form-group mb-0">
+                            <label class="form-label" for="manual_faculty">Associated Faculty</label>
+                            <select id="manual_faculty" name="faculty"
+                              class="form-control form-control-lg manual-faculty-select" <?php echo empty($faculties) ? 'disabled' : 'required'; ?>>
+                              <option value="" selected disabled><?php echo empty($faculties) ? 'No faculties available' : 'Select faculty'; ?></option>
+                              <?php foreach ($faculties as $faculty_id => $faculty_name): ?>
+                                <option value="<?php echo (int) $faculty_id; ?>"><?php echo htmlspecialchars($faculty_name); ?></option>
+                              <?php endforeach; ?>
+                            </select>
                           </div>
                         </div>
                         <div class="modal-footer">
