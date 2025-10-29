@@ -59,8 +59,8 @@ if (isset($_POST['signup'])) {
       <br><br>
       Best regards,<br><b>Nivasity Team</b>";
 
-      // Call the sendMail function and capture the status
-      $mailStatus = sendMail($subject, $body, $email);
+      // Call the Brevo mail function and capture the status
+      $mailStatus = sendBrevoMail($subject, $body, $email);
 
       // Check the status
       if ($mailStatus === "success") {
@@ -69,6 +69,80 @@ if (isset($_POST['signup'])) {
       } else {
         $statusRes = "error";
         $messageRes = "Internal Server Error. Please try again later!";
+      }
+    }
+  }
+}
+
+if (isset($_POST['resend_verification'])) {
+  $email = mysqli_real_escape_string($conn, $_POST['email']);
+
+  if (empty($email)) {
+    $statusRes = "error";
+    $messageRes = "We couldn't find that email address. Please sign up again.";
+  } else {
+    $user_query = mysqli_query($conn, "SELECT * FROM users WHERE email = '$email'");
+
+    if (mysqli_num_rows($user_query) !== 1) {
+      $statusRes = "error";
+      $messageRes = "We couldn't find that email address. Please sign up again.";
+    } else {
+      $user = mysqli_fetch_array($user_query);
+
+      if ($user['status'] !== 'unverified') {
+        $statusRes = "warning";
+        $messageRes = "This account has already been verified. You can go ahead and sign in.";
+      } else {
+        $user_id = $user['id'];
+        $verificationCode = generateVerificationCode(12);
+
+        while (!isCodeUnique($verificationCode, $conn, 'verification_code')) {
+          $verificationCode = generateVerificationCode(12);
+        }
+
+        $existingCode = mysqli_query($conn, "SELECT id FROM verification_code WHERE user_id = $user_id");
+
+        if (mysqli_num_rows($existingCode) > 0) {
+          mysqli_query($conn, "UPDATE verification_code SET code = '$verificationCode' WHERE user_id = $user_id");
+        } else {
+          mysqli_query($conn, "INSERT INTO verification_code (user_id, code) VALUES ($user_id, '$verificationCode')");
+        }
+
+        if (mysqli_affected_rows($conn) < 1 && mysqli_errno($conn) !== 0) {
+          $statusRes = "error";
+          $messageRes = "We couldn't generate a new verification link right now. Please try again shortly.";
+        } else {
+          if ($user['role'] == 'org_admin') {
+            $verificationCode = "setup_org.html?verify=$verificationCode";
+          } elseif ($user['role'] == 'visitor') {
+            $verificationCode = "verify.html?verify=$verificationCode";
+          } else {
+            $verificationCode = "setup.html?verify=$verificationCode";
+          }
+
+          $subject = "Verify Your Account on NIVASITY";
+          $first_name = $user['first_name'];
+          $body = "Hello $first_name,
+      <br><br>
+      We're sending you a new verification link so you can finish setting up your Nivasity account.
+      <br><br>
+      Click on the following link to verify your account: <a href='https://funaab.nivasity.com/$verificationCode'>Verify Account</a>
+      <br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationCode
+      <br><br>
+      Thank you for choosing Nivasity. We look forward to serving you!
+      <br><br>
+      Best regards,<br><b>Nivasity Team</b>";
+
+          $mailStatus = sendBrevoMail($subject, $body, $email);
+
+          if ($mailStatus === "success") {
+            $statusRes = "success";
+            $messageRes = "We've sent you a fresh verification link. Please check your inbox (and spam folder).";
+          } else {
+            $statusRes = "error";
+            $messageRes = "We couldn't send the verification email right now. Please try again shortly.";
+          }
+        }
       }
     }
   }

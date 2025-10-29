@@ -467,9 +467,37 @@
           url: 'model/user.php',
           data: formData,
           success: function (data) {
+            const formFields = {};
+            formData.forEach(function (field) {
+              formFields[field.name] = field.value;
+            });
+
             // Check the response to determine if signup was successful
             if (data.status === 'success') {
-              $('#pills-register').html('<div class="alert alert-primary text-center"><i class="fas fa-envelope h1"></i><br>' + data.message + ' </div>');
+              const email = formFields.email || '';
+              const successContainer = $('<div/>', { class: 'text-center' });
+              const alert = $('<div/>', {
+                class: 'alert alert-primary text-center',
+                html: '<i class="fas fa-envelope h1"></i><br>' + data.message
+              });
+              const button = $('<button/>', {
+                id: 'resend-verification',
+                type: 'button',
+                class: 'btn btn-outline-primary fw-bold mt-3',
+                text: 'Resend verification email'
+              });
+
+              if (email) {
+                button.data('email', email);
+              }
+
+              const feedback = $('<div/>', {
+                id: 'resend-feedback',
+                class: 'mt-2 small'
+              });
+
+              successContainer.append(alert, button, feedback);
+              $('#pills-register').empty().append(successContainer);
             } else {
               $('#alertBanner').html(data.message);
 
@@ -488,6 +516,42 @@
             // AJAX call successful, stop the spinner and update button text
             button.html(originalText);
             button.prop("disabled", false);
+          }
+        });
+      });
+
+      $(document).on('click', '#resend-verification', function () {
+        const button = $(this);
+        const email = button.data('email');
+        const feedback = $('#resend-feedback');
+        const originalText = button.html();
+
+        if (!email) {
+          feedback.addClass('text-danger').text('We could not determine your email address. Please sign up again.');
+          return;
+        }
+
+        feedback.removeClass('text-danger text-success').text('');
+        button.prop('disabled', true).html('<div class="spinner-border text-primary" style="width: 1.5rem; height: 1.5rem;" role="status"><span class="sr-only">Loading...</span>');
+
+        $.ajax({
+          type: 'POST',
+          url: 'model/user.php',
+          data: { resend_verification: '1', email: email },
+          success: function (data) {
+            if (data.status === 'success') {
+              feedback.removeClass('text-danger').addClass('text-success').text(data.message);
+            } else if (data.status === 'warning') {
+              feedback.removeClass('text-success').addClass('text-danger').text(data.message);
+            } else {
+              feedback.removeClass('text-success').addClass('text-danger').text(data.message || 'Something went wrong. Please try again later.');
+            }
+          },
+          error: function () {
+            feedback.removeClass('text-success').addClass('text-danger').text('We could not resend the verification email. Please try again later.');
+          },
+          complete: function () {
+            button.prop('disabled', false).html(originalText);
           }
         });
       });
