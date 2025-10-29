@@ -100,7 +100,7 @@ if (isset($_POST['resend_verification'])) {
           $verificationCode = generateVerificationCode(12);
         }
 
-        $existingCode = mysqli_query($conn, "SELECT id FROM verification_code WHERE user_id = $user_id");
+        $existingCode = mysqli_query($conn, "SELECT user_id FROM verification_code WHERE user_id = $user_id");
 
         if (mysqli_num_rows($existingCode) > 0) {
           mysqli_query($conn, "UPDATE verification_code SET code = '$verificationCode' WHERE user_id = $user_id");
