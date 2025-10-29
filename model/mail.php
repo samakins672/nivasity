@@ -153,12 +153,12 @@ function sendBrevoMail($subject, $body, $to)
 {
   $body_ = buildEmailTemplate($body);
 
-  if (!defined('BREVO_API_KEY') || !defined('BREVO_SENDER_EMAIL')) {
-    error_log('Brevo credentials are not configured.');
+  if (!defined('BREVO_API_KEY') || !BREVO_API_KEY || !defined('BREVO_SENDER_EMAIL') || !BREVO_SENDER_EMAIL) {
+    error_log('Brevo credentials are not configured. Please copy config/mail.example.php to config/mail.php and fill in BREVO_* constants.');
     return 'error';
   }
 
-  $senderName = defined('BREVO_SENDER_NAME') ? BREVO_SENDER_NAME : 'Nivasity';
+  $senderName = defined('BREVO_SENDER_NAME') && BREVO_SENDER_NAME ? BREVO_SENDER_NAME : 'Nivasity';
 
   $payload = [
     'sender' => [
@@ -172,9 +172,11 @@ function sendBrevoMail($subject, $body, $to)
     'htmlContent' => $body_,
   ];
 
-  if (defined('BREVO_REPLY_TO_EMAIL')) {
+  if (defined('BREVO_REPLY_TO_EMAIL') && BREVO_REPLY_TO_EMAIL) {
     $payload['replyTo'] = ['email' => BREVO_REPLY_TO_EMAIL];
   }
+
+  $encodedPayload = json_encode($payload);
 
   $ch = curl_init('https://api.brevo.com/v3/smtp/email');
   curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -183,8 +185,10 @@ function sendBrevoMail($subject, $body, $to)
     'api-key: ' . BREVO_API_KEY,
   ]);
   curl_setopt($ch, CURLOPT_POST, true);
-  curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+  curl_setopt($ch, CURLOPT_POSTFIELDS, $encodedPayload);
   curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+  error_log(sprintf('Brevo request initiated for %s with subject "%s"', $to, $subject));
 
   $response = curl_exec($ch);
 
@@ -197,11 +201,16 @@ function sendBrevoMail($subject, $body, $to)
   $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
   curl_close($ch);
 
+  $decodedResponse = json_decode($response, true);
+
   if ($statusCode >= 200 && $statusCode < 300) {
+    $messageId = isset($decodedResponse['messageId']) ? $decodedResponse['messageId'] : 'unknown';
+    error_log(sprintf('Brevo email sent successfully to %s (messageId: %s)', $to, $messageId));
     return 'success';
   }
 
-  error_log('Brevo email failed with status ' . $statusCode . ': ' . $response);
+  $errorMessage = isset($decodedResponse['message']) ? $decodedResponse['message'] : $response;
+  error_log(sprintf('Brevo email failed for %s with status %s: %s', $to, $statusCode, $errorMessage));
   return 'error';
 }
 
