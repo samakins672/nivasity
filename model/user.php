@@ -59,8 +59,8 @@ if (isset($_POST['signup'])) {
       <br><br>
       Best regards,<br><b>Nivasity Team</b>";
 
-      // Call the sendMail function and capture the status
-      $mailStatus = sendMail($subject, $body, $email);
+      // Call the Brevo mail function and capture the status
+      $mailStatus = sendBrevoMail($subject, $body, $email);
 
       // Check the status
       if ($mailStatus === "success") {
