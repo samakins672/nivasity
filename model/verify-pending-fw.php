@@ -42,7 +42,28 @@ if (mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM transactions WHERE ref_id
 if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE ref_id = '$ref_id_esc' LIMIT 1")) > 0) { $dupe = true; }
 if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM event_tickets WHERE ref_id = '$ref_id_esc' LIMIT 1")) > 0) { $dupe = true; }
 if ($dupe) {
+    // Mark confirmed
     mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$ref_id_esc'");
+
+    // Remove items from session carts for this ref
+    $cart_items_rs = mysqli_query($conn, "SELECT item_id, type FROM cart WHERE ref_id = '$ref_id_esc' AND user_id = $user_id");
+    if ($cart_items_rs) {
+        $manual_ids = [];
+        $event_ids = [];
+        while ($ci = mysqli_fetch_assoc($cart_items_rs)) {
+            if ($ci['type'] === 'manual') { $manual_ids[] = (int)$ci['item_id']; }
+            elseif ($ci['type'] === 'event') { $event_ids[] = (int)$ci['item_id']; }
+        }
+        $cartManualKey = "nivas_cart$user_id";
+        $cartEventKey = "nivas_cart_event$user_id";
+        if (!empty($manual_ids) && isset($_SESSION[$cartManualKey])) {
+            $_SESSION[$cartManualKey] = array_values(array_diff($_SESSION[$cartManualKey], $manual_ids));
+        }
+        if (!empty($event_ids) && isset($_SESSION[$cartEventKey])) {
+            $_SESSION[$cartEventKey] = array_values(array_diff($_SESSION[$cartEventKey], $event_ids));
+        }
+    }
+
     echo json_encode(['status' => 'success', 'message' => 'Already processed']);
     exit;
 }
@@ -131,6 +152,16 @@ mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, 
 // Send email and cleanup
 sendCongratulatoryEmail($conn, $user_id, $ref_id, $manual_ids, $event_ids, $total_amount);
 mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$ref_id_esc'");
+
+// Remove purchased items from session carts
+$cartManualKey = "nivas_cart$user_id";
+$cartEventKey = "nivas_cart_event$user_id";
+if (!empty($manual_ids) && isset($_SESSION[$cartManualKey])) {
+    $_SESSION[$cartManualKey] = array_values(array_diff($_SESSION[$cartManualKey], $manual_ids));
+}
+if (!empty($event_ids) && isset($_SESSION[$cartEventKey])) {
+    $_SESSION[$cartEventKey] = array_values(array_diff($_SESSION[$cartEventKey], $event_ids));
+}
 
 echo json_encode(['status' => 'success', 'message' => 'Payment confirmed and items delivered']);
 ?>
