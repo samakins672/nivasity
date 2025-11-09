@@ -21,6 +21,11 @@ if (isset($_POST['event_id'])) {
     if ($action == 0) {
         // event is in the cart, remove it
         $_SESSION[$cart_] = array_diff($_SESSION[$cart_], array($event_id));
+
+        // Remove any pending DB cart rows for this event
+        $userId = intval($user_id);
+        $itemId = intval($event_id);
+        @mysqli_query($conn, "DELETE FROM cart WHERE user_id = {$userId} AND item_id = {$itemId} AND type = 'event' AND status = 'pending'");
     } else {
         // event is not in the cart, add it
         $_SESSION[$cart_][] = $event_id;

@@ -75,6 +75,9 @@ if (isset($_GET['tx_ref'])) {
     // Insert the transaction record with zero charge and profit
     mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, 0, 0, '$status', 'NIVASITY')");
 
+    // Clear saved cart rows for this transaction
+    mysqli_query($conn, "DELETE FROM cart WHERE ref_id = '$tx_ref'");
+
     // Close the database connection
     mysqli_close($conn);
 

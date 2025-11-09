@@ -257,8 +257,16 @@ if (isset($_POST['reload_cart'])) {
     }
 
     if ($action == 0) {
-        // Remove product or event from cart
+        // Remove product or event from cart (session)
         $_SESSION[$cart] = array_diff($_SESSION[$cart], array($product_id));
+
+        // Also remove any pending DB cart rows for this user/item
+        // Map UI type to DB type values
+        $dbType = ($type === 'product') ? 'manual' : 'event';
+        $userId = intval($user_id);
+        $itemId = intval($product_id);
+        $dbTypeEsc = mysqli_real_escape_string($conn, $dbType);
+        @mysqli_query($conn, "DELETE FROM cart WHERE user_id = {$userId} AND item_id = {$itemId} AND type = '{$dbTypeEsc}' AND status = 'pending'");
     } else {
         // Add product or event to cart
         $_SESSION[$cart][] = $product_id;
