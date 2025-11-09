@@ -673,6 +673,56 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         });
       }
 
+      // Pending payments: cancel
+      $('#cart').on('click', '.pending-cancel', function() {
+        var btn = $(this);
+        var ref = btn.data('ref_id');
+        btn.prop('disabled', true);
+        $.ajax({
+          type: 'POST',
+          url: 'model/verify-pending-fw.php',
+          dataType: 'json',
+          data: { ref_id: ref, action: 'cancel' },
+          success: function (res) {
+            reloadCartTable();
+          },
+          complete: function () {
+            btn.prop('disabled', false);
+          },
+          error: function () {
+            console.error('Error cancelling pending payment');
+          }
+        });
+      });
+
+      // Pending payments: verify via Flutterwave
+      $('#cart').on('click', '.pending-verify', function() {
+        var btn = $(this);
+        var ref = btn.data('ref_id');
+        var orig = btn.text();
+        btn.prop('disabled', true).text('Checking...');
+        $.ajax({
+          type: 'POST',
+          url: 'model/verify-pending-fw.php',
+          dataType: 'json',
+          data: { ref_id: ref, action: 'verify' },
+          success: function (res) {
+            if (res.status === 'success') {
+              location.reload();
+            } else {
+              alert(res.message || 'Payment not found. If you paid, please try again later.');
+              reloadCartTable();
+            }
+          },
+          complete: function () {
+            btn.prop('disabled', false).text(orig);
+          },
+          error: function () {
+            console.error('Error verifying payment');
+          }
+        });
+      });
+
       // Add to Cart button click event
       $('#cart').on('click', '.checkout-cart', function() {
         email = "<?php echo $user_email ?>";

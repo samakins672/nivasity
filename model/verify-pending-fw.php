@@ -1,0 +1,126 @@
+<?php
+session_start();
+require_once 'config.php';
+require_once '../config/fw.php';
+include('functions.php');
+include('mail.php');
+
+header('Content-Type: application/json');
+
+$user_id = isset($_SESSION['nivas_userId']) ? (int)$_SESSION['nivas_userId'] : 0;
+$school_id = isset($_SESSION['nivas_userSch']) ? (int)$_SESSION['nivas_userSch'] : 0;
+
+if ($user_id <= 0) {
+    echo json_encode(['status' => 'error', 'message' => 'Not authenticated']);
+    exit;
+}
+
+$ref_id = isset($_POST['ref_id']) ? trim($_POST['ref_id']) : '';
+$action = isset($_POST['action']) ? trim($_POST['action']) : '';
+
+if ($ref_id === '' || $action === '') {
+    echo json_encode(['status' => 'error', 'message' => 'Missing parameters']);
+    exit;
+}
+
+$ref_id_esc = mysqli_real_escape_string($conn, $ref_id);
+
+if ($action === 'cancel') {
+    mysqli_query($conn, "UPDATE cart SET status = 'cancelled' WHERE ref_id = '$ref_id_esc' AND user_id = $user_id AND status = 'pending'");
+    echo json_encode(['status' => 'success', 'message' => 'Payment cancelled']);
+    exit;
+}
+
+if ($action !== 'verify') {
+    echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
+    exit;
+}
+
+// Verify with Flutterwave using tx_ref
+$curl = curl_init();
+curl_setopt_array($curl, [
+    CURLOPT_URL => 'https://api.flutterwave.com/v3/transactions?tx_ref=' . urlencode($ref_id),
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_CUSTOMREQUEST => 'GET',
+    CURLOPT_HTTPHEADER => [
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . FLW_SECRET_KEY,
+    ],
+]);
+$resp = curl_exec($curl);
+curl_close($curl);
+
+$data = json_decode($resp, true);
+if (!$data || !isset($data['status']) || $data['status'] !== 'success' || !isset($data['data'][0]['status']) || $data['data'][0]['status'] !== 'successful') {
+    echo json_encode(['status' => 'pending', 'message' => 'No successful payment found for ref']);
+    exit;
+}
+
+// Fetch cart rows for this ref and user
+$cart_query = mysqli_query($conn, "SELECT * FROM cart WHERE ref_id = '$ref_id_esc' AND user_id = $user_id");
+if (!$cart_query || mysqli_num_rows($cart_query) < 1) {
+    echo json_encode(['status' => 'error', 'message' => 'Cart data not found for reference']);
+    exit;
+}
+
+$manual_ids = [];
+$event_ids = [];
+$sum_amount = 0.0;
+$status = 'successful';
+
+while ($row = mysqli_fetch_assoc($cart_query)) {
+    $item_id = (int)$row['item_id'];
+    $type = $row['type'];
+
+    if ($type === 'manual') {
+        $manual = mysqli_query($conn, "SELECT price, user_id FROM manuals WHERE id = $item_id AND school_id = $school_id");
+        if ($manual && mysqli_num_rows($manual) > 0) {
+            $m = mysqli_fetch_assoc($manual);
+            $price = (float)$m['price'];
+            $seller = (int)$m['user_id'];
+            $sum_amount += $price;
+            $manual_ids[] = $item_id;
+            mysqli_query($conn, "INSERT INTO manuals_bought (manual_id, price, seller, buyer, ref_id, status, school_id) VALUES ($item_id, $price, $seller, $user_id, '$ref_id_esc', '$status', $school_id)");
+            if (mysqli_affected_rows($conn) < 1) {
+                echo json_encode(['status' => 'error', 'message' => 'Failed to add manual to purchases']);
+                exit;
+            }
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Manual not found for purchase']);
+            exit;
+        }
+    } elseif ($type === 'event') {
+        $event = mysqli_query($conn, "SELECT price, user_id FROM events WHERE id = $item_id");
+        if ($event && mysqli_num_rows($event) > 0) {
+            $e = mysqli_fetch_assoc($event);
+            $price = (float)$e['price'];
+            $seller = (int)$e['user_id'];
+            $sum_amount += $price;
+            $event_ids[] = $item_id;
+            mysqli_query($conn, "INSERT INTO event_tickets (event_id, price, seller, buyer, ref_id, status) VALUES ($item_id, $price, $seller, $user_id, '$ref_id_esc', '$status')");
+            if (mysqli_affected_rows($conn) < 1) {
+                echo json_encode(['status' => 'error', 'message' => 'Failed to add event ticket']);
+                exit;
+            }
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Event not found for purchase']);
+            exit;
+        }
+    }
+}
+
+// Compute final totals and profit using shared function
+$calc = calculateFlutterwaveSettlement($sum_amount);
+$total_amount = (float)$calc['total_amount'];
+$charge = (float)$calc['charge'];
+$profit = (float)$calc['profit'];
+
+mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status) VALUES ('$ref_id_esc', $user_id, $total_amount, $charge, $profit, '$status')");
+
+// Send email and cleanup
+sendCongratulatoryEmail($conn, $user_id, $ref_id, $manual_ids, $event_ids, $total_amount);
+mysqli_query($conn, "DELETE FROM cart WHERE ref_id = '$ref_id_esc'");
+
+echo json_encode(['status' => 'success', 'message' => 'Payment confirmed and items delivered']);
+?>
+

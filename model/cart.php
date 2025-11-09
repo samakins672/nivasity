@@ -195,6 +195,58 @@ if (isset($_POST['reload_cart'])) {
     }
     $transferAmount += $charge;
 
+    // Build pending payments accordion HTML grouped by ref_id
+    $pendingHtml = '';
+    $pending_q = mysqli_query($conn, "SELECT ref_id, item_id, type, created_at FROM cart WHERE user_id = $user_id AND status = 'pending' ORDER BY created_at DESC");
+    if ($pending_q && mysqli_num_rows($pending_q) > 0) {
+        $groups = [];
+        while ($row = mysqli_fetch_assoc($pending_q)) {
+            $rid = $row['ref_id'];
+            if (!isset($groups[$rid])) { $groups[$rid] = []; }
+            $groups[$rid][] = $row;
+        }
+
+        $pendingHtml .= "\r\n<div class=\"mb-3\">\r\n  <div class=\"d-flex align-items-center justify-content-between\">\r\n    <h6 class=\"mb-2 text-secondary\">Pending payments</h6>\r\n    <span class=\"badge bg-warning text-dark\">" . count($groups) . "</span>\r\n  </div>\r\n  <div class=\"accordion\" id=\"pendingPaymentsAccordion\">";
+
+        $accIndex = 0;
+        foreach ($groups as $rid => $items) {
+            $accIndex++;
+            $headingId = 'pendingHeading' . $accIndex;
+            $collapseId = 'pendingCollapse' . $accIndex;
+
+            // Build list items with names
+            $itemLines = '';
+            foreach ($items as $it) {
+                $name = '';
+                $iid = (int)$it['item_id'];
+                if ($it['type'] === 'manual') {
+                    $mres = mysqli_query($conn, "SELECT title, course_code FROM manuals WHERE id = $iid");
+                    if ($mres && mysqli_num_rows($mres) > 0) {
+                        $m = mysqli_fetch_assoc($mres);
+                        $title = htmlspecialchars($m['title']);
+                        $code = htmlspecialchars($m['course_code']);
+                        $name = 'Material: ' . ($code ? ($code . ' - ') : '') . $title;
+                    } else {
+                        $name = 'Material ID #' . $iid;
+                    }
+                } else { // event
+                    $eres = mysqli_query($conn, "SELECT title FROM events WHERE id = $iid");
+                    if ($eres && mysqli_num_rows($eres) > 0) {
+                        $e = mysqli_fetch_assoc($eres);
+                        $name = 'Event: ' . htmlspecialchars($e['title']);
+                    } else {
+                        $name = 'Event ID #' . $iid;
+                    }
+                }
+                $itemLines .= '<li class="small">' . $name . '</li>';
+            }
+
+            $pendingHtml .= "\r\n    <div class=\"accordion-item\">\r\n      <h2 class=\"accordion-header\" id=\"$headingId\">\r\n        <button class=\"accordion-button collapsed py-2\" type=\"button\" data-bs-toggle=\"collapse\" data-bs-target=\"#$collapseId\" aria-expanded=\"false\" aria-controls=\"$collapseId\">\r\n          Ref: " . htmlspecialchars($rid) . " — " . count($items) . " item(s)\r\n        </button>\r\n      </h2>\r\n      <div id=\"$collapseId\" class=\"accordion-collapse collapse\" aria-labelledby=\"$headingId\" data-bs-parent=\"#pendingPaymentsAccordion\">\r\n        <div class=\"accordion-body py-3\">\r\n          <ul class=\"mb-3\">$itemLines</ul>\r\n          <div class=\"d-flex gap-2\">\r\n            <button class=\"btn btn-success btn-sm pending-verify\" data-ref_id=\"" . htmlspecialchars($rid) . "\">Yes</button>\r\n            <button class=\"btn btn-outline-secondary btn-sm pending-cancel\" data-ref_id=\"" . htmlspecialchars($rid) . "\">Not at all</button>\r\n          </div>\r\n        </div>\r\n      </div>\r\n    </div>";
+        }
+
+        $pendingHtml .= "\r\n  </div>\r\n  <hr class=\"mt-3\"/>\r\n</div>";
+    }
+
     echo '
                             </tbody>
                         </table>
@@ -209,7 +261,7 @@ if (isset($_POST['reload_cart'])) {
                         <div>
                             <h4 class="card-title card-title-dash">Cart Summary</h4>
                         </div>
-                    </div><hr>
+                    </div><hr>' . $pendingHtml . '
                     <div class="d-flex justify-content-between mt-3 mb-1 fw-bold">
                         <p>Subtotal</p>
                         <h4>₦ ' . number_format($total_cart_price) . '</h4>
