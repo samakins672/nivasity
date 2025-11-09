@@ -66,7 +66,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
                                 $created_time = date('h:i a', strtotime($manual['created_at']));
                                 // Retrieve the status
                                 $status = $manual['status'];
-                                $event_price = number_format($event['price']);
+                                $event_price = number_format($manuals['price']);
                                 $event_price = $event_price > 0 ? "₦ $event_price" : 'FREE';
                                 ?>
                               <tr>
