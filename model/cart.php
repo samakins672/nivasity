@@ -290,9 +290,11 @@ if (isset($_POST['reload_cart'])) {
     }
 
     if (!empty($pendingListHtml)) {
-    echo '\r\n                </div>\r\n            </div>\r\n            <div class="card card-rounded shadow-sm mt-3">\r\n                <div class="card-body">\r\n                    <h4 class="card-title card-title-dash">Pending Payments</h4>\r\n                    <hr class="my-2"/>' . $pendingListHtml . '\r\n                </div>\r\n            </div>\r\n        </div>\r\n    </div>';
+    echo "</div></div>";
+    echo '<div class="card card-rounded shadow-sm mt-3"><div class="card-body"><h4 class="card-title card-title-dash">Pending Payments</h4><hr class="my-2"/>' . $pendingListHtml . '</div></div>';
+    echo "</div></div>";
 } else {
-    echo '\r\n                </div>\r\n            </div>\r\n        </div>\r\n    </div>';
+    echo "</div></div></div></div>";
 }
 } else {
     $product_id = $_POST['product_id'];
