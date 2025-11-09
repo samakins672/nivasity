@@ -84,7 +84,8 @@ foreach ($cartItems as $refId) {
 
         $manual_ids[] = $item_id;
 
-        mysqli_query($conn, "INSERT INTO manuals_bought (manual_id, price, seller, buyer, ref_id, status, school) VALUES ($item_id, $price, $seller, $user_id, '$tx_ref', 'successful', $school)");
+        // Use correct column name `school_id` to match schema
+        mysqli_query($conn, "INSERT INTO manuals_bought (manual_id, price, seller, buyer, ref_id, status, school_id) VALUES ($item_id, $price, $seller, $user_id, '$tx_ref', 'successful', $school)");
       } elseif ($type === 'event') {
         $event = mysqli_query($conn, "SELECT price, user_id FROM events WHERE id = $item_id");
         $row = mysqli_fetch_assoc($event);
