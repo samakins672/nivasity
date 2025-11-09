@@ -19,6 +19,9 @@ if (isset($_SESSION["nivas_cart_event"])) {
             $_SESSION[$cart_2][] = $guestItem;
         }
     }
+    // Move pending list rendering below as a separate card
+    $pendingListHtml = $pendingHtml;
+    $pendingHtml = '';
 
     unset($_SESSION["nivas_cart_event"]);
 } 
@@ -241,7 +244,7 @@ if (isset($_POST['reload_cart'])) {
                 $itemLines .= '<li class="small">' . $name . '</li>';
             }
 
-            $pendingHtml .= "\r\n    <div class=\"accordion-item\">\r\n      <h2 class=\"accordion-header\" id=\"$headingId\">\r\n        <button class=\"accordion-button collapsed py-2\" type=\"button\" data-bs-toggle=\"collapse\" data-bs-target=\"#$collapseId\" aria-expanded=\"false\" aria-controls=\"$collapseId\">\r\n          Ref: " . htmlspecialchars($rid) . " — " . count($items) . " item(s)\r\n        </button>\r\n      </h2>\r\n      <div id=\"$collapseId\" class=\"accordion-collapse collapse\" aria-labelledby=\"$headingId\" data-bs-parent=\"#pendingPaymentsAccordion\">\r\n        <div class=\"accordion-body py-3\">\r\n          <ul class=\"mb-3\">$itemLines</ul>\r\n          <div class=\"d-flex gap-2\">\r\n            <button class=\"btn btn-success btn-sm pending-verify\" data-mdb-ripple-duration=\"0\" data-ref_id=\"" . htmlspecialchars($rid) . "\">Yes</button>\r\n            <button class=\"btn btn-outline-secondary btn-sm pending-cancel\" data-mdb-ripple-duration=\"0\" data-ref_id=\"" . htmlspecialchars($rid) . "\">Not at all</button>\r\n          </div>\r\n        </div>\r\n      </div>\r\n    </div>";
+            $pendingHtml .= "\r\n    <div class=\"accordion-item\">\r\n      <h2 class=\"accordion-header\" id=\"$headingId\">\r\n        <button class=\"accordion-button collapsed py-2\" type=\"button\" data-bs-toggle=\"collapse\" data-bs-target=\"#$collapseId\" aria-expanded=\"false\" aria-controls=\"$collapseId\">\r\n          Ref: " . htmlspecialchars($rid) . " — " . count($items) . " item(s)\r\n        </button>\r\n      </h2>\r\n      <div id=\"$collapseId\" class=\"accordion-collapse collapse\" aria-labelledby=\"$headingId\" data-bs-parent=\"#pendingPaymentsAccordion\">\r\n        <div class=\"accordion-body py-3\">\r\n          <ul class=\"mb-3\">$itemLines</ul>\r\n          <div class=\"d-flex gap-2\">\r\n            <button class=\"btn btn-success btn-sm pending-verify\" data-mdb-ripple-duration="."0"." data-ref_id=\"" . htmlspecialchars($rid) . "\">Yes</button>\r\n            <button class=\"btn btn-outline-secondary btn-sm pending-cancel\" data-mdb-ripple-duration="."0"." data-ref_id=\"" . htmlspecialchars($rid) . "\">Not at all</button>\r\n          </div>\r\n        </div>\r\n      </div>\r\n    </div>";
         }
 
         $pendingHtml .= "\r\n  </div>\r\n  <hr class=\"mt-3\"/>\r\n</div>";
@@ -261,7 +264,7 @@ if (isset($_POST['reload_cart'])) {
                         <div>
                             <h4 class="card-title card-title-dash">Cart Summary</h4>
                         </div>
-                    </div><hr>' . (!empty($pendingHtml) ? '<div class="card card-rounded shadow-sm mt-3"><div class="card-body"><h4 class="card-title card-title-dash">Pending Payments</h4><hr class="my-2"/>' . $pendingHtml . '</div></div>' : '') . '
+                    </div><hr>
                     <div class="d-flex justify-content-between mt-3 mb-1 fw-bold">
                         <p>Subtotal</p>
                         <h4>₦ ' . number_format($total_cart_price) . '</h4>
@@ -286,11 +289,11 @@ if (isset($_POST['reload_cart'])) {
                     <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>';
     }
 
-    echo '
-                </div>
-            </div>
-        </div>
-    </div>';
+    if (!empty($pendingListHtml)) {
+    echo '\r\n                </div>\r\n            </div>\r\n            <div class="card card-rounded shadow-sm mt-3">\r\n                <div class="card-body">\r\n                    <h4 class="card-title card-title-dash">Pending Payments</h4>\r\n                    <hr class="my-2"/>' . $pendingListHtml . '\r\n                </div>\r\n            </div>\r\n        </div>\r\n    </div>';
+} else {
+    echo '\r\n                </div>\r\n            </div>\r\n        </div>\r\n    </div>';
+}
 } else {
     $product_id = $_POST['product_id'];
     $action = $_POST['action'];

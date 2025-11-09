@@ -395,6 +395,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
   <!-- Custom js for this page-->
   <script src="assets/js/js/dashboard.js"></script>
   <script src="assets/js/script.js"></script>
+  <script src="assets/js/main.js"></script>
   <!--Start of Tawk.to Script-->
   <script type="text/javascript">
     var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
@@ -658,17 +659,6 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       });
 
       // Function to reload the cart table
-      function relocatePendingCard() {
-        var $container = $('#cart');
-        var $col = $container.find('.col-sm-4.grid-margin').first();
-        if ($col.length === 0) return;
-        var $summaryCard = $col.children('.card.card-rounded').first();
-        var $nested = $summaryCard.find('> .card-body > .card.card-rounded').first();
-        if ($nested.length) {
-          $nested.insertAfter($summaryCard);
-        }
-      }
-
       function reloadCartTable() {
         $.ajax({
           type: 'POST',
@@ -676,7 +666,6 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           data: { reload_cart: 'reload_cart' },
           success: function (html) {
             $('#cart').html(html);
-            relocatePendingCard();
           },
           error: function () {
             // Handle error
@@ -707,9 +696,6 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           }
         });
       });
-
-      // Ensure pending card is outside summary on initial load
-      relocatePendingCard();
 
       // Pending payments: verify via Flutterwave
       $('#cart').on('click', '.pending-verify', function() {
