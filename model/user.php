@@ -2,6 +2,7 @@
 include('config.php');
 include('mail.php');
 include('functions.php');
+require_once __DIR__ . '/../config/fw.php';
 $statusRes = $messageRes = $roleRes = 'failed';
 
 if (isset($_POST['signup'])) {
@@ -253,6 +254,22 @@ if (isset($_POST['setup'])) {
 
 if (isset($_POST['login'])) {
   $email = mysqli_real_escape_string($conn, $_POST['email']);
+
+  // Staging: only allow a single tester account to sign in
+  if (defined('STAGING_GATE') && STAGING_GATE === true) {
+    if (strtolower($email) !== strtolower(STAGING_ALLOWED_EMAIL)) {
+      $statusRes = "failed";
+      $messageRes = "Access restricted: staging is limited to authorised tester.";
+      $responseData = array(
+        "role" => "$roleRes",
+        "status" => "$statusRes",
+        "message" => "$messageRes"
+      );
+      header('Content-Type: application/json');
+      echo json_encode($responseData);
+      exit();
+    }
+  }
 
   if ($_POST['login'] !== 'g_signin') {
     $password = md5($_POST['password']);
