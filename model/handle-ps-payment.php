@@ -78,6 +78,20 @@ if (isset($_POST['nivas_ref'])) {
     $status = 'successful';
     $total_amount = 0;
 
+    // Duplicate protection
+    $safe_ref = mysqli_real_escape_string($conn, $tx_ref);
+    $dupe = false;
+    if (mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM transactions WHERE ref_id = '$safe_ref' LIMIT 1")) > 0) { $dupe = true; }
+    if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE ref_id = '$safe_ref' LIMIT 1")) > 0) { $dupe = true; }
+    if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM event_tickets WHERE ref_id = '$safe_ref' LIMIT 1")) > 0) { $dupe = true; }
+    if ($dupe) {
+      mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$safe_ref'");
+      $_SESSION["nivas_cart$user_id"] = array();
+      $_SESSION["nivas_cart_event$user_id"] = array();
+      header('Location: /?payment=successful');
+      exit;
+    }
+
     // Iterate through each manualId
     foreach ($cart_ as $manual_id) {
       // Fetch details from manuals_2 table
@@ -174,6 +188,9 @@ if (isset($_POST['nivas_ref'])) {
 
     // Clear saved cart rows for this transaction
     mysqli_query($conn, "DELETE FROM cart WHERE ref_id = '$tx_ref'");
+
+    // Mark cart rows as confirmed
+    mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$tx_ref'");
 
     // Close the database connection if needed
     mysqli_close($conn);

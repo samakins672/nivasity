@@ -8,6 +8,27 @@ require_once '../config/fw.php';
 include('mail.php');
 include('functions.php');
 
+// Parse incoming webhook
+$raw = file_get_contents('php://input');
+$payload = json_decode($raw, true);
+$headers = function_exists('getallheaders') ? getallheaders() : [];
+$verifHash = '';
+foreach ($headers as $k => $v) { $lk = strtolower($k); if ($lk === 'verif-hash' || $lk === 'verif_hash' || $lk === 'x-flw-signature') { $verifHash = $v; break; } }
+
+// Verify with FLW_VERIF_HASH if configured
+if (defined('FLW_VERIF_HASH') && FLW_VERIF_HASH) {
+  if (!$verifHash || $verifHash !== FLW_VERIF_HASH) {
+    sendMail('FLW Webhook: Invalid hash', 'Hash mismatch or missing.', 'webhook@nivasity.com');
+    http_response_code(403);
+    echo json_encode(['status' => 'error', 'message' => 'Invalid signature']);
+    exit;
+  }
+}
+else {
+  // Notify if no hash configured
+  sendMail('FLW Webhook: No hash configured', 'FLW_VERIF_HASH is not defined in config.', 'webhook@nivasity.com');
+}
+
 // Function to verify the transaction via the Flutterwave API
 function verifyTransaction($txRef) {
   $secretKey = FLW_SECRET_KEY;
@@ -30,19 +51,44 @@ function verifyTransaction($txRef) {
   return false;
 }
 
-// Retrieve the list of ref_id from the cart table
-$cartItems = [];
-$query = "SELECT DISTINCT ref_id FROM cart";
-$result = mysqli_query($conn, $query);
+// Determine the tx_ref from payload if present
+$overrideRef = '';
+if (is_array($payload) && isset($payload['data'])) {
+  $overrideRef = $payload['data']['tx_ref'] ?? ($payload['data']['txRef'] ?? '');
+  $status = $payload['data']['status'] ?? '';
+  if ($overrideRef && $status !== 'successful') {
+    sendMail('FLW Webhook: Not successful', 'Status: ' . $status . ' Ref: ' . $overrideRef, 'webhook@nivasity.com');
+    http_response_code(200);
+    echo json_encode(['status' => 'ok', 'message' => 'Ignored non-success webhook']);
+    exit;
+  }
+}
 
-while ($row = mysqli_fetch_assoc($result)) {
-  $cartItems[] = $row['ref_id'];
+// Retrieve the list of ref_id from the cart table (or override)
+$cartItems = [];
+if ($overrideRef) {
+  $cartItems[] = $overrideRef;
+} else {
+  $query = "SELECT DISTINCT ref_id FROM cart";
+  $result = mysqli_query($conn, $query);
+  while ($row = mysqli_fetch_assoc($result)) { $cartItems[] = $row['ref_id']; }
 }
 
 // Iterate over each ref_id and verify the transaction
 foreach ($cartItems as $refId) {
   if (verifyTransaction($refId)) {
     $tx_ref = $refId;
+    // Duplicate protection
+    $safe_ref = mysqli_real_escape_string($conn, $tx_ref);
+    $dupe = false;
+    if (mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM transactions WHERE ref_id = '$safe_ref' LIMIT 1")) > 0) { $dupe = true; }
+    if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE ref_id = '$safe_ref' LIMIT 1")) > 0) { $dupe = true; }
+    if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM event_tickets WHERE ref_id = '$safe_ref' LIMIT 1")) > 0) { $dupe = true; }
+    if ($dupe) {
+      mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$safe_ref'");
+      sendMail('FLW Webhook: Duplicate', 'Duplicate delivery for ref ' . $tx_ref . ' acknowledged; cart marked confirmed.', 'webhook@nivasity.com');
+      continue;
+    }
 
     // Fetch data from the cart table using ref_id
     $cart_query = mysqli_query($conn, "SELECT * FROM cart WHERE ref_id = '$tx_ref'");
@@ -132,11 +178,20 @@ foreach ($cartItems as $refId) {
     $flutterwave_fee = round($total_amount * 0.02, 2);
     // Profit is the remaining charge after Flutterwave fee
     $profit = round(max($charge - $flutterwave_fee, 0), 2);
+    // Recompute using helper for consistency
+    if (function_exists('calculateFlutterwaveSettlement')) {
+      $baseAmount = max($total_amount - $charge, 0);
+      $calc = calculateFlutterwaveSettlement($baseAmount);
+      $charge = $calc['charge'];
+      $profit = $calc['profit'];
+      $total_amount = $calc['total_amount'];
+    }
 
     mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, 'successful')");
 
     sendCongratulatoryEmail($conn, $user_id, $tx_ref, $manual_ids, $event_ids, $total_amount);
-    mysqli_query($conn, "DELETE FROM cart WHERE ref_id = '$tx_ref'");
+    mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$tx_ref'");
+    sendMail('FLW Webhook: Success', 'Processed ref ' . $tx_ref . ' for user ' . $user_id . ' amount NGN ' . number_format($total_amount, 2), 'webhook@nivasity.com');
 
     http_response_code(200);
     echo json_encode(['status' => $statusRes, 'message' => $messageRes]);

@@ -36,6 +36,17 @@ if ($action !== 'verify') {
     exit;
 }
 
+// Duplicate protection before verify
+$dupe = false;
+if (mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM transactions WHERE ref_id = '$ref_id_esc' LIMIT 1")) > 0) { $dupe = true; }
+if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE ref_id = '$ref_id_esc' LIMIT 1")) > 0) { $dupe = true; }
+if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM event_tickets WHERE ref_id = '$ref_id_esc' LIMIT 1")) > 0) { $dupe = true; }
+if ($dupe) {
+    mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$ref_id_esc'");
+    echo json_encode(['status' => 'success', 'message' => 'Already processed']);
+    exit;
+}
+
 // Verify with Flutterwave using tx_ref
 $curl = curl_init();
 curl_setopt_array($curl, [
@@ -119,8 +130,7 @@ mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, 
 
 // Send email and cleanup
 sendCongratulatoryEmail($conn, $user_id, $ref_id, $manual_ids, $event_ids, $total_amount);
-mysqli_query($conn, "DELETE FROM cart WHERE ref_id = '$ref_id_esc'");
+mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$ref_id_esc'");
 
 echo json_encode(['status' => 'success', 'message' => 'Payment confirmed and items delivered']);
 ?>
-

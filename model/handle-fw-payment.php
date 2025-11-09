@@ -42,6 +42,24 @@ if (isset($_GET['transaction_id'])) {
   // Check if the status is "successful" and data is not NULL
   if (isset($response['status']) && $response['status'] === "success" && isset($response['data']) && is_array($response['data'])) {
     $status = $response['data']['status'];
+
+    // Duplicate protection: if already processed, just confirm cart and exit
+    $safe_ref = mysqli_real_escape_string($conn, $tx_ref);
+    $dupe = false;
+    if (mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM transactions WHERE ref_id = '$safe_ref' LIMIT 1")) > 0) { $dupe = true; }
+    if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE ref_id = '$safe_ref' LIMIT 1")) > 0) { $dupe = true; }
+    if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM event_tickets WHERE ref_id = '$safe_ref' LIMIT 1")) > 0) { $dupe = true; }
+    if ($dupe) {
+      mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$safe_ref'");
+      $_SESSION["nivas_cart$user_id"] = array();
+      $_SESSION["nivas_cart_event$user_id"] = array();
+      if (!isset($_GET['callback'])) {
+        header('Location: /?payment=successful');
+      }
+      header('Content-Type: application/json');
+      echo json_encode(['status' => 'success', 'message' => 'Already processed']);
+      exit;
+    }
     $total_amount = 0;
 
     // Iterate through each manualId
@@ -128,11 +146,20 @@ if (isset($_GET['transaction_id'])) {
     // Profit is the remaining charge after Flutterwave fee
     $profit = round(max($charge - $flutterwave_fee, 0), 2);
 
+    // Recompute using shared helper for consistency
+    if (function_exists('calculateFlutterwaveSettlement')) {
+      $baseAmount = max($total_amount - $charge, 0);
+      $calc = calculateFlutterwaveSettlement($baseAmount);
+      $charge = $calc['charge'];
+      $profit = $calc['profit'];
+      $total_amount = $calc['total_amount'];
+    }
+
     sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $total_amount);
 
     mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, '$status')");
     
-    mysqli_query($conn, "DELETE FROM cart WHERE ref_id = '$tx_ref'");
+    mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$tx_ref'");
     
 
     // Empty the cart variables for both manuals and events

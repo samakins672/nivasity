@@ -72,11 +72,19 @@ if (isset($_GET['tx_ref'])) {
 
     sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $total_amount);
 
-    // Insert the transaction record with zero charge and profit
-    mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, 0, 0, '$status', 'NIVASITY')");
-
-    // Clear saved cart rows for this transaction
-    mysqli_query($conn, "DELETE FROM cart WHERE ref_id = '$tx_ref'");
+    // Duplicate protection
+    $safe_ref = mysqli_real_escape_string($conn, $tx_ref);
+    $dupe = false;
+    if (mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM transactions WHERE ref_id = '$safe_ref' LIMIT 1")) > 0) { $dupe = true; }
+    if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE ref_id = '$safe_ref' LIMIT 1")) > 0) { $dupe = true; }
+    if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM event_tickets WHERE ref_id = '$safe_ref' LIMIT 1")) > 0) { $dupe = true; }
+    if ($dupe) {
+        mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$safe_ref'");
+    } else {
+        // Insert the transaction record with zero charge and profit
+        mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, 0, 0, '$status', 'NIVASITY')");
+        mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$tx_ref'");
+    }
 
     // Close the database connection
     mysqli_close($conn);
