@@ -103,7 +103,7 @@ function buildEmailTemplate($body)
               Nivasity's services are provided by Nivasity Web Services.<br>
               A business duly incorporated under the laws of Nigeria. <br> <br><br>
 
-              Copyright © Nivasity. 2024 All rights reserved.<br>
+              Copyright © Nivasity. 2025 All rights reserved.<br>
       </div>
   </body>
 
