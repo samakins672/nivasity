@@ -19,10 +19,6 @@ if (isset($_SESSION["nivas_cart_event"])) {
             $_SESSION[$cart_2][] = $guestItem;
         }
     }
-    // Move pending list rendering below as a separate card
-    $pendingListHtml = $pendingHtml;
-    $pendingHtml = '';
-
     unset($_SESSION["nivas_cart_event"]);
 } 
 
@@ -289,9 +285,9 @@ if (isset($_POST['reload_cart'])) {
                     <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>';
     }
 
-    if (!empty($pendingListHtml)) {
+    if (!empty($pendingHtml)) {
     echo "</div></div>";
-    echo '<div class="card card-rounded shadow-sm mt-3"><div class="card-body"><h4 class="card-title card-title-dash">Pending Payments</h4><hr class="my-2"/>' . $pendingListHtml . '</div></div>';
+    echo '<div class="card card-rounded shadow-sm mt-3"><div class="card-body"><h4 class="card-title card-title-dash">Pending Payments</h4><hr class="my-2"/>' . $pendingHtml . '</div></div>';
     echo "</div></div>";
 } else {
     echo "</div></div></div></div>";

@@ -685,6 +685,12 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           dataType: 'json',
           data: { ref_id: ref, action: 'cancel' },
           success: function (res) {
+            var $ab = $('#alertBanner');
+            if ($ab.length) {
+              $ab.removeClass('alert-info alert-danger alert-success alert-warning');
+              $ab.addClass('alert-success');
+              $ab.text('Pending payment cancelled.');
+            }
             if (typeof showAlert === 'function') { showAlert(); }
             reloadCartTable();
           },
@@ -712,6 +718,12 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
             if (res.status === 'success') {
               location.reload();
             } else {
+              var $ab = $('#alertBanner');
+              if ($ab.length) {
+                $ab.removeClass('alert-info alert-danger alert-success alert-warning');
+                $ab.addClass('alert-warning');
+                $ab.text(res.message || 'Payment not found yet. If you paid, please try again later.');
+              }
               if (typeof showAlert === 'function') { showAlert(); }
               reloadCartTable();
             }
