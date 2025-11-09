@@ -684,6 +684,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           dataType: 'json',
           data: { ref_id: ref, action: 'cancel' },
           success: function (res) {
+            if (typeof showAlert === 'function') { showAlert(); }
             reloadCartTable();
           },
           complete: function () {
@@ -710,7 +711,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
             if (res.status === 'success') {
               location.reload();
             } else {
-              alert(res.message || 'Payment not found. If you paid, please try again later.');
+              if (typeof showAlert === 'function') { showAlert(); }
               reloadCartTable();
             }
           },

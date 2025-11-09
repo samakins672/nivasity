@@ -206,7 +206,7 @@ if (isset($_POST['reload_cart'])) {
             $groups[$rid][] = $row;
         }
 
-        $pendingHtml .= "\r\n<div class=\"mb-3\">\r\n  <div class=\"d-flex align-items-center justify-content-between\">\r\n    <h6 class=\"mb-2 text-secondary\">Pending payments</h6>\r\n    <span class=\"badge bg-warning text-dark\">" . count($groups) . "</span>\r\n  </div>\r\n  <div class=\"accordion\" id=\"pendingPaymentsAccordion\">";
+        $pendingHtml .= "\r\n<div class=\"accordion\" id=\"pendingPaymentsAccordion\">";
 
         $accIndex = 0;
         foreach ($groups as $rid => $items) {
@@ -241,7 +241,7 @@ if (isset($_POST['reload_cart'])) {
                 $itemLines .= '<li class="small">' . $name . '</li>';
             }
 
-            $pendingHtml .= "\r\n    <div class=\"accordion-item\">\r\n      <h2 class=\"accordion-header\" id=\"$headingId\">\r\n        <button class=\"accordion-button collapsed py-2\" type=\"button\" data-bs-toggle=\"collapse\" data-bs-target=\"#$collapseId\" aria-expanded=\"false\" aria-controls=\"$collapseId\">\r\n          Ref: " . htmlspecialchars($rid) . " — " . count($items) . " item(s)\r\n        </button>\r\n      </h2>\r\n      <div id=\"$collapseId\" class=\"accordion-collapse collapse\" aria-labelledby=\"$headingId\" data-bs-parent=\"#pendingPaymentsAccordion\">\r\n        <div class=\"accordion-body py-3\">\r\n          <ul class=\"mb-3\">$itemLines</ul>\r\n          <div class=\"d-flex gap-2\">\r\n            <button class=\"btn btn-success btn-sm pending-verify\" data-ref_id=\"" . htmlspecialchars($rid) . "\">Yes</button>\r\n            <button class=\"btn btn-outline-secondary btn-sm pending-cancel\" data-ref_id=\"" . htmlspecialchars($rid) . "\">Not at all</button>\r\n          </div>\r\n        </div>\r\n      </div>\r\n    </div>";
+            $pendingHtml .= "\r\n    <div class=\"accordion-item\">\r\n      <h2 class=\"accordion-header\" id=\"$headingId\">\r\n        <button class=\"accordion-button collapsed py-2\" type=\"button\" data-bs-toggle=\"collapse\" data-bs-target=\"#$collapseId\" aria-expanded=\"false\" aria-controls=\"$collapseId\">\r\n          Ref: " . htmlspecialchars($rid) . " — " . count($items) . " item(s)\r\n        </button>\r\n      </h2>\r\n      <div id=\"$collapseId\" class=\"accordion-collapse collapse\" aria-labelledby=\"$headingId\" data-bs-parent=\"#pendingPaymentsAccordion\">\r\n        <div class=\"accordion-body py-3\">\r\n          <ul class=\"mb-3\">$itemLines</ul>\r\n          <div class=\"d-flex gap-2\">\r\n            <button class=\"btn btn-success btn-sm pending-verify\" data-mdb-ripple-duration=\"0\" data-ref_id=\"" . htmlspecialchars($rid) . "\">Yes</button>\r\n            <button class=\"btn btn-outline-secondary btn-sm pending-cancel\" data-mdb-ripple-duration=\"0\" data-ref_id=\"" . htmlspecialchars($rid) . "\">Not at all</button>\r\n          </div>\r\n        </div>\r\n      </div>\r\n    </div>";
         }
 
         $pendingHtml .= "\r\n  </div>\r\n  <hr class=\"mt-3\"/>\r\n</div>";
@@ -261,7 +261,7 @@ if (isset($_POST['reload_cart'])) {
                         <div>
                             <h4 class="card-title card-title-dash">Cart Summary</h4>
                         </div>
-                    </div><hr>' . $pendingHtml . '
+                    </div><hr>' . (!empty($pendingHtml) ? '<div class="card card-rounded shadow-sm mt-3"><div class="card-body"><h4 class="card-title card-title-dash">Pending Payments</h4><hr class="my-2"/>' . $pendingHtml . '</div></div>' : '') . '
                     <div class="d-flex justify-content-between mt-3 mb-1 fw-bold">
                         <p>Subtotal</p>
                         <h4>₦ ' . number_format($total_cart_price) . '</h4>
