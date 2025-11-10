@@ -19,13 +19,8 @@ if (isset($_POST['product_id'])) {
     }
 
     if ($action == 0) {
-        // product is in the cart, remove it
+        // product is in the cart, remove it (session only)
         $_SESSION[$cart_] = array_diff($_SESSION[$cart_], array($product_id));
-
-        // Remove any pending DB cart rows for this manual
-        $userId = intval($user_id);
-        $itemId = intval($product_id);
-        @mysqli_query($conn, "DELETE FROM cart WHERE user_id = {$userId} AND item_id = {$itemId} AND type = 'manual' AND status = 'pending'");
     } else {
         // product is not in the cart, add it
         $_SESSION[$cart_][] = $product_id;
