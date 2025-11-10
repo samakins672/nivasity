@@ -1,9 +1,14 @@
 <?php
+require_once __DIR__ . '/../config/fw.php';
 $url = substr($_SERVER["SCRIPT_NAME"], strrpos($_SERVER["SCRIPT_NAME"], "/") + 1);
 
-if (!isset($_SESSION['nivas_userId']) && $url !== 'event_details.php') {
-  header('Location: ../signin.html');
-  exit();
+$__stagingGate = defined('STAGING_GATE') && STAGING_GATE === true;
+
+if (!isset($_SESSION['nivas_userId'])) {
+  if ($__stagingGate || $url !== 'event_details.php') {
+    header('Location: ../signin.html');
+    exit();
+  }
 }
 
 if (isset($_SESSION['nivas_userId'])) {
@@ -25,6 +30,16 @@ if (isset($_SESSION['nivas_userId'])) {
   $user_name = $f_name .' '. $l_name;
   
   $is_admin_role = False;
+
+  // Staging: restrict access to a single tester account
+  if ($__stagingGate) {
+    if (strtolower($user_email) !== strtolower(STAGING_ALLOWED_EMAIL)) {
+      session_unset();
+      session_destroy();
+      header("Location: https://funaab.nivasity.com/signin.html?logout=1&not_allowed=1");
+      exit();
+    }
+  }
   
   if ($_SESSION['nivas_userRole'] == 'org_admin' || $_SESSION['nivas_userRole'] == 'visitor') {
     header("Location: https://funaab.nivasity.com/signin.html?logout=1&not_allowed=1");
