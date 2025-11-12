@@ -83,19 +83,13 @@ if (isset($_POST['reload_cart'])) {
             $total_cart_price += $cart_item['price'];
             $total_cart_event += 1;
 
-            // Check if the seller already exists in the session
-            if (isset($_SESSION['cart_sellers'][$seller_code])) {
-                // If seller exists, update the price by adding the current price
-                $_SESSION['cart_sellers'][$seller_code]['price'] += $cart_item['price'];
-            } else {
-                // Otherwise, add a new entry for the seller
-                $_SESSION['cart_sellers'][$seller_code] = [
-                    'seller' => $seller_code,
-                    'price' => $cart_item['price'],
-                    'type' => 'manual',
-                    'product_id' => $cart_item_id,
-                ];
-            }
+            // Store item details for checkout
+            $_SESSION['cart_sellers'][] = [
+                'seller' => $seller_code,
+                'price' => $cart_item['price'],
+                'type' => 'manual',
+                'product_id' => $cart_item_id,
+            ];
         }
 
         echo '
@@ -138,19 +132,13 @@ if (isset($_POST['reload_cart'])) {
         $event_seller = $cart_event['user_id'];
         $event_seller_code = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE user_id = $event_seller"))['subaccount_code'];
 
-        // Check if the seller already exists in the session
-        if (isset($_SESSION['cart_sellers'][$event_seller_code])) {
-            // If seller exists, update the price by adding the current price
-            $_SESSION['cart_sellers'][$event_seller_code]['price'] += $cart_event['price'];
-        } else {
-            // Otherwise, add a new entry for the seller
-            $_SESSION['cart_sellers'][$event_seller_code] = [
-                'seller' => $event_seller_code,
-                'price' => $cart_event['price'],
-                'type' => 'event',
-                'product_id' => $cart_item_id,
-            ];
-        }
+        // Store item details for checkout
+        $_SESSION['cart_sellers'][] = [
+            'seller' => $event_seller_code,
+            'price' => $cart_event['price'],
+            'type' => 'event',
+            'product_id' => $cart_item_id,
+        ];
 
         echo '
             <tr>

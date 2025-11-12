@@ -129,7 +129,7 @@ CREATE TABLE `events` (
   `price` int(11) NOT NULL,
   `code` varchar(20) NOT NULL,
   `event_date` datetime NOT NULL,
-  `event_time` time NOT NULL DEFAULT current_timestamp(),
+  `event_time` time NOT NULL DEFAULT '00:00:00',
   `quantity` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
   `currency` varchar(30) NOT NULL DEFAULT 'NGN',

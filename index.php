@@ -778,13 +778,23 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
         // Create the subaccounts array from parsed session data
         let subaccounts = [];
+        let sellerTotals = {};
+
         $.each(parsedSessionData, function(key, item) {
-            subaccounts.push({
-                id: item.seller,
-                transaction_charge_type: "flat_subaccount",
-                transaction_charge: item.price  // The price or commission to be charged
-            });
+            if (sellerTotals[item.seller]) {
+                sellerTotals[item.seller] += item.price;
+            } else {
+                sellerTotals[item.seller] = item.price;
+            }
         });
+
+        for (const seller in sellerTotals) {
+            subaccounts.push({
+                id: seller,
+                transaction_charge_type: "flat_subaccount",
+                transaction_charge: sellerTotals[seller]
+            });
+        }
 
         $.ajax({
           url: 'model/saveCart.php',
