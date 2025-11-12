@@ -781,10 +781,11 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         let sellerTotals = {};
 
         $.each(parsedSessionData, function(key, item) {
+            const price = parseFloat(item.price);
             if (sellerTotals[item.seller]) {
-                sellerTotals[item.seller] += item.price;
+                sellerTotals[item.seller] += price;
             } else {
-                sellerTotals[item.seller] = item.price;
+                sellerTotals[item.seller] = price;
             }
         });
 
