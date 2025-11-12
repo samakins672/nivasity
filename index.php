@@ -796,6 +796,8 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
             });
         }
 
+        console.log('Subaccounts:', subaccounts);
+
         $.ajax({
           url: 'model/saveCart.php',
           type: 'POST',
