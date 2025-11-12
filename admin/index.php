@@ -43,7 +43,7 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
 }
 $event_query = mysqli_query($conn, "SELECT * FROM events WHERE user_id = $user_id ORDER BY `id` DESC");
 
-$transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM $item_table2 WHERE seller = $user_id ORDER BY `created_at` DESC");
+$transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM $item_table2 WHERE seller = $user_id ORDER BY `created_at` DESC LIMIT 6");
 
 $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE school_id = $school_id AND type = 'school' ORDER BY `id` DESC LIMIT 1");
 if (mysqli_num_rows($settlement_query) == 0) {
@@ -1473,17 +1473,17 @@ if (mysqli_num_rows($settlement_query) == 0) {
               
               if (rrr === '') {
                 // Format data into a table
-                var table = "<table><tr><th>S/N</th><th>NAMES</th><th>MATRIC NO</th></tr>";
+                var table = "<table><tr><th>S/N</th><th>NAMES</th><th>MATRIC NO</th><th>ADMISSION YEAR</th><th>PRICE PAID</th></tr>";
 
                 $.each(data, function (index, item) {
-                  table += "<tr><td>" + (index + 1) + "</td><td>" + item.name + "</td><td>" + item.matric_no + "</td></tr>";
+                  table += "<tr><td>" + (index + 1) + "</td><td>" + item.name + "</td><td>" + item.matric_no + "</td><td>" + item.adm_year + "</td><td>" + item.price + "</td></tr>";
                 });
               } else {
                 // Format data into a table
-                var table = "<table><tr><th>S/N</th><th>NAMES</th><th>MATRIC NO</th><th>RRR</th></tr>";
+                var table = "<table><tr><th>S/N</th><th>NAMES</th><th>MATRIC NO</th><th>ADMISSION YEAR</th><th>PRICE PAID</th><th>RRR</th></tr>";
                 
                 $.each(data, function (index, item) {
-                  table += "<tr><td>" + (index + 1) + "</td><td>" + item.name + "</td><td>" + item.matric_no + "</td><td>" + rrr + "</td></tr>";
+                  table += "<tr><td>" + (index + 1) + "</td><td>" + item.name + "</td><td>" + item.matric_no + "</td><td>" + item.adm_year + "</td><td>" + item.price + "</td><td>" + rrr + "</td></tr>";
                 });
               }
 

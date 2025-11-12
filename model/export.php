@@ -8,25 +8,36 @@ $statusRes = $schools = 'failed';
 if (isset($_POST['manual_id'])) {
   $manualId = $_POST['manual_id'];
 
-  // Fetch user IDs from the manuals_bought_2 table based on the manual ID
-  $userIdsResult = mysqli_query($conn, "SELECT buyer FROM manuals_bought WHERE manual_id = $manualId");
+  // Fetch user details from the users table and price from manuals_bought table
+  $query = "
+    SELECT
+      u.first_name,
+      u.last_name,
+      u.matric_no,
+      u.adm_year,
+      mb.price
+    FROM
+      manuals_bought AS mb
+    JOIN
+      users AS u
+    ON
+      mb.buyer = u.id
+    WHERE
+      mb.manual_id = $manualId
+    ORDER BY
+      u.matric_no ASC
+  ";
 
-  // Fetch user details from the users table based on the obtained user IDs
+  $result = mysqli_query($conn, $query);
   $usersData = [];
-  while ($row = mysqli_fetch_assoc($userIdsResult)) {
-    $userId = $row['buyer'];
 
-    // Modify the query to include ORDER BY matric_no
-    $userDetailsQuery = "SELECT first_name, last_name, matric_no FROM users WHERE id = $userId ORDER BY matric_no ASC";
-    $userDetailsResult = mysqli_query($conn, $userDetailsQuery);
-
-    // Fetch user details and add them to the result array
-    if ($userDetailsRow = mysqli_fetch_assoc($userDetailsResult)) {
-      $usersData[] = [
-        'name' => $userDetailsRow['first_name'] . ' ' . $userDetailsRow['last_name'],
-        'matric_no' => $userDetailsRow['matric_no'],
-      ];
-    }
+  while ($row = mysqli_fetch_assoc($result)) {
+    $usersData[] = [
+      'name' => $row['first_name'] . ' ' . $row['last_name'],
+      'matric_no' => $row['matric_no'],
+      'adm_year' => $row['adm_year'],
+      'price' => $row['price'],
+    ];
   }
 
   // Return the result as JSON
