@@ -217,11 +217,6 @@ if (isset($_POST['setup'])) {
   $user_query = mysqli_query($conn, "SELECT * FROM users WHERE matric_no = '$matric_no' AND school = '$school_id'");
 
   if (mysqli_num_rows($user_query) < 1) {
-    if (!is_numeric($dept)) {
-      mysqli_query($conn, "INSERT INTO depts (name, school_id) VALUES ('$dept', $school_id)");
-      $dept = mysqli_insert_id($conn);
-    }
-  
     $user_ = mysqli_query($conn, "SELECT * FROM users WHERE id = $user_id");
     $user = mysqli_fetch_array($user_);
     $status = 'verified';
