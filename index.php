@@ -792,7 +792,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         for (const seller in sellerTotals) {
             subaccounts.push({
                 id: seller,
-                transaction_charge_type: "flat",
+                transaction_charge_type: "flat_subaccount",
                 transaction_charge: sellerTotals[seller]
             });
         }
