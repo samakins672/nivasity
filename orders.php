@@ -95,7 +95,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
                                 <td>
                                   <div class="d-flex gap-2">
                                     <button type="button" class="btn btn-sm btn-outline-primary js-download-receipt" data-ref="<?php echo htmlspecialchars($manual['ref_id']); ?>" data-kind="manual" data-item-id="<?php echo (int)$manual['manual_id']; ?>" title="Download receipt as PDF">
-                                      Download PDF
+                                      Download
                                     </button>
                                     <button type="button" class="btn btn-sm btn-outline-secondary js-email-receipt" data-ref="<?php echo htmlspecialchars($manual['ref_id']); ?>" data-kind="manual" data-item-id="<?php echo (int)$manual['manual_id']; ?>" title="Email receipt">
                                       Email
@@ -168,26 +168,34 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
         const filename = `receipt-${ref}-${kind}-${itemId}.pdf`;
         try {
           $btn.prop('disabled', true).text('Preparing...');
-          const resp = await fetch(url, { method: 'GET', credentials: 'same-origin' });
+          const resp = await fetch(url, { method: 'GET', credentials: 'same-origin', cache: 'no-store' });
           if (!resp.ok) throw new Error('Failed to load receipt HTML');
           const html = await resp.text();
-          // Create a hidden container for rendering
-          const container = document.createElement('div');
-          container.style.position = 'fixed';
-          container.style.left = '-9999px';
-          container.style.top = '0';
-          container.style.width = '800px';
-          container.innerHTML = html;
-          document.body.appendChild(container);
+          if (!html || html.replace(/\s+/g, '').length < 20) throw new Error('Empty receipt content');
+          // Render in an offscreen iframe to avoid CSS conflicts
+          const iframe = document.createElement('iframe');
+          iframe.style.position = 'fixed';
+          iframe.style.left = '-9999px';
+          iframe.style.top = '0';
+          iframe.style.width = '794px';
+          iframe.style.height = '1123px';
+          document.body.appendChild(iframe);
+          const doc = iframe.contentDocument || iframe.contentWindow.document;
+          doc.open();
+          doc.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">`
+            + `<style>body{font-family: Arial,Helvetica,sans-serif; padding:16px; color:#333; background:#fff;} table{width:100%; border-collapse: collapse;} th,td{font-size:14px;} h2,h3{color:#7a3b73; margin:0 0 8px;}</style>`
+            + `</head><body>${html}</body></html>`);
+          doc.close();
+          await new Promise(r => setTimeout(r, 150));
           const opt = {
             margin: [10, 10, 10, 10],
             filename: filename,
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
+            html2canvas: { scale: 2, useCORS: true, logging: false, allowTaint: true },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
           };
-          await html2pdf().set(opt).from(container).save();
-          document.body.removeChild(container);
+          await html2pdf().set(opt).from(doc.body).save();
+          document.body.removeChild(iframe);
         } catch (e) {
           showBanner('Could not generate PDF receipt.', 'danger');
         } finally {
