@@ -183,7 +183,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
           const doc = iframe.contentDocument || iframe.contentWindow.document;
           doc.open();
           doc.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">`
-            + `<style>*{box-sizing:border-box;} body{font-family: Arial,Helvetica,sans-serif; color:#333; background:#fff; margin:0;} .pdf-container{width:190mm; margin:0 auto; padding:12px;} .header{display:flex; align-items:center; margin-bottom:8px;} .header img{height:42px; display:block;} table{width:100%; border-collapse: collapse;} th,td{font-size:13px; word-wrap:break-word;} h2,h3{color:#7a3b73; margin:0 0 8px;}</style>`
+            + `<style>*{box-sizing:border-box;} body{font-family: Arial,Helvetica,sans-serif; color:#333; background:#fff; margin:0;} .pdf-container{width:178mm; margin:0 auto; padding:6mm;} .header{display:flex; align-items:center; margin-bottom:8px;} .header img{height:42px; display:block; max-width:100%;} table{width:100%; border-collapse: collapse; table-layout: fixed;} th,td{font-size:13px; word-wrap:break-word;} th:nth-child(3),td:nth-child(3){width:32mm; text-align:right; white-space:nowrap;} h2,h3{color:#7a3b73; margin:0 0 8px;}</style>`
             + `</head><body><div class="pdf-container"><div class="header"><img crossorigin="anonymous" src="https://funaab.nivasity.com/assets/images/nivasity-main.png" alt="Nivasity"></div><div class="content">${html}</div></div></body></html>`);
           doc.close();
           await new Promise(r => setTimeout(r, 150));
@@ -234,3 +234,4 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
 </body>
 
 </html>
+
