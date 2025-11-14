@@ -94,9 +94,9 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
                                 </td>
                                 <td>
                                   <div class="d-flex gap-2">
-                                    <a href="model/receipt.php?action=download&ref=<?php echo urlencode($manual['ref_id']); ?>&kind=manual&item_id=<?php echo (int)$manual['manual_id']; ?>" class="btn btn-sm btn-outline-primary" title="Download receipt">
-                                      Download
-                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-primary js-download-receipt" data-ref="<?php echo htmlspecialchars($manual['ref_id']); ?>" data-kind="manual" data-item-id="<?php echo (int)$manual['manual_id']; ?>" title="Download receipt as PDF">
+                                      Download PDF
+                                    </button>
                                     <button type="button" class="btn btn-sm btn-outline-secondary js-email-receipt" data-ref="<?php echo htmlspecialchars($manual['ref_id']); ?>" data-kind="manual" data-item-id="<?php echo (int)$manual['manual_id']; ?>" title="Email receipt">
                                       Email
                                     </button>
@@ -154,10 +154,46 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
   <!-- Custom js for this page-->
   <script src="assets/js/js/dashboard.js"></script>
   <script src="assets/js/script.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <script>
     $(document).ready(function () {
       $('.btn').attr('data-mdb-ripple-duration', '0');
+      $(document).on('click', '.js-download-receipt', async function () {
+        const $btn = $(this);
+        const ref = $btn.data('ref');
+        const kind = $btn.data('kind');
+        const itemId = $btn.data('item-id');
+        const url = `model/receipt.php?action=download&ref=${encodeURIComponent(ref)}&kind=${encodeURIComponent(kind)}&item_id=${encodeURIComponent(itemId)}`;
+        const filename = `receipt-${ref}-${kind}-${itemId}.pdf`;
+        try {
+          $btn.prop('disabled', true).text('Preparing...');
+          const resp = await fetch(url, { method: 'GET', credentials: 'same-origin' });
+          if (!resp.ok) throw new Error('Failed to load receipt HTML');
+          const html = await resp.text();
+          // Create a hidden container for rendering
+          const container = document.createElement('div');
+          container.style.position = 'fixed';
+          container.style.left = '-9999px';
+          container.style.top = '0';
+          container.style.width = '800px';
+          container.innerHTML = html;
+          document.body.appendChild(container);
+          const opt = {
+            margin: [10, 10, 10, 10],
+            filename: filename,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          };
+          await html2pdf().set(opt).from(container).save();
+          document.body.removeChild(container);
+        } catch (e) {
+          showBanner('Could not generate PDF receipt.', 'danger');
+        } finally {
+          $btn.prop('disabled', false).text('Download PDF');
+        }
+      });
       $(document).on('click', '.js-email-receipt', function() {
         var ref = $(this).data('ref');
         var kind = $(this).data('kind');
