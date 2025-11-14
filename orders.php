@@ -52,6 +52,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
                                   <th>Price</th>
                                   <th>Date Bought</th>
                                   <th>Status</th>
+                                  <th>Actions</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -90,6 +91,16 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
                                 </td>
                                 <td>
                                   <div class="badge <?php echo ($status == 'successful') ? 'bg-success' : 'bg-danger'; ?>"><?php echo $status; ?></div>
+                                </td>
+                                <td>
+                                  <div class="d-flex gap-2">
+                                    <a href="model/receipt.php?action=download&ref=<?php echo urlencode($manual['ref_id']); ?>&kind=manual&item_id=<?php echo (int)$manual['manual_id']; ?>" class="btn btn-sm btn-outline-primary" title="Download receipt">
+                                      Download
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary js-email-receipt" data-ref="<?php echo htmlspecialchars($manual['ref_id']); ?>" data-kind="manual" data-item-id="<?php echo (int)$manual['manual_id']; ?>" title="Email receipt">
+                                      Email
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                               <?php } ?>
@@ -147,6 +158,33 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
   <script>
     $(document).ready(function () {
       $('.btn').attr('data-mdb-ripple-duration', '0');
+      $(document).on('click', '.js-email-receipt', function() {
+        var ref = $(this).data('ref');
+        var kind = $(this).data('kind');
+        var itemId = $(this).data('item-id');
+        var $btn = $(this);
+        $btn.prop('disabled', true).text('Sending...');
+        $.ajax({
+          url: 'model/receipt.php',
+          method: 'GET',
+          data: { action: 'email', ref: ref, kind: kind, item_id: itemId },
+          dataType: 'json'
+        }).done(function(resp) {
+          var msg = (resp && resp.status === 'success') ? 'Receipt sent to your email.' : (resp && resp.message ? resp.message : 'Failed to send receipt.');
+          showBanner(msg, (resp && resp.status === 'success') ? 'info' : 'danger');
+        }).fail(function() {
+          showBanner('An error occurred while sending receipt.', 'danger');
+        }).always(function() {
+          $btn.prop('disabled', false).text('Email');
+        });
+      });
+
+      function showBanner(text, type) {
+        var $banner = $('#alertBanner');
+        $banner.removeClass('alert-info alert-danger alert-success').addClass('alert-' + type);
+        $banner.text(text).fadeIn(150);
+        setTimeout(function(){ $banner.fadeOut(300); }, 3000);
+      }
     });
   </script>
 </body>
