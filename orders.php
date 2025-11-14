@@ -94,9 +94,9 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
                                 </td>
                                 <td>
                                   <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-sm btn-outline-primary js-download-receipt" data-ref="<?php echo htmlspecialchars($manual['ref_id']); ?>" data-kind="manual" data-item-id="<?php echo (int)$manual['manual_id']; ?>" title="Download receipt as PDF">
-                                      Download
-                                    </button>
+                                    <a href="model/receipt.php?action=download&format=pdf&ref=<?php echo urlencode($manual['ref_id']); ?>&kind=manual&item_id=<?php echo (int)$manual['manual_id']; ?>" class="btn btn-sm btn-outline-primary" title="Download receipt as PDF">
+                                      Download PDF
+                                    </a>
                                     <button type="button" class="btn btn-sm btn-outline-secondary js-email-receipt" data-ref="<?php echo htmlspecialchars($manual['ref_id']); ?>" data-kind="manual" data-item-id="<?php echo (int)$manual['manual_id']; ?>" title="Email receipt">
                                       Email
                                     </button>
