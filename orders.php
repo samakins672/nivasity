@@ -164,7 +164,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
         const ref = $btn.data('ref');
         const kind = $btn.data('kind');
         const itemId = $btn.data('item-id');
-        const url = `model/receipt.php?action=download&ref=${encodeURIComponent(ref)}&kind=${encodeURIComponent(kind)}&item_id=${encodeURIComponent(itemId)}`;
+        const url = `model/receipt.php?action=download&pdf=1&ref=${encodeURIComponent(ref)}&kind=${encodeURIComponent(kind)}&item_id=${encodeURIComponent(itemId)}`;
         const filename = `receipt-${ref}-${kind}-${itemId}.pdf`;
         try {
           $btn.prop('disabled', true).text('Preparing...');

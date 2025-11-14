@@ -29,6 +29,8 @@ $ref = isset($_GET['ref']) ? trim($_GET['ref']) : '';
 $action = isset($_GET['action']) ? strtolower($_GET['action']) : 'download';
 $kind = isset($_GET['kind']) ? strtolower(trim($_GET['kind'])) : null; // 'manual' | 'event'
 $itemId = isset($_GET['item_id']) ? (int)$_GET['item_id'] : null;
+// When generating client-side PDF, return inline HTML snippet instead of full email wrapper
+$pdfInline = isset($_GET['pdf']) && (int)$_GET['pdf'] === 1;
 if ($ref === '') {
   if ($action === 'download') {
     http_response_code(400);
@@ -96,6 +98,15 @@ if ($action === 'email') {
 }
 
 // Default: download as an HTML file using the email template styling
+// If client-side PDF requested, return bare receipt HTML for better rendering
+if ($pdfInline) {
+  header('Content-Type: text/html; charset=utf-8');
+  // No attachment header to allow fetch to read content
+  echo $body;
+  exit;
+}
+
+// Default behavior: download styled HTML email
 $wrapped = buildEmailTemplate($body);
 $filename = 'receipt-' . preg_replace('/[^A-Za-z0-9_\-]/', '', $ref) . '.html';
 header('Content-Type: text/html; charset=utf-8');
