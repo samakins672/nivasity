@@ -103,6 +103,74 @@
   transform: translateY(0);
 }
 
+.tawk-help-float {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  z-index: 1040;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tawk-help-float a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: var(--bs-primary, #FF9100);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 16px;
+  box-shadow: 0 14px 28px rgba(0,0,0,0.22), 0 10px 10px rgba(0,0,0,0.20);
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.tawk-help-float a svg {
+  width: 26px;
+  height: 26px;
+}
+
+.tawk-help-float a:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 34px rgba(0,0,0,0.28), 0 12px 12px rgba(0,0,0,0.22);
+}
+
+.tawk-help-tooltip {
+  position: absolute;
+  left: 66px;
+  bottom: 8px;
+  background: rgba(17, 17, 17, 0.95);
+  color: #fff;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(4px);
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.tawk-help-tooltip::after {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 6px 6px 6px 0;
+  border-style: solid;
+  border-color: transparent rgba(17,17,17,0.95) transparent transparent;
+}
+
+.tawk-help-float:hover .tawk-help-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 @-o-keyframes flash {
   0% {
     opacity: 1;

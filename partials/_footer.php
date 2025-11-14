@@ -1,6 +1,6 @@
 <footer class="footer">
   <div class="d-sm-flex justify-content-center">
-    <span class="float-none float-sm-right d-block mt-1 mt-sm-0 text-center">© Copyright <?php echo date('Y')?> Nivasity. All rights reserved.</span>
+    <span class="float-none float-sm-right d-block mt-1 mt-sm-0 text-center">c Copyright <?php echo date('Y')?> Nivasity. All rights reserved.</span>
   </div>
 </footer>
 
@@ -17,3 +17,13 @@
     <span class="whatsapp-tooltip">Chat with support</span>
   </div>
 <?php } ?>
+<?php
+  $asset_prefix = (strpos($_SERVER['SCRIPT_NAME'] ?? '', '/admin/') !== false) ? '../' : '';
+?>
+<script>
+  window.NIVASITY_ENV = window.NIVASITY_ENV || {};
+  window.NIVASITY_ENV.tawk = Object.assign({}, window.NIVASITY_ENV.tawk, {
+    enabled: <?php echo (defined('TAWK_ENABLED') && TAWK_ENABLED) ? 'true' : 'false'; ?>
+  });
+</script>
+<script src="<?php echo $asset_prefix; ?>assets/js/tawk-widget.js"></script>

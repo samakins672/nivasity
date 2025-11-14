@@ -263,8 +263,8 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
         <div class="col-md-3 footer-links">
           <h4>Useful Links</h4>
           <ul>
-            <li><a href="t&c.html">Terms and Conditions</a></li>
-            <li><a href="p&p.html">Privacy and Policy</a></li>
+            <li><a href="t&c.php">Terms and Conditions</a></li>
+            <li><a href="p&p.php">Privacy and Policy</a></li>
             <li><a href="sitemap.xml">Sitemap</a></li>
           </ul>
         </div>
@@ -332,19 +332,6 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
 
   <!-- Main JS File -->
   <script src="assets/js/home-main.js"></script>
-  <!--Start of Tawk.to Script-->
-  <script type="text/javascript">
-    var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
-    (function(){
-    var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
-    s1.async=true;
-    s1.src='https://embed.tawk.to/6722bbbb4304e3196adae0cd/1ibfqqm4s';
-    s1.charset='UTF-8';
-    s1.setAttribute('crossorigin','*');
-    s0.parentNode.insertBefore(s1,s0);
-    })();
-  </script>
-  <!--End of Tawk.to Script-->
   <script>
     $(document).ready(function () {
       var myDiv = $(".content");
