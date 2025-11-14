@@ -183,8 +183,8 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
           const doc = iframe.contentDocument || iframe.contentWindow.document;
           doc.open();
           doc.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">`
-            + `<style>body{font-family: Arial,Helvetica,sans-serif; padding:16px; color:#333; background:#fff;} table{width:100%; border-collapse: collapse;} th,td{font-size:14px;} h2,h3{color:#7a3b73; margin:0 0 8px;}</style>`
-            + `</head><body>${html}</body></html>`);
+            + `<style>*{box-sizing:border-box;} body{font-family: Arial,Helvetica,sans-serif; color:#333; background:#fff; margin:0;} .pdf-container{width:190mm; margin:0 auto; padding:12px;} .header{display:flex; align-items:center; margin-bottom:8px;} .header img{height:42px; display:block;} table{width:100%; border-collapse: collapse;} th,td{font-size:13px; word-wrap:break-word;} h2,h3{color:#7a3b73; margin:0 0 8px;}</style>`
+            + `</head><body><div class="pdf-container"><div class="header"><img src="/assets/images/nivasity-main.png" alt="Nivasity"></div><div class="content">${html}</div></div></body></html>`);
           doc.close();
           await new Promise(r => setTimeout(r, 150));
           const opt = {
@@ -194,12 +194,12 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
             html2canvas: { scale: 2, useCORS: true, logging: false, allowTaint: true },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
           };
-          await html2pdf().set(opt).from(doc.body).save();
+          await html2pdf().set(opt).from(doc.querySelector('.pdf-container')).save();
           document.body.removeChild(iframe);
         } catch (e) {
           showBanner('Could not generate PDF receipt.', 'danger');
         } finally {
-          $btn.prop('disabled', false).text('Download PDF');
+          $btn.prop('disabled', false).text('Download');
         }
       });
       $(document).on('click', '.js-email-receipt', function() {
