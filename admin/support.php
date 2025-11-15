@@ -8,7 +8,7 @@ if ($_SESSION['nivas_userRole'] == 'student') {
   exit();
 }
 
-$support_query = mysqli_query($conn, "SELECT * FROM support_tickets WHERE user_id = $user_id ORDER BY `created_at` DESC");
+$support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE user_id = $user_id ORDER BY `last_message_at` DESC, `created_at` DESC");
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -99,13 +99,12 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets WHERE user_i
                                 $subject = $support['subject'];
 
                                 if (strlen($subject) > 22) {
-                                  // If yes, truncate the text
                                   $subject = substr($subject, 0, 22) . '...';
                                 }
                                 
                                 $created_at = $support['created_at'];
 
-                                // Retrieve and format the due date
+                                // Retrieve and format the opened date
                                 $created_date = date('M j, Y', strtotime($created_at));
                                 $created_time = date('h:i a', strtotime($created_at));
                                 // Retrieve the status
@@ -116,21 +115,27 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets WHERE user_i
                                     <h6>#<?php echo $support['code'] ?></h6>
                                   </td>
                                   <td class="py-3">
-                                    <h6><?php echo $subject ?> </h6>
+                                    <h6><?php echo $subject; ?></h6>
                                   </td>
                                   <td class="d-sm-none-2">
-                                    <h6><?php echo $created_date ?></h6>
-                                    <p class="fw-bold"><?php echo $created_time ?></p>
+                                    <h6><?php echo $created_date; ?></h6>
+                                    <p class="fw-bold"><?php echo $created_time; ?></p>
                                   </td>
                                   <td class="py-3">
-                                    <div class="badge badge-opacity-<?php echo ($status == 'open') ? 'warning' : 'success'; ?>"><?php echo $status ?></div>
+                                    <div class="badge badge-opacity-<?php echo ($status == 'open' || $status == 'pending') ? 'warning' : 'success'; ?>">
+                                      <?php echo $status; ?>
+                                    </div>
                                   </td>
                                   <td class="py-3">
-                                    <button data-code="<?php echo $support['code'] ?>" data-subject="<?php echo $subject ?>"
-                                      data-message="<?php echo $support['message'] ?>" data-response="<?php echo $support['response'] ?>"
-                                      data-response_time="<?php echo $support['response_time'] ?>"
-                                      data-date="<?php echo $created_date ?>" data-bs-toggle="modal" data-bs-target="#addSupport"
-                                      class="btn btn-primary btn-lg fw-bold mb-0 view-support">View</button>
+                                    <button
+                                      data-code="<?php echo $support['code']; ?>"
+                                      data-subject="<?php echo htmlspecialchars($support['subject']); ?>"
+                                      data-date="<?php echo $created_date . ' ' . $created_time; ?>"
+                                      data-bs-toggle="modal"
+                                      data-bs-target="#addSupport"
+                                      class="btn btn-primary btn-lg fw-bold mb-0 view-support">
+                                      View
+                                    </button>
                                   </td>
                                 </tr>
                                 <?php } ?>
@@ -185,7 +190,7 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets WHERE user_i
                           <!-- View Support Manual Modal -->
                           <div class="modal fade" id="addSupport" tabindex="-1" role="dialog" aria-labelledby="supportLabel"
                             aria-hidden="true">
-                            <div class="modal-dialog" role="document">
+                            <div class="modal-dialog modal-lg" role="document">
                               <div class="modal-content">
                                 <div class="modal-header">
                                   <h4 class="modal-title fw-bold" id="supportLabel"><span class="subject"></span> - #<span class="ticket_id"></span></h4>
@@ -193,18 +198,43 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets WHERE user_i
                                   </button>
                                 </div>
                                 <div class="modal-body">
-                                  <div>
-                                    <h4>Response:</h4>
-                                    <p class="lh-base fw-bold p-3 bg-secondary text-light rounded response_text">No response yet!</p>
-                                    <p class="text-muted response_time"></p><br>
-                                    <h4>Complain:</h4>
-                                    <p class="lh-base bg-light p-3 rounded complaint_text"></p>
-                                    <p class="text-muted complaint_time"> Date: 23 Dec, 2023</p><br>
+                                  <div class="mb-3">
+                                    <p class="text-muted small mb-1">Ticket reference: #<span class="ticket_id"></span></p>
+                                    <p class="text-muted small complaint_time"></p>
                                   </div>
+                                  <div class="border rounded p-3 mb-3" style="max-height: 350px; overflow-y: auto;">
+                                    <div class="ticket-thread-messages small"></div>
+                                  </div>
+                                  <hr>
+                                  <form id="ticket-reply-form" enctype="multipart/form-data">
+                                    <input type="hidden" name="ticket_code" id="ticketReplyCode" value="">
+                                    <div class="mb-3">
+                                      <label class="form-label" for="ticket_reply_message">Reply</label>
+                                      <textarea class="form-control w-100 px-3 py-2 h-25" id="ticket_reply_message" name="message" rows="6" required></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                      <label for="ticket_reply_attachment" class="form-label fw-bold">
+                                        Attach file (<span class="reply_attach_ment">no file selected</span>)
+                                      </label>
+                                      <div>
+                                        <input type="file" id="ticket_reply_attachment" name="attachment" class="form-control"
+                                          accept=".pdf,.jpeg,.jpg,.png" style="display: none">
+                                        <label for="ticket_reply_attachment"
+                                          class="btn btn-lg btn-secondary text-light">
+                                          <i class="mdi mdi-upload-outline"></i> Upload
+                                        </label>
+                                      </div>
+                                    </div>
+                                    <div class="d-flex justify-content-end">
+                                      <button type="submit" id="ticket_reply_submit" class="btn btn-lg btn-primary">
+                                        Send Reply
+                                      </button>
+                                    </div>
+                                  </form>
                                 </div>
-                                <div class="modal-footer">
+                                <!-- <div class="modal-footer">
                                   <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Close</button>
-                                </div>
+                                </div> -->
                               </div>
                             </div>
                           </div>
@@ -259,46 +289,142 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets WHERE user_i
     $(document).ready(function () {
       $('.btn').attr('data-mdb-ripple-duration', '0');
 
-      // Trigger file upload when the icon/button is clicked
+      // Trigger file upload when the icon/button is clicked (new ticket)
       $('#attachment').change(function () {
-        // Get the number of files selected and display the count
         var numFiles = $(this)[0].files.length;
         $('.attach_ment').text(numFiles + (numFiles === 1 ? ' file' : ' files') + ' selected');
       });
 
-      // Reset the form when the modal is dismissed
+      // Reset the new-ticket form when the modal is dismissed
       $('#ticketModal').on('hide.bs.modal', function () {
-        $('#support-form')[0].reset(); // Reset the form
-        $('.attach_ment').text('no file selected'); // Clear the file count display
+        $('#support-form')[0].reset();
+        $('.attach_ment').text('no file selected');
       });
+
+      function formatDateTimeDisplay(raw) {
+        if (!raw) {
+          return '';
+        }
+        var value = String(raw).trim();
+        var parts = value.split(' ');
+        if (parts.length < 2) {
+          return value;
+        }
+        var dateParts = parts[0].split('-');
+        var timeParts = parts[1].split(':');
+        if (dateParts.length < 3 || timeParts.length < 2) {
+          return value;
+        }
+        var year = parseInt(dateParts[0], 10);
+        var monthIndex = parseInt(dateParts[1], 10) - 1;
+        var day = parseInt(dateParts[2], 10);
+        var hour = parseInt(timeParts[0], 10);
+        var minute = parseInt(timeParts[1], 10);
+        if (isNaN(year) || isNaN(monthIndex) || isNaN(day) || isNaN(hour) || isNaN(minute)) {
+          return value;
+        }
+        var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        var ampm = hour >= 12 ? 'pm' : 'am';
+        var displayHour = hour % 12;
+        if (displayHour === 0) {
+          displayHour = 12;
+        }
+        var minuteStr = minute < 10 ? '0' + minute : String(minute);
+        return months[monthIndex] + ' ' + day + ', ' + year + ' ' + displayHour + ':' + minuteStr + ' ' + ampm;
+      }
+
+      function renderMessages(messages) {
+        var container = $('.ticket-thread-messages');
+        container.empty();
+
+        if (!messages || messages.length === 0) {
+          container.append('<p class="text-muted mb-0">No messages yet.</p>');
+          return;
+        }
+
+        messages.forEach(function (msg) {
+          var isUser = (msg.senderType === 'user');
+          var alignmentClass = isUser ? 'text-end' : 'text-start';
+          var bubbleClass = isUser ? 'bg-primary text-white' : 'bg-light';
+          var label = isUser ? 'You' : 'Support';
+
+          var safeMessage = $('<div/>').text(msg.message || '').html();
+          safeMessage = safeMessage.replace(/\n/g, '<br>');
+
+          var html = '<div class="mb-3 ' + alignmentClass + '">';
+          html += '<div class="small text-muted mb-1">' + label + ' &bull; ' + formatDateTimeDisplay(msg.createdAt) + '</div>';
+          html += '<div class="d-inline-block p-2 rounded ' + bubbleClass + '">' + safeMessage;
+
+          if (msg.attachments && msg.attachments.length > 0) {
+            html += '<div class="mt-2">';
+            msg.attachments.forEach(function (att) {
+              if (!att.filePath || !att.fileName) {
+                return;
+              }
+              var fileNameSafe = $('<div/>').text(att.fileName).html();
+              var href = '../' + att.filePath.replace(/^\/+/, '');
+              html += '<a href="' + href + '" target="_blank" class="d-block text-decoration-underline">' + fileNameSafe + '</a>';
+            });
+            html += '</div>';
+          }
+
+          html += '</div></div>';
+          container.append(html);
+        });
+      }
+
+      function loadTicketMessages(code) {
+        var container = $('.ticket-thread-messages');
+        container.html('<p class="text-muted mb-0">Loading conversation...</p>');
+
+        $.ajax({
+          type: 'GET',
+          url: '../model/support_messages.php',
+          data: { ticket_code: code },
+          success: function (data) {
+            if (data && data.status === 'success' && data.data) {
+              renderMessages(data.data.messages || []);
+            } else {
+              var message = (data && data.message) ? data.message : 'Could not load messages.';
+              container.html('<p class="text-danger mb-0">' + message + '</p>');
+            }
+          },
+          error: function () {
+            container.html('<p class="text-danger mb-0">Could not load messages.</p>');
+          }
+        });
+      }
 
       // Handle click event of View button
       $('.view-support').on('click', function () {
-        // Get the manual details from the data- attributes
         var code = $(this).data('code');
         var subject = $(this).data('subject');
-        var message = $(this).data('message');        
-        // retain rending format
-        message = message.replace(/\n/g, '<br>');
         var date = $(this).data('date');
-        var response = $(this).data('response');
-        var response_time = $(this).data('response_time');
-        
-        if (response !== '') {
-          $('.response_text').html(response);
-          $('.response_time').html(response_time);
-        }
 
-        // Set the values in the support modal
+        // Reset reply form
+        $('#ticket-reply-form')[0].reset();
+        $('.reply_attach_ment').text('no file selected');
+
+        // Set header values in the support modal
         $('.subject').html(subject);
         $('.ticket_id').html(code);
-        $('.complaint_text').html(message);
         $('.complaint_time').html(date);
+        $('#ticketReplyCode').val(code);
+
+        loadTicketMessages(code);
       });
 
-      // Use AJAX to submit the support form
+      // Track attachment selection on reply form
+      $('#ticket_reply_attachment').on('change', function () {
+        var numFiles = $(this)[0].files.length;
+        $('.reply_attach_ment').text(
+          numFiles === 0 ? 'no file selected' : (numFiles + (numFiles === 1 ? ' file selected' : ' files selected'))
+        );
+      });
+
+      // Use AJAX to submit the new-ticket support form
       $('#support-form').submit(function (event) {
-        event.preventDefault(); // Prevent the default form submission
+        event.preventDefault();
 
         var button = $('#support_submit');
         var originalText = button.html();
@@ -309,37 +435,97 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets WHERE user_i
         var formData = new FormData($('#support-form')[0]);
 
         $.ajax({
-            type: 'POST',
-            url: '../model/support.php',
-            data: formData,
-            contentType: false,
-            processData: false,
-            success: function (data) {
-              $('#alertBanner').html(data.message);
+          type: 'POST',
+          url: '../model/support.php',
+          data: formData,
+          contentType: false,
+          processData: false,
+          success: function (data) {
+            $('#alertBanner').html(data.message);
 
-              if (data.status == 'success') {
-                $('#alertBanner').removeClass('alert-info');
-                $('#alertBanner').removeClass('alert-danger');
-                $('#alertBanner').addClass('alert-success');
-
-                setTimeout(function () {
-                  location.reload();
-                }, 2000);
-              } else {
-                $('#alertBanner').removeClass('alert-success');
-                $('#alertBanner').removeClass('alert-info');
-                $('#alertBanner').addClass('alert-danger');
-              }
-
-              $('#alertBanner').fadeIn();
+            if (data.status == 'success') {
+              $('#alertBanner').removeClass('alert-info alert-danger').addClass('alert-success');
 
               setTimeout(function () {
-                  $('#alertBanner').fadeOut();
-              }, 5000);
-
-              button.html(originalText);
-              button.prop("disabled", false);
+                location.reload();
+              }, 2000);
+            } else {
+              $('#alertBanner').removeClass('alert-success alert-info').addClass('alert-danger');
             }
+
+            $('#alertBanner').fadeIn();
+
+            setTimeout(function () {
+              $('#alertBanner').fadeOut();
+            }, 5000);
+
+            button.html(originalText);
+            button.prop('disabled', false);
+          },
+          error: function () {
+            $('#alertBanner').html('An error occurred while creating the ticket.');
+            $('#alertBanner').removeClass('alert-success alert-info').addClass('alert-danger').fadeIn();
+            setTimeout(function () {
+              $('#alertBanner').fadeOut();
+            }, 5000);
+
+            button.html(originalText);
+            button.prop('disabled', false);
+          }
+        });
+      });
+
+      // Submit reply within an existing ticket
+      $('#ticket-reply-form').submit(function (event) {
+        event.preventDefault();
+
+        var button = $('#ticket_reply_submit');
+        var originalText = button.html();
+
+        button.html(originalText + '  <div class="spinner-border text-white" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
+        button.prop('disabled', true);
+
+        var formData = new FormData($('#ticket-reply-form')[0]);
+
+        $.ajax({
+          type: 'POST',
+          url: '../model/support_reply.php',
+          data: formData,
+          contentType: false,
+          processData: false,
+          success: function (data) {
+            $('#alertBanner').html(data.message);
+
+            if (data.status == 'success') {
+              $('#alertBanner').removeClass('alert-info alert-danger').addClass('alert-success');
+              // Reload conversation without closing modal
+              var code = $('#ticketReplyCode').val();
+              loadTicketMessages(code);
+              $('#ticket-reply-form')[0].reset();
+              $('.reply_attach_ment').text('no file selected');
+            } else {
+              $('#alertBanner').removeClass('alert-success alert-info').addClass('alert-danger');
+            }
+
+            $('#alertBanner').fadeIn();
+
+            setTimeout(function () {
+              $('#alertBanner').fadeOut();
+            }, 5000);
+
+            button.html(originalText);
+            button.prop('disabled', false);
+          },
+          error: function () {
+            $('#alertBanner').html('An error occurred while sending your reply.');
+            $('#alertBanner').removeClass('alert-success alert-info').addClass('alert-danger').fadeIn();
+            setTimeout(function () {
+              $('#alertBanner').fadeOut();
+            }, 5000);
+
+            button.html(originalText);
+            button.prop('disabled', false);
+          }
         });
       });
     });
