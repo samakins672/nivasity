@@ -217,31 +217,40 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
                                     <div class="ticket-thread-messages small"></div>
                                   </div>
                                   <hr>
-                                  <form id="ticket-reply-form" enctype="multipart/form-data">
-                                    <input type="hidden" name="ticket_code" id="ticketReplyCode" value="">
-                                    <div class="mb-3">
-                                      <label class="form-label" for="ticket_reply_message">Reply</label>
-                                      <textarea class="form-control w-100 px-3 py-2 h-25" id="ticket_reply_message" name="message" rows="6" required></textarea>
-                                    </div>
-                                    <div class="mb-3">
-                                      <label for="ticket_reply_attachment" class="form-label fw-bold">
-                                        Attach file (<span class="reply_attach_ment">no file selected</span>)
-                                      </label>
-                                      <div>
-                                        <input type="file" id="ticket_reply_attachment" name="attachment" class="form-control"
-                                          accept=".pdf,.jpeg,.jpg,.png" style="display: none">
-                                        <label for="ticket_reply_attachment"
-                                          class="btn btn-lg btn-secondary text-light">
-                                          <i class="mdi mdi-upload-outline"></i> Upload
-                                        </label>
+                                  <div id="ticket-reply-container">
+                                    <form id="ticket-reply-form" enctype="multipart/form-data">
+                                      <input type="hidden" name="ticket_code" id="ticketReplyCode" value="">
+                                      <div class="mb-3">
+                                        <label class="form-label" for="ticket_reply_message">Reply</label>
+                                        <textarea class="form-control w-100 px-3 py-2 h-25" id="ticket_reply_message" name="message" rows="6" required></textarea>
                                       </div>
-                                    </div>
+                                      <div class="mb-3">
+                                        <label for="ticket_reply_attachment" class="form-label fw-bold">
+                                          Attach file (<span class="reply_attach_ment">no file selected</span>)
+                                        </label>
+                                        <div>
+                                          <input type="file" id="ticket_reply_attachment" name="attachment" class="form-control"
+                                            accept=".pdf,.jpeg,.jpg,.png" style="display: none">
+                                          <label for="ticket_reply_attachment"
+                                            class="btn btn-lg btn-secondary text-light">
+                                            <i class="mdi mdi-upload-outline"></i> Upload
+                                          </label>
+                                        </div>
+                                      </div>
+                                      <div class="d-flex justify-content-end">
+                                        <button type="submit" id="ticket_reply_submit" class="btn btn-lg btn-primary">
+                                          Send Reply
+                                        </button>
+                                      </div>
+                                    </form>
+                                  </div>
+                                  <div id="ticket-reopen-container" class="d-none">
                                     <div class="d-flex justify-content-end">
-                                      <button type="submit" id="ticket_reply_submit" class="btn btn-lg btn-primary">
-                                        Send Reply
+                                      <button type="button" id="ticket_reopen_btn" class="btn btn-lg btn-outline-primary">
+                                        Reopen Ticket
                                       </button>
                                     </div>
-                                  </form>
+                                  </div>
                                 </div>
                                 <!-- <div class="modal-footer">
                                   <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Close</button>
@@ -395,6 +404,19 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
           success: function (data) {
             if (data && data.status === 'success' && data.data) {
               renderMessages(data.data.messages || []);
+
+              var ticket = data.data.ticket || {};
+              var status = (ticket.status || '').toLowerCase();
+              var replyContainer = $('#ticket-reply-container');
+              var reopenContainer = $('#ticket-reopen-container');
+
+              if (status === 'closed') {
+                replyContainer.hide();
+                reopenContainer.removeClass('d-none').show();
+              } else {
+                reopenContainer.hide();
+                replyContainer.show();
+              }
             } else {
               var message = (data && data.message) ? data.message : 'Could not load messages.';
               container.html('<p class="text-danger mb-0">' + message + '</p>');
@@ -421,6 +443,9 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
         $('.ticket_id').html(code);
         $('.complaint_time').html(date);
         $('#ticketReplyCode').val(code);
+
+        $('#ticket-reply-container').show();
+        $('#ticket-reopen-container').hide();
 
         loadTicketMessages(code);
       });
@@ -529,6 +554,55 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
           },
           error: function () {
             $('#alertBanner').html('An error occurred while sending your reply.');
+            $('#alertBanner').removeClass('alert-success alert-info').addClass('alert-danger').fadeIn();
+            setTimeout(function () {
+              $('#alertBanner').fadeOut();
+            }, 5000);
+
+            button.html(originalText);
+            button.prop('disabled', false);
+          }
+        });
+      });
+
+      // Reopen a closed ticket
+      $('#ticket_reopen_btn').on('click', function () {
+        var code = $('#ticketReplyCode').val();
+        if (!code) {
+          return;
+        }
+
+        var button = $('#ticket_reopen_btn');
+        var originalText = button.html();
+
+        button.html(originalText + '  <div class="spinner-border text-primary" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
+        button.prop('disabled', true);
+
+        $.ajax({
+          type: 'POST',
+          url: '../model/support_reopen.php',
+          data: { ticket_code: code },
+          success: function (data) {
+            $('#alertBanner').html(data.message);
+
+            if (data.status == 'success') {
+              $('#alertBanner').removeClass('alert-info alert-danger').addClass('alert-success');
+              loadTicketMessages(code);
+            } else {
+              $('#alertBanner').removeClass('alert-success alert-info').addClass('alert-danger');
+            }
+
+            $('#alertBanner').fadeIn();
+
+            setTimeout(function () {
+              $('#alertBanner').fadeOut();
+            }, 5000);
+
+            button.html(originalText);
+            button.prop('disabled', false);
+          },
+          error: function () {
+            $('#alertBanner').html('An error occurred while reopening the ticket.');
             $('#alertBanner').removeClass('alert-success alert-info').addClass('alert-danger').fadeIn();
             setTimeout(function () {
               $('#alertBanner').fadeOut();

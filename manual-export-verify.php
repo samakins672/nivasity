@@ -95,7 +95,7 @@ function formatDateTimeReadable($dt) {
     }
 
     .verify-card {
-      max-width: 640px;
+      max-width: 900px;
       margin: 40px auto;
       border-radius: 12px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
@@ -228,7 +228,7 @@ function formatDateTimeReadable($dt) {
               </div>
             </div>
 
-            <p class="text-muted small mb-0">
+            <p class="text-muted small mt-5 mb-0">
               If the details above match the header information on the printed/PDF list you received, the export is
               valid as issued from the Nivasity HOC dashboard.
             </p>
