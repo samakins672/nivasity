@@ -41,11 +41,18 @@ if ($user_id && $messageBody !== '') {
   $userSubject = "Support Request Received - Ticket #$uniqueCode";
   $userMessage = "Hi $first_name,<br><br>Thank you for reaching out to us. Your organisation info change request has been received, and a support ticket has been generated with the reference number #$uniqueCode. <br>Our team will get back to you within 24 working hours.<br><br>Best regards,<br>Support Team<br>Nivasity";
 
-  $mailStatus = sendMail($subject, $supportMessage, $supportEmail);
+  // Use Brevo for support notifications (reply from support goes to the user)
+  $mailStatus = sendBrevoMail($subject, $supportMessage, $supportEmail, $userEmail);
+  if ($mailStatus !== "success") {
+    $mailStatus = sendMail($subject, $supportMessage, $supportEmail);
+  }
 
   // Check the status
   if ($mailStatus === "success") {
+  $mailStatus2 = sendBrevoMail($userSubject, $userMessage, $userEmail, $supportEmail);
+  if ($mailStatus2 !== "success") {
     $mailStatus2 = sendMail($userSubject, $userMessage, $userEmail);
+  }
 
     // Check the status 2
     if ($mailStatus2 === "success") {

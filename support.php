@@ -337,7 +337,7 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
               }
               var fileNameSafe = $('<div/>').text(att.fileName).html();
               var href = att.filePath.replace(/^\/+/, '');
-              html += '<a href="' + href + '" target="_blank" class="d-block text-decoration-underline">' + fileNameSafe + '</a>';
+              html += '<a href="' + href + '" target="_blank" class="d-block text-decoration-underline text-black">' + fileNameSafe + '</a>';
             });
             html += '</div>';
           }

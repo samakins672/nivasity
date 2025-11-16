@@ -100,11 +100,19 @@ if ($user_id && isset($_POST['support_id'])) {
     $userSubject = "Support Request Received - Ticket #$uniqueCode";
     $userMessage = "Hi $first_name,<br><br>Thank you for reaching out to us. Your support request has been received, and a ticket has been generated with the <b>reference code #$uniqueCode.</b> <br>Our team will get back to you very soon.<br><br>Best regards,<br>Support Team<br><b>Nivasity</b>";
 
-    $mailStatus = sendMail($supportSubject, $supportMessage, $supportEmail);
+    // Use Brevo for support notifications (reply from support goes to the user)
+    $mailStatus = sendBrevoMail($supportSubject, $supportMessage, $supportEmail, $userEmail);
+    if ($mailStatus !== "success") {
+      $mailStatus = sendMail($supportSubject, $supportMessage, $supportEmail);
+    }
 
     // Check the status
     if ($mailStatus === "success") {
-      $mailStatus2 = sendMail($userSubject, $userMessage, $userEmail);
+      // Use Brevo for user confirmations (replies from the user go to support)
+      $mailStatus2 = sendBrevoMail($userSubject, $userMessage, $userEmail, $supportEmail);
+      if ($mailStatus2 !== "success") {
+        $mailStatus2 = sendMail($userSubject, $userMessage, $userEmail);
+      }
 
       // Check the status 2
       if ($mailStatus2 === "success") {

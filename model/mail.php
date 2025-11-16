@@ -149,7 +149,7 @@ function sendMail($subject, $body, $to)
   return $statusRes;
 }
 
-function sendBrevoMail($subject, $body, $to)
+function sendBrevoMail($subject, $body, $to, $replyToEmail = null)
 {
   $body_ = buildEmailTemplate($body);
 
@@ -172,8 +172,15 @@ function sendBrevoMail($subject, $body, $to)
     'htmlContent' => $body_,
   ];
 
-  if (defined('BREVO_REPLY_TO_EMAIL') && BREVO_REPLY_TO_EMAIL) {
-    $payload['replyTo'] = ['email' => BREVO_REPLY_TO_EMAIL];
+  $effectiveReplyTo = null;
+  if ($replyToEmail) {
+    $effectiveReplyTo = $replyToEmail;
+  } elseif (defined('BREVO_REPLY_TO_EMAIL') && BREVO_REPLY_TO_EMAIL) {
+    $effectiveReplyTo = BREVO_REPLY_TO_EMAIL;
+  }
+
+  if ($effectiveReplyTo) {
+    $payload['replyTo'] = ['email' => $effectiveReplyTo];
   }
 
   $encodedPayload = json_encode($payload);
