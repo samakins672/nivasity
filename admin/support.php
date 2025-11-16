@@ -156,7 +156,7 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
                                 <form id="support-form">
                                   <input type="hidden" name="support_id" value="0">
                                   <div class="modal-body">
-                                    <div class="form-outline mb-4">
+                                    <div class="form-group mb-4">
                                       <label class="form-label" for="category">Category</label>
                                       <select name="category" id="category" class="form-control form-control-lg w-100" required>
                                         <option value="" disabled selected>Select category</option>
