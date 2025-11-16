@@ -39,6 +39,21 @@ if ($user_id && $messageBody !== '') {
 
   if ($picture && $tempname) {
     $extension = pathinfo($picture, PATHINFO_EXTENSION);
+    $allowedExtensions = array('pdf', 'jpg', 'jpeg', 'png');
+    $extLower = strtolower($extension);
+    if (!in_array($extLower, $allowedExtensions, true)) {
+      $statusRes = "error";
+      $messageRes = "Invalid attachment type. Only PDF and image files (JPG, JPEG, PNG) are allowed.";
+
+      $responseData = array(
+        "status" => "$statusRes",
+        "message" => "$messageRes"
+      );
+      header('Content-Type: application/json');
+      echo json_encode($responseData);
+      exit;
+    }
+
     $safeExtension = $extension ? preg_replace('/[^a-zA-Z0-9]/', '', $extension) : '';
     $storedName = "support_{$user_id}_{$uniqueCode}";
     if ($safeExtension !== '') {

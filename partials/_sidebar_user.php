@@ -38,6 +38,12 @@
         <span class="menu-title">Event Tickets</span>
       </a>
     </li>
+    <li class="nav-item">
+      <a class="nav-link" href="support.php">
+        <i class="mdi mdi-comment-outline menu-icon"></i>
+        <span class="menu-title">Support Tickets</span>
+      </a>
+    </li>
 
     <?php if(!$is_admin_role):?>      
     <li class="nav-item nav-category">My Settings</li>

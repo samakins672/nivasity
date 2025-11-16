@@ -1,12 +1,7 @@
 <?php
 session_start();
-include('../model/config.php');
-include('../model/page_config.php');
-
-if ($_SESSION['nivas_userRole'] == 'student') {
-  header('Location: /');
-  exit();
-}
+include('model/config.php');
+include('model/page_config.php');
 
 $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE user_id = $user_id ORDER BY `last_message_at` DESC, `created_at` DESC");
 ?>
@@ -18,51 +13,21 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
   <title>Support - Nivasity</title>
-  <!-- plugins:css -->
-  <link rel="stylesheet" href="../assets/vendors/feather/feather.css">
-  <link rel="stylesheet" href="../assets/vendors/mdi/css/materialdesignicons.min.css">
-  <link rel="stylesheet" href="../assets/vendors/ti-icons/css/themify-icons.css">
-  <link rel="stylesheet" href="../assets/vendors/typicons/typicons.css">
-  <link rel="stylesheet" href="../assets/vendors/simple-line-icons/css/simple-line-icons.css">
-  <link rel="stylesheet" href="../assets/vendors/css/vendor.bundle.base.css">
-  <!-- endinject -->
-  <!-- Plugin css for this page -->
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap4.min.css">
-  <!-- End plugin css for this page -->
-  <!-- inject:css -->
-  <link rel="stylesheet" href="../assets/css/dashboard/style.css">
-  <!-- endinject -->
 
-  <!-- Google Sign-In API library -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-
-  <link rel="shortcut icon" href="../favicon.ico" />
-
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-30QJ6DSHBN"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-
-    gtag('config', 'G-30QJ6DSHBN');
-  </script>
-  
-  
-  
+  <?php include('partials/_head.php') ?>
 </head>
 
 <body>
   <div class="container-scroller">
     <!-- partial:partials/_navbar.php -->
-    <?php include('../partials/_navbar.php') ?>
+    <?php include('partials/_navbar.php') ?>
     <!-- partial -->
     <div class="container-fluid page-body-wrapper">
-      <!-- partial:partials/_sidebar_admin.php -->
-      <?php include('../partials/_sidebar_admin.php') ?>
+      <!-- partial:partials/_sidebar_user.php -->
+      <?php include('partials/_sidebar_user.php') ?>
       <!-- partial -->
       <div class="main-panel">
-  
+
         <div class="content-wrapper py-0">
           <div class="row">
             <div class="col-sm-12 px-2">
@@ -72,7 +37,7 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
                     <div class="row flex-grow">
                       <div class="col-12 card card-rounded shadow-sm">
                         <div class="card-header">
-                          <h4 class="fw-bold my-3">Support Tickets</h4> 
+                          <h4 class="fw-bold my-3">Support Tickets</h4>
                         </div>
                         <div class="card-body">
                           <!-- Button to open ticket modal -->
@@ -82,7 +47,7 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
                           </button>
 
                           <!-- Support Ticket Table -->
-                          <div class="table-responsive  mt-1">
+                          <div class="table-responsive mt-1">
                             <table id="support_table" class="table table-striped table-hover select-table datatable-opt">
                               <thead>
                                 <tr>
@@ -101,13 +66,11 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
                                 if (strlen($subject) > 22) {
                                   $subject = substr($subject, 0, 22) . '...';
                                 }
-                                
+
                                 $created_at = $support['created_at'];
 
-                                // Retrieve and format the opened date
                                 $created_date = date('M j, Y', strtotime($created_at));
                                 $created_time = date('h:i a', strtotime($created_at));
-                                // Retrieve the status
                                 $status = $support['status'];
                                 ?>
                                 <tr>
@@ -156,9 +119,9 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
                                 <form id="support-form">
                                   <input type="hidden" name="support_id" value="0">
                                   <div class="modal-body">
-                                    <div class="form-outline mb-4">
+                                    <div class="form-group mb-4">
                                       <label class="form-label" for="category">Category</label>
-                                      <select name="category" id="category" class="form-control form-control-lg w-100" required>
+                                      <select name="category" id="category" class="form-control form-control-lg w-100 text-dark" required>
                                         <option value="" disabled selected>Select category</option>
                                         <option value="Payments or Transactions">Payments or Transactions</option>
                                         <option value="Account or Access Issues">Account or Access Issues</option>
@@ -197,8 +160,8 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
                               </div>
                             </div>
                           </div>
-                                    
-                          <!-- View Support Manual Modal -->
+
+                          <!-- View Support Ticket Modal -->
                           <div class="modal fade" id="addSupport" tabindex="-1" role="dialog" aria-labelledby="supportLabel"
                             aria-hidden="true">
                             <div class="modal-dialog" role="document">
@@ -261,7 +224,7 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
         </div>
         <!-- content-wrapper ends -->
         <!-- partial:partials/_footer.html -->
-        <?php include('../partials/_footer.php') ?>
+        <?php include('partials/_footer.php') ?>
         <!-- partial -->
       </div>
       <!-- Bootstrap alert container -->
@@ -276,26 +239,26 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
   </div>
   <!-- container-scroller -->
   <!-- plugins:js -->
-  <script src="../assets/vendors/js/vendor.bundle.base.js"></script>
+  <script src="assets/vendors/js/vendor.bundle.base.js"></script>
   <!-- endinject -->
   <!-- Plugin js for this page -->
-  <script src="../assets/vendors/chart.js/Chart.min.js"></script>
-  <script src="../assets/vendors/bootstrap-datepicker/bootstrap-datepicker.min.js"></script>
+  <script src="assets/vendors/chart.js/Chart.min.js"></script>
+  <script src="assets/vendors/bootstrap-datepicker/bootstrap-datepicker.min.js"></script>
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.1/mdb.min.js"></script>
-  <script src="../assets/vendors/progressbar.js/progressbar.min.js"></script>
+  <script src="assets/vendors/progressbar.js/progressbar.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
   <!-- End plugin js for this page -->
   <!-- inject:js -->
-  <script src="../assets/js/js/off-canvas.js"></script>
-  <script src="../assets/js/js/hoverable-collapse.js"></script>
-  <script src="../assets/js/js/template.js"></script>
-  <script src="../assets/js/js/settings.js"></script>
-  <script src="../assets/js/js/data-table.js"></script>
+  <script src="assets/js/js/off-canvas.js"></script>
+  <script src="assets/js/js/hoverable-collapse.js"></script>
+  <script src="assets/js/js/template.js"></script>
+  <script src="assets/js/js/settings.js"></script>
+  <script src="assets/js/js/data-table.js"></script>
   <!-- endinject -->
   <!-- Custom js for this page-->
-  <script src="../assets/js/js/dashboard.js"></script>
-  <script src="../assets/js/script.js"></script>
+  <script src="assets/js/js/dashboard.js"></script>
+  <script src="assets/js/script.js"></script>
   <script>
     $(document).ready(function () {
       $('.btn').attr('data-mdb-ripple-duration', '0');
@@ -373,7 +336,7 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
                 return;
               }
               var fileNameSafe = $('<div/>').text(att.fileName).html();
-              var href = '../' + att.filePath.replace(/^\/+/, '');
+              var href = att.filePath.replace(/^\/+/, '');
               html += '<a href="' + href + '" target="_blank" class="d-block text-decoration-underline">' + fileNameSafe + '</a>';
             });
             html += '</div>';
@@ -390,7 +353,7 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
 
         $.ajax({
           type: 'GET',
-          url: '../model/support_messages.php',
+          url: 'model/support_messages.php',
           data: { ticket_code: code },
           success: function (data) {
             if (data && data.status === 'success' && data.data) {
@@ -447,7 +410,7 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
 
         $.ajax({
           type: 'POST',
-          url: '../model/support.php',
+          url: 'model/support.php',
           data: formData,
           contentType: false,
           processData: false,
@@ -500,7 +463,7 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
 
         $.ajax({
           type: 'POST',
-          url: '../model/support_reply.php',
+          url: 'model/support_reply.php',
           data: formData,
           contentType: false,
           processData: false,
@@ -509,7 +472,6 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
 
             if (data.status == 'success') {
               $('#alertBanner').removeClass('alert-info alert-danger').addClass('alert-success');
-              // Reload conversation without closing modal
               var code = $('#ticketReplyCode').val();
               loadTicketMessages(code);
               $('#ticket-reply-form')[0].reset();
@@ -544,3 +506,4 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
 </body>
 
 </html>
+

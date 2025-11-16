@@ -64,6 +64,12 @@ try {
 
     if ($originalFileName && $tempName) {
       $extension = pathinfo($originalFileName, PATHINFO_EXTENSION);
+      $allowedExtensions = array('pdf', 'jpg', 'jpeg', 'png');
+      $extLower = strtolower($extension);
+      if (!in_array($extLower, $allowedExtensions, true)) {
+        throw new RuntimeException('Invalid attachment type. Only PDF and image files (JPG, JPEG, PNG) are allowed.');
+      }
+
       $safeExtension = $extension ? preg_replace('/[^a-zA-Z0-9]/', '', $extension) : '';
 
       $storedName = "support_{$userId}_{$ticketCode}_{$messageId}";

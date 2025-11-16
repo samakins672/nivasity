@@ -11,6 +11,7 @@ if ($user_id && isset($_POST['support_id'])) {
   // Collect form data
   $subject = isset($_POST['subject']) ? mysqli_real_escape_string($conn, $_POST['subject']) : '';
   $message = isset($_POST['message']) ? mysqli_real_escape_string($conn, $_POST['message']) : '';
+  $category = isset($_POST['category']) ? trim($_POST['category']) : '';
 
   if ($subject !== '' && $message !== '') {
     $user = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = $user_id"));
@@ -26,6 +27,12 @@ if ($user_id && isset($_POST['support_id'])) {
       $uniqueCode = generateVerificationCode(8);
     }
 
+    // Normalise category
+    if ($category === '') {
+      $category = 'Technical and Other Issues';
+    }
+    $categoryDb = mysqli_real_escape_string($conn, $category);
+
     // Handle optional attachment for the first message
     $storedFilePath = null;
     $originalFileName = null;
@@ -38,6 +45,21 @@ if ($user_id && isset($_POST['support_id'])) {
       $mimeType = isset($_FILES['attachment']['type']) ? $_FILES['attachment']['type'] : null;
       $fileSize = isset($_FILES['attachment']['size']) ? (int)$_FILES['attachment']['size'] : null;
       $extension = pathinfo($originalFileName, PATHINFO_EXTENSION);
+
+      $allowedExtensions = array('pdf', 'jpg', 'jpeg', 'png');
+      $extLower = strtolower($extension);
+      if (!in_array($extLower, $allowedExtensions, true)) {
+        $statusRes = "error";
+        $messageRes = "Invalid attachment type. Only PDF and image files (JPG, JPEG, PNG) are allowed.";
+
+        $responseData = array(
+          "status" => "$statusRes",
+          "message" => "$messageRes"
+        );
+        header('Content-Type: application/json');
+        echo json_encode($responseData);
+        exit;
+      }
 
       $safeExtension = $extension ? preg_replace('/[^a-zA-Z0-9]/', '', $extension) : '';
       $storedName = "support_{$user_id}_{$uniqueCode}";
@@ -92,7 +114,7 @@ if ($user_id && isset($_POST['support_id'])) {
         // Create the ticket shell
         $ticketSql = "
           INSERT INTO support_tickets_v2 (code, subject, user_id, status, priority, category, assigned_admin_id, last_message_at, created_at)
-          VALUES ('$uniqueCode', '$subject', $user_id, 'open', 'medium', NULL, NULL, '$currentDateTime', '$currentDateTime')
+          VALUES ('$uniqueCode', '$subject', $user_id, 'open', 'medium', '$categoryDb', NULL, '$currentDateTime', '$currentDateTime')
         ";
         if (mysqli_query($conn, $ticketSql)) {
           $ticketId = (int)mysqli_insert_id($conn);
