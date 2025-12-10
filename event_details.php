@@ -246,6 +246,7 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
           <div class="footer-contact">
             <p>The leading secure and convenient platform for purchasing</p>
             <p>Course materials, school event tickets, and much more</p>
+            <p><strong>Address:</strong> 11 Dadasaila Road, Abeokuta, Ota 102213, Ogun, Nigeria</p>
           </div>
 
         </div>
