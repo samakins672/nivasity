@@ -288,7 +288,7 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
               <a href="https://linkedin.com/company/nivasity" target="_blank"><i class="bi bi-linkedin fs-4"></i></a>
             </li>
             <li class="d-block">
-              <span><strong>Phone:</strong> +234 814 891 9310</span> <br>
+              <span><strong>Phone:</strong> +2349059527495</span> <br>
                <a href="mailto:support@nivasity.com" class="text-dark d-block"><strong>Email:</strong> support@nivasity.com</a>
             </li>
           </ul>

@@ -19,7 +19,7 @@ if (file_exists($tawkEnvironment)) {
 }
 
 if (!defined('TAWK_ENABLED')) {
-  define('TAWK_ENABLED', true);
+  define('TAWK_ENABLED', false);
 }
 
 if (!defined('TAWK_WIDGET_ID')) {

@@ -2,6 +2,10 @@
 session_start();
 include('model/config.php');
 include('model/page_config.php');
+include('model/system_alerts.php');
+
+// Fetch active system alerts
+$system_alerts = get_active_system_alerts($conn);
 
 // Simulate adding/removing the product to/from the cart
 if (!isset($_SESSION["nivas_cart$user_id"])) {
@@ -47,6 +51,12 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       <div class="main-panel">
 
         <div class="content-wrapper">
+          <?php 
+          // Display system alerts at the top of the page
+          if (!empty($system_alerts)) {
+            echo render_system_alerts($system_alerts);
+          }
+          ?>
           <div class="row">
             <div class="col-sm-12 px-2">
               <div class="home-tab">

@@ -44,3 +44,45 @@ Site‑wide control of the Tawk chat widget is handled via a small config file a
 - Notes
   - The loader uses modern JS (optional chaining and nullish coalescing). If you must support older browsers, we can provide a transpiled variant.
   - If you see a 404 fetching the loader, make sure the page is using the correct relative path to `assets/js/tawk-widget.js`. Our footer template already adjusts for `/admin/` pages.
+
+## System Alerts
+
+System-wide alerts can be displayed to all users at the top of the application index page and admin pages. Alerts are stored in a database table and automatically hidden after their expiry date.
+
+- **Database Setup**
+  - Run the migration file `sql/add_system_alerts.sql` to create the `system_alerts` table.
+  - Table schema:
+    - `id` — Auto-increment primary key
+    - `title` — Title of the alert (displayed in bold before the message)
+    - `message` — Text content of the alert
+    - `expiry_date` — DateTime when the alert should stop being displayed
+    - `active` — Boolean flag to enable/disable the alert manually
+    - `created_at` — Timestamp of when the alert was created
+
+- **Model Functions**
+  - `get_active_system_alerts($conn)` — Fetches all active, non-expired alerts from the database
+  - `render_system_alerts($alerts)` — Renders alerts as HTML (single alert or carousel for multiple alerts)
+  - Both functions are defined in `model/system_alerts.php`
+
+- **Usage**
+  - Alerts are automatically displayed on:
+    - `index.php` (application index page)
+    - `admin/index.php` (admin dashboard)
+  - If multiple alerts exist, they are shown in a Bootstrap carousel with navigation controls
+  - Single alerts are displayed as dismissible info alerts
+
+- **Styling**
+  - Alert styles are defined in `assets/css/system-alerts.css`
+  - The CSS file is included in `partials/_head.php` for all pages
+
+- **Managing Alerts**
+  - Insert new alerts directly into the `system_alerts` table
+  - Set `expiry_date` to control when the alert should stop showing
+  - Set `active = 0` to manually disable an alert before expiry
+  - Alerts are automatically filtered by expiry date and active status
+
+- **Example Alert**
+  ```sql
+  INSERT INTO `system_alerts` (`title`, `message`, `expiry_date`, `active`) VALUES
+  ('New Features', 'Welcome to Nivasity! Check out our new features.', DATE_ADD(NOW(), INTERVAL 7 DAY), 1);
+  ```

@@ -24,6 +24,7 @@
 <!-- End plugin css for this page -->
 <!-- inject:css -->
 <link rel="stylesheet" href="assets/css/dashboard/style.css">
+<link rel="stylesheet" href="assets/css/system-alerts.css">
 <!-- endinject -->
 
 <!-- Flutterwave Integration -->
