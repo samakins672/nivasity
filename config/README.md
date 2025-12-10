@@ -53,6 +53,7 @@ System-wide alerts can be displayed to all users at the top of the application i
   - Run the migration file `sql/add_system_alerts.sql` to create the `system_alerts` table.
   - Table schema:
     - `id` — Auto-increment primary key
+    - `title` — Title of the alert (displayed in bold before the message)
     - `message` — Text content of the alert
     - `expiry_date` — DateTime when the alert should stop being displayed
     - `active` — Boolean flag to enable/disable the alert manually
@@ -82,6 +83,6 @@ System-wide alerts can be displayed to all users at the top of the application i
 
 - **Example Alert**
   ```sql
-  INSERT INTO `system_alerts` (`message`, `expiry_date`, `active`) VALUES
-  ('Welcome to Nivasity! Check out our new features.', DATE_ADD(NOW(), INTERVAL 7 DAY), 1);
+  INSERT INTO `system_alerts` (`title`, `message`, `expiry_date`, `active`) VALUES
+  ('New Features', 'Welcome to Nivasity! Check out our new features.', DATE_ADD(NOW(), INTERVAL 7 DAY), 1);
   ```

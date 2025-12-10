@@ -13,7 +13,7 @@ function get_active_system_alerts($conn) {
   $alerts = [];
   $current_time = date('Y-m-d H:i:s');
   
-  $query = "SELECT id, message, expiry_date, created_at 
+  $query = "SELECT id, title, message, expiry_date, created_at 
             FROM system_alerts 
             WHERE active = 1 
             AND expiry_date > ? 
@@ -55,6 +55,9 @@ function render_system_alerts($alerts) {
       <!-- Single alert -->
       <div class="alert alert-info alert-dismissible fade show" role="alert">
         <i class="bi bi-info-circle me-2"></i>
+        <?php if (!empty($alerts[0]['title'])): ?>
+          <strong><?php echo htmlspecialchars($alerts[0]['title']); ?>:</strong> 
+        <?php endif; ?>
         <?php echo htmlspecialchars($alerts[0]['message']); ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
       </div>
@@ -73,6 +76,9 @@ function render_system_alerts($alerts) {
             <div class="carousel-item <?php echo $index === 0 ? 'active' : ''; ?>">
               <div class="alert alert-info alert-dismissible fade show mb-0" role="alert">
                 <i class="bi bi-info-circle me-2"></i>
+                <?php if (!empty($alert['title'])): ?>
+                  <strong><?php echo htmlspecialchars($alert['title']); ?>:</strong> 
+                <?php endif; ?>
                 <?php echo htmlspecialchars($alert['message']); ?>
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
               </div>
