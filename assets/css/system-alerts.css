@@ -1,0 +1,72 @@
+/* System Alerts Styling */
+.system-alerts-container {
+  position: relative;
+  z-index: 1000;
+  margin-top: 1rem;
+}
+
+.system-alerts-container .alert {
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-size: 0.95rem;
+  padding: 1rem 1.5rem;
+}
+
+.system-alerts-container .alert-info {
+  background-color: #d1ecf1;
+  border-color: #bee5eb;
+  color: #0c5460;
+}
+
+.system-alerts-container .carousel {
+  position: relative;
+}
+
+.system-alerts-container .carousel-control-prev,
+.system-alerts-container .carousel-control-next {
+  width: 5%;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+.system-alerts-container .carousel-control-prev:hover,
+.system-alerts-container .carousel-control-next:hover {
+  opacity: 1;
+}
+
+.system-alerts-container .carousel-control-prev-icon,
+.system-alerts-container .carousel-control-next-icon {
+  filter: invert(1);
+  background-size: 100%, 100%;
+}
+
+.system-alerts-container .carousel-indicators {
+  margin-bottom: -0.5rem;
+  position: relative;
+}
+
+.system-alerts-container .carousel-indicators button {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #0c5460;
+  opacity: 0.5;
+  border: none;
+}
+
+.system-alerts-container .carousel-indicators button.active {
+  opacity: 1;
+}
+
+/* Adjust for smaller screens */
+@media (max-width: 768px) {
+  .system-alerts-container .alert {
+    font-size: 0.875rem;
+    padding: 0.875rem 1rem;
+  }
+  
+  .system-alerts-container .carousel-control-prev,
+  .system-alerts-container .carousel-control-next {
+    width: 8%;
+  }
+}

@@ -2,6 +2,10 @@
 session_start();
 include('../model/config.php');
 include('../model/page_config.php');
+include('../model/system_alerts.php');
+
+// Fetch active system alerts
+$system_alerts = get_active_system_alerts($conn);
 
 if ($_SESSION['nivas_userRole'] == 'student' || $_SESSION['nivas_userRole'] == 'visitor') {
   header('Location: /');
@@ -86,6 +90,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
   <!-- End plugin css for this page -->
   <!-- inject:css -->
   <link rel="stylesheet" href="../assets/css/dashboard/style.css">
+  <link rel="stylesheet" href="../assets/css/system-alerts.css">
   <!-- endinject -->
   <style>
     .manual-faculty-select {
@@ -134,6 +139,12 @@ if (mysqli_num_rows($settlement_query) == 0) {
       <div class="main-panel">
 
         <div class="content-wrapper">
+          <?php 
+          // Display system alerts at the top of the page
+          if (!empty($system_alerts)) {
+            echo render_system_alerts($system_alerts);
+          }
+          ?>
           <div class="row">
             <div class="col-sm-12 px-2">
               <div class="home-tab">
