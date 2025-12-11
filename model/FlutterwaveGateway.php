@@ -90,11 +90,19 @@ class FlutterwaveGateway implements PaymentGateway {
     /**
      * Verify a Flutterwave transaction
      */
-    public function verifyTransaction($reference) {
+    public function verifyTransaction($referenceOrId) {
         $curl = curl_init();
+        $url = '';
+
+        // Flutterwave best practice: verify by transaction_id; fall back to tx_ref search
+        if (is_numeric($referenceOrId)) {
+            $url = 'https://api.flutterwave.com/v3/transactions/' . urlencode($referenceOrId) . '/verify';
+        } else {
+            $url = 'https://api.flutterwave.com/v3/transactions?tx_ref=' . urlencode($referenceOrId);
+        }
         
         curl_setopt_array($curl, array(
-            CURLOPT_URL => 'https://api.flutterwave.com/v3/transactions?tx_ref=' . urlencode($reference),
+            CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -118,7 +126,17 @@ class FlutterwaveGateway implements PaymentGateway {
         }
         
         $data = json_decode($response, true);
-        
+
+        // When verifying by id, response shape is data[status, data => {...}]
+        if (isset($data['status']) && $data['status'] === 'success' &&
+            isset($data['data']['status']) && $data['data']['status'] === 'successful') {
+            return [
+                'status' => true,
+                'data' => $data['data']
+            ];
+        }
+
+        // When searching by tx_ref, response shape is data => [ { ... } ]
         if (isset($data['status']) && $data['status'] === 'success' &&
             isset($data['data'][0]['status']) && $data['data'][0]['status'] === 'successful') {
             return [
