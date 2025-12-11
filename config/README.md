@@ -1,38 +1,74 @@
-# Mail configuration
+# Configuration Files
+
+## Mail configuration
 
 Create a `config/mail.php` file in this directory (it remains ignored by git) and define your SMTP and Brevo credentials as PHP `define` statements. You can copy from `mail.example.php` and update the placeholders. The application automatically loads `config/mail.php` wherever mail functions are used.
 
 ## Payment Gateway Configuration
 
-The system supports multiple payment gateways (Flutterwave, Paystack, and Interswitch). Configuration is managed through a centralized config file:
+The system supports multiple payment gateways (Flutterwave, Paystack, and Interswitch). 
+
+### Important Files
+
+- **`config/fw.php`** (ignored by git) - Contains your credentials and configuration
+- **`config/fw.example.php`** (tracked in git) - Example template for fw.php
+- **`config/payment_gateway.php`** (ignored by git) - Optional multi-gateway config
+- **`config/payment_gateway.example.php`** (tracked in git) - Example for payment_gateway.php
 
 ### Setup Instructions
 
-1. **Create your config file:**
+#### Option 1: Using existing fw.php (Legacy + New System)
+
+If you already have `config/fw.php` with credentials:
+
+1. **Add multi-gateway support to your existing fw.php:**
+   - Your existing defines (`FLW_PUBLIC_KEY`, `PAYSTACK_SECRET_KEY`, `STAGING_GATE`, etc.) should remain
+   - Add the multi-gateway loading code from `fw.example.php` at the end
+   - This allows both old constants and new gateway switching to work together
+
+2. **Create payment_gateway.php for switching:**
+   ```bash
+   cp config/payment_gateway.example.php config/payment_gateway.php
+   ```
+   
+3. **Edit payment_gateway.php:**
+   - Set `'active'` to your desired gateway: `'flutterwave'`, `'paystack'`, or `'interswitch'`
+   - Add credentials for each gateway you want to use
+
+#### Option 2: Fresh Setup
+
+If you're setting up from scratch:
+
+1. **Create fw.php from example:**
+   ```bash
+   cp config/fw.example.php config/fw.php
+   ```
+
+2. **Edit fw.php:**
+   - Add your gateway credentials
+   - Configure STAGING_GATE if needed
+
+3. **Optional - Create payment_gateway.php for easier switching:**
    ```bash
    cp config/payment_gateway.example.php config/payment_gateway.php
    ```
 
-2. **Edit `config/payment_gateway.php`:**
-   - Add your gateway credentials (public keys, secret keys, etc.)
-   - Set the `active` field to your desired gateway: `'flutterwave'`, `'paystack'`, or `'interswitch'`
+### How It Works
 
-3. **Important:** The `config/payment_gateway.php` file is ignored by git for security.
-
-### How it Works
-
-- `config/fw.php` - This is the loader file (tracked in git). It loads credentials from `payment_gateway.php` and defines backward-compatible constants.
-- `config/payment_gateway.example.php` - Example configuration showing the structure (tracked in git).
-- `config/payment_gateway.php` - Your actual config with real credentials (ignored by git).
+- `config/fw.php` loads credentials and defines constants (backward compatible)
+- `config/fw.php` can optionally load `config/payment_gateway.php` for multi-gateway support
+- If `payment_gateway.php` exists, it sets the active gateway
+- If `payment_gateway.php` doesn't exist, system uses Flutterwave with credentials from fw.php
 
 ### Troubleshooting
 
 If checkout is opening the wrong gateway:
 
-1. Verify `config/payment_gateway.php` exists and has the correct `active` value
-2. Check browser console for `console.log('Active Gateway:', ...)` to see what's being detected
-3. Clear browser cache if needed
-4. Ensure `config/fw.php` exists (it should be in the repository)
+1. Check that `config/fw.php` exists
+2. If using multi-gateway, verify `config/payment_gateway.php` exists and has correct `'active'` value
+3. Check browser console for `console.log('Active Gateway:', ...)` 
+4. Clear browser cache if needed
+5. Verify your `fw.php` includes the multi-gateway loading code (see `fw.example.php`)
 
 For detailed setup and testing instructions, see [PAYMENT_GATEWAY_GUIDE.md](../PAYMENT_GATEWAY_GUIDE.md) in the root directory.
 
