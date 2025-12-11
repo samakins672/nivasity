@@ -24,26 +24,40 @@ class PaystackGateway implements PaymentGateway {
     
     /**
      * Calculate transaction charges for Paystack
-     * SPECIAL PRICING: For amounts > ₦2500, add flat ₦100 + 1.5% fee
+     * 
+     * USER PRICING (what we charge):
+     * - Under ₦2500: Charge static ₦100
+     * - ₦2500 and above: Charge ₦20 + gateway fees
+     * 
+     * PAYSTACK GATEWAY FEE (what Paystack charges us):
+     * - Under ₦2500: 1.5% (₦100 fee waived)
+     * - ₦2500 and above: 1.5% + ₦100
      */
     public function calculateCharges($baseAmount) {
         $baseAmount = (float)$baseAmount;
         $charge = 0.0;
+        $gateway_fee = 0.0;
         
         if ($baseAmount <= 0) {
             $charge = 0.0;
-        } elseif ($baseAmount <= self::FLAT_FEE_THRESHOLD) {
-            // For amounts up to ₦2500: use 1.5% fee only
-            $charge = $baseAmount * self::PERCENTAGE_FEE;
+            $gateway_fee = 0.0;
+        } elseif ($baseAmount < self::FLAT_FEE_THRESHOLD) {
+            // For amounts under ₦2500: charge static ₦100 to user
+            $charge = 100.0;
+            // Paystack gateway fee: 1.5% only (₦100 waived for under ₦2500)
+            $total = $baseAmount + $charge;
+            $gateway_fee = round($total * self::PERCENTAGE_FEE, 2);
         } else {
-            // For amounts > ₦2500: 1.5% + flat ₦100 fee (PAYSTACK EXCEPTION)
-            $charge = ($baseAmount * self::PERCENTAGE_FEE) + self::FLAT_FEE_AMOUNT;
+            // For amounts ₦2500 and above: charge ₦20 + gateway fees
+            // Gateway fees = 1.5% + ₦100
+            $gateway_fees = ($baseAmount * self::PERCENTAGE_FEE) + self::FLAT_FEE_AMOUNT;
+            $charge = 20.0 + $gateway_fees;
+            // Paystack gateway fee is the actual 1.5% + ₦100
+            $total = $baseAmount + $charge;
+            $gateway_fee = round(($total * self::PERCENTAGE_FEE) + self::FLAT_FEE_AMOUNT, 2);
         }
         
         $total = $baseAmount + $charge;
-        // Paystack fee is approximately 1.5% + ₦100 (capped at ₦2000)
-        // For simplicity, we'll use 2% of total as gateway fee estimate
-        $gateway_fee = round($total * 0.02, 2);
         $profit = round(max($charge - $gateway_fee, 0), 2);
         
         return [
