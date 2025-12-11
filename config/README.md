@@ -6,12 +6,33 @@ Create a `config/mail.php` file in this directory (it remains ignored by git) an
 
 The system supports multiple payment gateways (Flutterwave, Paystack, and Interswitch). Configuration is managed through a centralized config file:
 
-- Create `config/payment_gateway.php` by copying `config/payment_gateway.php.example`.
-- Update the credentials for each gateway you want to use.
-- Set the `active` field to switch between gateways: `'flutterwave'`, `'paystack'`, or `'interswitch'`.
-- `config/payment_gateway.php` is ignored by git for security.
+### Setup Instructions
 
-The legacy `config/fw.php` file automatically loads credentials from `payment_gateway.php` and defines backward-compatible constants (`FLW_SECRET_KEY`, `PAYSTACK_SECRET_KEY`, etc.).
+1. **Create your config file:**
+   ```bash
+   cp config/payment_gateway.example.php config/payment_gateway.php
+   ```
+
+2. **Edit `config/payment_gateway.php`:**
+   - Add your gateway credentials (public keys, secret keys, etc.)
+   - Set the `active` field to your desired gateway: `'flutterwave'`, `'paystack'`, or `'interswitch'`
+
+3. **Important:** The `config/payment_gateway.php` file is ignored by git for security.
+
+### How it Works
+
+- `config/fw.php` - This is the loader file (tracked in git). It loads credentials from `payment_gateway.php` and defines backward-compatible constants.
+- `config/payment_gateway.example.php` - Example configuration showing the structure (tracked in git).
+- `config/payment_gateway.php` - Your actual config with real credentials (ignored by git).
+
+### Troubleshooting
+
+If checkout is opening the wrong gateway:
+
+1. Verify `config/payment_gateway.php` exists and has the correct `active` value
+2. Check browser console for `console.log('Active Gateway:', ...)` to see what's being detected
+3. Clear browser cache if needed
+4. Ensure `config/fw.php` exists (it should be in the repository)
 
 For detailed setup and testing instructions, see [PAYMENT_GATEWAY_GUIDE.md](../PAYMENT_GATEWAY_GUIDE.md) in the root directory.
 

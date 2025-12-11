@@ -1,6 +1,7 @@
 /config/*
 !/config/README.md
 !/config/*.example.php
+!/config/fw.php
 # .gitignore
 assets/images/events/
 assets/images/users/
