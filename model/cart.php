@@ -1,6 +1,7 @@
 <?php
 session_start();
 include('config.php');
+require_once __DIR__ . '/functions.php';
 
 $user_id = $_SESSION['nivas_userId'];
 $school_id = $_SESSION['nivas_userSch'];
@@ -171,23 +172,12 @@ if (isset($_POST['reload_cart'])) {
     // Handling fee based on existing charge structure
     $transferAmount = $total_cart_price;
     $charge = 0;
-    if ($transferAmount == 0) {
-        $charge = 0;
-    } elseif ($transferAmount < 2500) {
-        // Flat fee for transactions less than ₦2500
-        $charge = 70;
-    } else {
-        // Previous calculation for higher amounts
-        $charge += ($transferAmount * 0.02);
-        if ($transferAmount >= 2500 && $transferAmount < 5000) {
-            $charge += 20;
-        } elseif ($transferAmount >= 5000 && $transferAmount < 10000) {
-            $charge += 30;
-        } else {
-            $charge += 50;
-        }
+    if ($transferAmount > 0) {
+        // Use active gateway pricing (Paystack/Flutterwave/Interswitch) for accuracy
+        $gatewayCharges = calculateGatewayCharges($transferAmount);
+        $charge = $gatewayCharges['charge'] ?? 0;
+        $transferAmount = $gatewayCharges['total_amount'] ?? ($transferAmount + $charge);
     }
-    $transferAmount += $charge;
 
     // Build pending payments accordion HTML grouped by ref_id
     $pendingHtml = '';
