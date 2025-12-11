@@ -130,7 +130,11 @@ function buildReceiptHtmlFromRef($conn, $user_id, $tx_ref, $filterType = null, $
     } elseif ($total_amount <= 0) {
         $base = 0.0;
         foreach ($items as $it) { $base += (float)$it['price']; }
-        if (function_exists('calculateFlutterwaveSettlement')) {
+        // Use active gateway pricing; fallback to Flutterwave calculation only if needed
+        if (function_exists('calculateGatewayCharges')) {
+            $calc = calculateGatewayCharges($base);
+            $total_amount = $calc['total_amount'] ?? $base;
+        } elseif (function_exists('calculateFlutterwaveSettlement')) {
             $calc = calculateFlutterwaveSettlement($base);
             $total_amount = $calc['total_amount'];
         } else {
@@ -196,6 +200,7 @@ function sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $tot
 /**
  * Calculate Flutterwave charge, total and profit given a base amount.
  * Mirrors logic used in handle-fw-payment.php to keep results consistent.
+ * Updated to use 2.15% percentage fee
  */
 function calculateFlutterwaveSettlement($baseAmount) {
     $baseAmount = (float)$baseAmount;
@@ -206,8 +211,8 @@ function calculateFlutterwaveSettlement($baseAmount) {
         // Flat fee for transactions less than 2,500
         $charge = 70.0;
     } else {
-        // Percentage + tiered additions
-        $charge += ($baseAmount * 0.02);
+        // Percentage + tiered additions (2.15% instead of 2%)
+        $charge += ($baseAmount * 0.0215);
         if ($baseAmount >= 2500 && $baseAmount < 5000) {
             $charge += 20.0;
         } elseif ($baseAmount >= 5000 && $baseAmount < 10000) {
@@ -218,8 +223,11 @@ function calculateFlutterwaveSettlement($baseAmount) {
     }
 
     $total = $baseAmount + $charge;
-    $flutterwave_fee = round($total * 0.02, 2);
-    $profit = round(max($charge - $flutterwave_fee, 0), 2);
+    // Round to whole numbers for consistency
+    $charge = round($charge);
+    $total = round($total);
+    $flutterwave_fee = round($total * 0.0215);
+    $profit = round(max($charge - $flutterwave_fee, 0));
 
     return [
         'total_amount' => $total,
@@ -227,6 +235,83 @@ function calculateFlutterwaveSettlement($baseAmount) {
         'profit' => $profit,
         'flutterwave_fee' => $flutterwave_fee,
     ];
+}
+
+/**
+ * Calculate charges using the active payment gateway
+ * This function uses the gateway abstraction to apply the correct pricing logic
+ */
+function calculateGatewayCharges($baseAmount, $gatewayName = null) {
+    require_once __DIR__ . '/PaymentGatewayFactory.php';
+    
+    try {
+        if ($gatewayName === null) {
+            $gateway = PaymentGatewayFactory::getActiveGateway();
+        } else {
+            $gateway = PaymentGatewayFactory::getGateway($gatewayName);
+        }
+        
+        $result = $gateway->calculateCharges($baseAmount);
+        // Normalize rounding to whole numbers for consistency
+        $result['charge'] = round($result['charge'] ?? 0);
+        $result['total_amount'] = round($result['total_amount'] ?? ($baseAmount + ($result['charge'] ?? 0)));
+        $result['profit'] = round($result['profit'] ?? max(($result['charge'] ?? 0) - ($result['gateway_fee'] ?? 0), 0));
+        if (isset($result['gateway_fee'])) {
+            $result['gateway_fee'] = round($result['gateway_fee']);
+        }
+        if (isset($result['flutterwave_fee'])) {
+            $result['flutterwave_fee'] = round($result['flutterwave_fee']);
+        }
+        return $result;
+    } catch (Exception $e) {
+        // Fallback to Flutterwave calculation if gateway factory fails
+        return calculateFlutterwaveSettlement($baseAmount);
+    }
+}
+
+/**
+ * Get settlement account subaccount code for the active gateway
+ * 
+ * @param mysqli $conn Database connection
+ * @param int $userId User ID
+ * @param int $schoolId School ID (optional, for school-level accounts)
+ * @param string $gatewayName Gateway name (optional, defaults to active gateway)
+ * @return string|null Subaccount code or null if not found
+ */
+function getSettlementSubaccount($conn, $userId, $schoolId = null, $gatewayName = null) {
+    require_once __DIR__ . '/PaymentGatewayFactory.php';
+    
+    if ($gatewayName === null) {
+        $gatewayName = PaymentGatewayFactory::getActiveGatewayName();
+    }
+    
+    $gatewayName = mysqli_real_escape_string($conn, $gatewayName);
+    
+    // Try school account first if school_id is provided
+    if ($schoolId !== null) {
+        $schoolId = (int)$schoolId;
+        $query = "SELECT subaccount_code FROM settlement_accounts 
+                  WHERE school_id = $schoolId AND type = 'school' AND gateway = '$gatewayName' 
+                  ORDER BY id DESC LIMIT 1";
+        $result = mysqli_query($conn, $query);
+        
+        if ($result && mysqli_num_rows($result) > 0) {
+            return mysqli_fetch_array($result)['subaccount_code'];
+        }
+    }
+    
+    // Fallback to user account
+    $userId = (int)$userId;
+    $query = "SELECT subaccount_code FROM settlement_accounts 
+              WHERE user_id = $userId AND gateway = '$gatewayName' 
+              ORDER BY id DESC LIMIT 1";
+    $result = mysqli_query($conn, $query);
+    
+    if ($result && mysqli_num_rows($result) > 0) {
+        return mysqli_fetch_array($result)['subaccount_code'];
+    }
+    
+    return null;
 }
 
 ?>

@@ -14,6 +14,7 @@ if ($data === null) {
 $ref_id = $data['ref_id'];
 $user_id = $data['user_id'];
 $items = $data['items'];
+$gateway = isset($data['gateway']) ? mysqli_real_escape_string($conn, strtoupper($data['gateway'])) : 'FLUTTERWAVE';
 
 // Validate if user_id exists in the users table
 $query = "SELECT id FROM users WHERE id = $user_id";
@@ -24,13 +25,14 @@ if (mysqli_num_rows($result) === 0) {
 }
 
 // Prepare the query to insert data into the cart table
-$query = "INSERT INTO cart (ref_id, user_id, item_id, type, status) VALUES ";
+$query = "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway) VALUES ";
 $values = [];
 
 foreach ($items as $item) {
     $item_id = intval($item['item_id']); // Sanitize item_id as an integer
     $type = mysqli_real_escape_string($conn, $item['type']); // Escape the type
-    $values[] = "('$ref_id', $user_id, $item_id, '$type', 'pending')";
+    $gateway_value = $gateway ? "'$gateway'" : "NULL";
+    $values[] = "('$ref_id', $user_id, $item_id, '$type', 'pending', $gateway_value)";
 }
 
 $query .= implode(", ", $values);

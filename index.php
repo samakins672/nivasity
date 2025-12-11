@@ -677,7 +677,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         btn.prop('disabled', true);
         $.ajax({
           type: 'POST',
-          url: 'model/verify-pending-fw.php',
+          url: 'model/verify-pending-payment.php',
           dataType: 'json',
           data: { ref_id: ref, action: 'cancel' },
           success: function (res) {
@@ -707,7 +707,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         btn.prop('disabled', true).text('Checking...');
         $.ajax({
           type: 'POST',
-          url: 'model/verify-pending-fw.php',
+          url: 'model/verify-pending-payment.php',
           dataType: 'json',
           data: { ref_id: ref, action: 'verify' },
           success: function (res) {
@@ -795,73 +795,150 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
         console.log('Subaccounts:', subaccounts);
 
-        $.ajax({
-          url: 'model/saveCart.php',
-          type: 'POST',
-          contentType: 'application/json',
-          data: JSON.stringify({
-            ref_id: myUniqueID,
-            user_id: "<?php echo $user_id; ?>",
-            items: parsedSessionData.map(item => ({
-              item_id: item.product_id,
-              type: item.type
-            }))
-          }),
-          success: function(response) {
-            if (response.success) {
-              console.log("Cart saved:", response.message);
-            } else {
-              console.error("Error saving cart:", response.message);
-            }
-          }
-        });
-
-        // Now make the Flutterwave API call
+        // Get payment gateway keys first to determine active gateway
         $.ajax({
           url: 'model/getKey.php',
           type: 'POST',
           data: { getKey: 'get-Key'},
           success: function (data) {
+            var activeGateway = data.active_gateway || 'flutterwave';
             var flw_pk = data.flw_pk;
+            var ps_pk = data.paystack_pk;
+            
+            console.log('Active Gateway:', activeGateway);
 
-            // Call FlutterwaveCheckout with the retrieved flw_pk and dynamically generated subaccounts
-            FlutterwaveCheckout({
-              public_key: flw_pk,
-              tx_ref: myUniqueID,
-              amount: transfer_amount,
-              currency: "NGN",
-              subaccounts: subaccounts,
-              payment_options: "card, banktransfer, ussd",
-              // redirect_url: "https://funaab.nivasity.com/model/handle-fw-payment.php",
-              callback: function(payment) {
-                console.log(payment);
-                // Send AJAX verification request to backend
-                verifyTransactionOnBackend(payment.transaction_id, payment.tx_ref);
-              },
-              onclose: function(status) {
-                if (!status) {
-                  console.log(status);
-
-                  // Show the modal with jQuery
-                  $('#verifyTransaction').modal({
-                    backdrop: 'static',
-                    keyboard: false
-                  }).modal('show');
-                  
-                  $('.spinner-grow').hide();
-                  
-                  // Show each spinner with a delay for a staggered effect
-                  setTimeout(function() { $('.spinner-1').show(); }, 100);
-                  setTimeout(function() { $('.spinner-2').show(); }, 300);
-                  setTimeout(function() { $('.spinner-3').show(); }, 600);
+            // Now save cart with gateway information
+            $.ajax({
+              url: 'model/saveCart.php',
+              type: 'POST',
+              contentType: 'application/json',
+              data: JSON.stringify({
+                ref_id: myUniqueID,
+                user_id: "<?php echo $user_id; ?>",
+                gateway: activeGateway,
+                items: parsedSessionData.map(item => ({
+                  item_id: item.product_id,
+                  type: item.type
+                }))
+              }),
+              success: function(response) {
+                if (response.success) {
+                  console.log("Cart saved with gateway:", activeGateway, response.message);
+                } else {
+                  console.error("Error saving cart:", response.message);
                 }
-              },
-              customer: {
-                  email: email,
-                  phone_number: phone,
-                  name: u_name,
-              },
+              }
             });
+            
+            // Route to the appropriate payment gateway
+            if (activeGateway === 'flutterwave') {
+              // Call FlutterwaveCheckout with the retrieved flw_pk and dynamically generated subaccounts
+              FlutterwaveCheckout({
+                public_key: flw_pk,
+                tx_ref: myUniqueID,
+                amount: transfer_amount,
+                currency: "NGN",
+                subaccounts: subaccounts,
+                payment_options: "card, banktransfer, ussd",
+                // redirect_url: "https://funaab.nivasity.com/model/handle-fw-payment.php",
+                callback: function(payment) {
+                  console.log(payment);
+                  // Send AJAX verification request to backend
+                  verifyTransactionOnBackend(payment.transaction_id, payment.tx_ref);
+                },
+                onclose: function(status) {
+                  if (!status) {
+                    console.log(status);
+
+                    // Show the modal with jQuery
+                    $('#verifyTransaction').modal({
+                      backdrop: 'static',
+                      keyboard: false
+                    }).modal('show');
+                    
+                    $('.spinner-grow').hide();
+                    
+                    // Show each spinner with a delay for a staggered effect
+                    setTimeout(function() { $('.spinner-1').show(); }, 100);
+                    setTimeout(function() { $('.spinner-2').show(); }, 300);
+                    setTimeout(function() { $('.spinner-3').show(); }, 600);
+                  }
+                },
+                customer: {
+                    email: email,
+                    phone_number: phone,
+                    name: u_name,
+                },
+              });
+            } else if (activeGateway === 'paystack') {
+              // Prepare Paystack split: request flat split_code before inline launch
+              const amountKobo = Math.round(transfer_amount * 100);
+              const sellerPayload = [];
+              for (const seller in sellerTotals) {
+                sellerPayload.push({ id: seller, total: sellerTotals[seller] });
+              }
+
+              function launchPaystack(splitCode) {
+                var options = {
+                  key: ps_pk,
+                  email: email,
+                  amount: amountKobo,
+                  ref: myUniqueID,
+                  callback: function(response) {
+                    console.log(response);
+                    verifyTransactionOnBackend(null, response.reference);
+                  },
+                  onClose: function() {
+                    console.log('Payment window closed');
+                    $('#verifyTransaction').modal({
+                      backdrop: 'static',
+                      keyboard: false
+                    }).modal('show');
+                  }
+                };
+                if (splitCode) {
+                  options.split_code = splitCode;
+                } else if (subaccounts.length > 0) {
+                  // Fallback to single subaccount if split creation fails
+                  options.subaccount = subaccounts[0].id;
+                }
+                var handler = PaystackPop.setup(options);
+                handler.openIframe();
+              }
+
+              $.ajax({
+                url: 'model/create-ps-split.php',
+                type: 'POST',
+                contentType: 'application/json',
+                dataType: 'json',
+                data: JSON.stringify({
+                  sellers: sellerPayload,
+                  amount_kobo: amountKobo,
+                  bearer_type: 'account'
+                }),
+                success: function(res) {
+                  if (res && res.status === 'success' && res.split_code) {
+                    launchPaystack(res.split_code);
+                  } else {
+                    console.warn('Split creation failed, falling back to single subaccount', res);
+                    launchPaystack(null);
+                  }
+                },
+                error: function(err) {
+                  console.error('Split creation error', err);
+                  launchPaystack(null);
+                }
+              });
+            } else if (activeGateway === 'interswitch') {
+              // Interswitch payment flow
+              // Note: Interswitch typically requires server-side initialization and redirect
+              console.log('Interswitch payment - server-side initialization required');
+              
+              // Save cart and redirect to Interswitch initialization endpoint
+              window.location.href = 'model/handle-isw-init.php?ref=' + myUniqueID + '&amount=' + transfer_amount;
+            } else {
+              alert('Unknown payment gateway: ' + activeGateway);
+            }
           }
         });
       });
@@ -906,10 +983,19 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       });
 
       function verifyTransactionOnBackend(transaction_id, tx_ref) {
+        // Use unified payment handler for all gateways
+        var params = { tx_ref: tx_ref, callback: 1 };
+        if (transaction_id) {
+          params.transaction_id = transaction_id;
+        } else {
+          // For Paystack, use reference parameter
+          params.reference = tx_ref;
+        }
+        
         $.ajax({
-          url: 'model/handle-fw-payment.php',
+          url: 'model/handle-payment.php',
           type: 'GET',
-          data: { tx_ref: tx_ref, transaction_id: transaction_id, callback: 1},
+          data: params,
           success: function (response) {
             if (response.status === 'success') {
               location.reload();
@@ -917,7 +1003,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           },
           error: function () {
             // Handle error
-            console.error('Error checking out!');
+            console.error('Error verifying payment!');
           }
         });
       }
