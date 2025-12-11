@@ -892,11 +892,14 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
               });
               handler.openIframe();
             } else if (activeGateway === 'interswitch') {
-              // Interswitch requires server-side initialization
-              alert('Interswitch payment initialization - redirecting to payment page...');
-              // TODO: Implement Interswitch payment flow
-              // This typically involves redirecting to Interswitch payment page
-              window.location.href = 'model/handle-payment.php?init=1&ref=' + myUniqueID;
+              // Interswitch payment flow
+              // Note: Interswitch typically requires server-side initialization and redirect
+              console.log('Interswitch payment - server-side initialization required');
+              
+              // Save cart and redirect to Interswitch initialization endpoint
+              window.location.href = 'model/handle-isw-init.php?ref=' + myUniqueID + '&amount=' + transfer_amount;
+            } else {
+              alert('Unknown payment gateway: ' + activeGateway);
             }
           }
         });

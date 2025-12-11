@@ -130,8 +130,9 @@ foreach ($cart_items as $item) {
     }
 }
 
-// Calculate charges using Interswitch-specific logic (uses standard pricing)
-$calc = calculateGatewayCharges($total_amount, 'interswitch');
+// Calculate charges using gateway-specific logic (Interswitch uses standard pricing)
+$gatewayName = $gateway->getGatewayName();
+$calc = calculateGatewayCharges($total_amount, $gatewayName);
 $charge = $calc['charge'];
 $profit = $calc['profit'];
 $total_amount = $calc['total_amount'];

@@ -9,6 +9,11 @@
 require_once __DIR__ . '/PaymentGateway.php';
 
 class PaystackGateway implements PaymentGateway {
+    // Paystack special pricing: Flat fee for amounts > ₦2500
+    const FLAT_FEE_THRESHOLD = 2500.0;
+    const FLAT_FEE_AMOUNT = 100.0;
+    const PERCENTAGE_FEE = 0.015; // 1.5%
+    
     private $publicKey;
     private $secretKey;
     
@@ -27,12 +32,12 @@ class PaystackGateway implements PaymentGateway {
         
         if ($baseAmount <= 0) {
             $charge = 0.0;
-        } elseif ($baseAmount <= 2500) {
+        } elseif ($baseAmount <= self::FLAT_FEE_THRESHOLD) {
             // For amounts up to ₦2500: use 1.5% fee only
-            $charge = $baseAmount * 0.015;
+            $charge = $baseAmount * self::PERCENTAGE_FEE;
         } else {
             // For amounts > ₦2500: 1.5% + flat ₦100 fee (PAYSTACK EXCEPTION)
-            $charge = ($baseAmount * 0.015) + 100.0;
+            $charge = ($baseAmount * self::PERCENTAGE_FEE) + self::FLAT_FEE_AMOUNT;
         }
         
         $total = $baseAmount + $charge;

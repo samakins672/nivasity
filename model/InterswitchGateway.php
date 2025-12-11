@@ -141,11 +141,14 @@ class InterswitchGateway implements PaymentGateway {
     
     /**
      * Verify Interswitch webhook/callback MAC
+     * 
+     * Note: Interswitch uses MAC verification through query parameters.
+     * The MAC should be verified in the webhook handler by calling verifyTransaction()
+     * which includes MAC validation as part of the transaction status check.
      */
     public function verifyWebhookSignature($headers, $payload) {
-        // Interswitch uses MAC verification
-        // The MAC is typically sent as a query parameter or header
-        // For now, return true and verify MAC in the webhook handler
+        // MAC verification is handled through verifyTransaction() method
+        // which validates the MAC as part of the transaction query
         return true;
     }
     

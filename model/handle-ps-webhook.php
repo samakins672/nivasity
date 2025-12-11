@@ -150,7 +150,8 @@ foreach ($cartItems as $refId) {
     }
     
     // Calculate charges using Paystack-specific logic (with ₦100 exception for > ₦2500)
-    $calc = calculateGatewayCharges($total_amount, 'paystack');
+    $gatewayName = $gateway->getGatewayName();
+    $calc = calculateGatewayCharges($total_amount, $gatewayName);
     $charge = $calc['charge'];
     $profit = $calc['profit'];
     $total_amount = $calc['total_amount'];
