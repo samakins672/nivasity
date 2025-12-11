@@ -16,10 +16,13 @@ class PaystackGateway implements PaymentGateway {
     
     private $publicKey;
     private $secretKey;
+    private $logFile;
     
     public function __construct($config) {
         $this->publicKey = $config['public_key'] ?? '';
         $this->secretKey = $config['secret_key'] ?? '';
+        // Centralized error log path
+        $this->logFile = __DIR__ . '/../error.log';
     }
     
     /**
@@ -115,6 +118,7 @@ class PaystackGateway implements PaymentGateway {
         curl_close($curl);
         
         if ($error) {
+            $this->logError("InitializePayment cURL error: {$error}");
             return ['status' => false, 'message' => 'Connection error: ' . $error];
         }
         
@@ -148,6 +152,7 @@ class PaystackGateway implements PaymentGateway {
         curl_close($curl);
         
         if ($error) {
+            $this->logError("VerifyTransaction cURL error for ref {$reference}: {$error}");
             return ['status' => false, 'message' => 'Connection error: ' . $error];
         }
         
@@ -160,6 +165,8 @@ class PaystackGateway implements PaymentGateway {
                 'data' => $data['data']
             ];
         }
+        
+        $this->logError("VerifyTransaction failed for ref {$reference}: " . $response);
         
         return ['status' => false, 'message' => 'Transaction verification failed'];
     }
@@ -190,5 +197,10 @@ class PaystackGateway implements PaymentGateway {
     
     public function getPublicKey() {
         return $this->publicKey;
+    }
+
+    private function logError($message) {
+        $line = '[' . date('Y-m-d H:i:s') . '] [PAYSTACK] ' . $message . PHP_EOL;
+        @file_put_contents($this->logFile, $line, FILE_APPEND);
     }
 }

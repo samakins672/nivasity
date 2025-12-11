@@ -12,11 +12,13 @@ class FlutterwaveGateway implements PaymentGateway {
     private $publicKey;
     private $secretKey;
     private $verifHash;
+    private $logFile;
     
     public function __construct($config) {
         $this->publicKey = $config['public_key'] ?? '';
         $this->secretKey = $config['secret_key'] ?? '';
         $this->verifHash = $config['verif_hash'] ?? '';
+        $this->logFile = __DIR__ . '/../error.log';
     }
     
     /**
@@ -111,18 +113,21 @@ class FlutterwaveGateway implements PaymentGateway {
         curl_close($curl);
         
         if ($error) {
+            $this->logError("VerifyTransaction cURL error for {$referenceOrId}: {$error}");
             return ['status' => false, 'message' => 'Connection error: ' . $error];
         }
         
         $data = json_decode($response, true);
         
-        if (isset($data['status']) && $data['status'] === 'success' && 
+        if (isset($data['status']) && $data['status'] === 'success' &&
             isset($data['data'][0]['status']) && $data['data'][0]['status'] === 'successful') {
             return [
                 'status' => true,
                 'data' => $data['data'][0]
             ];
         }
+
+        $this->logError("VerifyTransaction failed for {$referenceOrId}: " . $response);
         
         return ['status' => false, 'message' => 'Transaction verification failed'];
     }
@@ -154,5 +159,10 @@ class FlutterwaveGateway implements PaymentGateway {
     
     public function getPublicKey() {
         return $this->publicKey;
+    }
+
+    private function logError($message) {
+        $line = '[' . date('Y-m-d H:i:s') . '] [FLUTTERWAVE] ' . $message . PHP_EOL;
+        @file_put_contents($this->logFile, $line, FILE_APPEND);
     }
 }

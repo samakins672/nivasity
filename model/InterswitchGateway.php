@@ -13,6 +13,7 @@ class InterswitchGateway implements PaymentGateway {
     private $macKey;
     private $apiKey;
     private $quicktellerConfig;
+    private $logFile;
     
     public function __construct($config) {
         $this->merchantCode = $config['merchant_code'] ?? '';
@@ -20,6 +21,7 @@ class InterswitchGateway implements PaymentGateway {
         $this->macKey = $config['mac_key'] ?? '';
         $this->apiKey = $config['api_key'] ?? '';
         $this->quicktellerConfig = $config['quickteller'] ?? [];
+        $this->logFile = __DIR__ . '/../error.log';
     }
     
     /**
@@ -127,6 +129,7 @@ class InterswitchGateway implements PaymentGateway {
         curl_close($curl);
         
         if ($error) {
+            $this->logError("VerifyTransaction cURL error for ref {$reference}: {$error}");
             return ['status' => false, 'message' => 'Connection error: ' . $error];
         }
         
@@ -139,6 +142,8 @@ class InterswitchGateway implements PaymentGateway {
                 'data' => $data
             ];
         }
+        
+        $this->logError("VerifyTransaction failed for ref {$reference}: " . $response);
         
         return ['status' => false, 'message' => 'Transaction verification failed', 'data' => $data];
     }
@@ -179,5 +184,10 @@ class InterswitchGateway implements PaymentGateway {
     public function getPublicKey() {
         // Interswitch uses merchant code instead of public key
         return $this->merchantCode;
+    }
+
+    private function logError($message) {
+        $line = '[' . date('Y-m-d H:i:s') . '] [INTERSWITCH] ' . $message . PHP_EOL;
+        @file_put_contents($this->logFile, $line, FILE_APPEND);
     }
 }
