@@ -48,9 +48,12 @@ class InterswitchGateway implements PaymentGateway {
         }
         
         $total = $baseAmount + $charge;
+        // Round to whole numbers for consistency
+        $charge = round($charge);
+        $total = round($total);
         // Profit uses 1.65% deduction instead of 2%
-        $gateway_fee = round($total * 0.0165, 2);
-        $profit = round(max($charge - $gateway_fee, 0), 2);
+        $gateway_fee = round($total * 0.0165);
+        $profit = round(max($charge - $gateway_fee, 0));
         
         return [
             'total_amount' => $total,

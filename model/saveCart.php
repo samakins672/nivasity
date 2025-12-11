@@ -14,7 +14,7 @@ if ($data === null) {
 $ref_id = $data['ref_id'];
 $user_id = $data['user_id'];
 $items = $data['items'];
-$gateway = isset($data['gateway']) ? mysqli_real_escape_string($conn, $data['gateway']) : null;
+$gateway = isset($data['gateway']) ? mysqli_real_escape_string($conn, strtoupper($data['gateway'])) : 'FLUTTERWAVE';
 
 // Validate if user_id exists in the users table
 $query = "SELECT id FROM users WHERE id = $user_id";

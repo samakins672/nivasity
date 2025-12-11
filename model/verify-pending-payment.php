@@ -83,13 +83,24 @@ if ($dupe) {
     exit;
 }
 
-// Get the active gateway
+// Fetch cart rows for this ref and user to get gateway information
+$cart_query = mysqli_query($conn, "SELECT * FROM cart WHERE ref_id = '$ref_id_esc' AND user_id = $user_id");
+if (!$cart_query || mysqli_num_rows($cart_query) < 1) {
+    echo json_encode(['status' => 'error', 'message' => 'Cart data not found for reference']);
+    exit;
+}
+
+// Get gateway from cart (all items should have same gateway for same ref_id)
+$first_row = mysqli_fetch_assoc($cart_query);
+$cart_gateway = $first_row['gateway'] ?? 'FLUTTERWAVE';
+mysqli_data_seek($cart_query, 0); // Reset pointer to beginning
+
+// Resolve gateway instance from cart gateway
+$gateway = null;
+$activeGatewayName = strtolower($cart_gateway);
 try {
-    $activeGatewayName = PaymentGatewayFactory::getActiveGatewayName();
-    $gateway = PaymentGatewayFactory::getActiveGateway();
+    $gateway = PaymentGatewayFactory::getGateway($activeGatewayName);
 } catch (Exception $e) {
-    // Fallback to Flutterwave if gateway factory fails
-    $activeGatewayName = 'flutterwave';
     $gateway = null;
 }
 
@@ -97,27 +108,21 @@ try {
 $verificationResult = null;
 
 if ($activeGatewayName === 'paystack') {
-    // Verify with Paystack
     if ($gateway) {
         $verificationResult = $gateway->verifyTransaction($ref_id);
     }
-    
     if (!$verificationResult || !isset($verificationResult['status']) || $verificationResult['status'] !== true) {
         echo json_encode(['status' => 'pending', 'message' => 'No successful payment found for ref']);
         exit;
     }
-    
 } elseif ($activeGatewayName === 'interswitch') {
-    // Verify with Interswitch
     if ($gateway) {
         $verificationResult = $gateway->verifyTransaction($ref_id);
     }
-    
     if (!$verificationResult || !isset($verificationResult['status']) || $verificationResult['status'] !== true) {
         echo json_encode(['status' => 'pending', 'message' => 'No successful payment found for ref']);
         exit;
     }
-    
 } else {
     // Default: Verify with Flutterwave
     if ($gateway) {
@@ -149,18 +154,6 @@ if ($activeGatewayName === 'paystack') {
         exit;
     }
 }
-
-// Fetch cart rows for this ref and user to get gateway information
-$cart_query = mysqli_query($conn, "SELECT * FROM cart WHERE ref_id = '$ref_id_esc' AND user_id = $user_id");
-if (!$cart_query || mysqli_num_rows($cart_query) < 1) {
-    echo json_encode(['status' => 'error', 'message' => 'Cart data not found for reference']);
-    exit;
-}
-
-// Get gateway from cart (all items should have same gateway for same ref_id)
-$first_row = mysqli_fetch_assoc($cart_query);
-$cart_gateway = $first_row['gateway'] ?? $activeGatewayName;
-mysqli_data_seek($cart_query, 0); // Reset pointer to beginning
 
 $manual_ids = [];
 $event_ids = [];
@@ -219,21 +212,14 @@ while ($row = mysqli_fetch_assoc($cart_query)) {
     }
 }
 
-// Calculate charges using gateway-specific pricing
-$calc = null;
-if ($gateway) {
-    $calc = $gateway->calculateCharges($sum_amount);
-} else {
-    // Fallback to Flutterwave calculation
-    $calc = calculateFlutterwaveSettlement($sum_amount);
-}
-
-$total_amount = (float)$calc['total_amount'];
-$charge = (float)$calc['charge'];
-$profit = (float)$calc['profit'];
+// Calculate charges using gateway-specific pricing (rounded to whole numbers)
+$calc = calculateGatewayCharges($sum_amount, strtolower($cart_gateway));
+$total_amount = round((float)$calc['total_amount']);
+$charge = round((float)$calc['charge']);
+$profit = round((float)$calc['profit']);
 
 // Record transaction with gateway/medium information
-$medium = mysqli_real_escape_string($conn, $cart_gateway);
+$medium = mysqli_real_escape_string($conn, strtoupper($cart_gateway));
 mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status, medium) VALUES ('$ref_id_esc', $user_id, $total_amount, $charge, $profit, '$status', '$medium')");
 
 // Send congratulatory email

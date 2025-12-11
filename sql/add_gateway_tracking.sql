@@ -1,9 +1,9 @@
 -- Add gateway tracking to cart and transactions tables
 -- This allows the system to track which payment gateway was used for each transaction
 
--- Add gateway column to cart table
+-- Add gateway column to cart table (default FLUTTERWAVE for legacy rows)
 ALTER TABLE `cart` 
-ADD COLUMN `gateway` VARCHAR(20) NULL DEFAULT NULL AFTER `status`,
+ADD COLUMN `gateway` VARCHAR(20) NULL DEFAULT 'FLUTTERWAVE' AFTER `status`,
 ADD INDEX `idx_gateway` (`gateway`);
 
 -- Ensure medium column exists in transactions table (for gateway tracking)
@@ -28,8 +28,13 @@ MODIFY COLUMN `gateway` VARCHAR(20) NULL DEFAULT NULL COMMENT 'Payment gateway u
 
 -- Update existing transactions without medium to have a default value
 UPDATE `transactions` 
-SET `medium` = 'flutterwave' 
+SET `medium` = 'FLUTTERWAVE' 
 WHERE `medium` IS NULL OR `medium` = '';
+
+-- Backfill cart gateway defaults to FLUTTERWAVE
+UPDATE `cart`
+SET `gateway` = 'FLUTTERWAVE'
+WHERE `gateway` IS NULL OR `gateway` = '';
 
 -- Add index for faster queries
 ALTER TABLE `transactions` 

@@ -46,8 +46,11 @@ class FlutterwaveGateway implements PaymentGateway {
         }
         
         $total = $baseAmount + $charge;
-        $gateway_fee = round($total * 0.0215, 2);
-        $profit = round(max($charge - $gateway_fee, 0), 2);
+        // Round to whole numbers for consistency
+        $charge = round($charge);
+        $total = round($total);
+        $gateway_fee = round($total * 0.0215);
+        $profit = round(max($charge - $gateway_fee, 0));
         
         return [
             'total_amount' => $total,

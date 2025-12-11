@@ -57,8 +57,11 @@ class PaystackGateway implements PaymentGateway {
             $gateway_fee = round(($total * self::PERCENTAGE_FEE) + self::FLAT_FEE_AMOUNT, 2);
         }
         
-        $total = $baseAmount + $charge;
-        $profit = round(max($charge - $gateway_fee, 0), 2);
+        // Round to whole numbers for consistency
+        $charge = round($charge);
+        $total = round($baseAmount + $charge);
+        $gateway_fee = round($gateway_fee);
+        $profit = round(max($charge - $gateway_fee, 0));
         
         return [
             'total_amount' => $total,

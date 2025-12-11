@@ -223,8 +223,11 @@ function calculateFlutterwaveSettlement($baseAmount) {
     }
 
     $total = $baseAmount + $charge;
-    $flutterwave_fee = round($total * 0.0215, 2);
-    $profit = round(max($charge - $flutterwave_fee, 0), 2);
+    // Round to whole numbers for consistency
+    $charge = round($charge);
+    $total = round($total);
+    $flutterwave_fee = round($total * 0.0215);
+    $profit = round(max($charge - $flutterwave_fee, 0));
 
     return [
         'total_amount' => $total,
@@ -248,7 +251,18 @@ function calculateGatewayCharges($baseAmount, $gatewayName = null) {
             $gateway = PaymentGatewayFactory::getGateway($gatewayName);
         }
         
-        return $gateway->calculateCharges($baseAmount);
+        $result = $gateway->calculateCharges($baseAmount);
+        // Normalize rounding to whole numbers for consistency
+        $result['charge'] = round($result['charge'] ?? 0);
+        $result['total_amount'] = round($result['total_amount'] ?? ($baseAmount + ($result['charge'] ?? 0)));
+        $result['profit'] = round($result['profit'] ?? max(($result['charge'] ?? 0) - ($result['gateway_fee'] ?? 0), 0));
+        if (isset($result['gateway_fee'])) {
+            $result['gateway_fee'] = round($result['gateway_fee']);
+        }
+        if (isset($result['flutterwave_fee'])) {
+            $result['flutterwave_fee'] = round($result['flutterwave_fee']);
+        }
+        return $result;
     } catch (Exception $e) {
         // Fallback to Flutterwave calculation if gateway factory fails
         return calculateFlutterwaveSettlement($baseAmount);

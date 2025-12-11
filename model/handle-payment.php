@@ -16,34 +16,57 @@ include('functions.php');
 $statusRes = "success";
 $messageRes = "Payment processed successfully!";
 
-// Get the active gateway
-try {
-    $gateway = PaymentGatewayFactory::getActiveGateway();
-    $gatewayName = $gateway->getGatewayName();
-} catch (Exception $e) {
-    $statusRes = "error";
-    $messageRes = "Payment gateway configuration error: " . $e->getMessage();
-    header('Content-Type: application/json');
-    echo json_encode(['status' => $statusRes, 'message' => $messageRes]);
-    exit;
-}
-
 $user_id = $_SESSION['nivas_userId'];
 $school_id = $_SESSION['nivas_userSch'];
 $cart_ = $_SESSION["nivas_cart$user_id"];
 $cart_2 = $_SESSION["nivas_cart_event$user_id"]; // Cart for events
 
 // Handle payment verification (callback from gateway)
-if (isset($_GET['transaction_id']) || isset($_GET['reference'])) {
+if (isset($_GET['transaction_id']) || isset($_GET['reference']) || isset($_GET['tx_ref'])) {
     $tx_ref = $_GET['tx_ref'] ?? $_GET['reference'] ?? '';
     
     if (empty($tx_ref)) {
         header('Location: /?payment=unsuccessful');
         exit;
     }
+
+    // Resolve gateway/medium from cart entry (default to FLUTTERWAVE)
+    $cart_gateway_raw = 'FLUTTERWAVE';
+    $tx_ref_esc = mysqli_real_escape_string($conn, $tx_ref);
+    $cart_gateway_q = mysqli_query($conn, "SELECT gateway FROM cart WHERE ref_id = '$tx_ref_esc' LIMIT 1");
+    if ($cart_gateway_q && mysqli_num_rows($cart_gateway_q) > 0) {
+        $cg_row = mysqli_fetch_assoc($cart_gateway_q);
+        if (!empty($cg_row['gateway'])) {
+            $cart_gateway_raw = $cg_row['gateway'];
+        }
+    }
+    $resolvedGatewaySlug = strtolower($cart_gateway_raw);
+
+    // Get gateway instance based on cart gateway (fallback to active)
+    $gateway = null;
+    $gatewayName = null;
+    try {
+        $gateway = PaymentGatewayFactory::getGateway($resolvedGatewaySlug);
+        $gatewayName = $gateway->getGatewayName();
+    } catch (Exception $e) {
+        try {
+            $gateway = PaymentGatewayFactory::getActiveGateway();
+            $gatewayName = $gateway->getGatewayName();
+        } catch (Exception $e2) {
+            $statusRes = "error";
+            $messageRes = "Payment gateway configuration error: " . $e2->getMessage();
+            header('Content-Type: application/json');
+            echo json_encode(['status' => $statusRes, 'message' => $messageRes]);
+            exit;
+        }
+    }
     
-    // Verify transaction with the gateway
-    $verifyResult = $gateway->verifyTransaction($tx_ref);
+    // Verify transaction with the gateway (Flutterwave prefers transaction_id)
+    $verifyParam = $tx_ref;
+    if ($gatewayName === 'flutterwave' && isset($_GET['transaction_id'])) {
+        $verifyParam = $_GET['transaction_id'];
+    }
+    $verifyResult = $gateway->verifyTransaction($verifyParam);
     
     if (!$verifyResult['status']) {
         if (!isset($_GET['callback'])) {
@@ -136,7 +159,7 @@ if (isset($_GET['transaction_id']) || isset($_GET['reference'])) {
     sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $total_amount);
     
     // Save transaction with gateway medium
-    $medium = mysqli_real_escape_string($conn, $gatewayName);
+    $medium = mysqli_real_escape_string($conn, strtoupper($gatewayName));
     mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, '$status', '$medium')");
     
     mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$tx_ref'");
