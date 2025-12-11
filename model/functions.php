@@ -196,6 +196,7 @@ function sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $tot
 /**
  * Calculate Flutterwave charge, total and profit given a base amount.
  * Mirrors logic used in handle-fw-payment.php to keep results consistent.
+ * Updated to use 2.15% percentage fee
  */
 function calculateFlutterwaveSettlement($baseAmount) {
     $baseAmount = (float)$baseAmount;
@@ -206,8 +207,8 @@ function calculateFlutterwaveSettlement($baseAmount) {
         // Flat fee for transactions less than 2,500
         $charge = 70.0;
     } else {
-        // Percentage + tiered additions
-        $charge += ($baseAmount * 0.02);
+        // Percentage + tiered additions (2.15% instead of 2%)
+        $charge += ($baseAmount * 0.0215);
         if ($baseAmount >= 2500 && $baseAmount < 5000) {
             $charge += 20.0;
         } elseif ($baseAmount >= 5000 && $baseAmount < 10000) {
@@ -218,7 +219,7 @@ function calculateFlutterwaveSettlement($baseAmount) {
     }
 
     $total = $baseAmount + $charge;
-    $flutterwave_fee = round($total * 0.02, 2);
+    $flutterwave_fee = round($total * 0.0215, 2);
     $profit = round(max($charge - $flutterwave_fee, 0), 2);
 
     return [

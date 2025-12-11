@@ -24,7 +24,7 @@ class InterswitchGateway implements PaymentGateway {
     
     /**
      * Calculate transaction charges for Interswitch
-     * Uses same default logic as Flutterwave (standard pricing)
+     * Uses 2% charge on user side, but profit calculated with 1.65% deduction
      */
     public function calculateCharges($baseAmount) {
         $baseAmount = (float)$baseAmount;
@@ -36,7 +36,7 @@ class InterswitchGateway implements PaymentGateway {
             // Flat fee for transactions less than ₦2500
             $charge = 70.0;
         } else {
-            // Percentage + tiered additions
+            // Percentage + tiered additions (2%)
             $charge += ($baseAmount * 0.02);
             if ($baseAmount >= 2500 && $baseAmount < 5000) {
                 $charge += 20.0;
@@ -48,7 +48,8 @@ class InterswitchGateway implements PaymentGateway {
         }
         
         $total = $baseAmount + $charge;
-        $gateway_fee = round($total * 0.02, 2);
+        // Profit uses 1.65% deduction instead of 2%
+        $gateway_fee = round($total * 0.0165, 2);
         $profit = round(max($charge - $gateway_fee, 0), 2);
         
         return [

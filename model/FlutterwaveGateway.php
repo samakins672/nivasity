@@ -22,6 +22,7 @@ class FlutterwaveGateway implements PaymentGateway {
     /**
      * Calculate transaction charges for Flutterwave
      * Follows the existing logic from handle-fw-payment.php
+     * Updated to use 2.15% percentage fee
      */
     public function calculateCharges($baseAmount) {
         $baseAmount = (float)$baseAmount;
@@ -33,8 +34,8 @@ class FlutterwaveGateway implements PaymentGateway {
             // Flat fee for transactions less than ₦2500
             $charge = 70.0;
         } else {
-            // Percentage + tiered additions
-            $charge += ($baseAmount * 0.02);
+            // Percentage + tiered additions (2.15% instead of 2%)
+            $charge += ($baseAmount * 0.0215);
             if ($baseAmount >= 2500 && $baseAmount < 5000) {
                 $charge += 20.0;
             } elseif ($baseAmount >= 5000 && $baseAmount < 10000) {
@@ -45,7 +46,7 @@ class FlutterwaveGateway implements PaymentGateway {
         }
         
         $total = $baseAmount + $charge;
-        $gateway_fee = round($total * 0.02, 2);
+        $gateway_fee = round($total * 0.0215, 2);
         $profit = round(max($charge - $gateway_fee, 0), 2);
         
         return [
