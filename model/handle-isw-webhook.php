@@ -137,7 +137,7 @@ $charge = $calc['charge'];
 $profit = $calc['profit'];
 $total_amount = $calc['total_amount'];
 
-mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, 'successful')");
+mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, 'successful', 'interswitch')");
 
 sendCongratulatoryEmail($conn, $user_id, $tx_ref, $manual_ids, $event_ids, $total_amount);
 mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$tx_ref'");

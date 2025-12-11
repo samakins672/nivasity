@@ -150,12 +150,17 @@ if ($activeGatewayName === 'paystack') {
     }
 }
 
-// Fetch cart rows for this ref and user
+// Fetch cart rows for this ref and user to get gateway information
 $cart_query = mysqli_query($conn, "SELECT * FROM cart WHERE ref_id = '$ref_id_esc' AND user_id = $user_id");
 if (!$cart_query || mysqli_num_rows($cart_query) < 1) {
     echo json_encode(['status' => 'error', 'message' => 'Cart data not found for reference']);
     exit;
 }
+
+// Get gateway from cart (all items should have same gateway for same ref_id)
+$first_row = mysqli_fetch_assoc($cart_query);
+$cart_gateway = $first_row['gateway'] ?? $activeGatewayName;
+mysqli_data_seek($cart_query, 0); // Reset pointer to beginning
 
 $manual_ids = [];
 $event_ids = [];
@@ -227,8 +232,9 @@ $total_amount = (float)$calc['total_amount'];
 $charge = (float)$calc['charge'];
 $profit = (float)$calc['profit'];
 
-// Record transaction
-mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status) VALUES ('$ref_id_esc', $user_id, $total_amount, $charge, $profit, '$status')");
+// Record transaction with gateway/medium information
+$medium = mysqli_real_escape_string($conn, $cart_gateway);
+mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status, medium) VALUES ('$ref_id_esc', $user_id, $total_amount, $charge, $profit, '$status', '$medium')");
 
 // Send congratulatory email
 sendCongratulatoryEmail($conn, $user_id, $ref_id, $manual_ids, $event_ids, $total_amount);

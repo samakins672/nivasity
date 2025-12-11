@@ -147,7 +147,7 @@ $total_amount = (float)$calc['total_amount'];
 $charge = (float)$calc['charge'];
 $profit = (float)$calc['profit'];
 
-mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status) VALUES ('$ref_id_esc', $user_id, $total_amount, $charge, $profit, '$status')");
+mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status, medium) VALUES ('$ref_id_esc', $user_id, $total_amount, $charge, $profit, '$status', 'flutterwave')");
 
 // Send email and cleanup
 sendCongratulatoryEmail($conn, $user_id, $ref_id, $manual_ids, $event_ids, $total_amount);

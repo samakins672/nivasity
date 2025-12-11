@@ -795,28 +795,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
         console.log('Subaccounts:', subaccounts);
 
-        $.ajax({
-          url: 'model/saveCart.php',
-          type: 'POST',
-          contentType: 'application/json',
-          data: JSON.stringify({
-            ref_id: myUniqueID,
-            user_id: "<?php echo $user_id; ?>",
-            items: parsedSessionData.map(item => ({
-              item_id: item.product_id,
-              type: item.type
-            }))
-          }),
-          success: function(response) {
-            if (response.success) {
-              console.log("Cart saved:", response.message);
-            } else {
-              console.error("Error saving cart:", response.message);
-            }
-          }
-        });
-
-        // Get payment gateway keys and determine active gateway
+        // Get payment gateway keys first to determine active gateway
         $.ajax({
           url: 'model/getKey.php',
           type: 'POST',
@@ -827,6 +806,29 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
             var ps_pk = data.paystack_pk;
             
             console.log('Active Gateway:', activeGateway);
+
+            // Now save cart with gateway information
+            $.ajax({
+              url: 'model/saveCart.php',
+              type: 'POST',
+              contentType: 'application/json',
+              data: JSON.stringify({
+                ref_id: myUniqueID,
+                user_id: "<?php echo $user_id; ?>",
+                gateway: activeGateway,
+                items: parsedSessionData.map(item => ({
+                  item_id: item.product_id,
+                  type: item.type
+                }))
+              }),
+              success: function(response) {
+                if (response.success) {
+                  console.log("Cart saved with gateway:", activeGateway, response.message);
+                } else {
+                  console.error("Error saving cart:", response.message);
+                }
+              }
+            });
             
             // Route to the appropriate payment gateway
             if (activeGateway === 'flutterwave') {

@@ -135,7 +135,9 @@ if (isset($_GET['transaction_id']) || isset($_GET['reference'])) {
     
     sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $total_amount);
     
-    mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, '$status')");
+    // Save transaction with gateway medium
+    $medium = mysqli_real_escape_string($conn, $gatewayName);
+    mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, '$status', '$medium')");
     
     mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$tx_ref'");
     
