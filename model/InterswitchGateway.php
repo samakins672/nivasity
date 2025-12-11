@@ -145,7 +145,11 @@ class InterswitchGateway implements PaymentGateway {
         
         $this->logError("VerifyTransaction failed for ref {$reference}: " . $response);
         
-        return ['status' => false, 'message' => 'Transaction verification failed', 'data' => $data];
+        return [
+            'status' => false,
+            'message' => 'Transaction verification failed: ' . (is_string($response) ? $response : json_encode($response)),
+            'data' => $data
+        ];
     }
     
     /**
