@@ -130,7 +130,11 @@ function buildReceiptHtmlFromRef($conn, $user_id, $tx_ref, $filterType = null, $
     } elseif ($total_amount <= 0) {
         $base = 0.0;
         foreach ($items as $it) { $base += (float)$it['price']; }
-        if (function_exists('calculateFlutterwaveSettlement')) {
+        // Use active gateway pricing; fallback to Flutterwave calculation only if needed
+        if (function_exists('calculateGatewayCharges')) {
+            $calc = calculateGatewayCharges($base);
+            $total_amount = $calc['total_amount'] ?? $base;
+        } elseif (function_exists('calculateFlutterwaveSettlement')) {
             $calc = calculateFlutterwaveSettlement($base);
             $total_amount = $calc['total_amount'];
         } else {
