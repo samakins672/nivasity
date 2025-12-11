@@ -70,11 +70,13 @@ if (isset($_POST['reload_cart'])) {
         $status_c = '';
 
         $seller = $cart_item['user_id'];
-        $sett_query = mysqli_query($conn, "SELECT subaccount_code FROM settlement_accounts WHERE school_id = $school_id AND type = 'school' ORDER BY id DESC LIMIT 1");
+        $sett_query = mysqli_query($conn, "SELECT subaccount_code, gateway FROM settlement_accounts WHERE school_id = $school_id AND type = 'school' ORDER BY id DESC LIMIT 1");
         if (mysqli_num_rows($sett_query) == 0) {
-            $sett_query = mysqli_query($conn, "SELECT subaccount_code FROM settlement_accounts WHERE user_id = $seller ORDER BY id DESC LIMIT 1");
+            $sett_query = mysqli_query($conn, "SELECT subaccount_code, gateway FROM settlement_accounts WHERE user_id = $seller ORDER BY id DESC LIMIT 1");
         }
-        $seller_code = mysqli_fetch_array($sett_query)['subaccount_code'];
+        $sett_row = mysqli_fetch_array($sett_query);
+        $seller_code = $sett_row['subaccount_code'];
+        $seller_gateway = $sett_row['gateway'] ?? 'paystack';
 
         if ($date > $due_date2 || $status == 'closed') {
             $status = 'disabled';
@@ -89,6 +91,7 @@ if (isset($_POST['reload_cart'])) {
                 'price' => $cart_item['price'],
                 'type' => 'manual',
                 'product_id' => $cart_item_id,
+                'gateway' => $seller_gateway,
             ];
         }
 
@@ -130,7 +133,10 @@ if (isset($_POST['reload_cart'])) {
 
         // Store the seller and price in the session array
         $event_seller = $cart_event['user_id'];
-        $event_seller_code = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE user_id = $event_seller"))['subaccount_code'];
+        $event_sett_query = mysqli_query($conn, "SELECT subaccount_code, gateway FROM settlement_accounts WHERE user_id = $event_seller ORDER BY id DESC LIMIT 1");
+        $event_sett_row = mysqli_fetch_array($event_sett_query);
+        $event_seller_code = $event_sett_row['subaccount_code'];
+        $event_seller_gateway = $event_sett_row['gateway'] ?? 'paystack';
 
         // Store item details for checkout
         $_SESSION['cart_sellers'][] = [
@@ -138,6 +144,7 @@ if (isset($_POST['reload_cart'])) {
             'price' => $cart_event['price'],
             'type' => 'event',
             'product_id' => $cart_item_id,
+            'gateway' => $event_seller_gateway,
         ];
 
         echo '

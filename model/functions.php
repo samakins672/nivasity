@@ -229,4 +229,70 @@ function calculateFlutterwaveSettlement($baseAmount) {
     ];
 }
 
+/**
+ * Calculate charges using the active payment gateway
+ * This function uses the gateway abstraction to apply the correct pricing logic
+ */
+function calculateGatewayCharges($baseAmount, $gatewayName = null) {
+    require_once __DIR__ . '/PaymentGatewayFactory.php';
+    
+    try {
+        if ($gatewayName === null) {
+            $gateway = PaymentGatewayFactory::getActiveGateway();
+        } else {
+            $gateway = PaymentGatewayFactory::getGateway($gatewayName);
+        }
+        
+        return $gateway->calculateCharges($baseAmount);
+    } catch (Exception $e) {
+        // Fallback to Flutterwave calculation if gateway factory fails
+        return calculateFlutterwaveSettlement($baseAmount);
+    }
+}
+
+/**
+ * Get settlement account subaccount code for the active gateway
+ * 
+ * @param mysqli $conn Database connection
+ * @param int $userId User ID
+ * @param int $schoolId School ID (optional, for school-level accounts)
+ * @param string $gatewayName Gateway name (optional, defaults to active gateway)
+ * @return string|null Subaccount code or null if not found
+ */
+function getSettlementSubaccount($conn, $userId, $schoolId = null, $gatewayName = null) {
+    require_once __DIR__ . '/PaymentGatewayFactory.php';
+    
+    if ($gatewayName === null) {
+        $gatewayName = PaymentGatewayFactory::getActiveGatewayName();
+    }
+    
+    $gatewayName = mysqli_real_escape_string($conn, $gatewayName);
+    
+    // Try school account first if school_id is provided
+    if ($schoolId !== null) {
+        $schoolId = (int)$schoolId;
+        $query = "SELECT subaccount_code FROM settlement_accounts 
+                  WHERE school_id = $schoolId AND type = 'school' AND gateway = '$gatewayName' 
+                  ORDER BY id DESC LIMIT 1";
+        $result = mysqli_query($conn, $query);
+        
+        if ($result && mysqli_num_rows($result) > 0) {
+            return mysqli_fetch_array($result)['subaccount_code'];
+        }
+    }
+    
+    // Fallback to user account
+    $userId = (int)$userId;
+    $query = "SELECT subaccount_code FROM settlement_accounts 
+              WHERE user_id = $userId AND gateway = '$gatewayName' 
+              ORDER BY id DESC LIMIT 1";
+    $result = mysqli_query($conn, $query);
+    
+    if ($result && mysqli_num_rows($result) > 0) {
+        return mysqli_fetch_array($result)['subaccount_code'];
+    }
+    
+    return null;
+}
+
 ?>
