@@ -871,37 +871,62 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                 },
               });
             } else if (activeGateway === 'paystack') {
-              // Server-side Paystack init with flat subaccount shares, then redirect
+              // Prepare Paystack split: request flat split_code before inline launch
               const amountKobo = Math.round(transfer_amount * 100);
               const sellerPayload = [];
               for (const seller in sellerTotals) {
-                sellerPayload.push({ subaccount: seller, share: Math.round(sellerTotals[seller] * 100) });
+                sellerPayload.push({ id: seller, total: sellerTotals[seller] });
+              }
+
+              function launchPaystack(splitCode) {
+                var options = {
+                  key: ps_pk,
+                  email: email,
+                  amount: amountKobo,
+                  ref: myUniqueID,
+                  callback: function(response) {
+                    console.log(response);
+                    verifyTransactionOnBackend(null, response.reference);
+                  },
+                  onClose: function() {
+                    console.log('Payment window closed');
+                    $('#verifyTransaction').modal({
+                      backdrop: 'static',
+                      keyboard: false
+                    }).modal('show');
+                  }
+                };
+                if (splitCode) {
+                  options.split_code = splitCode;
+                } else if (subaccounts.length > 0) {
+                  // Fallback to single subaccount if split creation fails
+                  options.subaccount = subaccounts[0].id;
+                }
+                var handler = PaystackPop.setup(options);
+                handler.openIframe();
               }
 
               $.ajax({
-                url: 'model/init-ps-transaction.php',
+                url: 'model/create-ps-split.php',
                 type: 'POST',
                 contentType: 'application/json',
                 dataType: 'json',
                 data: JSON.stringify({
-                  amount: amountKobo,
-                  email: email,
-                  reference: myUniqueID,
-                  callback_url: window.location.origin + '/model/handle-payment.php',
-                  subaccounts: sellerPayload,
+                  sellers: sellerPayload,
+                  amount_kobo: amountKobo,
                   bearer_type: 'account'
                 }),
                 success: function(res) {
-                  if (res && res.status === 'success' && res.authorization_url) {
-                    window.location.href = res.authorization_url;
+                  if (res && res.status === 'success' && res.split_code) {
+                    launchPaystack(res.split_code);
                   } else {
-                    console.error('Paystack init failed', res);
-                    alert('Unable to start Paystack payment. Please try again.');
+                    console.warn('Split creation failed, falling back to single subaccount', res);
+                    launchPaystack(null);
                   }
                 },
                 error: function(err) {
-                  console.error('Paystack init error', err);
-                  alert('Unable to start Paystack payment. Please try again.');
+                  console.error('Split creation error', err);
+                  launchPaystack(null);
                 }
               });
             } else if (activeGateway === 'interswitch') {
