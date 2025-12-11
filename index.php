@@ -816,52 +816,88 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           }
         });
 
-        // Now make the Flutterwave API call
+        // Get payment gateway keys and determine active gateway
         $.ajax({
           url: 'model/getKey.php',
           type: 'POST',
           data: { getKey: 'get-Key'},
           success: function (data) {
+            var activeGateway = data.active_gateway || 'flutterwave';
             var flw_pk = data.flw_pk;
+            var ps_pk = data.paystack_pk;
+            
+            console.log('Active Gateway:', activeGateway);
+            
+            // Route to the appropriate payment gateway
+            if (activeGateway === 'flutterwave') {
+              // Call FlutterwaveCheckout with the retrieved flw_pk and dynamically generated subaccounts
+              FlutterwaveCheckout({
+                public_key: flw_pk,
+                tx_ref: myUniqueID,
+                amount: transfer_amount,
+                currency: "NGN",
+                subaccounts: subaccounts,
+                payment_options: "card, banktransfer, ussd",
+                // redirect_url: "https://funaab.nivasity.com/model/handle-fw-payment.php",
+                callback: function(payment) {
+                  console.log(payment);
+                  // Send AJAX verification request to backend
+                  verifyTransactionOnBackend(payment.transaction_id, payment.tx_ref);
+                },
+                onclose: function(status) {
+                  if (!status) {
+                    console.log(status);
 
-            // Call FlutterwaveCheckout with the retrieved flw_pk and dynamically generated subaccounts
-            FlutterwaveCheckout({
-              public_key: flw_pk,
-              tx_ref: myUniqueID,
-              amount: transfer_amount,
-              currency: "NGN",
-              subaccounts: subaccounts,
-              payment_options: "card, banktransfer, ussd",
-              // redirect_url: "https://funaab.nivasity.com/model/handle-fw-payment.php",
-              callback: function(payment) {
-                console.log(payment);
-                // Send AJAX verification request to backend
-                verifyTransactionOnBackend(payment.transaction_id, payment.tx_ref);
-              },
-              onclose: function(status) {
-                if (!status) {
-                  console.log(status);
-
-                  // Show the modal with jQuery
+                    // Show the modal with jQuery
+                    $('#verifyTransaction').modal({
+                      backdrop: 'static',
+                      keyboard: false
+                    }).modal('show');
+                    
+                    $('.spinner-grow').hide();
+                    
+                    // Show each spinner with a delay for a staggered effect
+                    setTimeout(function() { $('.spinner-1').show(); }, 100);
+                    setTimeout(function() { $('.spinner-2').show(); }, 300);
+                    setTimeout(function() { $('.spinner-3').show(); }, 600);
+                  }
+                },
+                customer: {
+                    email: email,
+                    phone_number: phone,
+                    name: u_name,
+                },
+              });
+            } else if (activeGateway === 'paystack') {
+              // Initialize Paystack payment
+              var handler = PaystackPop.setup({
+                key: ps_pk,
+                email: email,
+                amount: transfer_amount * 100, // Paystack expects amount in kobo
+                ref: myUniqueID,
+                subaccount: subaccounts.length > 0 ? subaccounts[0].id : '',
+                callback: function(response) {
+                  console.log(response);
+                  // Verify transaction on backend
+                  verifyTransactionOnBackend(null, response.reference);
+                },
+                onClose: function() {
+                  console.log('Payment window closed');
+                  // Show verification modal
                   $('#verifyTransaction').modal({
                     backdrop: 'static',
                     keyboard: false
                   }).modal('show');
-                  
-                  $('.spinner-grow').hide();
-                  
-                  // Show each spinner with a delay for a staggered effect
-                  setTimeout(function() { $('.spinner-1').show(); }, 100);
-                  setTimeout(function() { $('.spinner-2').show(); }, 300);
-                  setTimeout(function() { $('.spinner-3').show(); }, 600);
                 }
-              },
-              customer: {
-                  email: email,
-                  phone_number: phone,
-                  name: u_name,
-              },
-            });
+              });
+              handler.openIframe();
+            } else if (activeGateway === 'interswitch') {
+              // Interswitch requires server-side initialization
+              alert('Interswitch payment initialization - redirecting to payment page...');
+              // TODO: Implement Interswitch payment flow
+              // This typically involves redirecting to Interswitch payment page
+              window.location.href = 'model/handle-payment.php?init=1&ref=' + myUniqueID;
+            }
           }
         });
       });
@@ -906,10 +942,19 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       });
 
       function verifyTransactionOnBackend(transaction_id, tx_ref) {
+        // Use unified payment handler for all gateways
+        var params = { tx_ref: tx_ref, callback: 1 };
+        if (transaction_id) {
+          params.transaction_id = transaction_id;
+        } else {
+          // For Paystack, use reference parameter
+          params.reference = tx_ref;
+        }
+        
         $.ajax({
-          url: 'model/handle-fw-payment.php',
+          url: 'model/handle-payment.php',
           type: 'GET',
-          data: { tx_ref: tx_ref, transaction_id: transaction_id, callback: 1},
+          data: params,
           success: function (response) {
             if (response.status === 'success') {
               location.reload();
@@ -917,7 +962,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           },
           error: function () {
             // Handle error
-            console.error('Error checking out!');
+            console.error('Error verifying payment!');
           }
         });
       }

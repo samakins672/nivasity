@@ -2,6 +2,19 @@
 
 Create a `config/mail.php` file in this directory (it remains ignored by git) and define your SMTP and Brevo credentials as PHP `define` statements. You can copy from `mail.example.php` and update the placeholders. The application automatically loads `config/mail.php` wherever mail functions are used.
 
+## Payment Gateway Configuration
+
+The system supports multiple payment gateways (Flutterwave, Paystack, and Interswitch). Configuration is managed through a centralized config file:
+
+- Create `config/payment_gateway.php` by copying `config/payment_gateway.php.example`.
+- Update the credentials for each gateway you want to use.
+- Set the `active` field to switch between gateways: `'flutterwave'`, `'paystack'`, or `'interswitch'`.
+- `config/payment_gateway.php` is ignored by git for security.
+
+The legacy `config/fw.php` file automatically loads credentials from `payment_gateway.php` and defines backward-compatible constants (`FLW_SECRET_KEY`, `PAYSTACK_SECRET_KEY`, etc.).
+
+For detailed setup and testing instructions, see [PAYMENT_GATEWAY_GUIDE.md](../PAYMENT_GATEWAY_GUIDE.md) in the root directory.
+
 ## Tawk.to configuration
 
 Site‑wide control of the Tawk chat widget is handled via a small config file and a shared client loader.
