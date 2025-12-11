@@ -253,6 +253,112 @@ The new system is backward compatible:
    - `payment_gateway.php` should be in `.gitignore`
    - Never commit API keys to version control
 
+## Pending Payment Verification
+
+The system includes a unified pending payment verification system that works with all three gateways.
+
+### How It Works
+
+1. **Payment Initiation**
+   - User adds items to cart
+   - System saves cart items with `status = 'pending'`
+   - Payment is initiated with active gateway
+   - Transaction reference is stored
+
+2. **Pending Payments Display**
+   - Users see pending payments in the Cart tab
+   - Each pending payment has:
+     - "Verify" button to check payment status
+     - "Cancel" button to mark as cancelled
+
+3. **Verification Process** (`model/verify-pending-payment.php`)
+   - Determines active gateway from configuration
+   - Routes verification to appropriate gateway API:
+     - **Flutterwave**: Queries `/v3/transactions?tx_ref=`
+     - **Paystack**: Calls `/transaction/verify/{reference}`
+     - **Interswitch**: Uses `/gettransaction.json` endpoint
+   - Verifies payment was successful
+   - Uses gateway-specific charge calculation
+   - Processes purchase and delivers items
+   - Sends confirmation email
+
+4. **Duplicate Prevention**
+   - System checks if transaction already processed
+   - Prevents double-delivery of items
+   - Returns success if already processed
+
+### User Experience
+
+**Pending Payment:**
+```
+Reference: NIVAS-1234567890
+Status: Pending
+Amount: ₦5,000.00
+[Verify] [Cancel]
+```
+
+**After Verification:**
+- If successful: Items delivered, cart cleared, confirmation email sent
+- If still pending: User notified to retry later
+- If failed: Payment remains in pending state
+
+### Technical Details
+
+**Endpoint:** `model/verify-pending-payment.php`
+
+**Request:**
+```javascript
+$.ajax({
+  type: 'POST',
+  url: 'model/verify-pending-payment.php',
+  data: { 
+    ref_id: 'NIVAS-1234567890', 
+    action: 'verify' // or 'cancel'
+  }
+})
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Payment confirmed and items delivered",
+  "gateway": "paystack"
+}
+```
+
+### Gateway-Specific Verification
+
+**Flutterwave:**
+- Verifies using transaction reference (tx_ref)
+- Checks status is 'successful'
+- Uses Flutterwave 2.15% pricing
+
+**Paystack:**
+- Verifies using reference
+- Checks status code and data
+- Uses Paystack special pricing (₦100 flat <₦2500)
+
+**Interswitch:**
+- Verifies using transaction reference
+- Checks ResponseCode is '00'
+- Uses Interswitch 2% charge, 1.65% profit calculation
+
+### Migration from Old System
+
+**Old System:**
+- `verify-pending-fw.php` - Flutterwave only
+
+**New System:**
+- `verify-pending-payment.php` - All gateways
+- Automatically routes to correct gateway
+- Frontend updated to use new endpoint
+
+**Backward Compatibility:**
+- Old `verify-pending-fw.php` still exists
+- Can be used for Flutterwave-only deployments
+- New deployments should use unified endpoint
+
 ## Support
 
 For issues or questions:
@@ -260,3 +366,4 @@ For issues or questions:
 - Review database for transaction records
 - Verify gateway dashboard for transaction status
 - Contact gateway support for API-specific issues
+- For pending payment issues, check active gateway configuration

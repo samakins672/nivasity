@@ -677,7 +677,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         btn.prop('disabled', true);
         $.ajax({
           type: 'POST',
-          url: 'model/verify-pending-fw.php',
+          url: 'model/verify-pending-payment.php',
           dataType: 'json',
           data: { ref_id: ref, action: 'cancel' },
           success: function (res) {
@@ -707,7 +707,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         btn.prop('disabled', true).text('Checking...');
         $.ajax({
           type: 'POST',
-          url: 'model/verify-pending-fw.php',
+          url: 'model/verify-pending-payment.php',
           dataType: 'json',
           data: { ref_id: ref, action: 'verify' },
           success: function (res) {
