@@ -871,28 +871,39 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                 },
               });
             } else if (activeGateway === 'paystack') {
-              // Initialize Paystack payment
-              var handler = PaystackPop.setup({
-                key: ps_pk,
-                email: email,
-                amount: transfer_amount * 100, // Paystack expects amount in kobo
-                ref: myUniqueID,
-                subaccount: subaccounts.length > 0 ? subaccounts[0].id : '',
-                callback: function(response) {
-                  console.log(response);
-                  // Verify transaction on backend
-                  verifyTransactionOnBackend(null, response.reference);
+              // Server-side Paystack init with flat subaccount shares, then redirect
+              const amountKobo = Math.round(transfer_amount * 100);
+              const sellerPayload = [];
+              for (const seller in sellerTotals) {
+                sellerPayload.push({ subaccount: seller, share: Math.round(sellerTotals[seller] * 100) });
+              }
+
+              $.ajax({
+                url: 'model/init-ps-transaction.php',
+                type: 'POST',
+                contentType: 'application/json',
+                dataType: 'json',
+                data: JSON.stringify({
+                  amount: amountKobo,
+                  email: email,
+                  reference: myUniqueID,
+                  callback_url: window.location.origin + '/model/handle-payment.php',
+                  subaccounts: sellerPayload,
+                  bearer_type: 'account'
+                }),
+                success: function(res) {
+                  if (res && res.status === 'success' && res.authorization_url) {
+                    window.location.href = res.authorization_url;
+                  } else {
+                    console.error('Paystack init failed', res);
+                    alert('Unable to start Paystack payment. Please try again.');
+                  }
                 },
-                onClose: function() {
-                  console.log('Payment window closed');
-                  // Show verification modal
-                  $('#verifyTransaction').modal({
-                    backdrop: 'static',
-                    keyboard: false
-                  }).modal('show');
+                error: function(err) {
+                  console.error('Paystack init error', err);
+                  alert('Unable to start Paystack payment. Please try again.');
                 }
               });
-              handler.openIframe();
             } else if (activeGateway === 'interswitch') {
               // Interswitch payment flow
               // Note: Interswitch typically requires server-side initialization and redirect
