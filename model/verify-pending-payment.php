@@ -27,14 +27,20 @@ $ref_id = isset($_POST['ref_id']) ? trim($_POST['ref_id']) : '';
 $action = isset($_POST['action']) ? trim($_POST['action']) : '';
 $transaction_ref = isset($_POST['transaction_ref']) ? trim($_POST['transaction_ref']) : '';
 
-if ($ref_id === '' || $action === '') {
-    echo json_encode(['status' => 'error', 'message' => 'Missing parameters']);
+if ($action === '') {
+    echo json_encode(['status' => 'error', 'message' => 'Missing action parameter']);
     exit;
 }
 
 // For verify action, transaction_ref is required
 if ($action === 'verify' && $transaction_ref === '') {
     echo json_encode(['status' => 'error', 'message' => 'Transaction reference is required']);
+    exit;
+}
+
+// For cancel action, ref_id is required
+if ($action === 'cancel' && $ref_id === '') {
+    echo json_encode(['status' => 'error', 'message' => 'Reference ID is required for cancellation']);
     exit;
 }
 
@@ -50,6 +56,20 @@ if ($action === 'cancel') {
 if ($action !== 'verify') {
     echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
     exit;
+}
+
+// For verify action, if ref_id is empty, we'll find it from pending carts
+if ($ref_id === '') {
+    // Get any pending cart ref_id for this user
+    $pending_query = mysqli_query($conn, "SELECT DISTINCT ref_id FROM cart WHERE user_id = $user_id AND status = 'pending' LIMIT 1");
+    if ($pending_query && mysqli_num_rows($pending_query) > 0) {
+        $pending_row = mysqli_fetch_assoc($pending_query);
+        $ref_id = $pending_row['ref_id'];
+        $ref_id_esc = mysqli_real_escape_string($conn, $ref_id);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'No pending payments found']);
+        exit;
+    }
 }
 
 // Duplicate protection before verify

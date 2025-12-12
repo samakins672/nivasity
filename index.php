@@ -728,7 +728,23 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         });
       });
 
-      // Pending payments: open modal to enter transaction reference
+      // Pending payments: open modal to enter transaction reference (general button without ref_id)
+      $('#cart').on('click', '.pending-verify-btn-general', function() {
+        var $modal = $('#pendingPaymentModal');
+        
+        // No specific ref_id, will be determined by transaction reference
+        $modal.data('current-ref', '');
+        
+        // Reset modal state
+        $('#transactionRefInput').val('');
+        $('#verificationSpinner').hide();
+        $('#confirmVerifyBtn').prop('disabled', false).text('Confirm');
+        
+        var modal = new bootstrap.Modal(document.getElementById('pendingPaymentModal'));
+        modal.show();
+      });
+
+      // Pending payments: open modal to enter transaction reference (legacy button with ref_id)
       $('#cart').on('click', '.pending-verify-btn', function() {
         var refId = $(this).data('ref_id');
         var $modal = $('#pendingPaymentModal');
@@ -759,12 +775,8 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           return;
         }
 
-        // Get ref_id from modal's data attribute
-        var currentPendingRef = $('#pendingPaymentModal').data('current-ref');
-        if (!currentPendingRef) {
-          console.error('No pending ref_id found');
-          return;
-        }
+        // Get ref_id from modal's data attribute (may be empty for general button)
+        var currentPendingRef = $('#pendingPaymentModal').data('current-ref') || '';
 
         // Show spinner and disable button
         $('#verificationSpinner').show();

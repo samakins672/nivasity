@@ -179,56 +179,11 @@ if (isset($_POST['reload_cart'])) {
         $transferAmount = $gatewayCharges['total_amount'] ?? ($transferAmount + $charge);
     }
 
-    // Build pending payments accordion HTML grouped by ref_id
-    $pendingHtml = '';
-    $pending_q = mysqli_query($conn, "SELECT ref_id, item_id, type, created_at FROM cart WHERE user_id = $user_id AND status = 'pending' ORDER BY created_at DESC");
+    // Check if there are pending payments
+    $hasPendingPayments = false;
+    $pending_q = mysqli_query($conn, "SELECT ref_id FROM cart WHERE user_id = $user_id AND status = 'pending' LIMIT 1");
     if ($pending_q && mysqli_num_rows($pending_q) > 0) {
-        $groups = [];
-        while ($row = mysqli_fetch_assoc($pending_q)) {
-            $rid = $row['ref_id'];
-            if (!isset($groups[$rid])) { $groups[$rid] = []; }
-            $groups[$rid][] = $row;
-        }
-
-        $pendingHtml .= "\r\n<div class=\"accordion\" id=\"pendingPaymentsAccordion\">";
-
-        $accIndex = 0;
-        foreach ($groups as $rid => $items) {
-            $accIndex++;
-            $headingId = 'pendingHeading' . $accIndex;
-            $collapseId = 'pendingCollapse' . $accIndex;
-
-            // Build list items with names
-            $itemLines = '';
-            foreach ($items as $it) {
-                $name = '';
-                $iid = (int)$it['item_id'];
-                if ($it['type'] === 'manual') {
-                    $mres = mysqli_query($conn, "SELECT title, course_code FROM manuals WHERE id = $iid");
-                    if ($mres && mysqli_num_rows($mres) > 0) {
-                        $m = mysqli_fetch_assoc($mres);
-                        $title = htmlspecialchars($m['title']);
-                        $code = htmlspecialchars($m['course_code']);
-                        $name = 'Material: ' . ($code ? ($code . ' - ') : '') . $title;
-                    } else {
-                        $name = 'Material ID #' . $iid;
-                    }
-                } else { // event
-                    $eres = mysqli_query($conn, "SELECT title FROM events WHERE id = $iid");
-                    if ($eres && mysqli_num_rows($eres) > 0) {
-                        $e = mysqli_fetch_assoc($eres);
-                        $name = 'Event: ' . htmlspecialchars($e['title']);
-                    } else {
-                        $name = 'Event ID #' . $iid;
-                    }
-                }
-                $itemLines .= '<li class="small">' . $name . '</li>';
-            }
-
-            $pendingHtml .= "\r\n    <div class=\"accordion-item\">\r\n      <h2 class=\"accordion-header\" id=\"$headingId\">\r\n        <button class=\"accordion-button collapsed py-2\" type=\"button\" data-bs-toggle=\"collapse\" data-bs-target=\"#$collapseId\" aria-expanded=\"false\" aria-controls=\"$collapseId\">\r\n          Ref: " . htmlspecialchars($rid) . " — " . count($items) . " item(s)\r\n        </button>\r\n      </h2>\r\n      <div id=\"$collapseId\" class=\"accordion-collapse collapse\" aria-labelledby=\"$headingId\" data-bs-parent=\"#pendingPaymentsAccordion\">\r\n        <div class=\"accordion-body py-3\">\r\n          <ul class=\"mb-3\">$itemLines</ul>\r\n          <div class=\"d-flex gap-2\">\r\n            <button class=\"btn btn-success btn-sm pending-verify-btn\" data-mdb-ripple-duration="."0"." data-ref_id=\"" . htmlspecialchars($rid) . "\">Verify Payment</button>\r\n            <button class=\"btn btn-outline-secondary btn-sm pending-cancel\" data-mdb-ripple-duration="."0"." data-ref_id=\"" . htmlspecialchars($rid) . "\">Not at all</button>\r\n          </div>\r\n        </div>\r\n      </div>\r\n    </div>";
-        }
-
-        $pendingHtml .= "\r\n  </div>\r\n  <hr class=\"mt-3\"/>\r\n</div>";
+        $hasPendingPayments = true;
     }
 
     echo '
@@ -270,9 +225,9 @@ if (isset($_POST['reload_cart'])) {
                     <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>';
     }
 
-    if (!empty($pendingHtml)) {
+    if ($hasPendingPayments) {
     echo "</div></div>";
-    echo '<div class="card card-rounded shadow-sm mt-3"><div class="card-body"><h4 class="card-title card-title-dash">Pending Payments</h4><hr class="my-2"/>' . $pendingHtml . '</div></div>';
+    echo '<div class="card card-rounded shadow-sm mt-3"><div class="card-body"><h4 class="card-title card-title-dash">Confirm a Payment made</h4><hr class="my-2"/><p class="mb-3">If you have already made a payment, click the button below to verify it.</p><button class="btn btn-primary w-100 pending-verify-btn-general" data-mdb-ripple-duration="0">Verify Payment</button></div></div>';
     echo "</div></div>";
 } else {
     echo "</div></div></div></div>";
