@@ -91,65 +91,82 @@ class FlutterwaveGateway implements PaymentGateway {
      * Verify a Flutterwave transaction
      */
     public function verifyTransaction($referenceOrId) {
-        $curl = curl_init();
-        $url = '';
-
-        // Flutterwave best practice: verify by transaction_id; fall back to tx_ref search
+        // Build attempt list: id verify, tx_ref verify_by_reference, tx_ref search, flw_ref search
+        $attempts = [];
         if (is_numeric($referenceOrId)) {
-            $url = 'https://api.flutterwave.com/v3/transactions/' . urlencode($referenceOrId) . '/verify';
+            $attempts[] = [
+                'type' => 'id',
+                'url' => 'https://api.flutterwave.com/v3/transactions/' . urlencode($referenceOrId) . '/verify'
+            ];
         } else {
-            $url = 'https://api.flutterwave.com/v3/transactions?tx_ref=' . urlencode($referenceOrId);
-        }
-        
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'GET',
-            CURLOPT_HTTPHEADER => array(
-                'Content-Type: application/json',
-                'Authorization: Bearer ' . $this->secretKey
-            ),
-        ));
-        
-        $response = curl_exec($curl);
-        $error = curl_error($curl);
-        curl_close($curl);
-        
-        if ($error) {
-            $this->logError("VerifyTransaction cURL error for {$referenceOrId}: {$error}");
-            return ['status' => false, 'message' => 'Connection error: ' . $error];
-        }
-        
-        $data = json_decode($response, true);
-
-        // When verifying by id, response shape is data[status, data => {...}]
-        if (isset($data['status']) && $data['status'] === 'success' &&
-            isset($data['data']['status']) && $data['data']['status'] === 'successful') {
-            return [
-                'status' => true,
-                'data' => $data['data']
+            $encodedRef = urlencode($referenceOrId);
+            $attempts[] = [
+                'type' => 'verify_by_reference',
+                'url' => 'https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=' . $encodedRef
+            ];
+            $attempts[] = [
+                'type' => 'tx_ref',
+                'url' => 'https://api.flutterwave.com/v3/transactions?tx_ref=' . $encodedRef
+            ];
+            $attempts[] = [
+                'type' => 'flw_ref',
+                'url' => 'https://api.flutterwave.com/v3/transactions?flw_ref=' . $encodedRef
             ];
         }
 
-        // When searching by tx_ref, response shape is data => [ { ... } ]
-        if (isset($data['status']) && $data['status'] === 'success' &&
-            isset($data['data'][0]['status']) && $data['data'][0]['status'] === 'successful') {
-            return [
-                'status' => true,
-                'data' => $data['data'][0]
-            ];
+        foreach ($attempts as $attempt) {
+            $curl = curl_init();
+            curl_setopt_array($curl, array(
+                CURLOPT_URL => $attempt['url'],
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => '',
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'GET',
+                CURLOPT_HTTPHEADER => array(
+                    'Content-Type: application/json',
+                    'Authorization: Bearer ' . $this->secretKey
+                ),
+            ));
+            
+            $response = curl_exec($curl);
+            $error = curl_error($curl);
+            curl_close($curl);
+            
+            if ($error) {
+                $this->logError("VerifyTransaction cURL error for {$referenceOrId} [{$attempt['type']}] : {$error}");
+                continue;
+            }
+
+            $data = json_decode($response, true);
+
+            // When verifying by id or verify_by_reference, response shape is data => {...}
+            if (isset($data['status']) && $data['status'] === 'success' &&
+                isset($data['data']['status']) && $data['data']['status'] === 'successful') {
+                return [
+                    'status' => true,
+                    'data' => $data['data']
+                ];
+            }
+
+            // When searching by tx_ref or flw_ref, response shape is data => [ { ... } ]
+            if (isset($data['status']) && $data['status'] === 'success' &&
+                isset($data['data'][0]['status']) && $data['data'][0]['status'] === 'successful') {
+                return [
+                    'status' => true,
+                    'data' => $data['data'][0]
+                ];
+            }
+
+            // If this attempt failed, log and continue to next
+            $this->logError("VerifyTransaction failed for {$referenceOrId} [{$attempt['type']}]: " . $response);
         }
 
-        $this->logError("VerifyTransaction failed for {$referenceOrId}: " . $response);
-        
         return [
             'status' => false,
-            'message' => 'Transaction verification failed: ' . (is_string($response) ? $response : json_encode($response))
+            'message' => 'Transaction verification failed for all attempts'
         ];
     }
     

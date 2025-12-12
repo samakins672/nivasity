@@ -26,6 +26,8 @@ if ($user_id <= 0) {
 $ref_id = isset($_POST['ref_id']) ? trim($_POST['ref_id']) : '';
 $action = isset($_POST['action']) ? trim($_POST['action']) : '';
 $transaction_ref = isset($_POST['transaction_ref']) ? trim($_POST['transaction_ref']) : '';
+$cartRefResolved = false;
+$ref_id_esc = mysqli_real_escape_string($conn, $ref_id);
 
 if ($action === '') {
     echo json_encode(['status' => 'error', 'message' => 'Missing action parameter']);
@@ -60,12 +62,32 @@ if ($action !== 'verify') {
 
 // For verify action, if ref_id is empty, we'll find it from pending carts
 if ($ref_id === '') {
+    // First, if a transaction_ref was provided, try to match it to a pending cart for this user
+    if (!empty($transaction_ref)) {
+        $tx_ref_esc = mysqli_real_escape_string($conn, $transaction_ref);
+        $pending_query = mysqli_query($conn, "SELECT DISTINCT ref_id FROM cart WHERE user_id = $user_id AND status = 'pending' AND ref_id = '$tx_ref_esc' LIMIT 1");
+        if ($pending_query && mysqli_num_rows($pending_query) > 0) {
+            $pending_row = mysqli_fetch_assoc($pending_query);
+            $ref_id = $pending_row['ref_id'];
+            $ref_id_esc = mysqli_real_escape_string($conn, $ref_id);
+            $cartRefResolved = true;
+        } else {
+            // Keep the provided transaction_ref as candidate ref_id for later verification, but do not fall back to a different cart
+            $ref_id = $transaction_ref;
+            $ref_id_esc = mysqli_real_escape_string($conn, $ref_id);
+        }
+    }
+}
+
+// If still empty (no transaction_ref provided), fall back to any pending cart for this user
+if ($ref_id === '') {
     // Get any pending cart ref_id for this user
     $pending_query = mysqli_query($conn, "SELECT DISTINCT ref_id FROM cart WHERE user_id = $user_id AND status = 'pending' LIMIT 1");
     if ($pending_query && mysqli_num_rows($pending_query) > 0) {
         $pending_row = mysqli_fetch_assoc($pending_query);
         $ref_id = $pending_row['ref_id'];
         $ref_id_esc = mysqli_real_escape_string($conn, $ref_id);
+        $cartRefResolved = true;
     } else {
         echo json_encode(['status' => 'error', 'message' => 'No pending payments found']);
         exit;
@@ -112,33 +134,47 @@ if ($dupe) {
 
 // Fetch cart rows for this ref and user to get gateway information
 $cart_query = mysqli_query($conn, "SELECT * FROM cart WHERE ref_id = '$ref_id_esc' AND user_id = $user_id");
+$skipCartProcessingUntilAfterVerification = false;
 if (!$cart_query || mysqli_num_rows($cart_query) < 1) {
-    echo json_encode(['status' => 'error', 'message' => 'Cart data not found for reference']);
-    exit;
-}
+    if (!$cartRefResolved && !empty($transaction_ref)) {
+        // We'll verify first (using the provided transaction_ref) and then attempt to resolve the cart using the verified reference
+        $cart_items = [];
+        $first_row = null;
+        $cart_gateway = 'FLUTTERWAVE'; // default to Flutterwave for unmatched refs
+        $skipCartProcessingUntilAfterVerification = true;
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Cart data not found for reference']);
+        exit;
+    }
+} else {
+    // Get first row to check status and gateway
+    $first_row = mysqli_fetch_assoc($cart_query);
 
-// Get first row to check status and gateway
-$first_row = mysqli_fetch_assoc($cart_query);
+    // Check if cart is still pending
+    $cart_status = $first_row['status'] ?? '';
+    if ($cart_status !== 'pending') {
+        echo json_encode(['status' => 'error', 'message' => 'This cart is no longer pending']);
+        exit;
+    }
 
-// Check if cart is still pending
-$cart_status = $first_row['status'] ?? '';
-if ($cart_status !== 'pending') {
-    echo json_encode(['status' => 'error', 'message' => 'This cart is no longer pending']);
-    exit;
-}
+    // Get gateway from cart (all items should have same gateway for same ref_id); fallback to active gateway when missing/empty
+    $cart_gateway = !empty($first_row['gateway'])
+        ? $first_row['gateway']
+        : strtoupper(PaymentGatewayFactory::getActiveGatewayName());
 
-// Get gateway from cart (all items should have same gateway for same ref_id)
-$cart_gateway = $first_row['gateway'] ?? 'FLUTTERWAVE';
-
-// Collect all cart items for later processing
-$cart_items = [$first_row];
-while ($row = mysqli_fetch_assoc($cart_query)) {
-    $cart_items[] = $row;
+    // Collect all cart items for later processing
+    $cart_items = [$first_row];
+    while ($row = mysqli_fetch_assoc($cart_query)) {
+        $cart_items[] = $row;
+    }
 }
 
 // Resolve gateway instance from cart gateway
 $gateway = null;
 $activeGatewayName = strtolower($cart_gateway);
+if ($activeGatewayName === '') {
+    $activeGatewayName = PaymentGatewayFactory::getActiveGatewayName();
+}
 try {
     $gateway = PaymentGatewayFactory::getGateway($activeGatewayName);
 } catch (Exception $e) {
@@ -157,7 +193,7 @@ if ($activeGatewayName === 'paystack') {
         $verificationResult = $gateway->verifyTransaction($verificationRef);
     }
     if (!$verificationResult || !isset($verificationResult['status']) || $verificationResult['status'] !== true) {
-        echo json_encode(['status' => 'pending', 'message' => 'No successful payment found for this transaction reference']);
+        echo json_encode(['status' => 'pending', 'message' => 'No successful payment found for this transaction reference', 'gateway' => $activeGatewayName, 'verification' => $verificationResult]);
         exit;
     }
 } elseif ($activeGatewayName === 'interswitch') {
@@ -165,7 +201,7 @@ if ($activeGatewayName === 'paystack') {
         $verificationResult = $gateway->verifyTransaction($verificationRef);
     }
     if (!$verificationResult || !isset($verificationResult['status']) || $verificationResult['status'] !== true) {
-        echo json_encode(['status' => 'pending', 'message' => 'No successful payment found for this transaction reference']);
+        echo json_encode(['status' => 'pending', 'message' => 'No successful payment found for this transaction reference', 'gateway' => $activeGatewayName, 'verification' => $verificationResult]);
         exit;
     }
 } else {
@@ -195,9 +231,53 @@ if ($activeGatewayName === 'paystack') {
     }
     
     if (!$verificationResult || !isset($verificationResult['status']) || $verificationResult['status'] !== true) {
-        echo json_encode(['status' => 'pending', 'message' => 'No successful payment found for this transaction reference']);
+        echo json_encode(['status' => 'pending', 'message' => 'No successful payment found for this transaction reference', 'gateway' => $activeGatewayName, 'verification' => $verificationResult]);
         exit;
     }
+}
+// Ensure the verified reference matches the cart reference to avoid crediting with unrelated payments
+$verifiedRef = '';
+if (isset($verificationResult['data'])) {
+    if ($activeGatewayName === 'paystack') {
+        $verifiedRef = $verificationResult['data']['reference'] ?? '';
+    } elseif ($activeGatewayName === 'interswitch') {
+        $verifiedRef = $verificationResult['data']['TransactionRef'] ?? $verificationResult['data']['transactionreference'] ?? '';
+    } else {
+        $verifiedRef = $verificationResult['data']['tx_ref'] ?? '';
+    }
+}
+if (!empty($verifiedRef) && strcasecmp($verifiedRef, $ref_id) !== 0) {
+    echo json_encode(['status' => 'pending', 'message' => 'Verification reference does not match cart reference', 'gateway' => $activeGatewayName, 'verification' => $verificationResult, 'cart_ref' => $ref_id, 'verified_ref' => $verifiedRef]);
+    exit;
+}
+
+$cart_was_missing_before_verify = $skipCartProcessingUntilAfterVerification;
+
+// If we deferred cart lookup because the provided transaction_ref was not found, try again using the verified reference
+if ($skipCartProcessingUntilAfterVerification) {
+    $lookup_ref = !empty($verifiedRef) ? $verifiedRef : $ref_id;
+    $lookup_ref_esc = mysqli_real_escape_string($conn, $lookup_ref);
+    $cart_query = mysqli_query($conn, "SELECT * FROM cart WHERE ref_id = '$lookup_ref_esc' AND user_id = $user_id");
+    if (!$cart_query || mysqli_num_rows($cart_query) < 1) {
+        echo json_encode(['status' => 'error', 'message' => 'Cart data not found for verified reference', 'gateway' => $activeGatewayName, 'verification' => $verificationResult]);
+        exit;
+    }
+    $first_row = mysqli_fetch_assoc($cart_query);
+    $cart_status = $first_row['status'] ?? '';
+    if ($cart_status !== 'pending') {
+        echo json_encode(['status' => 'error', 'message' => 'This cart is no longer pending', 'gateway' => $activeGatewayName, 'verification' => $verificationResult]);
+        exit;
+    }
+    $cart_gateway = !empty($first_row['gateway'])
+        ? $first_row['gateway']
+        : strtoupper(PaymentGatewayFactory::getActiveGatewayName());
+    $cart_items = [$first_row];
+    while ($row = mysqli_fetch_assoc($cart_query)) {
+        $cart_items[] = $row;
+    }
+    // Update ref_id to the verified reference we matched to the cart
+    $ref_id = $lookup_ref;
+    $ref_id_esc = $lookup_ref_esc;
 }
 
 $manual_ids = [];
@@ -224,12 +304,12 @@ foreach ($cart_items as $row) {
             if (mysqli_num_rows($exists) === 0) {
                 mysqli_query($conn, "INSERT INTO manuals_bought (manual_id, price, seller, buyer, ref_id, status, school_id) VALUES ($item_id, $price, $seller, $user_id, '$ref_id_esc', '$status', $school_id)");
                 if (mysqli_affected_rows($conn) < 1) {
-                    echo json_encode(['status' => 'error', 'message' => 'Failed to add manual to purchases']);
+                    echo json_encode(['status' => 'error', 'message' => 'Failed to add manual to purchases', 'gateway' => $activeGatewayName, 'verification' => $verificationResult]);
                     exit;
                 }
             }
         } else {
-            echo json_encode(['status' => 'error', 'message' => 'Manual not found for purchase']);
+            echo json_encode(['status' => 'error', 'message' => 'Manual not found for purchase', 'gateway' => $activeGatewayName, 'verification' => $verificationResult]);
             exit;
         }
     } elseif ($type === 'event') {
@@ -246,12 +326,12 @@ foreach ($cart_items as $row) {
             if (mysqli_num_rows($exists) === 0) {
                 mysqli_query($conn, "INSERT INTO event_tickets (event_id, price, seller, buyer, ref_id, status) VALUES ($item_id, $price, $seller, $user_id, '$ref_id_esc', '$status')");
                 if (mysqli_affected_rows($conn) < 1) {
-                    echo json_encode(['status' => 'error', 'message' => 'Failed to add event ticket']);
+                    echo json_encode(['status' => 'error', 'message' => 'Failed to add event ticket', 'gateway' => $activeGatewayName, 'verification' => $verificationResult]);
                     exit;
                 }
             }
         } else {
-            echo json_encode(['status' => 'error', 'message' => 'Event not found for purchase']);
+            echo json_encode(['status' => 'error', 'message' => 'Event not found for purchase', 'gateway' => $activeGatewayName, 'verification' => $verificationResult]);
             exit;
         }
     }
@@ -286,5 +366,6 @@ if (!empty($event_ids) && isset($_SESSION[$cartEventKey])) {
 echo json_encode([
     'status' => 'success', 
     'message' => 'Payment confirmed and items delivered',
-    'gateway' => $activeGatewayName
+    'gateway' => $activeGatewayName,
+    'verification' => $verificationResult
 ]);

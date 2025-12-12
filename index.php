@@ -370,7 +370,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                         <div class="modal-body">
                           <p class="mb-3">Please enter your transaction reference to verify your payment.</p>
                           <div class="form-outline mb-3">
-                            <input type="text" id="transactionRefInput" class="form-control form-control-lg" placeholder="Enter transaction reference" required>
+                            <input type="text" id="transactionRefInput" class="form-control form-control-lg w-100" placeholder="Enter transaction reference" required>
                             <label class="form-label" for="transactionRefInput">Transaction Reference</label>
                           </div>
                           <div id="verificationSpinner" class="text-center mt-3" style="display: none;">
