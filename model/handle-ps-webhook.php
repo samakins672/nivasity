@@ -38,6 +38,15 @@ if (!$gateway->verifyWebhookSignature($headers, $raw)) {
     exit;
 }
 
+// Check event type - only process charge.success events
+$event_type = $payload['event'] ?? '';
+if ($event_type !== 'charge.success') {
+    // Acknowledge receipt but don't process other event types
+    http_response_code(200);
+    echo json_encode(['status' => 'ok', 'message' => 'Event type ignored: ' . $event_type]);
+    exit;
+}
+
 // Extract transaction reference from payload
 $tx_ref = '';
 $status = '';
@@ -51,6 +60,18 @@ if (is_array($payload) && isset($payload['data'])) {
         echo json_encode(['status' => 'ok', 'message' => 'Ignored non-success webhook']);
         exit;
     }
+}
+
+// Respond immediately to prevent retries
+http_response_code(200);
+echo json_encode(['status' => 'ok', 'message' => 'Webhook received']);
+
+// Flush output buffers to send response immediately
+if (function_exists('fastcgi_finish_request')) {
+    fastcgi_finish_request();
+} else {
+    ob_end_flush();
+    flush();
 }
 
 // Retrieve cart items for this reference
@@ -93,9 +114,8 @@ foreach ($cartItems as $refId) {
     $cart_query = mysqli_query($conn, "SELECT * FROM cart WHERE ref_id = '$tx_ref'");
     
     if (!$cart_query || mysqli_num_rows($cart_query) < 1) {
-        http_response_code(400);
-        echo json_encode(['status' => 'error', 'message' => 'Cart data not found']);
-        exit;
+        sendMail('Paystack Webhook: Cart not found', 'Cart data not found for ref ' . $tx_ref, 'webhook@nivasity.com');
+        continue;
     }
     
     $cart_items = [];
@@ -161,11 +181,7 @@ foreach ($cartItems as $refId) {
     sendCongratulatoryEmail($conn, $user_id, $tx_ref, $manual_ids, $event_ids, $total_amount);
     mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$tx_ref'");
     sendMail('Paystack Webhook: Success', 'Processed ref ' . $tx_ref . ' for user ' . $user_id . ' amount NGN ' . number_format($total_amount, 2), 'webhook@nivasity.com');
-    
-    http_response_code(200);
-    echo json_encode(['status' => $statusRes, 'message' => $messageRes]);
 }
 
-http_response_code(200);
-echo json_encode(['status' => 'ok', 'message' => 'Webhook processed']);
+// All done - response already sent
 ?>
