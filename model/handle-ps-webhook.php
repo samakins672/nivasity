@@ -70,7 +70,9 @@ echo json_encode(['status' => 'ok', 'message' => 'Webhook received']);
 if (function_exists('fastcgi_finish_request')) {
     fastcgi_finish_request();
 } else {
-    ob_end_flush();
+    if (ob_get_level() > 0) {
+        ob_end_flush();
+    }
     flush();
 }
 
