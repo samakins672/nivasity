@@ -359,6 +359,35 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                     </div>
                   </div>
 
+                  <!-- Pending Payment Verification Modal -->
+                  <div class="modal fade" id="pendingPaymentModal" tabindex="-1" aria-labelledby="pendingPaymentModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                      <div class="modal-content">
+                        <div class="modal-header">
+                          <h5 class="modal-title fw-bold" id="pendingPaymentModalLabel">Verify Payment</h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                          <p class="mb-3">Please enter your transaction reference to verify your payment.</p>
+                          <div class="form-outline mb-3">
+                            <input type="text" id="transactionRefInput" class="form-control form-control-lg" placeholder="Enter transaction reference" required>
+                            <label class="form-label" for="transactionRefInput">Transaction Reference</label>
+                          </div>
+                          <div id="verificationSpinner" class="text-center mt-3" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                              <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Verifying payment...</p>
+                          </div>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                          <button type="button" id="confirmVerifyBtn" class="btn btn-primary">Confirm</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
 
               </div>
@@ -699,7 +728,83 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         });
       });
 
-      // Pending payments: verify via Flutterwave
+      // Pending payments: open modal to enter transaction reference
+      var currentPendingRef = '';
+      $('#cart').on('click', '.pending-verify-btn', function() {
+        currentPendingRef = $(this).data('ref_id');
+        $('#transactionRefInput').val('');
+        $('#verificationSpinner').hide();
+        $('#confirmVerifyBtn').prop('disabled', false).text('Confirm');
+        var modal = new bootstrap.Modal(document.getElementById('pendingPaymentModal'));
+        modal.show();
+      });
+
+      // Handle confirm button in modal
+      $('#confirmVerifyBtn').on('click', function() {
+        var transactionRef = $('#transactionRefInput').val().trim();
+        if (!transactionRef) {
+          var $ab = $('#alertBanner');
+          if ($ab.length) {
+            $ab.removeClass('alert-info alert-danger alert-success alert-warning');
+            $ab.addClass('alert-warning');
+            $ab.text('Please enter a transaction reference.');
+          }
+          if (typeof showAlert === 'function') { showAlert(); }
+          return;
+        }
+
+        // Show spinner and disable button
+        $('#verificationSpinner').show();
+        $('#confirmVerifyBtn').prop('disabled', true).text('Verifying...');
+
+        $.ajax({
+          type: 'POST',
+          url: 'model/verify-pending-payment.php',
+          dataType: 'json',
+          data: { 
+            ref_id: currentPendingRef, 
+            transaction_ref: transactionRef,
+            action: 'verify' 
+          },
+          success: function (res) {
+            if (res.status === 'success') {
+              // Hide modal
+              var modal = bootstrap.Modal.getInstance(document.getElementById('pendingPaymentModal'));
+              if (modal) modal.hide();
+              // Reload page to reflect changes
+              location.reload();
+            } else {
+              var $ab = $('#alertBanner');
+              if ($ab.length) {
+                $ab.removeClass('alert-info alert-danger alert-success alert-warning');
+                $ab.addClass('alert-warning');
+                $ab.text(res.message || 'Payment not found yet. If you paid, please try again later.');
+              }
+              if (typeof showAlert === 'function') { showAlert(); }
+              
+              // Hide spinner and re-enable button
+              $('#verificationSpinner').hide();
+              $('#confirmVerifyBtn').prop('disabled', false).text('Confirm');
+            }
+          },
+          error: function () {
+            console.error('Error verifying payment');
+            var $ab = $('#alertBanner');
+            if ($ab.length) {
+              $ab.removeClass('alert-info alert-danger alert-success alert-warning');
+              $ab.addClass('alert-danger');
+              $ab.text('An error occurred while verifying payment. Please try again.');
+            }
+            if (typeof showAlert === 'function') { showAlert(); }
+            
+            // Hide spinner and re-enable button
+            $('#verificationSpinner').hide();
+            $('#confirmVerifyBtn').prop('disabled', false).text('Confirm');
+          }
+        });
+      });
+
+      // Old pending-verify handler (kept for backward compatibility if needed elsewhere)
       $('#cart').on('click', '.pending-verify', function() {
         var btn = $(this);
         var ref = btn.data('ref_id');

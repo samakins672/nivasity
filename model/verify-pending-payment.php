@@ -25,6 +25,7 @@ if ($user_id <= 0) {
 
 $ref_id = isset($_POST['ref_id']) ? trim($_POST['ref_id']) : '';
 $action = isset($_POST['action']) ? trim($_POST['action']) : '';
+$transaction_ref = isset($_POST['transaction_ref']) ? trim($_POST['transaction_ref']) : '';
 
 if ($ref_id === '' || $action === '') {
     echo json_encode(['status' => 'error', 'message' => 'Missing parameters']);
@@ -90,8 +91,15 @@ if (!$cart_query || mysqli_num_rows($cart_query) < 1) {
     exit;
 }
 
-// Get gateway from cart (all items should have same gateway for same ref_id)
+// Check if cart is still pending
 $first_row = mysqli_fetch_assoc($cart_query);
+$cart_status = $first_row['status'] ?? '';
+if ($cart_status !== 'pending') {
+    echo json_encode(['status' => 'error', 'message' => 'This cart is no longer pending']);
+    exit;
+}
+
+// Get gateway from cart (all items should have same gateway for same ref_id)
 $cart_gateway = $first_row['gateway'] ?? 'FLUTTERWAVE';
 mysqli_data_seek($cart_query, 0); // Reset pointer to beginning
 
@@ -104,34 +112,38 @@ try {
     $gateway = null;
 }
 
+// Determine which reference to use for verification
+// If transaction_ref is provided, use it; otherwise use ref_id
+$verificationRef = !empty($transaction_ref) ? $transaction_ref : $ref_id;
+
 // Verify transaction with the appropriate gateway
 $verificationResult = null;
 
 if ($activeGatewayName === 'paystack') {
     if ($gateway) {
-        $verificationResult = $gateway->verifyTransaction($ref_id);
+        $verificationResult = $gateway->verifyTransaction($verificationRef);
     }
     if (!$verificationResult || !isset($verificationResult['status']) || $verificationResult['status'] !== true) {
-        echo json_encode(['status' => 'pending', 'message' => 'No successful payment found for ref']);
+        echo json_encode(['status' => 'pending', 'message' => 'No successful payment found for this transaction reference']);
         exit;
     }
 } elseif ($activeGatewayName === 'interswitch') {
     if ($gateway) {
-        $verificationResult = $gateway->verifyTransaction($ref_id);
+        $verificationResult = $gateway->verifyTransaction($verificationRef);
     }
     if (!$verificationResult || !isset($verificationResult['status']) || $verificationResult['status'] !== true) {
-        echo json_encode(['status' => 'pending', 'message' => 'No successful payment found for ref']);
+        echo json_encode(['status' => 'pending', 'message' => 'No successful payment found for this transaction reference']);
         exit;
     }
 } else {
     // Default: Verify with Flutterwave
     if ($gateway) {
-        $verificationResult = $gateway->verifyTransaction($ref_id);
+        $verificationResult = $gateway->verifyTransaction($verificationRef);
     } else {
         // Fallback to direct Flutterwave API call
         $curl = curl_init();
         curl_setopt_array($curl, [
-            CURLOPT_URL => 'https://api.flutterwave.com/v3/transactions?tx_ref=' . urlencode($ref_id),
+            CURLOPT_URL => 'https://api.flutterwave.com/v3/transactions?tx_ref=' . urlencode($verificationRef),
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CUSTOMREQUEST => 'GET',
             CURLOPT_HTTPHEADER => [
@@ -150,7 +162,7 @@ if ($activeGatewayName === 'paystack') {
     }
     
     if (!$verificationResult || !isset($verificationResult['status']) || $verificationResult['status'] !== true) {
-        echo json_encode(['status' => 'pending', 'message' => 'No successful payment found for ref']);
+        echo json_encode(['status' => 'pending', 'message' => 'No successful payment found for this transaction reference']);
         exit;
     }
 }
