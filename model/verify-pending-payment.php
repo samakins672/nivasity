@@ -32,6 +32,12 @@ if ($ref_id === '' || $action === '') {
     exit;
 }
 
+// For verify action, transaction_ref is required
+if ($action === 'verify' && $transaction_ref === '') {
+    echo json_encode(['status' => 'error', 'message' => 'Transaction reference is required']);
+    exit;
+}
+
 $ref_id_esc = mysqli_real_escape_string($conn, $ref_id);
 
 // Handle cancellation
@@ -91,8 +97,10 @@ if (!$cart_query || mysqli_num_rows($cart_query) < 1) {
     exit;
 }
 
-// Check if cart is still pending
+// Get first row to check status and gateway
 $first_row = mysqli_fetch_assoc($cart_query);
+
+// Check if cart is still pending
 $cart_status = $first_row['status'] ?? '';
 if ($cart_status !== 'pending') {
     echo json_encode(['status' => 'error', 'message' => 'This cart is no longer pending']);
@@ -101,7 +109,12 @@ if ($cart_status !== 'pending') {
 
 // Get gateway from cart (all items should have same gateway for same ref_id)
 $cart_gateway = $first_row['gateway'] ?? 'FLUTTERWAVE';
-mysqli_data_seek($cart_query, 0); // Reset pointer to beginning
+
+// Collect all cart items for later processing
+$cart_items = [$first_row];
+while ($row = mysqli_fetch_assoc($cart_query)) {
+    $cart_items[] = $row;
+}
 
 // Resolve gateway instance from cart gateway
 $gateway = null;
@@ -172,8 +185,8 @@ $event_ids = [];
 $sum_amount = 0.0;
 $status = 'successful';
 
-// Process each cart item
-while ($row = mysqli_fetch_assoc($cart_query)) {
+// Process each cart item from the collected array
+foreach ($cart_items as $row) {
     $item_id = (int)$row['item_id'];
     $type = $row['type'];
     

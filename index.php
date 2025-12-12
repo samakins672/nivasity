@@ -729,12 +729,18 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       });
 
       // Pending payments: open modal to enter transaction reference
-      var currentPendingRef = '';
       $('#cart').on('click', '.pending-verify-btn', function() {
-        currentPendingRef = $(this).data('ref_id');
+        var refId = $(this).data('ref_id');
+        var $modal = $('#pendingPaymentModal');
+        
+        // Store ref_id in modal's data attribute
+        $modal.data('current-ref', refId);
+        
+        // Reset modal state
         $('#transactionRefInput').val('');
         $('#verificationSpinner').hide();
         $('#confirmVerifyBtn').prop('disabled', false).text('Confirm');
+        
         var modal = new bootstrap.Modal(document.getElementById('pendingPaymentModal'));
         modal.show();
       });
@@ -750,6 +756,13 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
             $ab.text('Please enter a transaction reference.');
           }
           if (typeof showAlert === 'function') { showAlert(); }
+          return;
+        }
+
+        // Get ref_id from modal's data attribute
+        var currentPendingRef = $('#pendingPaymentModal').data('current-ref');
+        if (!currentPendingRef) {
+          console.error('No pending ref_id found');
           return;
         }
 
@@ -800,40 +813,6 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
             // Hide spinner and re-enable button
             $('#verificationSpinner').hide();
             $('#confirmVerifyBtn').prop('disabled', false).text('Confirm');
-          }
-        });
-      });
-
-      // Old pending-verify handler (kept for backward compatibility if needed elsewhere)
-      $('#cart').on('click', '.pending-verify', function() {
-        var btn = $(this);
-        var ref = btn.data('ref_id');
-        var orig = btn.text();
-        btn.prop('disabled', true).text('Checking...');
-        $.ajax({
-          type: 'POST',
-          url: 'model/verify-pending-payment.php',
-          dataType: 'json',
-          data: { ref_id: ref, action: 'verify' },
-          success: function (res) {
-            if (res.status === 'success') {
-              location.reload();
-            } else {
-              var $ab = $('#alertBanner');
-              if ($ab.length) {
-                $ab.removeClass('alert-info alert-danger alert-success alert-warning');
-                $ab.addClass('alert-warning');
-                $ab.text(res.message || 'Payment not found yet. If you paid, please try again later.');
-              }
-              if (typeof showAlert === 'function') { showAlert(); }
-              reloadCartTable();
-            }
-          },
-          complete: function () {
-            btn.prop('disabled', false).text(orig);
-          },
-          error: function () {
-            console.error('Error verifying payment');
           }
         });
       });
