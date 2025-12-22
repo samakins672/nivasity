@@ -3,9 +3,13 @@ session_start();
 include('model/config.php');
 include('model/page_config.php');
 include('model/system_alerts.php');
+include('model/payment_freeze.php');
 
 // Fetch active system alerts
 $system_alerts = get_active_system_alerts($conn);
+
+// Check payment freeze status
+$payment_freeze_info = get_payment_freeze_info();
 
 // Simulate adding/removing the product to/from the cart
 if (!isset($_SESSION["nivas_cart$user_id"])) {
@@ -735,6 +739,14 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
       // Add to Cart button click event
       $('#cart').on('click', '.checkout-cart', function() {
+        // Check if payments are frozen
+        <?php if ($payment_freeze_info): ?>
+          // Show payment freeze modal
+          $('#paymentFreezeMessage').text('<?php echo addslashes($payment_freeze_info['message']); ?>');
+          $('#paymentFreezeModal').modal('show');
+          return; // Stop checkout process
+        <?php endif; ?>
+
         email = "<?php echo $user_email ?>";
         phone = "<?php echo $user_phone ?>";
         u_name = "<?php echo $user_name ?>";
@@ -945,6 +957,14 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
       // free checkout button click event
       $('#cart').on('click', '.free-cart-checkout', function() {
+        // Check if payments are frozen
+        <?php if ($payment_freeze_info): ?>
+          // Show payment freeze modal
+          $('#paymentFreezeMessage').text('<?php echo addslashes($payment_freeze_info['message']); ?>');
+          $('#paymentFreezeModal').modal('show');
+          return; // Stop checkout process
+        <?php endif; ?>
+
         // Define event button
         var button = $(this);
         var originalText = button.html();
@@ -1017,6 +1037,25 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <!-- dynamic content loads here via AJAX -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment Freeze Modal -->
+  <div class="modal fade" id="paymentFreezeModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" role="dialog" aria-labelledby="paymentFreezeLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header bg-warning text-dark">
+          <h4 class="modal-title fw-bold" id="paymentFreezeLabel">
+            <i class="mdi mdi-alert-circle me-2"></i>Payments Currently Paused
+          </h4>
+        </div>
+        <div class="modal-body">
+          <p id="paymentFreezeMessage" class="mb-0"></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Okay, I Understand</button>
+        </div>
       </div>
     </div>
   </div>
