@@ -743,7 +743,8 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         <?php if ($payment_freeze_info): ?>
           // Show payment freeze modal
           $('#paymentFreezeMessage').text(<?php echo json_encode($payment_freeze_info['message'] ?? 'Payments are currently paused.'); ?>);
-          $('#paymentFreezeModal').modal('show');
+          var freezeModal = new bootstrap.Modal(document.getElementById('paymentFreezeModal'));
+          freezeModal.show();
           return; // Stop checkout process
         <?php endif; ?>
 
@@ -816,7 +817,8 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
             // Check if payment is frozen (server-side double-check)
             if (data.payment_frozen || data.error) {
               $('#paymentFreezeMessage').text(data.message || 'Payments are currently paused.');
-              $('#paymentFreezeModal').modal('show');
+              var freezeModal = new bootstrap.Modal(document.getElementById('paymentFreezeModal'));
+              freezeModal.show();
               return;
             }
 
@@ -968,7 +970,8 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         <?php if ($payment_freeze_info): ?>
           // Show payment freeze modal
           $('#paymentFreezeMessage').text(<?php echo json_encode($payment_freeze_info['message'] ?? 'Payments are currently paused.'); ?>);
-          $('#paymentFreezeModal').modal('show');
+          var freezeModal = new bootstrap.Modal(document.getElementById('paymentFreezeModal'));
+          freezeModal.show();
           return; // Stop checkout process
         <?php endif; ?>
 
