@@ -1,9 +1,22 @@
 <?php
 session_start();
 require_once 'config.php';
+require_once 'payment_freeze.php';
 require_once '../config/fw.php';
 include('mail.php');
 include('functions.php');
+
+// Check if payments are frozen
+if (is_payment_frozen()) {
+    header('Content-Type: application/json');
+    $freeze_info = get_payment_freeze_info();
+    echo json_encode([
+        'status' => 'error', 
+        'message' => $freeze_info['message']
+    ]);
+    exit;
+}
+
 $curl = curl_init();
 
 $user_id = $_SESSION['nivas_userId'];

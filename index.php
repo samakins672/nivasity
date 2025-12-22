@@ -813,6 +813,13 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           type: 'POST',
           data: { getKey: 'get-Key'},
           success: function (data) {
+            // Check if payment is frozen (server-side double-check)
+            if (data.payment_frozen || data.error) {
+              $('#paymentFreezeMessage').text(data.message || 'Payments are currently paused.');
+              $('#paymentFreezeModal').modal('show');
+              return;
+            }
+
             var activeGateway = data.active_gateway || 'flutterwave';
             var flw_pk = data.flw_pk;
             var ps_pk = data.paystack_pk;

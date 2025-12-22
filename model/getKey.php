@@ -1,6 +1,19 @@
 <?php
+require_once 'payment_freeze.php';
 require_once '../config/fw.php';
 require_once 'PaymentGatewayFactory.php';
+
+// Check if payments are frozen
+if (is_payment_frozen()) {
+    header('Content-Type: application/json');
+    $freeze_info = get_payment_freeze_info();
+    echo json_encode([
+        'error' => true,
+        'payment_frozen' => true,
+        'message' => $freeze_info['message']
+    ]);
+    exit;
+}
 
 $responseData = array(
   "paystack_pk" => '---',

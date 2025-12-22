@@ -1,6 +1,18 @@
 <?php
 session_start();
 require_once 'config.php';
+require_once 'payment_freeze.php';
+
+// Check if payments are frozen
+if (is_payment_frozen()) {
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false, 
+        'message' => 'Payments are currently paused. Please try again later.',
+        'payment_frozen' => true
+    ]);
+    exit;
+}
 
 // Read the JSON data from the request body
 $data = json_decode(file_get_contents('php://input'), true);
