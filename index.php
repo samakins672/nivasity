@@ -739,11 +739,21 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
       // Add to Cart button click event
       $('#cart').on('click', '.checkout-cart', function() {
+        var triggerElement = this; // Store reference to the button that opened the modal
+        
         // Check if payments are frozen
         <?php if ($payment_freeze_info): ?>
           // Show payment freeze modal
           $('#paymentFreezeMessage').text(<?php echo json_encode($payment_freeze_info['message'] ?? 'Payments are currently paused.'); ?>);
-          var freezeModal = new bootstrap.Modal(document.getElementById('paymentFreezeModal'));
+          var modalElement = document.getElementById('paymentFreezeModal');
+          var freezeModal = new bootstrap.Modal(modalElement);
+          
+          // Return focus to trigger element when modal is hidden
+          modalElement.addEventListener('hidden.bs.modal', function handleHidden() {
+            triggerElement.focus();
+            modalElement.removeEventListener('hidden.bs.modal', handleHidden);
+          });
+          
           freezeModal.show();
           return; // Stop checkout process
         <?php endif; ?>
@@ -817,7 +827,15 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
             // Check if payment is frozen (server-side double-check)
             if (data.payment_frozen || data.error) {
               $('#paymentFreezeMessage').text(data.message || 'Payments are currently paused.');
-              var freezeModal = new bootstrap.Modal(document.getElementById('paymentFreezeModal'));
+              var modalElement = document.getElementById('paymentFreezeModal');
+              var freezeModal = new bootstrap.Modal(modalElement);
+              
+              // Return focus to trigger element when modal is hidden
+              modalElement.addEventListener('hidden.bs.modal', function handleHidden() {
+                triggerElement.focus();
+                modalElement.removeEventListener('hidden.bs.modal', handleHidden);
+              });
+              
               freezeModal.show();
               return;
             }
@@ -966,11 +984,21 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
       // free checkout button click event
       $('#cart').on('click', '.free-cart-checkout', function() {
+        var triggerElement = this; // Store reference to the button that opened the modal
+        
         // Check if payments are frozen
         <?php if ($payment_freeze_info): ?>
           // Show payment freeze modal
           $('#paymentFreezeMessage').text(<?php echo json_encode($payment_freeze_info['message'] ?? 'Payments are currently paused.'); ?>);
-          var freezeModal = new bootstrap.Modal(document.getElementById('paymentFreezeModal'));
+          var modalElement = document.getElementById('paymentFreezeModal');
+          var freezeModal = new bootstrap.Modal(modalElement);
+          
+          // Return focus to trigger element when modal is hidden
+          modalElement.addEventListener('hidden.bs.modal', function handleHidden() {
+            triggerElement.focus();
+            modalElement.removeEventListener('hidden.bs.modal', handleHidden);
+          });
+          
           freezeModal.show();
           return; // Stop checkout process
         <?php endif; ?>
