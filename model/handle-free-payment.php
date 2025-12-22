@@ -10,9 +10,12 @@ include('functions.php');
 if (is_payment_frozen()) {
     header('Content-Type: application/json');
     $freeze_info = get_payment_freeze_info();
+    $message = ($freeze_info && isset($freeze_info['message'])) 
+        ? $freeze_info['message'] 
+        : 'Payments are currently paused. Please try again later.';
     echo json_encode([
         'status' => 'error', 
-        'message' => $freeze_info['message']
+        'message' => $message
     ]);
     exit;
 }
