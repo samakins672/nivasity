@@ -156,3 +156,51 @@ System-wide alerts can be displayed to all users at the top of the application i
   INSERT INTO `system_alerts` (`title`, `message`, `expiry_date`, `active`) VALUES
   ('New Features', 'Welcome to Nivasity! Check out our new features.', DATE_ADD(NOW(), INTERVAL 7 DAY), 1);
   ```
+
+## Payment Freeze System
+
+The payment freeze system allows you to temporarily pause all payment operations (similar to a staging or maintenance mode). When enabled, users will see a modal notification when they attempt to checkout, informing them that payments are paused until a specified date/time.
+
+- **Configuration File**
+  - Create `config/payment_freeze.php` by copying `config/payment_freeze.example.php`
+  - `config/payment_freeze.php` is ignored by git for per-environment configuration
+  - Three main settings:
+    - `PAYMENT_FREEZE_ENABLED` — Set to `true` to freeze payments, `false` to allow normal operations
+    - `PAYMENT_FREEZE_EXPIRY` — Date/time when the freeze will be lifted (format: `'YYYY-MM-DD HH:MM:SS'`)
+    - `PAYMENT_FREEZE_MESSAGE` — Optional custom message to display (leave empty for default message)
+
+- **How It Works**
+  - When `PAYMENT_FREEZE_ENABLED` is set to `true`, all checkout attempts are blocked
+  - Users clicking the checkout button will see a modal popup with the freeze message
+  - The modal displays when payments will resume based on `PAYMENT_FREEZE_EXPIRY`
+  - Once the expiry date/time passes, payments automatically resume even if the config is not updated
+  - The system checks the freeze status on every checkout attempt
+
+- **Usage Examples**
+  ```php
+  // Example 1: Enable freeze until January 15, 2025 at 2:30 PM
+  define('PAYMENT_FREEZE_ENABLED', true);
+  define('PAYMENT_FREEZE_EXPIRY', '2025-01-15 14:30:00');
+  define('PAYMENT_FREEZE_MESSAGE', '');
+
+  // Example 2: Custom message for system maintenance
+  define('PAYMENT_FREEZE_ENABLED', true);
+  define('PAYMENT_FREEZE_EXPIRY', '2025-01-20 09:00:00');
+  define('PAYMENT_FREEZE_MESSAGE', 'We are performing system maintenance. Payment services will resume on January 20, 2025 at 9:00 AM.');
+
+  // Example 3: Disable freeze (normal operations)
+  define('PAYMENT_FREEZE_ENABLED', false);
+  define('PAYMENT_FREEZE_EXPIRY', '2025-01-15 14:30:00');
+  define('PAYMENT_FREEZE_MESSAGE', '');
+  ```
+
+- **Default Message**
+  - If `PAYMENT_FREEZE_MESSAGE` is empty, the system displays:
+    - "Payments are currently paused until [formatted date/time]. You will be notified when we activate all operations again."
+  - The date/time is automatically formatted for user-friendly display (e.g., "Monday, January 15, 2025 at 2:30 PM")
+
+- **Files Involved**
+  - `config/payment_freeze.example.php` — Example configuration template
+  - `config/payment_freeze.php` — Your actual configuration (git-ignored)
+  - `model/payment_freeze.php` — Helper functions for checking freeze status
+  - `index.php` — Frontend checkout integration with modal display

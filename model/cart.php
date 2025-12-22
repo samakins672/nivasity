@@ -115,7 +115,7 @@ if (isset($_POST['reload_cart'])) {
                     <h6>' . $due_date . '</h6>
                 </td>
                 <td>
-                    <a class="btn btn-sm btn-outline-primary mb-0 btn-block remove-cart" data-mdb-ripple-duration="0" data-type="product" data-cart_id="' . $cart_item_id . '">Remove</a>
+                    <a class="btn btn-sm btn-outline-primary mb-0 btn-block remove-cart" data-mdb-ripple-duration="0ms" data-type="product" data-cart_id="' . $cart_item_id . '">Remove</a>
                 </td>
             </tr>';
     }
@@ -164,7 +164,7 @@ if (isset($_POST['reload_cart'])) {
                     <h6>' . $event_date . '</h6>
                 </td>
                 <td>
-                    <a class="btn btn-sm btn-outline-primary mb-0 btn-block remove-cart" data-mdb-ripple-duration="0" data-type="event" data-cart_id="' . $cart_item_id . '">Remove</a>
+                    <a class="btn btn-sm btn-outline-primary mb-0 btn-block remove-cart" data-mdb-ripple-duration="0ms" data-type="event" data-cart_id="' . $cart_item_id . '">Remove</a>
                 </td>
             </tr>';
     }
@@ -225,7 +225,7 @@ if (isset($_POST['reload_cart'])) {
                 $itemLines .= '<li class="small">' . $name . '</li>';
             }
 
-            $pendingHtml .= "\r\n    <div class=\"accordion-item\">\r\n      <h2 class=\"accordion-header\" id=\"$headingId\">\r\n        <button class=\"accordion-button collapsed py-2\" type=\"button\" data-bs-toggle=\"collapse\" data-bs-target=\"#$collapseId\" aria-expanded=\"false\" aria-controls=\"$collapseId\">\r\n          Ref: " . htmlspecialchars($rid) . " — " . count($items) . " item(s)\r\n        </button>\r\n      </h2>\r\n      <div id=\"$collapseId\" class=\"accordion-collapse collapse\" aria-labelledby=\"$headingId\" data-bs-parent=\"#pendingPaymentsAccordion\">\r\n        <div class=\"accordion-body py-3\">\r\n          <ul class=\"mb-3\">$itemLines</ul>\r\n          <div class=\"d-flex gap-2\">\r\n            <button class=\"btn btn-success btn-sm pending-verify\" data-mdb-ripple-duration="."0"." data-ref_id=\"" . htmlspecialchars($rid) . "\">Yes</button>\r\n            <button class=\"btn btn-outline-secondary btn-sm pending-cancel\" data-mdb-ripple-duration="."0"." data-ref_id=\"" . htmlspecialchars($rid) . "\">Not at all</button>\r\n          </div>\r\n        </div>\r\n      </div>\r\n    </div>";
+            $pendingHtml .= "\r\n    <div class=\"accordion-item\">\r\n      <h2 class=\"accordion-header\" id=\"$headingId\">\r\n        <button class=\"accordion-button collapsed py-2\" type=\"button\" data-bs-toggle=\"collapse\" data-bs-target=\"#$collapseId\" aria-expanded=\"false\" aria-controls=\"$collapseId\">\r\n          Ref: " . htmlspecialchars($rid) . " — " . count($items) . " item(s)\r\n        </button>\r\n      </h2>\r\n      <div id=\"$collapseId\" class=\"accordion-collapse collapse\" aria-labelledby=\"$headingId\" data-bs-parent=\"#pendingPaymentsAccordion\">\r\n        <div class=\"accordion-body py-3\">\r\n          <ul class=\"mb-3\">$itemLines</ul>\r\n          <div class=\"d-flex gap-2\">\r\n            <button class=\"btn btn-success btn-sm pending-verify\" data-mdb-ripple-duration="."\"0ms\""." data-ref_id=\"" . htmlspecialchars($rid) . "\">Yes</button>\r\n            <button class=\"btn btn-outline-secondary btn-sm pending-cancel\" data-mdb-ripple-duration="."\"0ms\""." data-ref_id=\"" . htmlspecialchars($rid) . "\">Not at all</button>\r\n          </div>\r\n        </div>\r\n      </div>\r\n    </div>";
         }
 
         $pendingHtml .= "\r\n  </div>\r\n  <hr class=\"mt-3\"/>\r\n</div>";
@@ -261,10 +261,10 @@ if (isset($_POST['reload_cart'])) {
     if ($total_cart_price > 0) {
         $sessionData = htmlspecialchars(json_encode($_SESSION['cart_sellers']), ENT_QUOTES, 'UTF-8');
         echo '
-                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-session_data="'.$sessionData.'" data-charge="'.$charge.'" data-transfer_amount="'.$transferAmount.'" data-mdb-ripple-duration="0" >CHECKOUT</button>';
+                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-session_data="'.$sessionData.'" data-charge="'.$charge.'" data-transfer_amount="'.$transferAmount.'" data-mdb-ripple-duration="0ms" >CHECKOUT</button>';
     } else if ($total_cart_price == 0 && $total_cart_event > 0) {
         echo '
-                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 free-cart-checkout" data-mdb-ripple-duration="0" >CHECKOUT</button>';
+                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 free-cart-checkout" data-mdb-ripple-duration="0ms" >CHECKOUT</button>';
     } else {
         echo '
                     <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>';

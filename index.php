@@ -3,9 +3,13 @@ session_start();
 include('model/config.php');
 include('model/page_config.php');
 include('model/system_alerts.php');
+include('model/payment_freeze.php');
 
 // Fetch active system alerts
 $system_alerts = get_active_system_alerts($conn);
+
+// Check payment freeze status
+$payment_freeze_info = get_payment_freeze_info();
 
 // Simulate adding/removing the product to/from the cart
 if (!isset($_SESSION["nivas_cart$user_id"])) {
@@ -292,7 +296,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                                             <a href="javascript:;">
                                               <i class="mdi mdi-share-variant icon-md text-muted share_button" title="Copy share link" data-title="<?php echo $event['title']; ?>" data-product_id="<?php echo $event['id']; ?>" data-type="event"></i>
                                             </a>
-                                            <button class="btn <?php echo $button_class; ?>  btn-lg m-0 cart-event-button" data-event-id="<?php echo $event['id'] ?>" data-mdb-ripple-duration="0"><?php echo $button_text; ?></button>
+                                            <button class="btn <?php echo $button_class; ?>  btn-lg m-0 cart-event-button" data-event-id="<?php echo $event['id'] ?>" data-mdb-ripple-duration="0ms"><?php echo $button_text; ?></button>
                                           </div>
                                         </div>
                                       </div>
@@ -446,7 +450,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
     }
 
     $(document).ready(function () {
-      $('.btn').attr('data-mdb-ripple-duration', '0');
+      $('.btn').attr('data-mdb-ripple-duration', '0ms');
 
       // $('#sort-by').change(function () {
       //   var sortByValue = $(this).val();
@@ -735,6 +739,25 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
       // Add to Cart button click event
       $('#cart').on('click', '.checkout-cart', function() {
+        var triggerElement = this; // Store reference to the button that opened the modal
+        
+        // Check if payments are frozen
+        <?php if ($payment_freeze_info): ?>
+          // Show payment freeze modal
+          $('#paymentFreezeMessage').text(<?php echo json_encode($payment_freeze_info['message'] ?? 'Payments are currently paused.'); ?>);
+          var modalElement = document.getElementById('paymentFreezeModal');
+          var freezeModal = new bootstrap.Modal(modalElement);
+          
+          // Return focus to trigger element when modal is hidden
+          modalElement.addEventListener('hidden.bs.modal', function handleHidden() {
+            triggerElement.focus();
+            modalElement.removeEventListener('hidden.bs.modal', handleHidden);
+          });
+          
+          freezeModal.show();
+          return; // Stop checkout process
+        <?php endif; ?>
+
         email = "<?php echo $user_email ?>";
         phone = "<?php echo $user_phone ?>";
         u_name = "<?php echo $user_name ?>";
@@ -801,6 +824,22 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           type: 'POST',
           data: { getKey: 'get-Key'},
           success: function (data) {
+            // Check if payment is frozen (server-side double-check)
+            if (data.payment_frozen || data.error) {
+              $('#paymentFreezeMessage').text(data.message || 'Payments are currently paused.');
+              var modalElement = document.getElementById('paymentFreezeModal');
+              var freezeModal = new bootstrap.Modal(modalElement);
+              
+              // Return focus to trigger element when modal is hidden
+              modalElement.addEventListener('hidden.bs.modal', function handleHidden() {
+                triggerElement.focus();
+                modalElement.removeEventListener('hidden.bs.modal', handleHidden);
+              });
+              
+              freezeModal.show();
+              return;
+            }
+
             var activeGateway = data.active_gateway || 'flutterwave';
             var flw_pk = data.flw_pk;
             var ps_pk = data.paystack_pk;
@@ -945,6 +984,25 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
       // free checkout button click event
       $('#cart').on('click', '.free-cart-checkout', function() {
+        var triggerElement = this; // Store reference to the button that opened the modal
+        
+        // Check if payments are frozen
+        <?php if ($payment_freeze_info): ?>
+          // Show payment freeze modal
+          $('#paymentFreezeMessage').text(<?php echo json_encode($payment_freeze_info['message'] ?? 'Payments are currently paused.'); ?>);
+          var modalElement = document.getElementById('paymentFreezeModal');
+          var freezeModal = new bootstrap.Modal(modalElement);
+          
+          // Return focus to trigger element when modal is hidden
+          modalElement.addEventListener('hidden.bs.modal', function handleHidden() {
+            triggerElement.focus();
+            modalElement.removeEventListener('hidden.bs.modal', handleHidden);
+          });
+          
+          freezeModal.show();
+          return; // Stop checkout process
+        <?php endif; ?>
+
         // Define event button
         var button = $(this);
         var originalText = button.html();
@@ -1017,6 +1075,25 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <!-- dynamic content loads here via AJAX -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment Freeze Modal -->
+  <div class="modal fade" id="paymentFreezeModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" role="dialog" aria-labelledby="paymentFreezeLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header bg-warning text-dark">
+          <h4 class="modal-title fw-bold" id="paymentFreezeLabel">
+            <i class="mdi mdi-alert-circle me-2"></i>Payments Currently Paused
+          </h4>
+        </div>
+        <div class="modal-body">
+          <p id="paymentFreezeMessage" class="mb-0"></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Okay, I Understand</button>
+        </div>
       </div>
     </div>
   </div>

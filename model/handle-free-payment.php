@@ -1,9 +1,25 @@
 <?php
 session_start();
 require_once 'config.php';
+require_once 'payment_freeze.php';
 require_once '../config/fw.php';
 include('mail.php');
 include('functions.php');
+
+// Check if payments are frozen
+if (is_payment_frozen()) {
+    header('Content-Type: application/json');
+    $freeze_info = get_payment_freeze_info();
+    $message = ($freeze_info && isset($freeze_info['message'])) 
+        ? $freeze_info['message'] 
+        : 'Payments are currently paused. Please try again later.';
+    echo json_encode([
+        'status' => 'error', 
+        'message' => $message
+    ]);
+    exit;
+}
+
 $curl = curl_init();
 
 $user_id = $_SESSION['nivas_userId'];

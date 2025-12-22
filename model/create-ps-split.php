@@ -5,9 +5,23 @@
  */
 session_start();
 require_once 'config.php';
+require_once 'payment_freeze.php';
 require_once '../config/fw.php';
 
 header('Content-Type: application/json');
+
+// Check if payments are frozen
+if (is_payment_frozen()) {
+    $freeze_info = get_payment_freeze_info();
+    $message = ($freeze_info && isset($freeze_info['message'])) 
+        ? $freeze_info['message'] 
+        : 'Payments are currently paused. Please try again later.';
+    echo json_encode([
+        'status' => 'error', 
+        'message' => $message
+    ]);
+    exit;
+}
 
 $payload = json_decode(file_get_contents('php://input'), true);
 if (!$payload || !isset($payload['sellers']) || !is_array($payload['sellers'])) {
