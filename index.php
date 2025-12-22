@@ -296,7 +296,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                                             <a href="javascript:;">
                                               <i class="mdi mdi-share-variant icon-md text-muted share_button" title="Copy share link" data-title="<?php echo $event['title']; ?>" data-product_id="<?php echo $event['id']; ?>" data-type="event"></i>
                                             </a>
-                                            <button class="btn <?php echo $button_class; ?>  btn-lg m-0 cart-event-button" data-event-id="<?php echo $event['id'] ?>" data-mdb-ripple-duration="0"><?php echo $button_text; ?></button>
+                                            <button class="btn <?php echo $button_class; ?>  btn-lg m-0 cart-event-button" data-event-id="<?php echo $event['id'] ?>" data-mdb-ripple-duration="0ms"><?php echo $button_text; ?></button>
                                           </div>
                                         </div>
                                       </div>
@@ -450,7 +450,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
     }
 
     $(document).ready(function () {
-      $('.btn').attr('data-mdb-ripple-duration', '0');
+      $('.btn').attr('data-mdb-ripple-duration', '0ms');
 
       // $('#sort-by').change(function () {
       //   var sortByValue = $(this).val();
