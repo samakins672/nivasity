@@ -22,9 +22,10 @@ define('PAYMENT_FREEZE_ENABLED', false);
 /**
  * The date and time when the payment freeze will be lifted
  * Format: 'YYYY-MM-DD HH:MM:SS' (24-hour format)
- * Example: '2025-01-15 14:30:00' for January 15, 2025 at 2:30 PM
+ * Example: '2026-01-15 14:30:00' for January 15, 2026 at 2:30 PM
+ * Note: Set this to a future date when you want the freeze to automatically end
  */
-define('PAYMENT_FREEZE_EXPIRY', '2025-01-15 14:30:00');
+define('PAYMENT_FREEZE_EXPIRY', 'YYYY-MM-DD HH:MM:SS');
 
 /**
  * Custom message to display to users when payments are frozen

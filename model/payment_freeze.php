@@ -18,7 +18,10 @@ function is_payment_frozen() {
     $realConfigPath = realpath($configFile);
     $expectedConfigDir = realpath(__DIR__ . '/../config');
     
-    if ($realConfigPath && $expectedConfigDir && strpos($realConfigPath, $expectedConfigDir) === 0) {
+    // Use safer path comparison (PHP 5.4+ compatible)
+    if ($realConfigPath && $expectedConfigDir && 
+        substr($realConfigPath, 0, strlen($expectedConfigDir)) === $expectedConfigDir &&
+        ($realConfigPath === $expectedConfigDir || $realConfigPath[strlen($expectedConfigDir)] === DIRECTORY_SEPARATOR)) {
         if (file_exists($realConfigPath)) {
             require_once $realConfigPath;
         } else {
