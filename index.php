@@ -742,7 +742,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         // Check if payments are frozen
         <?php if ($payment_freeze_info): ?>
           // Show payment freeze modal
-          $('#paymentFreezeMessage').text('<?php echo addslashes($payment_freeze_info['message']); ?>');
+          $('#paymentFreezeMessage').text(<?php echo json_encode($payment_freeze_info['message']); ?>);
           $('#paymentFreezeModal').modal('show');
           return; // Stop checkout process
         <?php endif; ?>
@@ -967,7 +967,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         // Check if payments are frozen
         <?php if ($payment_freeze_info): ?>
           // Show payment freeze modal
-          $('#paymentFreezeMessage').text('<?php echo addslashes($payment_freeze_info['message']); ?>');
+          $('#paymentFreezeMessage').text(<?php echo json_encode($payment_freeze_info['message']); ?>);
           $('#paymentFreezeModal').modal('show');
           return; // Stop checkout process
         <?php endif; ?>

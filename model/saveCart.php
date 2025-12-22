@@ -6,9 +6,10 @@ require_once 'payment_freeze.php';
 // Check if payments are frozen
 if (is_payment_frozen()) {
     header('Content-Type: application/json');
+    $freeze_info = get_payment_freeze_info();
     echo json_encode([
         'success' => false, 
-        'message' => 'Payments are currently paused. Please try again later.',
+        'message' => $freeze_info ? $freeze_info['message'] : 'Payments are currently paused. Please try again later.',
         'payment_frozen' => true
     ]);
     exit;

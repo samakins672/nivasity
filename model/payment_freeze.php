@@ -14,10 +14,19 @@ function is_payment_frozen() {
     // Try to load the payment freeze configuration
     $configFile = __DIR__ . '/../config/payment_freeze.php';
     
-    if (file_exists($configFile)) {
-        require_once $configFile;
+    // Validate the config file path is within expected directory
+    $realConfigPath = realpath($configFile);
+    $expectedConfigDir = realpath(__DIR__ . '/../config');
+    
+    if ($realConfigPath && $expectedConfigDir && strpos($realConfigPath, $expectedConfigDir) === 0) {
+        if (file_exists($realConfigPath)) {
+            require_once $realConfigPath;
+        } else {
+            // If config file doesn't exist, payments are not frozen
+            return false;
+        }
     } else {
-        // If config file doesn't exist, payments are not frozen
+        // Invalid config path, payments are not frozen
         return false;
     }
     
@@ -29,6 +38,13 @@ function is_payment_frozen() {
     // Check if expiry date has passed
     if (defined('PAYMENT_FREEZE_EXPIRY')) {
         $expiryTime = strtotime(PAYMENT_FREEZE_EXPIRY);
+        
+        // Validate strtotime result
+        if ($expiryTime === false) {
+            // Invalid date format, treat as no expiry (remain frozen)
+            return true;
+        }
+        
         $currentTime = time();
         
         // If expiry time has passed, payments are no longer frozen
@@ -57,7 +73,11 @@ function get_payment_freeze_info() {
     $formattedExpiry = '';
     if ($expiryDate) {
         $timestamp = strtotime($expiryDate);
-        $formattedExpiry = date('l, F j, Y \a\t g:i A', $timestamp);
+        
+        // Validate strtotime result
+        if ($timestamp !== false) {
+            $formattedExpiry = date('l, F j, Y \a\t g:i A', $timestamp);
+        }
     }
     
     // Build the message
