@@ -37,7 +37,8 @@ When the access token expires, use the refresh token to get a new access token p
   "first_name": "John",
   "last_name": "Doe",
   "phone": "08012345678",
-  "gender": "male"
+  "gender": "male",
+  "school_id": 1
 }
 ```
 
@@ -52,6 +53,8 @@ When the access token expires, use the refresh token to get a new access token p
   }
 }
 ```
+
+**Note:** Academic information (department, matric number, admission year) is NOT required at registration. Students can update this information later using the `/profile/update-academic-info.php` endpoint.
 
 #### 2. Login
 **Endpoint:** `POST /auth/login.php`
@@ -189,14 +192,14 @@ When the access token expires, use the refresh token to get a new access token p
 #### 6. Update Profile
 **Endpoint:** `POST /profile/update-profile.php`
 
-**Description:** Update user profile information and profile picture.
+**Description:** Update basic user profile information and profile picture.
 
 **Authentication:** Required
 
 **Request Body (Multipart Form Data):**
-- `firstname`: First name
-- `lastname`: Last name
-- `phone`: Phone number
+- `firstname`: First name (optional)
+- `lastname`: Last name (optional)
+- `phone`: Phone number (optional)
 - `upload`: Profile picture file (optional, JPG/PNG/GIF)
 
 **Response (Success):**
@@ -211,12 +214,47 @@ When the access token expires, use the refresh token to get a new access token p
     "email": "student@example.com",
     "phone": "08012345678",
     "gender": "male",
-    "profile_pic": "user1234567890.jpg"
+    "profile_pic": "user1234567890.jpg",
+    "school_id": 1,
+    "dept_id": 5,
+    "matric_no": "190101001",
+    "adm_year": "2019"
   }
 }
 ```
 
-#### 7. Change Password
+#### 7. Update Academic Information
+**Endpoint:** `POST /profile/update-academic-info.php`
+
+**Description:** Update academic information (department, matric number, admission year).
+
+**Authentication:** Required
+
+**Request Body (JSON):**
+```json
+{
+  "dept_id": 5,
+  "matric_no": "190101001",
+  "adm_year": "2019"
+}
+```
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Academic information successfully updated!",
+  "data": {
+    "dept_id": 5,
+    "matric_no": "190101001",
+    "adm_year": "2019"
+  }
+}
+```
+
+**Note:** All fields are optional. The department must belong to the user's school.
+
+#### 8. Change Password
 **Endpoint:** `POST /profile/change-password.php`
 
 **Description:** Change user password.
@@ -263,9 +301,119 @@ When the access token expires, use the refresh token to get a new access token p
 
 ---
 
+### Reference Data Endpoints
+
+These endpoints provide institutional data needed for registration and profile setup. **No authentication required.**
+
+#### 9. Get Schools
+**Endpoint:** `GET /reference/schools.php`
+
+**Description:** Get list of all active schools with pagination.
+
+**Query Parameters:**
+- `page`: Page number (default: 1)
+- `limit`: Results per page (default: 50, max: 100)
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Schools retrieved successfully",
+  "data": {
+    "schools": [
+      {
+        "id": 1,
+        "name": "Federal University of Agriculture, Abeokuta",
+        "code": "FUNAAB",
+        "created_at": "2023-01-01 00:00:00"
+      }
+    ],
+    "pagination": {
+      "total": 1,
+      "page": 1,
+      "limit": 50,
+      "total_pages": 1
+    }
+  }
+}
+```
+
+#### 10. Get Faculties
+**Endpoint:** `GET /reference/faculties.php?school_id={id}`
+
+**Description:** Get list of active faculties for a specific school.
+
+**Query Parameters:**
+- `school_id`: School ID (required)
+- `page`: Page number (default: 1)
+- `limit`: Results per page (default: 50, max: 100)
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Faculties retrieved successfully",
+  "data": {
+    "faculties": [
+      {
+        "id": 1,
+        "name": "Faculty of Science",
+        "school_id": 1,
+        "created_at": "2023-01-01 00:00:00"
+      }
+    ],
+    "pagination": {
+      "total": 1,
+      "page": 1,
+      "limit": 50,
+      "total_pages": 1
+    }
+  }
+}
+```
+
+#### 11. Get Departments
+**Endpoint:** `GET /reference/departments.php?school_id={id}&faculty_id={id}`
+
+**Description:** Get list of active departments for a specific school (optionally filtered by faculty).
+
+**Query Parameters:**
+- `school_id`: School ID (required)
+- `faculty_id`: Faculty ID (optional, for filtering)
+- `page`: Page number (default: 1)
+- `limit`: Results per page (default: 100, max: 100)
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Departments retrieved successfully",
+  "data": {
+    "departments": [
+      {
+        "id": 5,
+        "name": "Computer Science",
+        "school_id": 1,
+        "faculty_id": 1,
+        "faculty_name": "Faculty of Science",
+        "created_at": "2023-01-01 00:00:00"
+      }
+    ],
+    "pagination": {
+      "total": 1,
+      "page": 1,
+      "limit": 100,
+      "total_pages": 1
+    }
+  }
+}
+```
+
+---
+
 ### Materials/Manuals Endpoints
 
-#### 9. List Materials
+#### 12. List Materials
 **Endpoint:** `GET /materials/list.php`
 
 **Description:** Get list of available materials/manuals.
@@ -312,7 +460,7 @@ When the access token expires, use the refresh token to get a new access token p
 }
 ```
 
-#### 10. Get Material Details
+#### 13. Get Material Details
 **Endpoint:** `GET /materials/details.php`
 
 **Description:** Get detailed information about a specific material.
@@ -352,7 +500,7 @@ When the access token expires, use the refresh token to get a new access token p
 }
 ```
 
-#### 11. Add to Cart
+#### 14. Add to Cart
 **Endpoint:** `POST /materials/cart-add.php`
 
 **Description:** Add a material to cart.
@@ -378,7 +526,7 @@ When the access token expires, use the refresh token to get a new access token p
 }
 ```
 
-#### 12. Remove from Cart
+#### 15. Remove from Cart
 **Endpoint:** `POST /materials/cart-remove.php`
 
 **Description:** Remove a material from cart.
@@ -404,7 +552,7 @@ When the access token expires, use the refresh token to get a new access token p
 }
 ```
 
-#### 13. View Cart
+#### 16. View Cart
 **Endpoint:** `GET /materials/cart-view.php`
 
 **Description:** View current cart contents.
@@ -477,7 +625,7 @@ When the access token expires, use the refresh token to get a new access token p
 
 ### Payment Endpoints
 
-#### 15. Initialize Payment
+#### 18. Initialize Payment
 **Endpoint:** `POST /payment/init.php`
 
 **Description:** Initialize payment for cart items.
@@ -506,7 +654,7 @@ When the access token expires, use the refresh token to get a new access token p
 }
 ```
 
-#### 16. Verify Payment
+#### 19. Verify Payment
 **Endpoint:** `GET /payment/verify.php`
 
 **Description:** Verify payment transaction.
@@ -580,7 +728,7 @@ When the access token expires, use the refresh token to get a new access token p
 
 ### Support Endpoints
 
-#### 18. Create Support Ticket
+#### 21. Create Support Ticket
 **Endpoint:** `POST /support/create-ticket.php`
 
 **Description:** Create a new support ticket.
@@ -609,7 +757,7 @@ When the access token expires, use the refresh token to get a new access token p
 }
 ```
 
-#### 19. List Support Tickets
+#### 22. List Support Tickets
 **Endpoint:** `GET /support/list-tickets.php`
 
 **Description:** Get list of user support tickets.
@@ -650,7 +798,7 @@ When the access token expires, use the refresh token to get a new access token p
 }
 ```
 
-#### 20. Get Ticket Details
+#### 23. Get Ticket Details
 **Endpoint:** `GET /support/ticket-details.php`
 
 **Description:** Get detailed information about a support ticket.
@@ -698,7 +846,7 @@ When the access token expires, use the refresh token to get a new access token p
 }
 ```
 
-#### 21. Reply to Ticket
+#### 24. Reply to Ticket
 **Endpoint:** `POST /support/reply.php`
 
 **Description:** Reply to an existing support ticket.

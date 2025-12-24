@@ -34,9 +34,17 @@ Authorization: Bearer <access_token>
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
 | GET | `/profile/profile.php` | Get profile | ✅ |
-| POST | `/profile/update-profile.php` | Update profile | ✅ |
+| POST | `/profile/update-profile.php` | Update basic profile | ✅ |
+| POST | `/profile/update-academic-info.php` | Update academic info | ✅ |
 | POST | `/profile/change-password.php` | Change password | ✅ |
 | POST | `/profile/delete-account.php` | Delete account | ✅ |
+
+### 📖 Reference Data
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/reference/schools.php` | List active schools | ❌ |
+| GET | `/reference/faculties.php?school_id={id}` | List faculties by school | ❌ |
+| GET | `/reference/departments.php?school_id={id}` | List departments by school | ❌ |
 
 ### 📚 Materials
 | Method | Endpoint | Description | Auth Required |
@@ -94,6 +102,13 @@ Authorization: Bearer <access_token>
 
 ## Example Requests
 
+### Register
+```bash
+curl -X POST https://api.nivasity.com/auth/register.php \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"pass123","first_name":"John","last_name":"Doe","phone":"08012345678","gender":"male","school_id":1}'
+```
+
 ### Login
 ```bash
 curl -X POST https://api.nivasity.com/auth/login.php \
@@ -108,10 +123,28 @@ curl -X POST https://api.nivasity.com/auth/refresh-token.php \
   -d '{"refresh_token":"YOUR_REFRESH_TOKEN"}'
 ```
 
+### Get Schools
+```bash
+curl -X GET "https://api.nivasity.com/reference/schools.php?page=1&limit=50"
+```
+
+### Get Departments
+```bash
+curl -X GET "https://api.nivasity.com/reference/departments.php?school_id=1"
+```
+
 ### Get Profile
 ```bash
 curl -X GET https://api.nivasity.com/profile/profile.php \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+### Update Academic Info
+```bash
+curl -X POST https://api.nivasity.com/profile/update-academic-info.php \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{"dept_id":5,"matric_no":"190101001","adm_year":"2019"}'
 ```
 
 ### List Materials
