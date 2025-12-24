@@ -1,10 +1,21 @@
 <?php
 // JWT Helper Functions for API Authentication
 
-// JWT Configuration
-define('JWT_SECRET_KEY', getenv('JWT_SECRET_KEY') ?: 'nivasity_jwt_secret_key_change_in_production_2024');
-define('JWT_ACCESS_TOKEN_EXPIRY', 3600); // 1 hour
-define('JWT_REFRESH_TOKEN_EXPIRY', 604800); // 7 days
+// Load JWT Configuration
+$jwtConfigFile = __DIR__ . '/../config/jwt.php';
+$jwtConfigExample = __DIR__ . '/../config/jwt.example.php';
+
+if (file_exists($jwtConfigFile)) {
+    require_once $jwtConfigFile;
+} elseif (file_exists($jwtConfigExample)) {
+    // Fallback to example file for development (should not be used in production)
+    require_once $jwtConfigExample;
+} else {
+    // Last resort fallback with insecure defaults (for initial setup only)
+    define('JWT_SECRET_KEY', 'INSECURE_DEFAULT_KEY_CHANGE_IMMEDIATELY_' . time());
+    define('JWT_ACCESS_TOKEN_EXPIRY', 3600);
+    define('JWT_REFRESH_TOKEN_EXPIRY', 604800);
+}
 
 /**
  * Base64 URL encode
