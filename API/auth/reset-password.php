@@ -1,6 +1,7 @@
 <?php
-// API: Reset Password with OTP
+// API: Reset Password with Token
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../jwt.php';
 
 // Only accept POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -14,28 +15,31 @@ if (!$input) {
 }
 
 // Validate required fields
-validateRequiredFields(['email', 'otp', 'new_password'], $input);
+validateRequiredFields(['token', 'new_password'], $input);
 
-$email = sanitizeInput($conn, $input['email']);
-$otp = sanitizeInput($conn, $input['otp']);
+$token = $input['token'];
 $new_password = md5($input['new_password']);
 
-// Get user by email
-$user_query = mysqli_query($conn, "SELECT * FROM users WHERE email = '$email'");
+// Verify reset token
+$payload = verifyJWT($token);
 
-if (mysqli_num_rows($user_query) === 0) {
-    sendApiError('Invalid email address.', 404);
+if (!$payload) {
+    sendApiError('Invalid or expired reset token.', 401);
 }
 
-$user = mysqli_fetch_assoc($user_query);
-$user_id = (int)$user['id'];
+// Ensure it's a password reset token
+if (!isset($payload['type']) || $payload['type'] !== 'password_reset') {
+    sendApiError('Invalid token type. Please use a password reset token.', 400);
+}
 
-// Verify OTP
-$now = date('Y-m-d H:i:s');
-$otp_query = mysqli_query($conn, "SELECT * FROM verification_code WHERE user_id = $user_id AND code = '$otp' AND exp_date >= '$now' LIMIT 1");
+$user_id = (int)$payload['user_id'];
+$email = $payload['email'];
 
-if (mysqli_num_rows($otp_query) === 0) {
-    sendApiError('Invalid or expired OTP. Please request a new one.', 400);
+// Verify user still exists
+$user_query = mysqli_query($conn, "SELECT * FROM users WHERE id = $user_id AND email = '$email'");
+
+if (mysqli_num_rows($user_query) === 0) {
+    sendApiError('User not found.', 404);
 }
 
 // Update password
@@ -44,9 +48,6 @@ $update_query = mysqli_query($conn, "UPDATE users SET password = '$new_password'
 if (!$update_query || mysqli_affected_rows($conn) === 0) {
     sendApiError('Failed to reset password. Please try again.', 500);
 }
-
-// Remove used OTP
-mysqli_query($conn, "DELETE FROM verification_code WHERE user_id = $user_id");
 
 sendApiSuccess('Password reset successfully! You can now login with your new password.');
 ?>
