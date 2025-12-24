@@ -6,7 +6,19 @@ This API is designed for the Nivasity mobile application and provides endpoints 
 
 ## Authentication
 
-The API uses session-based authentication. After logging in, the session cookie will be used for subsequent authenticated requests.
+The API uses **JWT (JSON Web Token)** based authentication. After logging in, you'll receive an `access_token` and `refresh_token`. 
+
+**Include the access token in all authenticated requests:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Token Expiry:**
+- Access tokens expire after 1 hour
+- Refresh tokens expire after 7 days
+
+**Token Refresh:**
+When the access token expires, use the refresh token to get a new access token pair without requiring the user to login again.
 
 ## API Endpoints
 
@@ -71,7 +83,11 @@ The API uses session-based authentication. After logging in, the session cookie 
     "profile_pic": "user.jpg",
     "matric_no": "190101001",
     "dept": 5,
-    "adm_year": "2019"
+    "adm_year": "2019",
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token_type": "Bearer",
+    "expires_in": 3600
   }
 }
 ```
@@ -85,11 +101,37 @@ The API uses session-based authentication. After logging in, the session cookie 
 ```json
 {
   "status": "success",
-  "message": "You have successfully logged out!"
+  "message": "You have successfully logged out! Please delete your access and refresh tokens on the client side."
 }
 ```
 
-#### 4. Resend Verification
+#### 4. Refresh Token
+**Endpoint:** `POST /auth/refresh-token.php`
+
+**Description:** Refresh access token using refresh token.
+
+**Request Body (JSON):**
+```json
+{
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Token refreshed successfully",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token_type": "Bearer",
+    "expires_in": 3600
+  }
+}
+```
+
+#### 5. Resend Verification
 **Endpoint:** `POST /auth/resend-verification.php`
 
 **Description:** Resend email verification link.
@@ -118,7 +160,7 @@ The API uses session-based authentication. After logging in, the session cookie 
 
 **Description:** Get current user profile information.
 
-**Authentication:** Required
+**Authentication:** Required (Include `Authorization: Bearer <access_token>` header)
 
 **Response (Success):**
 ```json

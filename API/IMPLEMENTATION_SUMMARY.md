@@ -63,9 +63,9 @@ API/
 - Non-student users receive 403 Forbidden responses
 
 ### 3. **Session-Based Authentication**
-- Uses PHP sessions for authentication state
+- Uses JWT tokens for authentication state
 - Compatible with existing authentication system
-- Session cookies are used for subsequent requests
+- Bearer tokens are included in Authorization headers for subsequent requests
 - Secure logout functionality implemented
 
 ### 4. **RESTful Design**
@@ -190,7 +190,7 @@ The API integrates seamlessly with existing systems:
 1. **Database:** Uses existing `niverpay_db` database
 2. **Mail System:** Reuses Brevo mail configuration
 3. **Payment Gateways:** Uses PaymentGatewayFactory
-4. **User Authentication:** Compatible with existing session system
+4. **User Authentication:** Uses modern JWT-based authentication
 5. **File Storage:** Uses existing assets/images directory structure
 6. **Configuration:** Reuses config files from main application
 
@@ -231,7 +231,7 @@ See `TESTING.md` for detailed testing instructions.
 
 Potential improvements for future versions:
 
-1. **JWT Authentication:** Replace session-based auth with JWT tokens
+1. **JWT Authentication:** Implemented - JWT authentication with access and refresh tokens
 2. **API Rate Limiting:** Implement request rate limiting
 3. **API Versioning:** Add version prefix (e.g., /v1/)
 4. **Caching:** Implement response caching for frequently accessed data

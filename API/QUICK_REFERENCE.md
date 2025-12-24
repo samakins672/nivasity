@@ -6,13 +6,18 @@ https://api.nivasity.com
 ```
 
 ## Authentication
-Session-based. Login first, then use session cookies for subsequent requests.
+JWT-based. Include `Authorization: Bearer <access_token>` header for authenticated requests.
 
 ## Common Headers
 ```
 Content-Type: application/json
-Cookie: PHPSESSID=<session_id>
+Authorization: Bearer <access_token>
 ```
+
+## Token Information
+- Access tokens expire in 1 hour
+- Refresh tokens expire in 7 days
+- Use `/auth/refresh-token.php` to get new tokens
 
 ## Quick Endpoint Reference
 
@@ -20,8 +25,9 @@ Cookie: PHPSESSID=<session_id>
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
 | POST | `/auth/register.php` | Register student | ❌ |
-| POST | `/auth/login.php` | Login | ❌ |
-| POST | `/auth/logout.php` | Logout | ✅ |
+| POST | `/auth/login.php` | Login (returns tokens) | ❌ |
+| POST | `/auth/refresh-token.php` | Refresh access token | ❌ |
+| POST | `/auth/logout.php` | Logout | ❌ |
 | POST | `/auth/resend-verification.php` | Resend verification | ❌ |
 
 ### 👤 Profile
@@ -92,40 +98,46 @@ Cookie: PHPSESSID=<session_id>
 ```bash
 curl -X POST https://api.nivasity.com/auth/login.php \
   -H "Content-Type: application/json" \
-  -c cookies.txt \
   -d '{"email":"user@example.com","password":"pass123"}'
+```
+
+### Refresh Token
+```bash
+curl -X POST https://api.nivasity.com/auth/refresh-token.php \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token":"YOUR_REFRESH_TOKEN"}'
 ```
 
 ### Get Profile
 ```bash
 curl -X GET https://api.nivasity.com/profile/profile.php \
-  -b cookies.txt
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 ### List Materials
 ```bash
 curl -X GET "https://api.nivasity.com/materials/list.php?page=1&limit=20" \
-  -b cookies.txt
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 ### Add to Cart
 ```bash
 curl -X POST https://api.nivasity.com/materials/cart-add.php \
   -H "Content-Type: application/json" \
-  -b cookies.txt \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{"material_id":45}'
 ```
 
 ### Initialize Payment
 ```bash
 curl -X POST https://api.nivasity.com/payment/init.php \
-  -b cookies.txt
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 ### Create Support Ticket
 ```bash
 curl -X POST https://api.nivasity.com/support/create-ticket.php \
-  -b cookies.txt \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -F "subject=Help needed" \
   -F "message=Description" \
   -F "category=Technical and Other Issues"
@@ -158,7 +170,7 @@ Max file size: 10MB
 ✅ Student role required (student or hoc)
 ✅ All dates in Africa/Lagos timezone
 ✅ Amounts in Nigerian Naira (NGN)
-✅ Session cookies required for auth
+✅ JWT Bearer tokens required for auth
 ✅ JSON responses for all endpoints
 
 ## Support

@@ -6,7 +6,7 @@ This guide provides instructions for testing the API endpoints using tools like 
 
 1. Ensure the API is deployed and accessible
 2. Have a REST client installed (Postman, Insomnia, Thunder Client, or cURL)
-3. For authenticated endpoints, you need to login first to get session cookies
+3. For authenticated endpoints, you need to login first to get JWT tokens
 
 ## Base URL
 
@@ -48,14 +48,11 @@ curl -X POST https://api.nivasity.com/auth/register.php \
 ```bash
 curl -X POST https://api.nivasity.com/auth/login.php \
   -H "Content-Type: application/json" \
-  -c cookies.txt \
   -d '{
     "email": "testuser@example.com",
     "password": "Test123!"
   }'
 ```
-
-**Note:** The `-c cookies.txt` flag saves the session cookie for subsequent requests.
 
 **Expected Response:**
 ```json
@@ -68,38 +65,69 @@ curl -X POST https://api.nivasity.com/auth/login.php \
     "last_name": "User",
     "email": "testuser@example.com",
     "role": "student",
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token_type": "Bearer",
+    "expires_in": 3600,
     ...
   }
 }
 ```
 
-### 3. Test Get Profile
+**Note:** Save the `access_token` from the response. You'll need it for authenticated requests.
+
+### 3. Test Token Refresh
+
+**Request:**
+```bash
+curl -X POST https://api.nivasity.com/auth/refresh-token.php \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }'
+```
+
+**Expected Response:**
+```json
+{
+  "status": "success",
+  "message": "Token refreshed successfully",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token_type": "Bearer",
+    "expires_in": 3600
+  }
+}
+```
+
+### 4. Test Get Profile
 
 **Request:**
 ```bash
 curl -X GET https://api.nivasity.com/profile/profile.php \
   -H "Content-Type: application/json" \
-  -b cookies.txt
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
-**Note:** The `-b cookies.txt` flag uses the saved session cookie.
+**Note:** Replace `YOUR_ACCESS_TOKEN` with the actual token from the login response.
 
-### 4. Test List Materials
+### 5. Test List Materials
 
 **Request:**
 ```bash
 curl -X GET "https://api.nivasity.com/materials/list.php?page=1&limit=10" \
   -H "Content-Type: application/json" \
-  -b cookies.txt
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
-### 5. Test Add to Cart
+### 6. Test Add to Cart
 
 **Request:**
 ```bash
 curl -X POST https://api.nivasity.com/materials/cart-add.php \
   -H "Content-Type: application/json" \
-  -b cookies.txt \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{
     "material_id": 45
   }'
@@ -111,7 +139,7 @@ curl -X POST https://api.nivasity.com/materials/cart-add.php \
 ```bash
 curl -X GET https://api.nivasity.com/materials/cart-view.php \
   -H "Content-Type: application/json" \
-  -b cookies.txt
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 ### 7. Test Initialize Payment
@@ -120,7 +148,7 @@ curl -X GET https://api.nivasity.com/materials/cart-view.php \
 ```bash
 curl -X POST https://api.nivasity.com/payment/init.php \
   -H "Content-Type: application/json" \
-  -b cookies.txt
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 ### 8. Test Create Support Ticket
@@ -129,7 +157,7 @@ curl -X POST https://api.nivasity.com/payment/init.php \
 ```bash
 curl -X POST https://api.nivasity.com/support/create-ticket.php \
   -H "Content-Type: multipart/form-data" \
-  -b cookies.txt \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -F "subject=Test Issue" \
   -F "message=I need help with accessing materials" \
   -F "category=Technical and Other Issues"
@@ -141,7 +169,7 @@ curl -X POST https://api.nivasity.com/support/create-ticket.php \
 ```bash
 curl -X GET https://api.nivasity.com/support/list-tickets.php \
   -H "Content-Type: application/json" \
-  -b cookies.txt
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 ### 10. Test Logout
@@ -150,7 +178,7 @@ curl -X GET https://api.nivasity.com/support/list-tickets.php \
 ```bash
 curl -X POST https://api.nivasity.com/auth/logout.php \
   -H "Content-Type: application/json" \
-  -b cookies.txt
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 ## Testing with Postman
