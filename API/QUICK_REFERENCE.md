@@ -24,11 +24,14 @@ Authorization: Bearer <access_token>
 ### 🔐 Authentication
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
-| POST | `/auth/register.php` | Register student | ❌ |
+| POST | `/auth/register.php` | Register student (sends OTP) | ❌ |
+| POST | `/auth/verify-otp.php` | Verify OTP & get tokens | ❌ |
 | POST | `/auth/login.php` | Login (returns tokens) | ❌ |
 | POST | `/auth/refresh-token.php` | Refresh access token | ❌ |
-| POST | `/auth/logout.php` | Logout | ❌ |
+| POST | `/auth/forgot-password.php` | Request password reset OTP | ❌ |
+| POST | `/auth/reset-password.php` | Reset password with OTP | ❌ |
 | POST | `/auth/resend-verification.php` | Resend verification | ❌ |
+| POST | `/auth/logout.php` | Logout | ❌ |
 
 ### 👤 Profile
 | Method | Endpoint | Description | Auth Required |
@@ -102,11 +105,18 @@ Authorization: Bearer <access_token>
 
 ## Example Requests
 
-### Register
+### Register (Step 1)
 ```bash
 curl -X POST https://api.nivasity.com/auth/register.php \
   -H "Content-Type: application/json" \
   -d '{"email":"user@example.com","password":"pass123","first_name":"John","last_name":"Doe","phone":"08012345678","gender":"male","school_id":1}'
+```
+
+### Verify OTP (Step 2 - Complete Registration)
+```bash
+curl -X POST https://api.nivasity.com/auth/verify-otp.php \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","otp":"123456"}'
 ```
 
 ### Login
@@ -114,6 +124,20 @@ curl -X POST https://api.nivasity.com/auth/register.php \
 curl -X POST https://api.nivasity.com/auth/login.php \
   -H "Content-Type: application/json" \
   -d '{"email":"user@example.com","password":"pass123"}'
+```
+
+### Forgot Password (Step 1)
+```bash
+curl -X POST https://api.nivasity.com/auth/forgot-password.php \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com"}'
+```
+
+### Reset Password (Step 2)
+```bash
+curl -X POST https://api.nivasity.com/auth/reset-password.php \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","otp":"123456","new_password":"newpass123"}'
 ```
 
 ### Refresh Token

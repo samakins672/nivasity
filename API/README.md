@@ -27,7 +27,7 @@ When the access token expires, use the refresh token to get a new access token p
 #### 1. Register
 **Endpoint:** `POST /auth/register.php`
 
-**Description:** Register a new student account.
+**Description:** Register a new student account. Sends a 6-digit OTP to the provided email for verification.
 
 **Request Body (JSON):**
 ```json
@@ -46,17 +46,71 @@ When the access token expires, use the refresh token to get a new access token p
 ```json
 {
   "status": "success",
-  "message": "Registration successful! We've sent an account verification link to your email address.",
+  "message": "Registration successful! We've sent a verification code (OTP) to your email address. Please check your inbox.",
   "data": {
     "user_id": 123,
-    "email": "student@example.com"
+    "email": "student@example.com",
+    "message": "Use the verify-otp endpoint to complete registration",
+    "expires_in": 600
   }
 }
 ```
 
-**Note:** Academic information (department, matric number, admission year) is NOT required at registration. Students can update this information later using the `/profile/update-academic-info.php` endpoint.
+**Note:** 
+- Account is created with status='pending' until OTP is verified
+- OTP expires in 10 minutes (600 seconds)
+- Academic information (department, matric number, admission year) is NOT required at registration
+- Use `/auth/verify-otp.php` to complete registration and get tokens
 
-#### 2. Login
+#### 2. Verify OTP
+**Endpoint:** `POST /auth/verify-otp.php`
+
+**Description:** Verify the OTP sent during registration and complete account setup. Returns JWT tokens and user data.
+
+**Request Body (JSON):**
+```json
+{
+  "email": "student@example.com",
+  "otp": "123456"
+}
+```
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Account verified successfully! Welcome to Nivasity.",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token_type": "Bearer",
+    "expires_in": 3600,
+    "user": {
+      "id": 123,
+      "first_name": "John",
+      "last_name": "Doe",
+      "email": "student@example.com",
+      "phone": "08012345678",
+      "gender": "male",
+      "role": "student",
+      "profile_pic": "user.jpg",
+      "school_id": 1,
+      "dept_id": null,
+      "dept_name": null,
+      "matric_no": null,
+      "adm_year": null,
+      "status": "active"
+    }
+  }
+}
+```
+
+**Error Responses:**
+- `404` - Invalid email address
+- `400` - Account already verified (use login instead)
+- `400` - Invalid or expired OTP
+
+#### 3. Login
 **Endpoint:** `POST /auth/login.php`
 
 **Description:** Login to student account.
@@ -134,7 +188,62 @@ When the access token expires, use the refresh token to get a new access token p
 }
 ```
 
-#### 5. Resend Verification
+#### 5. Forgot Password
+**Endpoint:** `POST /auth/forgot-password.php`
+
+**Description:** Request a password reset OTP. Sends a 6-digit code to the user's email.
+
+**Request Body (JSON):**
+```json
+{
+  "email": "student@example.com"
+}
+```
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "OTP sent to your email address. Please check your inbox.",
+  "data": {
+    "email": "student@example.com",
+    "expires_in": 600
+  }
+}
+```
+
+**Error Responses:**
+- `404` - No account found with this email address
+
+**Note:** OTP expires in 10 minutes (600 seconds)
+
+#### 6. Reset Password
+**Endpoint:** `POST /auth/reset-password.php`
+
+**Description:** Reset password using the OTP received via email.
+
+**Request Body (JSON):**
+```json
+{
+  "email": "student@example.com",
+  "otp": "123456",
+  "new_password": "newsecurepassword"
+}
+```
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Password reset successfully! You can now login with your new password."
+}
+```
+
+**Error Responses:**
+- `404` - Invalid email address
+- `400` - Invalid or expired OTP
+
+#### 7. Resend Verification
 **Endpoint:** `POST /auth/resend-verification.php`
 
 **Description:** Resend email verification link.
@@ -223,7 +332,7 @@ When the access token expires, use the refresh token to get a new access token p
 }
 ```
 
-#### 7. Update Academic Information
+#### 9. Update Academic Information
 **Endpoint:** `POST /profile/update-academic-info.php`
 
 **Description:** Update academic information (department, matric number, admission year).
@@ -254,7 +363,7 @@ When the access token expires, use the refresh token to get a new access token p
 
 **Note:** All fields are optional. The department must belong to the user's school.
 
-#### 8. Change Password
+#### 10. Change Password
 **Endpoint:** `POST /profile/change-password.php`
 
 **Description:** Change user password.
