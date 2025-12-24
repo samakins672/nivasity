@@ -1,22 +1,22 @@
 <?php
 // API Authentication Middleware
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/jwt.php';
 
-// Authenticate API request using session
+// Authenticate API request using JWT token
 function authenticateApiRequest($conn) {
-    // For API, we'll use session-based authentication
-    // In a production environment, consider using JWT tokens
-    session_start();
+    // Get and validate JWT token
+    $tokenPayload = validateTokenAndGetUser();
     
-    if (!isset($_SESSION['nivas_userId'])) {
-        sendApiError('Unauthorized. Please login first.', 401);
+    if (!$tokenPayload) {
+        sendApiError('Unauthorized. Invalid or missing token.', 401);
     }
     
-    $user_id = $_SESSION['nivas_userId'];
+    $user_id = $tokenPayload['user_id'];
     $user_query = mysqli_query($conn, "SELECT * FROM users WHERE id = $user_id");
     
     if (mysqli_num_rows($user_query) !== 1) {
-        sendApiError('Invalid session. Please login again.', 401);
+        sendApiError('Invalid token. User not found.', 401);
     }
     
     $user = mysqli_fetch_array($user_query);
@@ -37,15 +37,15 @@ function authenticateApiRequest($conn) {
     return $user;
 }
 
-// Get authenticated user
+// Get authenticated user (returns null if not authenticated)
 function getAuthenticatedUser($conn) {
-    session_start();
+    $tokenPayload = validateTokenAndGetUser();
     
-    if (!isset($_SESSION['nivas_userId'])) {
+    if (!$tokenPayload) {
         return null;
     }
     
-    $user_id = $_SESSION['nivas_userId'];
+    $user_id = $tokenPayload['user_id'];
     $user_query = mysqli_query($conn, "SELECT * FROM users WHERE id = $user_id");
     
     if (mysqli_num_rows($user_query) === 1) {

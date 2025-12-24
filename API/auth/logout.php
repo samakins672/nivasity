@@ -7,9 +7,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     sendApiError('Method not allowed', 405);
 }
 
-session_start();
-session_unset();
-session_destroy();
+// With JWT, logout is handled client-side by deleting the token
+// This endpoint serves as a confirmation point
+// In a more advanced implementation, you could add token to a blacklist
 
-sendApiSuccess('You have successfully logged out!');
+sendApiSuccess('You have successfully logged out! Please delete your access and refresh tokens on the client side.');
 ?>

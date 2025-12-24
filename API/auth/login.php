@@ -1,6 +1,7 @@
 <?php
 // API: User Login
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../jwt.php';
 
 // Only accept POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -46,12 +47,8 @@ if ($user['role'] !== 'student' && $user['role'] !== 'hoc') {
     sendApiError('Access denied. This API is for students only.', 403);
 }
 
-// Start session
-session_start();
-$_SESSION['nivas_userId'] = $user['id'];
-$_SESSION['nivas_userName'] = $user['first_name'];
-$_SESSION['nivas_userRole'] = $user['role'];
-$_SESSION['nivas_userSch'] = $user['school'];
+// Generate JWT tokens
+$tokens = generateTokenPair($user['id'], $user['role'], $user['school']);
 
 // Prepare user data
 $userData = [
@@ -69,5 +66,8 @@ $userData = [
     'adm_year' => $user['adm_year'] ?? null
 ];
 
-sendApiSuccess('Logged in successfully!', $userData);
+// Combine user data with tokens
+$responseData = array_merge($userData, $tokens);
+
+sendApiSuccess('Logged in successfully!', $responseData);
 ?>
