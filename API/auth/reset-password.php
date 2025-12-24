@@ -42,8 +42,16 @@ if (mysqli_num_rows($user_query) === 0) {
     sendApiError('User not found.', 404);
 }
 
-// Update password
-$update_query = mysqli_query($conn, "UPDATE users SET password = '$new_password' WHERE id = $user_id");
+$user = mysqli_fetch_assoc($user_query);
+
+// Update password and verify account if unverified
+if ($user['status'] === 'unverified') {
+    // Account was unverified, change to verified when resetting password
+    $update_query = mysqli_query($conn, "UPDATE users SET password = '$new_password', status = 'verified' WHERE id = $user_id");
+} else {
+    // Account already verified, just update password
+    $update_query = mysqli_query($conn, "UPDATE users SET password = '$new_password' WHERE id = $user_id");
+}
 
 if (!$update_query || mysqli_affected_rows($conn) === 0) {
     sendApiError('Failed to reset password. Please try again.', 500);

@@ -32,12 +32,12 @@ $user = mysqli_fetch_assoc($user_query);
 $user_id = (int)$user['id'];
 
 // Check if user is already verified
-if ($user['status'] === 'active') {
+if ($user['status'] === 'verified') {
     sendApiError('Account already verified. Please login instead.', 400);
 }
 
 // Check if user account is deactivated or banned
-if ($user['status'] !== 'pending') {
+if ($user['status'] !== 'unverified') {
     sendApiError('Account cannot be verified. Please contact support.', 400);
 }
 

@@ -45,7 +45,7 @@ if (mysqli_num_rows($user_query) >= 1) {
 
 // Create user (account not verified yet)
 mysqli_query($conn, "INSERT INTO users (first_name, last_name, email, phone, password, role, school, gender, status)"
-    . " VALUES ('$first_name', '$last_name', '$email', '$phone', '$password', '$role', $school_id, '$gender', 'pending')");
+    . " VALUES ('$first_name', '$last_name', '$email', '$phone', '$password', '$role', $school_id, '$gender', 'unverified')");
 $user_id = mysqli_insert_id($conn);
 
 if (mysqli_affected_rows($conn) < 1) {

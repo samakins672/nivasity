@@ -62,12 +62,12 @@ if ($reason === 'password_reset') {
     );
 } else {
     // Registration Flow - Check if user is already verified
-    if ($user['status'] === 'active') {
+    if ($user['status'] === 'verified') {
         sendApiError('Account already verified. Please login instead.', 400);
     }
     
-    // Update user status to active
-    mysqli_query($conn, "UPDATE users SET status = 'active' WHERE id = $user_id");
+    // Update user status to verified
+    mysqli_query($conn, "UPDATE users SET status = 'verified' WHERE id = $user_id");
     
     // Remove used OTP
     mysqli_query($conn, "DELETE FROM verification_code WHERE user_id = $user_id");
