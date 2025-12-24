@@ -29,7 +29,7 @@ Authorization: Bearer <access_token>
 | POST | `/auth/login.php` | Login (returns tokens) | ❌ |
 | POST | `/auth/refresh-token.php` | Refresh access token | ❌ |
 | POST | `/auth/forgot-password.php` | Request password reset OTP | ❌ |
-| POST | `/auth/reset-password.php` | Reset password with OTP | ❌ |
+| POST | `/auth/reset-password.php` | Reset password with token | ❌ |
 | POST | `/auth/resend-verification.php` | Resend verification | ❌ |
 | POST | `/auth/logout.php` | Logout | ❌ |
 
@@ -116,7 +116,7 @@ curl -X POST https://api.nivasity.com/auth/register.php \
 ```bash
 curl -X POST https://api.nivasity.com/auth/verify-otp.php \
   -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","otp":"123456"}'
+  -d '{"email":"user@example.com","otp":"123456","reason":"registration"}'
 ```
 
 ### Login
@@ -126,18 +126,25 @@ curl -X POST https://api.nivasity.com/auth/login.php \
   -d '{"email":"user@example.com","password":"pass123"}'
 ```
 
-### Forgot Password (Step 1)
+### Forgot Password (Step 1 - Request OTP)
 ```bash
 curl -X POST https://api.nivasity.com/auth/forgot-password.php \
   -H "Content-Type: application/json" \
   -d '{"email":"user@example.com"}'
 ```
 
-### Reset Password (Step 2)
+### Verify Password Reset OTP (Step 2 - Get Reset Token)
+```bash
+curl -X POST https://api.nivasity.com/auth/verify-otp.php \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","otp":"123456","reason":"password_reset"}'
+```
+
+### Reset Password (Step 3 - Update Password)
 ```bash
 curl -X POST https://api.nivasity.com/auth/reset-password.php \
   -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","otp":"123456","new_password":"newpass123"}'
+  -d '{"token":"RESET_TOKEN_FROM_STEP2","new_password":"newpass123"}'
 ```
 
 ### Refresh Token

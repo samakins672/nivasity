@@ -65,17 +65,23 @@ When the access token expires, use the refresh token to get a new access token p
 #### 2. Verify OTP
 **Endpoint:** `POST /auth/verify-otp.php`
 
-**Description:** Verify the OTP sent during registration and complete account setup. Returns JWT tokens and user data.
+**Description:** Unified endpoint to verify OTP for both registration and password reset. Returns JWT tokens for registration, or reset token for password reset.
 
 **Request Body (JSON):**
 ```json
 {
   "email": "student@example.com",
-  "otp": "123456"
+  "otp": "123456",
+  "reason": "registration"
 }
 ```
 
-**Response (Success):**
+**Parameters:**
+- `email` (required): User's email address
+- `otp` (required): 6-digit OTP code
+- `reason` (optional): Purpose of verification - `"registration"` (default) or `"password_reset"`
+
+**Response (Success - Registration):**
 ```json
 {
   "status": "success",
@@ -105,10 +111,23 @@ When the access token expires, use the refresh token to get a new access token p
 }
 ```
 
+**Response (Success - Password Reset):**
+```json
+{
+  "status": "success",
+  "message": "OTP verified successfully. Use the reset token to update your password.",
+  "data": {
+    "reset_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expires_in": 600
+  }
+}
+```
+
 **Error Responses:**
 - `404` - Invalid email address
-- `400` - Account already verified (use login instead)
+- `400` - Account already verified (use login instead) [registration only]
 - `400` - Invalid or expired OTP
+- `400` - Invalid reason parameter
 
 #### 3. Resend Registration OTP
 **Endpoint:** `POST /auth/resend-otp.php`
@@ -250,18 +269,33 @@ When the access token expires, use the refresh token to get a new access token p
 **Error Responses:**
 - `404` - No account found with this email address
 
-**Note:** OTP expires in 10 minutes (600 seconds)
+**Note:** 
+- OTP expires in 10 minutes (600 seconds)
+- After receiving OTP, use `/auth/verify-otp.php` with `reason: "password_reset"` to get a reset token
+
+#### Password Reset Flow Overview:
+The password reset process is a **3-step flow** for enhanced security:
+
+1. **Request OTP** → Call `/auth/forgot-password.php` with email
+   - User receives 6-digit OTP via email
+   
+2. **Verify OTP** → Call `/auth/verify-otp.php` with email, OTP, and `reason: "password_reset"`
+   - Returns single-use reset token (expires in 10 minutes)
+   
+3. **Reset Password** → Call `/auth/reset-password.php` with token and new password
+   - Password is updated, user can login with new credentials
+
+This approach separates OTP verification from password update for better security.
 
 #### 6. Reset Password
 **Endpoint:** `POST /auth/reset-password.php`
 
-**Description:** Reset password using the OTP received via email.
+**Description:** Reset password using the reset token obtained from verify-otp endpoint.
 
 **Request Body (JSON):**
 ```json
 {
-  "email": "student@example.com",
-  "otp": "123456",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "new_password": "newsecurepassword"
 }
 ```
@@ -275,8 +309,14 @@ When the access token expires, use the refresh token to get a new access token p
 ```
 
 **Error Responses:**
-- `404` - Invalid email address
-- `400` - Invalid or expired OTP
+- `400` - Missing required fields
+- `401` - Invalid or expired reset token
+- `400` - Password validation errors
+
+**Note:** 
+- Reset token is single-use only and expires in 10 minutes
+- Get reset token from `/auth/verify-otp.php` with `reason: "password_reset"`
+- Password must meet minimum security requirements
 
 #### 7. Resend Verification
 **Endpoint:** `POST /auth/resend-verification.php`
