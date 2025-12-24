@@ -43,36 +43,31 @@ if (mysqli_num_rows($user_query) >= 1) {
     sendApiError('A user has been associated with this email. Please try again with another email!', 400);
 }
 
-// Create user
-mysqli_query($conn, "INSERT INTO users (first_name, last_name, email, phone, password, role, school, gender)"
-    . " VALUES ('$first_name', '$last_name', '$email', '$phone', '$password', '$role', $school_id, '$gender')");
+// Create user (account not verified yet)
+mysqli_query($conn, "INSERT INTO users (first_name, last_name, email, phone, password, role, school, gender, status)"
+    . " VALUES ('$first_name', '$last_name', '$email', '$phone', '$password', '$role', $school_id, '$gender', 'pending')");
 $user_id = mysqli_insert_id($conn);
 
 if (mysqli_affected_rows($conn) < 1) {
     sendApiError('Internal Server Error. Please try again later!', 500);
 }
 
-// Generate verification code
-$verificationCode = generateVerificationCode(12);
+// Generate 6-digit OTP
+$otp = rand(100000, 999999);
+$exp_date = date('Y-m-d H:i:s', strtotime('+10 minutes'));
 
-while (!isCodeUnique($verificationCode, $conn, 'verification_code')) {
-    $verificationCode = generateVerificationCode(12);
-}
+mysqli_query($conn, "INSERT INTO verification_code (user_id, code, exp_date) VALUES ($user_id, '$otp', '$exp_date')");
 
-mysqli_query($conn, "INSERT INTO verification_code (user_id, code) VALUES ($user_id, '$verificationCode')");
-
-// Prepare verification link
-$verificationLink = "setup.html?verify=$verificationCode";
-
-$subject = "Verify Your Account on NIVASITY";
+$subject = "Verify Your Account - NIVASITY";
 $body = "Hello $first_name,
 <br><br>
-Welcome to Nivasity! We're excited to have you on board. To ensure the security of your account and to provide you with the best experience, we kindly ask you to verify your email address.
+Welcome to Nivasity! We're excited to have you on board. To complete your registration and verify your email address, please use the verification code below:
 <br><br>
-Click on the following link to verify your account: <a href='https://funaab.nivasity.com/$verificationLink'>Verify Account</a>
-<br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationLink
+<strong style='font-size: 24px; letter-spacing: 2px;'>$otp</strong>
 <br><br>
-Thank you for choosing Nivasity. We look forward to serving you!
+This code will expire in 10 minutes.
+<br><br>
+If you did not create this account, please ignore this email.
 <br><br>
 Best regards,<br><b>Nivasity Team</b>";
 
@@ -80,10 +75,12 @@ $mailStatus = sendBrevoMail($subject, $body, $email);
 
 if ($mailStatus === "success") {
     sendApiSuccess(
-        'Registration successful! We\'ve sent an account verification link to your email address. Please check your inbox.',
+        'Registration successful! We\'ve sent a verification code (OTP) to your email address. Please check your inbox.',
         [
             'user_id' => $user_id,
-            'email' => $email
+            'email' => $email,
+            'message' => 'Use the verify-otp endpoint to complete registration',
+            'expires_in' => 600
         ],
         201
     );
