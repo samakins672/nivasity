@@ -23,11 +23,11 @@ if (!$school_id) {
 }
 
 // Build query - only active departments for the specified school
-$where_conditions = ["status = 'active'", "school_id = $school_id"];
+$where_conditions = ["d.status = 'active'", "d.school_id = $school_id"];
 
 // Optional faculty filter
 if ($faculty_id) {
-    $where_conditions[] = "faculty_id = $faculty_id";
+    $where_conditions[] = "d.faculty_id = $faculty_id";
 }
 
 $where_clause = implode(' AND ', $where_conditions);
