@@ -26,7 +26,6 @@ $last_name = sanitizeInput($conn, $input['last_name']);
 $phone = sanitizeInput($conn, $input['phone']);
 $gender = sanitizeInput($conn, $input['gender']);
 $school_id = (int)$input['school_id'];
-$dept_id = isset($input['dept_id']) ? (int)$input['dept_id'] : null;
 
 // Default role to 'student' for API
 $role = 'student';
@@ -37,14 +36,6 @@ if (mysqli_num_rows($school_check) === 0) {
     sendApiError('Invalid school_id. School does not exist or is not active.', 400);
 }
 
-// Validate department if provided
-if ($dept_id) {
-    $dept_check = mysqli_query($conn, "SELECT id FROM depts WHERE id = $dept_id AND school_id = $school_id AND status = 'active'");
-    if (mysqli_num_rows($dept_check) === 0) {
-        sendApiError('Invalid dept_id. Department does not exist, is not active, or does not belong to the specified school.', 400);
-    }
-}
-
 // Check if user already exists
 $user_query = mysqli_query($conn, "SELECT * FROM users WHERE email = '$email'");
 
@@ -53,11 +44,8 @@ if (mysqli_num_rows($user_query) >= 1) {
 }
 
 // Create user
-$dept_sql = $dept_id ? ", dept" : "";
-$dept_val = $dept_id ? ", $dept_id" : "";
-
-mysqli_query($conn, "INSERT INTO users (first_name, last_name, email, phone, password, role, school, gender$dept_sql)"
-    . " VALUES ('$first_name', '$last_name', '$email', '$phone', '$password', '$role', $school_id, '$gender'$dept_val)");
+mysqli_query($conn, "INSERT INTO users (first_name, last_name, email, phone, password, role, school, gender)"
+    . " VALUES ('$first_name', '$last_name', '$email', '$phone', '$password', '$role', $school_id, '$gender')");
 $user_id = mysqli_insert_id($conn);
 
 if (mysqli_affected_rows($conn) < 1) {
