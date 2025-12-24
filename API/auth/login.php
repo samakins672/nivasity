@@ -61,6 +61,7 @@ $userData = [
     'gender' => $user['gender'],
     'status' => $user['status'],
     'profile_pic' => $user['profile_pic'],
+    'school_id' => $user['school'],
     'matric_no' => $user['matric_no'] ?? null,
     'dept' => $user['dept'] ?? null,
     'adm_year' => $user['adm_year'] ?? null
