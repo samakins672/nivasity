@@ -110,7 +110,41 @@ When the access token expires, use the refresh token to get a new access token p
 - `400` - Account already verified (use login instead)
 - `400` - Invalid or expired OTP
 
-#### 3. Login
+#### 3. Resend Registration OTP
+**Endpoint:** `POST /auth/resend-otp.php`
+
+**Description:** Resend verification OTP for pending accounts. Use this if the user didn't receive the initial OTP or if it expired.
+
+**Request Body (JSON):**
+```json
+{
+  "email": "student@example.com"
+}
+```
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Verification code sent successfully! Please check your email inbox.",
+  "data": {
+    "email": "student@example.com",
+    "message": "Use the verify-otp endpoint to complete registration",
+    "expires_in": 600
+  }
+}
+```
+
+**Error Responses:**
+- `404` - No account found with this email address
+- `400` - Account already verified (use login instead)
+
+**Note:**
+- Only works for accounts with status='pending'
+- Deletes any previous unused OTPs
+- Generates a new 6-digit OTP that expires in 10 minutes
+
+#### 4. Login
 **Endpoint:** `POST /auth/login.php`
 
 **Description:** Login to student account.

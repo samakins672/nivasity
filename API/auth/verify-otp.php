@@ -50,8 +50,7 @@ mysqli_query($conn, "UPDATE users SET status = 'active' WHERE id = $user_id");
 mysqli_query($conn, "DELETE FROM verification_code WHERE user_id = $user_id");
 
 // Generate JWT tokens
-$access_token = generateAccessToken($user);
-$refresh_token = generateRefreshToken($user);
+$tokens = generateTokenPair($user['id'], $user['role'], $user['school']);
 
 // Get department info if available
 $dept_name = null;
@@ -83,12 +82,6 @@ $userData = [
 
 sendApiSuccess(
     'Account verified successfully! Welcome to Nivasity.',
-    [
-        'access_token' => $access_token,
-        'refresh_token' => $refresh_token,
-        'token_type' => 'Bearer',
-        'expires_in' => 3600,
-        'user' => $userData
-    ]
+    array_merge($tokens, ['user' => $userData])
 );
 ?>
