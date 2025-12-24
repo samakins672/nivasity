@@ -138,6 +138,7 @@ When the access token expires, use the refresh token to get a new access token p
     "gender": "male",
     "status": "verified",
     "profile_pic": "user.jpg",
+    "school_id": 1,
     "matric_no": "190101001",
     "dept": 5,
     "adm_year": "2019",
