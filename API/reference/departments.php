@@ -33,7 +33,7 @@ if ($faculty_id) {
 $where_clause = implode(' AND ', $where_conditions);
 
 // Count total active departments for the school (and optional faculty)
-$count_query = mysqli_query($conn, "SELECT COUNT(*) as total FROM depts WHERE $where_clause");
+$count_query = mysqli_query($conn, "SELECT COUNT(*) as total FROM depts d WHERE $where_clause");
 $total = mysqli_fetch_array($count_query)['total'];
 
 // Fetch active departments with faculty information
