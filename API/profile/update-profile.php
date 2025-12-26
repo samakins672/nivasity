@@ -22,9 +22,9 @@ $phone = isset($_POST['phone']) ? sanitizeInput($conn, $_POST['phone']) : $user[
 $picture = $user['profile_pic'];
 
 // Handle profile picture upload
-if (isset($_FILES['upload']) && $_FILES['upload']['error'] === UPLOAD_ERR_OK) {
-    $uploadedFile = $_FILES['upload']['name'];
-    $tempname = $_FILES['upload']['tmp_name'];
+if (isset($_FILES['profile_pic']) && $_FILES['profile_pic']['error'] === UPLOAD_ERR_OK) {
+    $uploadedFile = $_FILES['profile_pic']['name'];
+    $tempname = $_FILES['profile_pic']['tmp_name'];
     $extension = pathinfo($uploadedFile, PATHINFO_EXTENSION);
     
     // Validate file type
