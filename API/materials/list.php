@@ -20,6 +20,7 @@ $user_dept = $user['dept'] ?? null;
 $search = isset($_GET['search']) ? sanitizeInput($conn, $_GET['search']) : '';
 $dept_filter = isset($_GET['dept']) ? (int)$_GET['dept'] : null;
 $faculty_filter = isset($_GET['faculty']) ? (int)$_GET['faculty'] : null;
+$sort = isset($_GET['sort']) ? strtolower($_GET['sort']) : 'recommended';
 $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
 $limit = isset($_GET['limit']) ? min(100, max(1, (int)$_GET['limit'])) : 20;
 $offset = ($page - 1) * $limit;
@@ -52,6 +53,21 @@ $where_clause = implode(' AND ', $where_conditions);
 $count_query = mysqli_query($conn, "SELECT COUNT(*) as total FROM manuals m WHERE $where_clause");
 $total = mysqli_fetch_array($count_query)['total'];
 
+// Determine sort order
+$order_by = "m.due_date ASC"; // Default: latest due date (recommended)
+switch ($sort) {
+    case 'low-high':
+        $order_by = "m.price ASC";
+        break;
+    case 'high-low':
+        $order_by = "m.price DESC";
+        break;
+    case 'recommended':
+    default:
+        $order_by = "m.due_date ASC"; // Soonest due date first (most urgent)
+        break;
+}
+
 // Fetch manuals
 $query = "SELECT m.*, u.first_name, u.last_name, d.name as dept_name, f.name as faculty_name
           FROM manuals m
@@ -59,7 +75,7 @@ $query = "SELECT m.*, u.first_name, u.last_name, d.name as dept_name, f.name as 
           LEFT JOIN depts d ON m.dept = d.id
           LEFT JOIN faculties f ON m.faculty = f.id
           WHERE $where_clause
-          ORDER BY m.created_at DESC
+          ORDER BY $order_by
           LIMIT $limit OFFSET $offset";
 
 $result = mysqli_query($conn, $query);

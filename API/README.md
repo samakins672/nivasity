@@ -600,7 +600,7 @@ These endpoints provide institutional data needed for registration and profile s
 #### 12. List Materials
 **Endpoint:** `GET /materials/list.php`
 
-**Description:** Get list of available materials/manuals.
+**Description:** Get list of available materials/manuals filtered by user's school and department.
 
 **Authentication:** Required
 
@@ -608,8 +608,17 @@ These endpoints provide institutional data needed for registration and profile s
 - `search` (optional): Search by title or course code
 - `dept` (optional): Filter by department ID
 - `faculty` (optional): Filter by faculty ID
+- `sort` (optional, default: `recommended`): Sort order
+  - `recommended` - Sort by latest due date (soonest deadlines first) **[DEFAULT]**
+  - `low-high` - Sort by price (lowest to highest)
+  - `high-low` - Sort by price (highest to lowest)
 - `page` (optional, default: 1): Page number
 - `limit` (optional, default: 20, max: 100): Items per page
+
+**Filtering Rules:**
+- Materials are automatically filtered by **user's school AND department**
+- Only materials from your department are shown
+- This ensures relevance to your courses
 
 **Response (Success):**
 ```json
@@ -620,6 +629,7 @@ These endpoints provide institutional data needed for registration and profile s
     "materials": [
       {
         "id": 45,
+        "code": "MAN-2024-001",
         "title": "Introduction to Algorithms",
         "course_code": "CSC301",
         "price": 1500,
@@ -644,15 +654,36 @@ These endpoints provide institutional data needed for registration and profile s
 }
 ```
 
+**Example Requests:**
+```bash
+# Get recommended materials (default - sorted by soonest due date)
+GET /materials/list.php
+
+# Get materials sorted by price (low to high)
+GET /materials/list.php?sort=low-high
+
+# Get materials sorted by price (high to low)
+GET /materials/list.php?sort=high-low
+
+# Search and sort
+GET /materials/list.php?search=algorithm&sort=low-high
+```
+
 #### 13. Get Material Details
 **Endpoint:** `GET /materials/details.php`
 
-**Description:** Get detailed information about a specific material.
+**Description:** Get detailed information about a specific material. Supports lookup by ID or code.
 
 **Authentication:** Required
 
-**Query Parameters:**
-- `id` (required): Material ID
+**Query Parameters (one required):**
+- `id` (optional): Material ID
+- `code` (optional): Material code (e.g., `MAN-2024-001`)
+
+**Filtering Rules:**
+- Materials are filtered by **user's school only**
+- Allows viewing materials from other departments in your school
+- Enables cross-department discovery when you have a code/link
 
 **Response (Success):**
 ```json
@@ -661,6 +692,7 @@ These endpoints provide institutional data needed for registration and profile s
   "message": "Material details retrieved successfully",
   "data": {
     "id": 45,
+    "code": "MAN-2024-001",
     "title": "Introduction to Algorithms",
     "course_code": "CSC301",
     "price": 1500,
@@ -682,6 +714,15 @@ These endpoints provide institutional data needed for registration and profile s
     "created_at": "2024-01-15 10:30:00"
   }
 }
+```
+
+**Example Requests:**
+```bash
+# Get material by ID
+GET /materials/details.php?id=45
+
+# Get material by code
+GET /materials/details.php?code=MAN-2024-001
 ```
 
 #### 14. Add to Cart
