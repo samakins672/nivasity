@@ -848,12 +848,82 @@ GET /materials/details.php?code=MAN-2024-001
 
 ### Payment Endpoints
 
+#### 16. Get Payment Gateway
+**Endpoint:** `GET /payment/gateway.php`
+
+**Description:** Get active payment gateway information.
+
+**Authentication:** Not required (public endpoint)
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "message": "Gateway information retrieved successfully",
+  "data": {
+    "active_gateway": "paystack",
+    "gateways": ["paystack", "flutterwave"]
+  }
+}
+```
+
+#### 17. View Cart with Pricing Breakdown
+**Endpoint:** `GET /materials/cart-view.php`
+
+**Description:** Get cart contents with detailed pricing breakdown including subtotal, gateway charges, and total amount.
+
+**Authentication:** Required
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "message": "Cart retrieved successfully",
+  "data": {
+    "items": [
+      {
+        "id": 45,
+        "title": "Introduction to Algorithms",
+        "course_code": "CSC301",
+        "price": 1500,
+        "seller_name": "Dr. John Smith",
+        "due_date": "2024-03-15 23:59:59"
+      }
+    ],
+    "subtotal": 5000,
+    "charge": 100,
+    "total_amount": 5100,
+    "total_items": 3
+  }
+}
+```
+
+**Note:** 
+- `subtotal` - Sum of all item prices
+- `charge` - Gateway processing fees (calculated using active gateway's fee structure)
+- `total_amount` - Final amount to be charged (subtotal + charge)
+
 #### 18. Initialize Payment
 **Endpoint:** `POST /payment/init.php`
 
-**Description:** Initialize payment for cart items.
+**Description:** Initialize payment for cart items. Supports automatic payment splitting for multi-seller transactions using gateway-specific split mechanisms.
 
 **Authentication:** Required
+
+**Payment Split Features:**
+- **Paystack:** Uses Paystack Split API with intelligent caching to avoid recreating splits for identical seller combinations
+- **Flutterwave:** Uses subaccounts array for direct settlement to sellers
+- Sellers receive their exact item prices automatically
+- Platform charges are calculated separately by the gateway
+- Split configurations are cached based on seller combinations to improve performance and reduce API calls
+
+**Split Caching:**
+The endpoint uses an intelligent caching system to avoid recreating payment splits:
+- Cache key is generated from sorted seller subaccounts and their shares
+- Same seller combination with same amounts reuses existing split code
+- Cache stored in `model/paystack_split_cache.json`
+- Reduces unnecessary API calls to Paystack Split API
+- Improves payment initialization performance
 
 **Response (Success):**
 ```json
@@ -861,21 +931,55 @@ GET /materials/details.php?code=MAN-2024-001
   "status": "success",
   "message": "Payment initialized successfully",
   "data": {
-    "tx_ref": "NIVAS_1234567890_123_abc",
-    "payment_url": "https://checkout.flutterwave.com/...",
-    "gateway": "flutterwave",
-    "amount": 4500,
+    "tx_ref": "nivas_123_1703689200",
+    "payment_url": "https://checkout.paystack.com/...",
+    "gateway": "paystack",
+    "subtotal": 5000,
+    "charge": 100,
+    "total_amount": 5100,
     "items": [
       {
         "type": "manual",
         "id": 45,
         "title": "Introduction to Algorithms",
-        "price": 1500
+        "price": 1500,
+        "seller_id": 67
       }
     ]
   }
 }
 ```
+
+**How Payment Splitting Works:**
+
+1. **Collection Phase:**
+   - System collects all cart items with their seller information
+   - Retrieves `ps_subaccount` (Paystack) and `flw_subaccount` (Flutterwave) codes from sellers
+   - Calculates total amount per seller
+
+2. **Paystack Split (with caching):**
+   - Sellers are sorted by subaccount code for consistent cache keys
+   - Cache key is generated: `md5(json_encode(sorted_sellers))`
+   - System checks cache file for existing split with same configuration
+   - If cached split exists, reuses the `split_code`
+   - If no cache, creates new split via Paystack Split API
+   - New splits are cached with their configuration for future reuse
+   - Split code is included in payment initialization
+
+3. **Flutterwave Subaccounts:**
+   - Builds array of subaccounts with flat charge type
+   - Each seller's total is set as their transaction charge
+   - Subaccounts array is passed to payment initialization
+
+4. **Payment Distribution:**
+   - Gateway automatically settles each seller's share to their subaccount
+   - Platform receives gateway processing fees
+   - No manual settlement required
+
+**Requirements:**
+- Sellers must have subaccount codes in users table (`ps_subaccount` or `flw_subaccount`)
+- Platform must have valid gateway credentials (PAYSTACK_SECRET_KEY, FLUTTERWAVE_SECRET_KEY)
+- Cart items are saved to database before payment initialization
 
 #### 19. Verify Payment
 **Endpoint:** `GET /payment/verify.php`

@@ -151,7 +151,7 @@ $payment_data = [
 
 // Handle gateway-specific split payment configuration
 if ($gatewayName === 'paystack') {
-    // For Paystack: Create split payment using split API
+    // For Paystack: Create split payment using split API with caching
     if (count($seller_totals) > 0) {
         // Prepare seller data for split creation
         $sellers_for_split = [];
@@ -165,47 +165,69 @@ if ($gatewayName === 'paystack') {
         }
         
         if (!empty($sellers_for_split)) {
-            // Create Paystack split
-            $split_data = [
-                'sellers' => $sellers_for_split,
-                'amount_kobo' => round($total_amount * 100),
-                'bearer_type' => 'account'
-            ];
+            // Sort by subaccount for consistent cache key
+            usort($sellers_for_split, function($a, $b) { 
+                return strcmp($a['subaccount'], $b['subaccount']); 
+            });
             
-            $curl = curl_init();
-            curl_setopt_array($curl, [
-                CURLOPT_URL => 'https://api.paystack.co/split',
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_CUSTOMREQUEST => 'POST',
-                CURLOPT_HTTPHEADER => [
-                    'Content-Type: application/json',
-                    'Authorization: Bearer ' . PAYSTACK_SECRET_KEY
-                ],
-                CURLOPT_POSTFIELDS => json_encode([
-                    'name' => 'Nivasity Split ' . substr($tx_ref, -8),
-                    'type' => 'flat',
-                    'currency' => 'NGN',
-                    'subaccounts' => $sellers_for_split,
-                    'bearer_type' => 'account'
-                ]),
-            ]);
+            // Build cache key from sorted sellers
+            $cache_key = md5(json_encode($sellers_for_split));
+            $cacheFile = __DIR__ . '/../../model/paystack_split_cache.json';
+            $cache = [];
             
-            $response = curl_exec($curl);
-            $error = curl_error($curl);
-            curl_close($curl);
-            
-            if (!$error) {
-                $split_response = json_decode($response, true);
-                if (isset($split_response['status']) && $split_response['status'] === true && 
-                    isset($split_response['data']['split_code'])) {
-                    $payment_data['split_code'] = $split_response['data']['split_code'];
-                }
+            // Check cache
+            if (file_exists($cacheFile)) {
+                $cache = json_decode(file_get_contents($cacheFile), true) ?: [];
             }
             
-            // Fallback: if split creation fails, use first subaccount
-            if (!isset($payment_data['split_code']) && count($sellers_for_split) > 0) {
-                $payment_data['subaccount'] = $sellers_for_split[0]['subaccount'];
-                $payment_data['transaction_charge'] = $sellers_for_split[0]['share'] / 100; // Convert back to naira
+            if (isset($cache[$cache_key]) && !empty($cache[$cache_key]['split_code'])) {
+                // Use cached split code
+                $payment_data['split_code'] = $cache[$cache_key]['split_code'];
+            } else {
+                // Create new Paystack split
+                $curl = curl_init();
+                curl_setopt_array($curl, [
+                    CURLOPT_URL => 'https://api.paystack.co/split',
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_CUSTOMREQUEST => 'POST',
+                    CURLOPT_HTTPHEADER => [
+                        'Content-Type: application/json',
+                        'Authorization: Bearer ' . PAYSTACK_SECRET_KEY
+                    ],
+                    CURLOPT_POSTFIELDS => json_encode([
+                        'name' => 'Nivasity Split ' . substr($cache_key, 0, 8),
+                        'type' => 'flat',
+                        'currency' => 'NGN',
+                        'subaccounts' => $sellers_for_split,
+                        'bearer_type' => 'account'
+                    ]),
+                ]);
+                
+                $response = curl_exec($curl);
+                $error = curl_error($curl);
+                curl_close($curl);
+                
+                if (!$error) {
+                    $split_response = json_decode($response, true);
+                    if (isset($split_response['status']) && $split_response['status'] === true && 
+                        isset($split_response['data']['split_code'])) {
+                        $split_code = $split_response['data']['split_code'];
+                        $payment_data['split_code'] = $split_code;
+                        
+                        // Cache the split code
+                        $cache[$cache_key] = [
+                            'split_code' => $split_code, 
+                            'created_at' => time()
+                        ];
+                        @file_put_contents($cacheFile, json_encode($cache));
+                    }
+                }
+                
+                // Fallback: if split creation fails, use first subaccount
+                if (!isset($payment_data['split_code']) && count($sellers_for_split) > 0) {
+                    $payment_data['subaccount'] = $sellers_for_split[0]['subaccount'];
+                    $payment_data['transaction_charge'] = $sellers_for_split[0]['share'] / 100; // Convert back to naira
+                }
             }
         }
     }
