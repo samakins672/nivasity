@@ -24,15 +24,22 @@ $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
 $limit = isset($_GET['limit']) ? min(100, max(1, (int)$_GET['limit'])) : 20;
 $offset = ($page - 1) * $limit;
 
-// Build query
+// Build query - filter by school AND user's department
 $where_conditions = ["m.school_id = $school_id", "m.status = 'open'"];
+
+// Filter by user's department
+if ($user_dept) {
+    $where_conditions[] = "m.dept = $user_dept";
+}
 
 if (!empty($search)) {
     $where_conditions[] = "(m.title LIKE '%$search%' OR m.course_code LIKE '%$search%')";
 }
 
-if ($dept_filter) {
-    $where_conditions[] = "m.dept = $dept_filter";
+// Note: dept_filter and faculty_filter parameters are still supported but 
+// will be constrained by user's department filter above
+if ($dept_filter && $dept_filter == $user_dept) {
+    // Only apply if it matches user's department (already filtered above)
 }
 
 if ($faculty_filter) {
