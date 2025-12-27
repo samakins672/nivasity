@@ -778,14 +778,14 @@ GET /materials/details.php?code=MAN-2024-001
 #### 16. View Cart
 **Endpoint:** `GET /materials/cart-view.php`
 
-**Description:** View current cart contents.
+**Description:** Get cart contents with detailed pricing breakdown including subtotal, gateway charges, and total amount.
 
 **Authentication:** Required
 
 **Response (Success):**
 ```json
 {
-  "status": "success",
+  "success": true,
   "message": "Cart retrieved successfully",
   "data": {
     "items": [
@@ -794,18 +794,24 @@ GET /materials/details.php?code=MAN-2024-001
         "title": "Introduction to Algorithms",
         "course_code": "CSC301",
         "price": 1500,
-        "status": "open",
-        "dept_name": "Computer Science",
-        "seller_name": "Jane Smith"
+        "seller_name": "Dr. John Smith",
+        "due_date": "2024-03-15 23:59:59"
       }
     ],
-    "total_amount": 4500,
+    "subtotal": 5000,
+    "charge": 100,
+    "total_amount": 5100,
     "total_items": 3
   }
 }
 ```
 
-#### 14. List Purchased Materials
+**Note:** 
+- `subtotal` - Sum of all item prices
+- `charge` - Gateway processing fees (calculated using active gateway's fee structure)
+- `total_amount` - Final amount to be charged (subtotal + charge)
+
+#### 17. List Purchased Materials
 **Endpoint:** `GET /materials/purchased.php`
 
 **Description:** Get list of purchased materials.
@@ -848,7 +854,7 @@ GET /materials/details.php?code=MAN-2024-001
 
 ### Payment Endpoints
 
-#### 16. Get Payment Gateway
+#### 18. Get Payment Gateway
 **Endpoint:** `GET /payment/gateway.php`
 
 **Description:** Get active payment gateway information.
@@ -867,43 +873,7 @@ GET /materials/details.php?code=MAN-2024-001
 }
 ```
 
-#### 17. View Cart with Pricing Breakdown
-**Endpoint:** `GET /materials/cart-view.php`
-
-**Description:** Get cart contents with detailed pricing breakdown including subtotal, gateway charges, and total amount.
-
-**Authentication:** Required
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "message": "Cart retrieved successfully",
-  "data": {
-    "items": [
-      {
-        "id": 45,
-        "title": "Introduction to Algorithms",
-        "course_code": "CSC301",
-        "price": 1500,
-        "seller_name": "Dr. John Smith",
-        "due_date": "2024-03-15 23:59:59"
-      }
-    ],
-    "subtotal": 5000,
-    "charge": 100,
-    "total_amount": 5100,
-    "total_items": 3
-  }
-}
-```
-
-**Note:** 
-- `subtotal` - Sum of all item prices
-- `charge` - Gateway processing fees (calculated using active gateway's fee structure)
-- `total_amount` - Final amount to be charged (subtotal + charge)
-
-#### 18. Initialize Payment
+#### 19. Initialize Payment
 **Endpoint:** `POST /payment/init.php`
 
 **Description:** Initialize payment for cart items. Supports automatic payment splitting for multi-seller transactions using gateway-specific split mechanisms.
@@ -981,7 +951,7 @@ The endpoint uses an intelligent caching system to avoid recreating payment spli
 - Platform must have valid gateway credentials (PAYSTACK_SECRET_KEY, FLUTTERWAVE_SECRET_KEY)
 - Cart items are saved to database before payment initialization
 
-#### 19. Verify Payment
+#### 20. Verify Payment
 **Endpoint:** `GET /payment/verify.php`
 
 **Description:** Verify payment transaction.
@@ -1005,7 +975,7 @@ The endpoint uses an intelligent caching system to avoid recreating payment spli
 }
 ```
 
-#### 17. Get Transactions
+#### 21. Get Transactions
 **Endpoint:** `GET /payment/transactions.php`
 
 **Description:** Get user transaction history.
@@ -1055,7 +1025,7 @@ The endpoint uses an intelligent caching system to avoid recreating payment spli
 
 ### Support Endpoints
 
-#### 21. Create Support Ticket
+#### 22. Create Support Ticket
 **Endpoint:** `POST /support/create-ticket.php`
 
 **Description:** Create a new support ticket.
@@ -1084,7 +1054,7 @@ The endpoint uses an intelligent caching system to avoid recreating payment spli
 }
 ```
 
-#### 22. List Support Tickets
+#### 23. List Support Tickets
 **Endpoint:** `GET /support/list-tickets.php`
 
 **Description:** Get list of user support tickets.
@@ -1125,7 +1095,7 @@ The endpoint uses an intelligent caching system to avoid recreating payment spli
 }
 ```
 
-#### 23. Get Ticket Details
+#### 24. Get Ticket Details
 **Endpoint:** `GET /support/ticket-details.php`
 
 **Description:** Get detailed information about a support ticket.
@@ -1173,7 +1143,7 @@ The endpoint uses an intelligent caching system to avoid recreating payment spli
 }
 ```
 
-#### 24. Reply to Ticket
+#### 25. Reply to Ticket
 **Endpoint:** `POST /support/reply.php`
 
 **Description:** Reply to an existing support ticket.
