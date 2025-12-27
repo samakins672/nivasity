@@ -2,6 +2,8 @@
 // API: View Cart
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../auth.php';
+require_once __DIR__ . '/../../model/functions.php';
+require_once __DIR__ . '/../../model/PaymentGatewayFactory.php';
 
 // Only accept GET requests
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
@@ -22,6 +24,8 @@ $cart_key = "nivas_cart$user_id";
 if (!isset($_SESSION[$cart_key]) || empty($_SESSION[$cart_key])) {
     sendApiSuccess('Cart retrieved successfully', [
         'items' => [],
+        'subtotal' => 0,
+        'charge' => 0,
         'total_amount' => 0,
         'total_items' => 0
     ]);
@@ -39,7 +43,7 @@ $query = "SELECT m.*, u.first_name, u.last_name, d.name as dept_name
 
 $result = mysqli_query($conn, $query);
 $cart_items = [];
-$total_amount = 0;
+$subtotal = 0;
 
 while ($row = mysqli_fetch_assoc($result)) {
     $item = [
@@ -54,14 +58,21 @@ while ($row = mysqli_fetch_assoc($result)) {
     
     $cart_items[] = $item;
     
-    // Only add to total if status is 'open'
+    // Only add to subtotal if status is 'open'
     if ($row['status'] === 'open') {
-        $total_amount += (float)$row['price'];
+        $subtotal += (float)$row['price'];
     }
 }
 
+// Calculate charges using active gateway
+$charges_result = calculateGatewayCharges($subtotal);
+$charge = $charges_result['charge'] ?? 0;
+$total_amount = $charges_result['total_amount'] ?? ($subtotal + $charge);
+
 sendApiSuccess('Cart retrieved successfully', [
     'items' => $cart_items,
+    'subtotal' => $subtotal,
+    'charge' => $charge,
     'total_amount' => $total_amount,
     'total_items' => count($cart_items)
 ]);
