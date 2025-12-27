@@ -116,7 +116,11 @@ if (!$init_result['status']) {
 
 sendApiSuccess('Payment initialized successfully', [
     'tx_ref' => $tx_ref,
-    'payment_url' => $init_result['data']['payment_url'] ?? null,
+    'payment_url' =>
+        $init_result['data']['authorization_url']
+        ?? $init_result['data']['link']
+        ?? $init_result['data']['payment_url']
+        ?? null,
     'gateway' => $gatewayName,
     'amount' => $total_amount,
     'items' => $cart_items
