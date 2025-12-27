@@ -94,17 +94,14 @@ try {
     sendApiError('Payment gateway configuration error: ' . $e->getMessage(), 500);
 }
 
-// Initialize payment
+// Initialize payment with correct parameters format
 $payment_data = [
-    'tx_ref' => $tx_ref,
     'amount' => $total_amount,
-    'currency' => 'NGN',
-    'customer' => [
-        'email' => $user['email'],
-        'name' => $user['first_name'] . ' ' . $user['last_name'],
-        'phone' => $user['phone']
-    ],
+    'email' => $user['email'],
+    'reference' => $tx_ref,
     'callback_url' => 'https://api.nivasity.com/payment/verify.php?tx_ref=' . $tx_ref,
+    'customer_name' => $user['first_name'] . ' ' . $user['last_name'],
+    'customer_phone' => $user['phone'],
     'meta' => [
         'user_id' => $user_id,
         'school_id' => $school_id
