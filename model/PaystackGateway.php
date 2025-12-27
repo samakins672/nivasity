@@ -88,6 +88,11 @@ class PaystackGateway implements PaymentGateway {
         ];
         
         // Add subaccount if provided
+        if (isset($params['split_code'])) {
+            $postData['split_code'] = $params['split_code'];
+        }
+        
+        // Add subaccount if provided
         if (isset($params['subaccount'])) {
             $postData['subaccount'] = $params['subaccount'];
         }
