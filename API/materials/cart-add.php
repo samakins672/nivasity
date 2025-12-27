@@ -33,7 +33,7 @@ if (mysqli_num_rows($material_query) === 0) {
 }
 
 // Check if already purchased
-$bought_query = mysqli_query($conn, "SELECT id FROM manuals_bought WHERE manual_id = $material_id AND buyer = $user_id");
+$bought_query = mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE manual_id = $material_id AND buyer = $user_id");
 if (mysqli_num_rows($bought_query) > 0) {
     sendApiError('You have already purchased this material', 400);
 }

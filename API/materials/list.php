@@ -60,7 +60,7 @@ $materials = [];
 
 while ($row = mysqli_fetch_assoc($result)) {
     // Check if user already bought this material
-    $bought_query = mysqli_query($conn, "SELECT id FROM manuals_bought WHERE manual_id = {$row['id']} AND buyer = $user_id LIMIT 1");
+    $bought_query = mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE manual_id = {$row['id']} AND buyer = $user_id LIMIT 1");
     $is_purchased = mysqli_num_rows($bought_query) > 0;
     
     $materials[] = [
