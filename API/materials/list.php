@@ -65,6 +65,7 @@ while ($row = mysqli_fetch_assoc($result)) {
     
     $materials[] = [
         'id' => $row['id'],
+        'code' => $row['code'],
         'title' => $row['title'],
         'course_code' => $row['course_code'],
         'price' => (float)$row['price'],

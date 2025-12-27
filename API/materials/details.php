@@ -12,14 +12,27 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 $user = authenticateApiRequest($conn);
 requireStudentRole($user);
 
-// Get material ID
-if (!isset($_GET['id'])) {
-    sendApiError('Material ID is required', 400);
+// Get material ID or code
+$manual_id = null;
+$manual_code = null;
+
+if (isset($_GET['id'])) {
+    $manual_id = (int)$_GET['id'];
+} elseif (isset($_GET['code'])) {
+    $manual_code = sanitizeInput($conn, $_GET['code']);
+} else {
+    sendApiError('Material ID or code is required', 400);
 }
 
-$manual_id = (int)$_GET['id'];
 $user_id = $user['id'];
 $school_id = $user['school'];
+
+// Build WHERE clause based on lookup parameter
+if ($manual_id) {
+    $where_condition = "m.id = $manual_id";
+} else {
+    $where_condition = "m.code = '$manual_code'";
+}
 
 // Fetch material details
 $query = "SELECT m.*, u.first_name, u.last_name, u.phone, u.email, d.name as dept_name, f.name as faculty_name
@@ -27,7 +40,7 @@ $query = "SELECT m.*, u.first_name, u.last_name, u.phone, u.email, d.name as dep
           LEFT JOIN users u ON m.user_id = u.id
           LEFT JOIN depts d ON m.dept = d.id
           LEFT JOIN faculties f ON m.faculty = f.id
-          WHERE m.id = $manual_id AND m.school_id = $school_id
+          WHERE $where_condition AND m.school_id = $school_id
           LIMIT 1";
 
 $result = mysqli_query($conn, $query);
@@ -38,8 +51,11 @@ if (mysqli_num_rows($result) === 0) {
 
 $material = mysqli_fetch_assoc($result);
 
+// Use the actual material ID from the result for further queries
+$material_id = $material['id'];
+
 // Check if user already bought this material
-$bought_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE manual_id = $manual_id AND buyer = $user_id LIMIT 1");
+$bought_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE manual_id = $material_id AND buyer = $user_id LIMIT 1");
 $is_purchased = mysqli_num_rows($bought_query) > 0;
 
 $purchase_info = null;
@@ -53,6 +69,7 @@ if ($is_purchased) {
 
 $materialData = [
     'id' => $material['id'],
+    'code' => $material['code'],
     'title' => $material['title'],
     'course_code' => $material['course_code'],
     'price' => (float)$material['price'],
