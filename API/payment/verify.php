@@ -69,9 +69,17 @@ if (mysqli_num_rows($processed_query) > 0) {
 $amount = $verifyResult['data']['amount'] ?? 0;
 $gateway_ref = $verifyResult['data']['gateway_ref'] ?? $tx_ref;
 
-// Record transaction
+// Get gateway name from cart for transaction record
+$gateway_medium = strtoupper($gateway_slug);
+
+// Calculate charges based on actual amount and gateway
+$calc = calculateGatewayCharges($amount, $gateway_slug);
+$charge = $calc['charge'];
+$profit = $calc['profit'];
+
+// Record transaction with medium (gateway), charge and profit
 $date = date('Y-m-d H:i:s');
-mysqli_query($conn, "INSERT INTO transactions (user_id, ref_id, amount, gateway_ref, status, created_at) VALUES ($user_id, '$tx_ref', $amount, '$gateway_ref', 'successful', '$date')");
+mysqli_query($conn, "INSERT INTO transactions (user_id, ref_id, amount, charge, profit, gateway_ref, status, medium, created_at) VALUES ($user_id, '$tx_ref', $amount, $charge, $profit, '$gateway_ref', 'successful', '$gateway_medium', '$date')");
 
 // Process cart items - mark as confirmed and create purchase records
 $cart_items_query = mysqli_query($conn, "SELECT * FROM cart WHERE ref_id = '$tx_ref' AND user_id = $user_id");
@@ -85,8 +93,9 @@ while ($item = mysqli_fetch_assoc($cart_items_query)) {
             $manual = mysqli_fetch_assoc($manual_query);
             $price = $manual['price'];
             $seller_id = $manual['user_id'];
+            $school_id = $user['school'];
             
-            mysqli_query($conn, "INSERT INTO manuals_bought (manual_id, price, buyer, seller, ref_id, created_at) VALUES ($manual_id, $price, $user_id, $seller_id, '$tx_ref', '$date')");
+            mysqli_query($conn, "INSERT INTO manuals_bought (manual_id, price, buyer, seller, ref_id, status, school_id, created_at) VALUES ($manual_id, $price, $user_id, $seller_id, '$tx_ref', 'successful', $school_id, '$date')");
         }
     } elseif ($item['type'] === 'event') {
         $event_id = $item['item_id'];
@@ -97,7 +106,7 @@ while ($item = mysqli_fetch_assoc($cart_items_query)) {
             $price = $event['price'];
             $seller_id = $event['user_id'];
             
-            mysqli_query($conn, "INSERT INTO event_tickets (event_id, price, buyer, seller, ref_id, created_at) VALUES ($event_id, $price, $user_id, $seller_id, '$tx_ref', '$date')");
+            mysqli_query($conn, "INSERT INTO event_tickets (event_id, price, buyer, seller, ref_id, status, created_at) VALUES ($event_id, $price, $user_id, $seller_id, '$tx_ref', 'successful', '$date')");
         }
     }
 }

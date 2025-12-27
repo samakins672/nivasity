@@ -115,22 +115,23 @@ $total_amount = $charges_result['total_amount'] ?? ($subtotal + $charge);
 // Generate transaction reference
 $tx_ref = 'nivas_'. $user_id . '_' . time();
 
-// Save cart to database
-$date = date('Y-m-d H:i:s');
-foreach ($cart as $manual_id) {
-    mysqli_query($conn, "INSERT INTO cart (ref_id, user_id, item_id, type, status, created_at) VALUES ('$tx_ref', $user_id, $manual_id, 'manual', 'pending', '$date')");
-}
-
-foreach ($cart_events as $event_id) {
-    mysqli_query($conn, "INSERT INTO cart (ref_id, user_id, item_id, type, status, created_at) VALUES ('$tx_ref', $user_id, $event_id, 'event', 'pending', '$date')");
-}
-
-// Get active payment gateway
+// Get active payment gateway (need this before saving to cart)
 try {
     $gateway = PaymentGatewayFactory::getActiveGateway();
     $gatewayName = $gateway->getGatewayName();
 } catch (Exception $e) {
     sendApiError('Payment gateway configuration error: ' . $e->getMessage(), 500);
+}
+
+// Save cart to database with gateway information
+$date = date('Y-m-d H:i:s');
+$gateway_upper = strtoupper($gatewayName);
+foreach ($cart as $manual_id) {
+    mysqli_query($conn, "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway, created_at) VALUES ('$tx_ref', $user_id, $manual_id, 'manual', 'pending', '$gateway_upper', '$date')");
+}
+
+foreach ($cart_events as $event_id) {
+    mysqli_query($conn, "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway, created_at) VALUES ('$tx_ref', $user_id, $event_id, 'event', 'pending', '$gateway_upper', '$date')");
 }
 
 // Prepare payment parameters
