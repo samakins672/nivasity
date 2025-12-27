@@ -924,7 +924,8 @@ The endpoint uses an intelligent caching system to avoid recreating payment spli
 
 1. **Collection Phase:**
    - System collects all cart items with their seller information
-   - Retrieves `ps_subaccount` (Paystack) and `flw_subaccount` (Flutterwave) codes from sellers
+   - Retrieves subaccount codes from `settlement_accounts` table using `getSettlementSubaccount()` function
+   - Function checks school-level accounts first, then falls back to seller's personal account
    - Calculates total amount per seller
 
 2. **Paystack Split (with caching):**
@@ -947,7 +948,9 @@ The endpoint uses an intelligent caching system to avoid recreating payment spli
    - No manual settlement required
 
 **Requirements:**
-- Sellers must have subaccount codes in users table (`ps_subaccount` or `flw_subaccount`)
+- Sellers must have subaccount codes in `settlement_accounts` table
+- Subaccounts are retrieved by gateway type (paystack or flutterwave)
+- System first checks for school-level accounts, then user-level accounts
 - Platform must have valid gateway credentials (PAYSTACK_SECRET_KEY, FLUTTERWAVE_SECRET_KEY)
 - Cart items are saved to database before payment initialization
 

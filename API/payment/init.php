@@ -40,9 +40,8 @@ if (!empty($cart)) {
     $cart_ids = array_map('intval', $cart);
     $ids_string = implode(',', $cart_ids);
     
-    $manuals_query = mysqli_query($conn, "SELECT m.*, u.ps_subaccount, u.flw_subaccount 
+    $manuals_query = mysqli_query($conn, "SELECT m.* 
                                           FROM manuals m 
-                                          LEFT JOIN users u ON m.user_id = u.id 
                                           WHERE m.id IN ($ids_string) AND m.school_id = $school_id AND m.status = 'open'");
     
     while ($manual = mysqli_fetch_assoc($manuals_query)) {
@@ -54,8 +53,8 @@ if (!empty($cart)) {
         if (!isset($seller_totals[$seller_id])) {
             $seller_totals[$seller_id] = [
                 'total' => 0,
-                'ps_subaccount' => $manual['ps_subaccount'] ?? null,
-                'flw_subaccount' => $manual['flw_subaccount'] ?? null
+                'seller_id' => $seller_id,
+                'school_id' => $school_id
             ];
         }
         $seller_totals[$seller_id]['total'] += $price;
@@ -75,9 +74,8 @@ if (!empty($cart_events)) {
     $event_ids = array_map('intval', $cart_events);
     $event_ids_string = implode(',', $event_ids);
     
-    $events_query = mysqli_query($conn, "SELECT e.*, u.ps_subaccount, u.flw_subaccount 
+    $events_query = mysqli_query($conn, "SELECT e.* 
                                          FROM events e 
-                                         LEFT JOIN users u ON e.user_id = u.id 
                                          WHERE e.id IN ($event_ids_string) AND e.status = 'open'");
     
     while ($event = mysqli_fetch_assoc($events_query)) {
@@ -89,8 +87,8 @@ if (!empty($cart_events)) {
         if (!isset($seller_totals[$seller_id])) {
             $seller_totals[$seller_id] = [
                 'total' => 0,
-                'ps_subaccount' => $event['ps_subaccount'] ?? null,
-                'flw_subaccount' => $event['flw_subaccount'] ?? null
+                'seller_id' => $seller_id,
+                'school_id' => $school_id
             ];
         }
         $seller_totals[$seller_id]['total'] += $price;
@@ -156,9 +154,12 @@ if ($gatewayName === 'paystack') {
         // Prepare seller data for split creation
         $sellers_for_split = [];
         foreach ($seller_totals as $seller_id => $seller_data) {
-            if (!empty($seller_data['ps_subaccount'])) {
+            // Get seller's Paystack subaccount from settlement_accounts table
+            $ps_subaccount = getSettlementSubaccount($conn, $seller_id, $seller_data['school_id'], 'paystack');
+            
+            if (!empty($ps_subaccount)) {
                 $sellers_for_split[] = [
-                    'subaccount' => $seller_data['ps_subaccount'],
+                    'subaccount' => $ps_subaccount,
                     'share' => round($seller_data['total'] * 100) // Convert to kobo
                 ];
             }
@@ -235,9 +236,12 @@ if ($gatewayName === 'paystack') {
     // For Flutterwave: Use subaccounts array
     $subaccounts = [];
     foreach ($seller_totals as $seller_id => $seller_data) {
-        if (!empty($seller_data['flw_subaccount'])) {
+        // Get seller's Flutterwave subaccount from settlement_accounts table
+        $flw_subaccount = getSettlementSubaccount($conn, $seller_id, $seller_data['school_id'], 'flutterwave');
+        
+        if (!empty($flw_subaccount)) {
             $subaccounts[] = [
-                'id' => $seller_data['flw_subaccount'],
+                'id' => $flw_subaccount,
                 'transaction_charge_type' => 'flat_subaccount',
                 'transaction_charge' => $seller_data['total']
             ];
