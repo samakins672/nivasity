@@ -606,8 +606,6 @@ These endpoints provide institutional data needed for registration and profile s
 
 **Query Parameters:**
 - `search` (optional): Search by title or course code
-- `dept` (optional): Filter by department ID
-- `faculty` (optional): Filter by faculty ID
 - `sort` (optional, default: `recommended`): Sort order
   - `recommended` - Sort by latest due date (soonest deadlines first) **[DEFAULT]**
   - `low-high` - Sort by price (lowest to highest)

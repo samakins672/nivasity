@@ -18,8 +18,6 @@ $user_dept = $user['dept'] ?? null;
 
 // Get query parameters
 $search = isset($_GET['search']) ? sanitizeInput($conn, $_GET['search']) : '';
-$dept_filter = isset($_GET['dept']) ? (int)$_GET['dept'] : null;
-$faculty_filter = isset($_GET['faculty']) ? (int)$_GET['faculty'] : null;
 $sort = isset($_GET['sort']) ? strtolower($_GET['sort']) : 'recommended';
 $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
 $limit = isset($_GET['limit']) ? min(100, max(1, (int)$_GET['limit'])) : 20;
@@ -35,16 +33,6 @@ if ($user_dept) {
 
 if (!empty($search)) {
     $where_conditions[] = "(m.title LIKE '%$search%' OR m.course_code LIKE '%$search%')";
-}
-
-// Note: dept_filter and faculty_filter parameters are still supported but 
-// will be constrained by user's department filter above
-if ($dept_filter && $dept_filter == $user_dept) {
-    // Only apply if it matches user's department (already filtered above)
-}
-
-if ($faculty_filter) {
-    $where_conditions[] = "m.faculty = $faculty_filter";
 }
 
 $where_clause = implode(' AND ', $where_conditions);
