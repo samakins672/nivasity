@@ -67,6 +67,11 @@ if ($is_purchased) {
     ];
 }
 
+// Check if due date has passed
+$due_date = strtotime($material['due_date']);
+$now = time();
+$is_overdue = ($now > $due_date);
+
 $materialData = [
     'id' => $material['id'],
     'code' => $material['code'],
@@ -75,7 +80,8 @@ $materialData = [
     'price' => (float)$material['price'],
     'quantity' => (int)$material['quantity'],
     'due_date' => $material['due_date'],
-    'status' => $material['status'],
+    'status' => $is_overdue ? 'overdue' : $material['status'],
+    'is_overdue' => $is_overdue,
     'dept' => $material['dept'],
     'dept_name' => $material['dept_name'],
     'faculty' => $material['faculty'],

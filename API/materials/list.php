@@ -24,7 +24,8 @@ $limit = isset($_GET['limit']) ? min(100, max(1, (int)$_GET['limit'])) : 20;
 $offset = ($page - 1) * $limit;
 
 // Build query - filter by school AND user's department
-$where_conditions = ["m.school_id = $school_id", "m.status = 'open'"];
+// Exclude materials with due date passed over 24 hours ago
+$where_conditions = ["m.school_id = $school_id", "m.status = 'open'", "m.due_date >= DATE_SUB(NOW(), INTERVAL 24 HOUR)"];
 
 // Filter by user's department
 if ($user_dept) {
@@ -74,6 +75,11 @@ while ($row = mysqli_fetch_assoc($result)) {
     $bought_query = mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE manual_id = {$row['id']} AND buyer = $user_id LIMIT 1");
     $is_purchased = mysqli_num_rows($bought_query) > 0;
     
+    // Check if due date has passed (within 24 hours)
+    $due_date = strtotime($row['due_date']);
+    $now = time();
+    $is_overdue = ($now > $due_date);
+    
     $materials[] = [
         'id' => $row['id'],
         'code' => $row['code'],
@@ -82,6 +88,7 @@ while ($row = mysqli_fetch_assoc($result)) {
         'price' => (float)$row['price'],
         'quantity' => (int)$row['quantity'],
         'due_date' => $row['due_date'],
+        'is_overdue' => $is_overdue,
         'dept' => $row['dept'],
         'dept_name' => $row['dept_name'],
         'faculty' => $row['faculty'],

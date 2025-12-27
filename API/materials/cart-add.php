@@ -32,6 +32,15 @@ if (mysqli_num_rows($material_query) === 0) {
     sendApiError('Material not found or not available', 404);
 }
 
+$material = mysqli_fetch_assoc($material_query);
+
+// Check if due date has passed
+$due_date = strtotime($material['due_date']);
+$now = time();
+if ($now > $due_date) {
+    sendApiError('Cannot add material to cart - due date has passed', 400);
+}
+
 // Check if already purchased
 $bought_query = mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE manual_id = $material_id AND buyer = $user_id");
 if (mysqli_num_rows($bought_query) > 0) {
