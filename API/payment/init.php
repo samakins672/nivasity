@@ -74,7 +74,7 @@ if ($total_amount <= 0) {
 }
 
 // Generate transaction reference
-$tx_ref = 'NIVAS_' . time() . '_' . $user_id . '_' . uniqid();
+$tx_ref = 'nivas_'. $user_id . '_' . time();
 
 // Save cart to database
 $date = date('Y-m-d H:i:s');
