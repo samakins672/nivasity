@@ -21,7 +21,7 @@ $date_to = '';
 $ref_id = '';
 
 if ($is_get) {
-    // GET request - global check with no params (last 10 minutes)
+    // GET request - global check with no params (last 24 hours, excluding past 30 minutes)
     $user_id = 0;
     $date_from = '';
     $date_to = '';
@@ -54,8 +54,9 @@ if ($ref_id !== '') {
         $where_conditions[] = "created_at >= '$date_from 00:00:00'";
         $where_conditions[] = "created_at <= '$date_to 23:59:59'";
     } elseif ($date_from === '' && $date_to === '') {
-        // No dates provided - check within last 10 minutes
-        $where_conditions[] = "created_at >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)";
+        // No dates provided - check within last 24 hours but exclude last 30 minutes
+        $where_conditions[] = "created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)";
+        $where_conditions[] = "created_at <= DATE_SUB(NOW(), INTERVAL 30 MINUTE)";
     } elseif ($date_from !== '') {
         // Only from date provided
         $where_conditions[] = "created_at >= '$date_from 00:00:00'";
