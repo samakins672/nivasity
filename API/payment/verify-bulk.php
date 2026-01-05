@@ -5,19 +5,34 @@ require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/../../model/PaymentGatewayFactory.php';
 require_once __DIR__ . '/../../config/fw.php';
 
-// Only accept POST requests
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+// Accept both POST and GET requests
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $_SERVER['REQUEST_METHOD'] !== 'GET') {
     sendApiError('Method not allowed', 405);
 }
 
 // Authenticate user (admin/staff should be able to verify all, but we'll still validate)
 $auth_user = authenticateApiRequest($conn);
 
-// Get parameters
-$user_id = isset($_POST['user_id']) ? (int)$_POST['user_id'] : 0;
-$date_from = isset($_POST['date_from']) ? sanitizeInput($conn, $_POST['date_from']) : '';
-$date_to = isset($_POST['date_to']) ? sanitizeInput($conn, $_POST['date_to']) : '';
-$ref_id = isset($_POST['ref_id']) ? sanitizeInput($conn, $_POST['ref_id']) : '';
+// Get parameters from POST or GET
+$is_get = ($_SERVER['REQUEST_METHOD'] === 'GET');
+$user_id = 0;
+$date_from = '';
+$date_to = '';
+$ref_id = '';
+
+if ($is_get) {
+    // GET request - global check with no params (last 10 minutes)
+    $user_id = 0;
+    $date_from = '';
+    $date_to = '';
+    $ref_id = '';
+} else {
+    // POST request - use provided parameters
+    $user_id = isset($_POST['user_id']) ? (int)$_POST['user_id'] : 0;
+    $date_from = isset($_POST['date_from']) ? sanitizeInput($conn, $_POST['date_from']) : '';
+    $date_to = isset($_POST['date_to']) ? sanitizeInput($conn, $_POST['date_to']) : '';
+    $ref_id = isset($_POST['ref_id']) ? sanitizeInput($conn, $_POST['ref_id']) : '';
+}
 
 // Build WHERE conditions
 $where_conditions = ["status = 'pending'"];
