@@ -39,8 +39,8 @@ if ($ref_id !== '') {
         $where_conditions[] = "created_at >= '$date_from 00:00:00'";
         $where_conditions[] = "created_at <= '$date_to 23:59:59'";
     } elseif ($date_from === '' && $date_to === '') {
-        // No dates provided - check within last 24 hours
-        $where_conditions[] = "created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)";
+        // No dates provided - check within last 10 minutes
+        $where_conditions[] = "created_at >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)";
     } elseif ($date_from !== '') {
         // Only from date provided
         $where_conditions[] = "created_at >= '$date_from 00:00:00'";
