@@ -1,7 +1,6 @@
 <?php
 // API: Bulk Verify Pending Cart Payments
 require_once __DIR__ . '/../config.php';
-require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/../../model/PaymentGatewayFactory.php';
 require_once __DIR__ . '/../../config/fw.php';
 
@@ -10,8 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $_SERVER['REQUEST_METHOD'] !== 'GET
     sendApiError('Method not allowed', 405);
 }
 
-// Authenticate user (admin/staff should be able to verify all, but we'll still validate)
-$auth_user = authenticateApiRequest($conn);
+// No authentication required - this is a public endpoint for payment verification
 
 // Get parameters from POST or GET
 $is_get = ($_SERVER['REQUEST_METHOD'] === 'GET');
