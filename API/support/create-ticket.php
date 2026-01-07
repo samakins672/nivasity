@@ -80,7 +80,7 @@ $message_id = mysqli_insert_id($conn);
 
 // Create attachment if provided
 if ($storedFilePath && $message_id > 0) {
-    mysqli_query($conn, "INSERT INTO support_attachments (message_id, file_path, original_name, created_at) VALUES ($message_id, '$storedFilePath', '$originalFileName', '$date')");
+    mysqli_query($conn, "INSERT INTO support_ticket_attachments (message_id, file_path, original_name, created_at) VALUES ($message_id, '$storedFilePath', '$originalFileName', '$date')");
 }
 
 // Send email to support

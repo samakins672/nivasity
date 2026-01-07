@@ -44,7 +44,7 @@ $messages = [];
 while ($msg = mysqli_fetch_assoc($messages_query)) {
     $attachment = null;
     // Check for attachments in separate table
-    $attachment_query = mysqli_query($conn, "SELECT file_path, original_name FROM support_attachments WHERE message_id = {$msg['id']} LIMIT 1");
+    $attachment_query = mysqli_query($conn, "SELECT file_path, original_name FROM support_ticket_attachments WHERE message_id = {$msg['id']} LIMIT 1");
     if ($attachment_row = mysqli_fetch_assoc($attachment_query)) {
         $attachment = [
             'path' => $attachment_row['file_path'],
