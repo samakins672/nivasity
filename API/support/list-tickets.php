@@ -40,11 +40,11 @@ while ($row = mysqli_fetch_assoc($result)) {
     $ticket_id = $row['id'];
     
     // Get message count
-    $msg_count_query = mysqli_query($conn, "SELECT COUNT(*) as count FROM support_ticket_messages WHERE ticket_id = $ticket_id");
+    $msg_count_query = mysqli_query($conn, "SELECT COUNT(*) as count FROM support_ticket_messages_ WHERE ticket_id = $ticket_id");
     $msg_count = mysqli_fetch_array($msg_count_query)['count'];
     
     // Get latest message
-    $latest_msg_query = mysqli_query($conn, "SELECT body as message, created_at FROM support_ticket_messages WHERE ticket_id = $ticket_id ORDER BY created_at DESC LIMIT 1");
+    $latest_msg_query = mysqli_query($conn, "SELECT body as message, created_at FROM support_ticket_messages_ WHERE ticket_id = $ticket_id ORDER BY created_at DESC LIMIT 1");
     $latest_msg = mysqli_fetch_assoc($latest_msg_query);
     
     $tickets[] = [

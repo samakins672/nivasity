@@ -75,7 +75,7 @@ if ($ticket_id === 0) {
 }
 
 // Create first message
-mysqli_query($conn, "INSERT INTO support_ticket_messages (ticket_id, sender_type, user_id, body, is_internal, created_at) VALUES ($ticket_id, 'user', $user_id, '$message', 0, '$date')");
+mysqli_query($conn, "INSERT INTO support_ticket_messages_ (ticket_id, sender_type, user_id, body, is_internal, created_at) VALUES ($ticket_id, 'user', $user_id, '$message', 0, '$date')");
 $message_id = mysqli_insert_id($conn);
 
 // Create attachment if provided
