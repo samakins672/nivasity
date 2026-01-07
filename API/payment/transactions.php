@@ -19,12 +19,19 @@ $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
 $limit = isset($_GET['limit']) ? min(100, max(1, (int)$_GET['limit'])) : 20;
 $offset = ($page - 1) * $limit;
 
-// Count total transactions
-$count_query = mysqli_query($conn, "SELECT COUNT(*) as total FROM transactions WHERE user_id = $user_id");
+// Count total transactions for materials only
+// Only include transactions that have manual purchases
+$count_query = mysqli_query($conn, "SELECT COUNT(DISTINCT t.id) as total 
+    FROM transactions t 
+    INNER JOIN manuals_bought mb ON t.ref_id = mb.ref_id 
+    WHERE t.user_id = $user_id AND mb.buyer = $user_id");
 $total = mysqli_fetch_array($count_query)['total'];
 
-// Fetch transactions
-$query = "SELECT * FROM transactions WHERE user_id = $user_id ORDER BY created_at DESC LIMIT $limit OFFSET $offset";
+// Fetch transactions that have manual purchases only
+$query = "SELECT DISTINCT t.* FROM transactions t 
+    INNER JOIN manuals_bought mb ON t.ref_id = mb.ref_id 
+    WHERE t.user_id = $user_id AND mb.buyer = $user_id 
+    ORDER BY t.created_at DESC LIMIT $limit OFFSET $offset";
 $result = mysqli_query($conn, $query);
 
 $transactions = [];
@@ -32,7 +39,7 @@ $transactions = [];
 while ($row = mysqli_fetch_assoc($result)) {
     $tx_ref = $row['ref_id'];
     
-    // Get items for this transaction
+    // Get items for this transaction (manuals only)
     $items = [];
     
     // Get manuals
@@ -44,17 +51,6 @@ while ($row = mysqli_fetch_assoc($result)) {
             'title' => $manual['title'],
             'course_code' => $manual['course_code'],
             'price' => (float)$manual['price']
-        ];
-    }
-    
-    // Get events
-    $events_query = mysqli_query($conn, "SELECT et.*, e.title FROM event_tickets et JOIN events e ON et.event_id = e.id WHERE et.ref_id = '$tx_ref' AND et.buyer = $user_id");
-    while ($event = mysqli_fetch_assoc($events_query)) {
-        $items[] = [
-            'type' => 'event',
-            'id' => $event['event_id'],
-            'title' => $event['title'],
-            'price' => (float)$event['price']
         ];
     }
     
