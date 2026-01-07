@@ -59,7 +59,7 @@ Authenticates or registers a user using a Google ID token.
 ```json
 {
   "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6...",
-  "school_id": 1,
+  "school_id": 1,              // Required only for new users
   "phone": "+2348012345678",  // Optional for new users
   "gender": "male"             // Optional for new users
 }
@@ -67,7 +67,7 @@ Authenticates or registers a user using a Google ID token.
 
 **Parameters**:
 - `id_token` (string, required) - Google ID token received from Google Sign-In
-- `school_id` (integer, required) - ID of the school the user belongs to
+- `school_id` (integer, optional) - ID of the school. **Required only for new user registration**. Existing users will use their stored school ID.
 - `phone` (string, optional) - User's phone number (for new registrations)
 - `gender` (string, optional) - User's gender (for new registrations)
 

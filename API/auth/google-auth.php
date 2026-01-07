@@ -16,10 +16,10 @@ if (!$input) {
 }
 
 // Validate required fields
-validateRequiredFields(['id_token', 'school_id'], $input);
+validateRequiredFields(['id_token'], $input);
 
 $id_token = sanitizeInput($conn, $input['id_token']);
-$school_id = (int)$input['school_id'];
+$school_id = isset($input['school_id']) ? (int)$input['school_id'] : null;
 
 // Load Google OAuth credentials
 $google_config_file = __DIR__ . '/../../config/google-oauth.php';
@@ -72,12 +72,6 @@ $profile_pic = $token_data['picture'] ?? null;
 
 if (!$google_id || !$email) {
     sendApiError('Unable to retrieve user information from Google', 401);
-}
-
-// Validate school exists and is active
-$school_check = mysqli_query($conn, "SELECT id FROM schools WHERE id = $school_id AND status = 'active'");
-if (mysqli_num_rows($school_check) === 0) {
-    sendApiError('Invalid school_id. School does not exist or is not active.', 400);
 }
 
 // Check if user exists with this email
@@ -141,6 +135,17 @@ if (mysqli_num_rows($user_query) === 1) {
     
 } else {
     // User doesn't exist - create new account
+    // school_id is required for new user registration
+    if (!$school_id) {
+        sendApiError('school_id is required for new user registration', 400);
+    }
+    
+    // Validate school exists and is active
+    $school_check = mysqli_query($conn, "SELECT id FROM schools WHERE id = $school_id AND status = 'active'");
+    if (mysqli_num_rows($school_check) === 0) {
+        sendApiError('Invalid school_id. School does not exist or is not active.', 400);
+    }
+    
     $status = $email_verified === 'true' ? 'active' : 'unverified';
     $role = 'student';
     
