@@ -73,7 +73,7 @@ if (!empty($_FILES['attachment']['name']) && $_FILES['attachment']['error'] === 
 
 // Add message to database
 $date = date('Y-m-d H:i:s');
-mysqli_query($conn, "INSERT INTO support_ticket_messages (ticket_id, sender_type, user_id, body, created_at) VALUES ($ticket_id, 'user', $user_id, '$message', '$date')");
+mysqli_query($conn, "INSERT INTO support_ticket_messages (ticket_id, sender_type, user_id, body, is_internal, created_at) VALUES ($ticket_id, 'user', $user_id, '$message', 0, '$date')");
 $message_id = mysqli_insert_id($conn);
 
 // Create attachment if provided
