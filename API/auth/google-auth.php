@@ -29,12 +29,11 @@ if (!file_exists($google_config_file)) {
 
 require_once $google_config_file;
 
-if (!defined('GOOGLE_CLIENT_ID') || empty(GOOGLE_CLIENT_ID)) {
-    sendApiError('Google OAuth client ID is not configured.', 500);
+if (!defined('GOOGLE_ALLOWED_CLIENT_IDS') || empty(GOOGLE_ALLOWED_CLIENT_IDS)) {
+    sendApiError('Google OAuth client IDs are not configured.', 500);
 }
 
 // Verify the Google ID token
-$client_id = GOOGLE_CLIENT_ID;
 $token_info_url = "https://oauth2.googleapis.com/tokeninfo?id_token=" . urlencode($id_token);
 
 $ch = curl_init();
@@ -52,8 +51,8 @@ if ($http_code !== 200 || !$response) {
 
 $token_data = json_decode($response, true);
 
-// Verify token is for our app
-if (!isset($token_data['aud']) || $token_data['aud'] !== $client_id) {
+// Verify token is for our app (support multiple client IDs for Web, Android, iOS)
+if (!isset($token_data['aud']) || !in_array($token_data['aud'], GOOGLE_ALLOWED_CLIENT_IDS, true)) {
     sendApiError('Google ID token is not valid for this application', 401);
 }
 

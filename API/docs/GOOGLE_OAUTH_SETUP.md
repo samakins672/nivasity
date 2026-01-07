@@ -7,30 +7,65 @@ The Google OAuth authentication endpoint allows users to sign in or sign up usin
 
 ### 1. Create Google OAuth Credentials
 
+You need to create **three separate OAuth Client IDs** for different platforms:
+
+#### A. Web Application Client ID
+
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select an existing one
 3. Enable the **Google Identity Services** API
 4. Navigate to **Credentials** section
 5. Click **Create Credentials** → **OAuth 2.0 Client ID**
-6. Choose application type:
-   - For web: Select "Web application"
-   - For mobile: Select "iOS" or "Android"
+6. Choose **Web application** as application type
 7. Configure authorized origins and redirect URIs:
    - **Authorized JavaScript origins**: `https://yourdomain.com`
    - **Authorized redirect URIs**: `https://yourdomain.com/auth/callback`
-8. Copy the **Client ID** (and optionally **Client Secret**)
+8. Copy the **Client ID** and **Client Secret**
+
+#### B. Android Application Client ID
+
+1. In the same **Credentials** section
+2. Click **Create Credentials** → **OAuth 2.0 Client ID**
+3. Choose **Android** as application type
+4. Enter your app's package name (e.g., `com.example.nivasity`)
+5. Enter your SHA-1 certificate fingerprint
+6. Copy the **Client ID**
+
+#### C. iOS Application Client ID
+
+1. In the same **Credentials** section
+2. Click **Create Credentials** → **OAuth 2.0 Client ID**
+3. Choose **iOS** as application type
+4. Enter your app's Bundle ID (e.g., `com.example.nivasity`)
+5. Copy the **Client ID**
 
 ### 2. Configure the Application
 
 1. Copy the example configuration file:
    ```bash
-   cp config/google-oauth.php.example config/google-oauth.php
+   cp config/google-oauth.example.php config/google-oauth.php
    ```
 
-2. Edit `config/google-oauth.php` and add your credentials:
+2. Edit `config/google-oauth.php` and add your credentials for all platforms:
    ```php
-   define('GOOGLE_CLIENT_ID', 'YOUR_ACTUAL_CLIENT_ID');
-   define('GOOGLE_CLIENT_SECRET', 'YOUR_ACTUAL_CLIENT_SECRET');
+   // Web Client ID
+   define('GOOGLE_CLIENT_ID_WEB', 'YOUR_WEB_CLIENT_ID');
+   
+   // Android Client ID
+   define('GOOGLE_CLIENT_ID_ANDROID', 'YOUR_ANDROID_CLIENT_ID');
+   
+   // iOS Client ID
+   define('GOOGLE_CLIENT_ID_IOS', 'YOUR_IOS_CLIENT_ID');
+   
+   // Client Secret (for web)
+   define('GOOGLE_CLIENT_SECRET', 'YOUR_CLIENT_SECRET');
+   
+   // Array of allowed client IDs (automatically generated)
+   define('GOOGLE_ALLOWED_CLIENT_IDS', [
+       GOOGLE_CLIENT_ID_WEB,
+       GOOGLE_CLIENT_ID_ANDROID,
+       GOOGLE_CLIENT_ID_IOS
+   ]);
    ```
 
 3. **IMPORTANT**: Add `config/google-oauth.php` to `.gitignore`:
