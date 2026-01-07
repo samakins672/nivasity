@@ -37,22 +37,38 @@ $ticket = mysqli_fetch_assoc($ticket_query);
 $ticket_id = $ticket['id'];
 
 // Get messages for this ticket
-$messages_query = mysqli_query($conn, "SELECT sm.*, u.first_name, u.last_name, u.role FROM support_messages_v2 sm LEFT JOIN users u ON sm.user_id = u.id WHERE sm.ticket_id = $ticket_id ORDER BY sm.created_at ASC");
+$messages_query = mysqli_query($conn, "SELECT sm.*, u.first_name, u.last_name, u.role, a.first_name as admin_first_name, a.last_name as admin_last_name FROM support_ticket_messages sm LEFT JOIN users u ON sm.user_id = u.id LEFT JOIN admins a ON sm.admin_id = a.id WHERE sm.ticket_id = $ticket_id ORDER BY sm.created_at ASC");
 
 $messages = [];
 
 while ($msg = mysqli_fetch_assoc($messages_query)) {
     $attachment = null;
-    if ($msg['attachment']) {
-        $attachment = json_decode($msg['attachment'], true);
+    // Check for attachments in separate table
+    $attachment_query = mysqli_query($conn, "SELECT file_path, original_name FROM support_attachments WHERE message_id = {$msg['id']} LIMIT 1");
+    if ($attachment_row = mysqli_fetch_assoc($attachment_query)) {
+        $attachment = [
+            'path' => $attachment_row['file_path'],
+            'original_name' => $attachment_row['original_name']
+        ];
+    }
+    
+    // Determine sender name based on sender_type
+    $sender_name = 'Support Team';
+    $sender_role = 'admin';
+    if ($msg['sender_type'] === 'user' && $msg['user_id']) {
+        $sender_name = ($msg['first_name'] && $msg['last_name']) ? $msg['first_name'] . ' ' . $msg['last_name'] : 'User';
+        $sender_role = $msg['role'] ?? 'student';
+    } elseif ($msg['sender_type'] === 'admin' && $msg['admin_id']) {
+        $sender_name = ($msg['admin_first_name'] && $msg['admin_last_name']) ? $msg['admin_first_name'] . ' ' . $msg['admin_last_name'] : 'Support Team';
+        $sender_role = 'admin';
     }
     
     $messages[] = [
         'id' => $msg['id'],
         'user_id' => $msg['user_id'],
-        'user_name' => $msg['first_name'] ? $msg['first_name'] . ' ' . $msg['last_name'] : 'Support Team',
-        'user_role' => $msg['role'] ?? 'admin',
-        'message' => $msg['message'],
+        'user_name' => $sender_name,
+        'user_role' => $sender_role,
+        'message' => $msg['body'],
         'attachment' => $attachment,
         'created_at' => $msg['created_at']
     ];

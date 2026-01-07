@@ -75,17 +75,13 @@ if ($ticket_id === 0) {
 }
 
 // Create first message
-$attachment_json = null;
-if ($storedFilePath) {
-    $attachment_json = json_encode([
-        'path' => $storedFilePath,
-        'original_name' => $originalFileName,
-        'mime_type' => $mimeType,
-        'size' => $fileSize
-    ]);
-}
+mysqli_query($conn, "INSERT INTO support_ticket_messages (ticket_id, sender_type, user_id, body, created_at) VALUES ($ticket_id, 'user', $user_id, '$message', '$date')");
+$message_id = mysqli_insert_id($conn);
 
-mysqli_query($conn, "INSERT INTO support_messages_v2 (ticket_id, user_id, message, attachment, created_at) VALUES ($ticket_id, $user_id, '$message', " . ($attachment_json ? "'$attachment_json'" : "NULL") . ", '$date')");
+// Create attachment if provided
+if ($storedFilePath && $message_id > 0) {
+    mysqli_query($conn, "INSERT INTO support_attachments (message_id, file_path, original_name, created_at) VALUES ($message_id, '$storedFilePath', '$originalFileName', '$date')");
+}
 
 // Send email to support
 $supportEmail = 'support@nivasity.com';
