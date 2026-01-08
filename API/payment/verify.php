@@ -87,7 +87,9 @@ if (mysqli_num_rows($processed_query) > 0) {
 }
 
 // Get payment details from verification
-$amount = $verifyResult['data']['amount'] ?? 0;
+// Amount is returned in kobo (smallest unit), convert to Naira by dividing by 100
+$amount_kobo = $verifyResult['data']['amount'] ?? 0;
+$amount = $amount_kobo / 100;
 
 // Get gateway name from cart for transaction record
 $gateway_medium = strtoupper($gateway_slug);
