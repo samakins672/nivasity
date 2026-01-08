@@ -67,7 +67,6 @@ if (mysqli_num_rows($processed_query) > 0) {
 
 // Get payment details from verification
 $amount = $verifyResult['data']['amount'] ?? 0;
-$gateway_ref = $verifyResult['data']['gateway_ref'] ?? $tx_ref;
 
 // Get gateway name from cart for transaction record
 $gateway_medium = strtoupper($gateway_slug);
@@ -79,7 +78,7 @@ $profit = $calc['profit'];
 
 // Record transaction with medium (gateway), charge and profit
 $date = date('Y-m-d H:i:s');
-mysqli_query($conn, "INSERT INTO transactions (user_id, ref_id, amount, charge, profit, gateway_ref, status, medium, created_at) VALUES ($user_id, '$tx_ref', $amount, $charge, $profit, '$gateway_ref', 'successful', '$gateway_medium', '$date')");
+mysqli_query($conn, "INSERT INTO transactions (user_id, ref_id, amount, charge, profit, status, medium, created_at) VALUES ($user_id, '$tx_ref', $amount, $charge, $profit, 'successful', '$gateway_medium', '$date')");
 
 // Process cart items - mark as confirmed and create purchase records
 $cart_items_query = mysqli_query($conn, "SELECT * FROM cart WHERE ref_id = '$tx_ref' AND user_id = $user_id");
