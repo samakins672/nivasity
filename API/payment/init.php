@@ -22,8 +22,14 @@ $school_id = $user['school'];
 $input = json_decode(file_get_contents('php://input'), true);
 $redirect_url = isset($input['redirect_url']) ? trim($input['redirect_url']) : null;
 
+// Log redirect URL if provided
+if ($redirect_url) {
+    error_log("Payment Init: redirect_url received from user $user_id: " . $redirect_url);
+}
+
 // Validate redirect_url if provided
 if ($redirect_url && !filter_var($redirect_url, FILTER_VALIDATE_URL)) {
+    error_log("Payment Init: Invalid redirect_url format from user $user_id: " . $redirect_url);
     sendApiError('Invalid redirect_url format', 400);
 }
 
@@ -148,6 +154,9 @@ foreach ($cart_events as $event_id) {
 $callback_url = $redirect_url 
     ? $redirect_url . (strpos($redirect_url, '?') !== false ? '&' : '?') . 'tx_ref=' . $tx_ref
     : 'https://api.nivasity.com/payment/verify.php?tx_ref=' . $tx_ref;
+
+// Log the constructed callback URL
+error_log("Payment Init: callback_url for tx_ref $tx_ref (user $user_id): " . $callback_url);
 
 $payment_data = [
     'amount' => $total_amount,
