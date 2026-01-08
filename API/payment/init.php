@@ -156,6 +156,7 @@ $callback_url = 'https://api.nivasity.com/payment/callback.php?tx_ref=' . $tx_re
 error_log("Payment Init: callback_url for tx_ref $tx_ref (user $user_id): " . $callback_url);
 
 // Store redirect_url in metadata for use after verification
+// Note: Paystack uses "metadata", Flutterwave uses "meta"
 $meta_data = [
     'user_id' => $user_id,
     'school_id' => $school_id
@@ -172,9 +173,17 @@ $payment_data = [
     'reference' => $tx_ref,
     'callback_url' => $callback_url,
     'customer_name' => $user['first_name'] . ' ' . $user['last_name'],
-    'customer_phone' => $user['phone'],
-    'meta' => $meta_data
+    'customer_phone' => $user['phone']
 ];
+
+// Add metadata field based on gateway
+// Paystack uses "metadata", Flutterwave uses "meta"
+if ($gatewayName === 'paystack') {
+    $payment_data['metadata'] = $meta_data;
+} else {
+    // Flutterwave and others use "meta"
+    $payment_data['meta'] = $meta_data;
+}
 
 // Handle gateway-specific split payment configuration
 if ($gatewayName === 'paystack') {

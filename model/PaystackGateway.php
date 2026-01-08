@@ -102,6 +102,11 @@ class PaystackGateway implements PaymentGateway {
             $postData['transaction_charge'] = $params['transaction_charge'];
         }
         
+        // Add metadata if provided (Paystack uses "metadata")
+        if (isset($params['metadata'])) {
+            $postData['metadata'] = $params['metadata'];
+        }
+        
         curl_setopt_array($curl, array(
             CURLOPT_URL => 'https://api.paystack.co/transaction/initialize',
             CURLOPT_RETURNTRANSFER => true,
