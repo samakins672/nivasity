@@ -149,8 +149,8 @@ foreach ($cart_events as $event_id) {
     mysqli_query($conn, "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway, created_at) VALUES ('$tx_ref', $user_id, $event_id, 'event', 'pending', '$gateway_upper', '$date')");
 }
 
-// Always use API verify endpoint as callback (some gateways don't support deep links)
-$callback_url = 'https://api.nivasity.com/payment/verify.php?tx_ref=' . $tx_ref;
+// Always use API callback endpoint as callback (unauthenticated, some gateways don't support deep links)
+$callback_url = 'https://api.nivasity.com/payment/callback.php?tx_ref=' . $tx_ref;
 
 // Log the callback URL
 error_log("Payment Init: callback_url for tx_ref $tx_ref (user $user_id): " . $callback_url);
