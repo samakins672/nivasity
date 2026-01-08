@@ -136,6 +136,21 @@ while ($item = mysqli_fetch_assoc($cart_items_query)) {
 // Mark cart as confirmed
 mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$tx_ref'");
 
+// Collect cart items for email
+$manual_ids = array();
+$event_ids = array();
+$cart_items_for_email = mysqli_query($conn, "SELECT * FROM cart WHERE ref_id = '$tx_ref' AND user_id = $user_id");
+while ($cart_item = mysqli_fetch_assoc($cart_items_for_email)) {
+    if ($cart_item['type'] === 'manual') {
+        $manual_ids[] = $cart_item['item_id'];
+    } elseif ($cart_item['type'] === 'event') {
+        $event_ids[] = $cart_item['item_id'];
+    }
+}
+
+// Send congratulatory email
+sendCongratulatoryEmail($conn, $user_id, $tx_ref, $manual_ids, $event_ids, $amount);
+
 // Clear session cart
 session_start();
 $_SESSION["nivas_cart$user_id"] = array();
