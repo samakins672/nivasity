@@ -89,10 +89,33 @@ if (mysqli_num_rows($processed_query) > 0) {
     ]);
 }
 
-// Get payment details from verification
-// Amount is returned in kobo (smallest unit), convert to Naira by dividing by 100
-$amount_kobo = $verifyResult['data']['amount'] ?? 0;
-$amount = $amount_kobo / 100;
+// Calculate amount from cart items (instead of using gateway amount which is in kobo)
+$cart_items_query = mysqli_query($conn, "SELECT * FROM cart WHERE ref_id = '$tx_ref' AND user_id = $user_id");
+$amount = 0.0;
+
+// First pass: calculate total amount from cart items
+$cart_items = array();
+while ($item = mysqli_fetch_assoc($cart_items_query)) {
+    $cart_items[] = $item; // Store for second pass
+    
+    if ($item['type'] === 'manual') {
+        $manual_id = $item['item_id'];
+        $manual_query = mysqli_query($conn, "SELECT price FROM manuals WHERE id = $manual_id");
+        
+        if (mysqli_num_rows($manual_query) > 0) {
+            $manual = mysqli_fetch_assoc($manual_query);
+            $amount += (float)$manual['price'];
+        }
+    } elseif ($item['type'] === 'event') {
+        $event_id = $item['item_id'];
+        $event_query = mysqli_query($conn, "SELECT price FROM events WHERE id = $event_id");
+        
+        if (mysqli_num_rows($event_query) > 0) {
+            $event = mysqli_fetch_assoc($event_query);
+            $amount += (float)$event['price'];
+        }
+    }
+}
 
 // Get gateway name from cart for transaction record
 $gateway_medium = strtoupper($gateway_slug);
@@ -106,10 +129,8 @@ $profit = $calc['profit'];
 $date = date('Y-m-d H:i:s');
 mysqli_query($conn, "INSERT INTO transactions (user_id, ref_id, amount, charge, profit, status, medium, created_at) VALUES ($user_id, '$tx_ref', $amount, $charge, $profit, 'successful', '$gateway_medium', '$date')");
 
-// Process cart items - mark as confirmed and create purchase records
-$cart_items_query = mysqli_query($conn, "SELECT * FROM cart WHERE ref_id = '$tx_ref' AND user_id = $user_id");
-
-while ($item = mysqli_fetch_assoc($cart_items_query)) {
+// Second pass: process cart items - create purchase records
+foreach ($cart_items as $item) {
     if ($item['type'] === 'manual') {
         $manual_id = $item['item_id'];
         $manual_query = mysqli_query($conn, "SELECT price, user_id FROM manuals WHERE id = $manual_id");
