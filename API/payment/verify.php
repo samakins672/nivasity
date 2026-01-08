@@ -3,6 +3,8 @@
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/../../model/PaymentGatewayFactory.php';
+require_once __DIR__ . '/../../model/functions.php';
+require_once __DIR__ . '/../../model/mail.php';
 require_once __DIR__ . '/../../config/fw.php';
 
 // Only accept GET requests
