@@ -51,11 +51,32 @@ if (!$verifyResult['status']) {
     sendApiError('Payment verification failed', 400);
 }
 
+// Check for redirect_url in metadata
+$redirect_url = null;
+if (isset($verifyResult['data']['metadata']['redirect_url'])) {
+    $redirect_url = $verifyResult['data']['metadata']['redirect_url'];
+} elseif (isset($verifyResult['data']['meta']['redirect_url'])) {
+    $redirect_url = $verifyResult['data']['meta']['redirect_url'];
+}
+
 // Check if already processed
 $processed_query = mysqli_query($conn, "SELECT * FROM transactions WHERE ref_id = '$tx_ref' LIMIT 1");
 
 if (mysqli_num_rows($processed_query) > 0) {
     $transaction = mysqli_fetch_assoc($processed_query);
+    
+    // If redirect_url is provided, redirect to it with success parameters
+    if ($redirect_url) {
+        $redirect_target = $redirect_url . 
+            (strpos($redirect_url, '?') !== false ? '&' : '?') . 
+            'tx_ref=' . urlencode($tx_ref) . 
+            '&status=success' .
+            '&amount=' . urlencode($transaction['amount']);
+        
+        error_log("Payment Verify: Redirecting to $redirect_target for already processed tx_ref $tx_ref");
+        header("Location: $redirect_target");
+        exit;
+    }
     
     sendApiSuccess('Payment already processed', [
         'status' => 'success',
@@ -117,6 +138,19 @@ mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$tx_re
 session_start();
 $_SESSION["nivas_cart$user_id"] = array();
 $_SESSION["nivas_cart_event$user_id"] = array();
+
+// If redirect_url is provided, redirect to it with success parameters
+if ($redirect_url) {
+    $redirect_target = $redirect_url . 
+        (strpos($redirect_url, '?') !== false ? '&' : '?') . 
+        'tx_ref=' . urlencode($tx_ref) . 
+        '&status=success' .
+        '&amount=' . urlencode($amount);
+    
+    error_log("Payment Verify: Redirecting to $redirect_target for tx_ref $tx_ref");
+    header("Location: $redirect_target");
+    exit;
+}
 
 sendApiSuccess('Payment verified and processed successfully', [
     'status' => 'success',

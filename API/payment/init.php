@@ -149,14 +149,22 @@ foreach ($cart_events as $event_id) {
     mysqli_query($conn, "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway, created_at) VALUES ('$tx_ref', $user_id, $event_id, 'event', 'pending', '$gateway_upper', '$date')");
 }
 
-// Prepare payment parameters
-// Use redirect_url if provided, otherwise use default API verify endpoint
-$callback_url = $redirect_url 
-    ? $redirect_url . (strpos($redirect_url, '?') !== false ? '&' : '?') . 'tx_ref=' . $tx_ref
-    : 'https://api.nivasity.com/payment/verify.php?tx_ref=' . $tx_ref;
+// Always use API verify endpoint as callback (some gateways don't support deep links)
+$callback_url = 'https://api.nivasity.com/payment/verify.php?tx_ref=' . $tx_ref;
 
-// Log the constructed callback URL
+// Log the callback URL
 error_log("Payment Init: callback_url for tx_ref $tx_ref (user $user_id): " . $callback_url);
+
+// Store redirect_url in metadata for use after verification
+$meta_data = [
+    'user_id' => $user_id,
+    'school_id' => $school_id
+];
+
+if ($redirect_url) {
+    $meta_data['redirect_url'] = $redirect_url;
+    error_log("Payment Init: redirect_url stored in metadata for tx_ref $tx_ref: " . $redirect_url);
+}
 
 $payment_data = [
     'amount' => $total_amount,
@@ -165,10 +173,7 @@ $payment_data = [
     'callback_url' => $callback_url,
     'customer_name' => $user['first_name'] . ' ' . $user['last_name'],
     'customer_phone' => $user['phone'],
-    'meta' => [
-        'user_id' => $user_id,
-        'school_id' => $school_id
-    ]
+    'meta' => $meta_data
 ];
 
 // Handle gateway-specific split payment configuration
@@ -284,18 +289,24 @@ if (!$init_result['status']) {
     sendApiError('Failed to initialize payment: ' . ($init_result['message'] ?? 'Unknown error'), 500);
 }
 
-sendApiSuccess('Payment initialized successfully', [
+$response_data = [
     'tx_ref' => $tx_ref,
     'payment_url' =>
         $init_result['data']['authorization_url']
         ?? $init_result['data']['link']
         ?? $init_result['data']['payment_url']
         ?? null,
-    'callback_url' => $callback_url,
     'gateway' => $gatewayName,
     'subtotal' => $subtotal,
     'charge' => $charge,
     'total_amount' => $total_amount,
     'items' => $cart_items
-]);
+];
+
+// Include redirect_url in response if provided
+if ($redirect_url) {
+    $response_data['redirect_url'] = $redirect_url;
+}
+
+sendApiSuccess('Payment initialized successfully', $response_data);
 ?>
