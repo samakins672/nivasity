@@ -876,9 +876,19 @@ GET /materials/details.php?code=MAN-2024-001
 #### 19. Initialize Payment
 **Endpoint:** `POST /payment/init.php`
 
-**Description:** Initialize payment for cart items. Supports automatic payment splitting for multi-seller transactions using gateway-specific split mechanisms.
+**Description:** Initialize payment for cart items. Supports automatic payment splitting for multi-seller transactions using gateway-specific split mechanisms. Optionally accepts a custom redirect URL for mobile app callback.
 
 **Authentication:** Required
+
+**Request Body (JSON):**
+```json
+{
+  "redirect_url": "https://yourapp.com/payment-callback"
+}
+```
+
+**Parameters:**
+- `redirect_url` (optional): Custom URL where users will be redirected after completing payment on the hosted checkout page. If not provided, defaults to the API's verify endpoint. The transaction reference (`tx_ref`) will be automatically appended as a query parameter.
 
 **Payment Split Features:**
 - **Paystack:** Uses Paystack Split API with intelligent caching to avoid recreating splits for identical seller combinations
@@ -903,6 +913,7 @@ The endpoint uses an intelligent caching system to avoid recreating payment spli
   "data": {
     "tx_ref": "nivas_123_1703689200",
     "payment_url": "https://checkout.paystack.com/...",
+    "callback_url": "https://yourapp.com/payment-callback?tx_ref=nivas_123_1703689200",
     "gateway": "paystack",
     "subtotal": 5000,
     "charge": 100,
@@ -919,6 +930,26 @@ The endpoint uses an intelligent caching system to avoid recreating payment spli
   }
 }
 ```
+
+**Response Fields:**
+- `tx_ref`: Transaction reference for tracking the payment
+- `payment_url`: Hosted checkout URL where user completes payment
+- `callback_url`: URL where user will be redirected after payment (includes `tx_ref` parameter)
+- `gateway`: Payment gateway being used (paystack/flutterwave)
+- `subtotal`: Total cost of items before gateway charges
+- `charge`: Gateway processing fees
+- `total_amount`: Final amount to be paid (subtotal + charge)
+- `items`: Array of cart items with details
+
+**Mobile App Integration:**
+For mobile apps, provide a custom `redirect_url` that uses your app's deep link scheme:
+```json
+{
+  "redirect_url": "myapp://payment-callback"
+}
+```
+
+This allows the payment gateway to redirect back to your mobile app after the user completes or cancels payment on the hosted checkout page.
 
 **How Payment Splitting Works:**
 

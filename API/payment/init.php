@@ -18,6 +18,15 @@ requireStudentRole($user);
 $user_id = $user['id'];
 $school_id = $user['school'];
 
+// Get optional redirect URL from request body
+$input = json_decode(file_get_contents('php://input'), true);
+$redirect_url = isset($input['redirect_url']) ? trim($input['redirect_url']) : null;
+
+// Validate redirect_url if provided
+if ($redirect_url && !filter_var($redirect_url, FILTER_VALIDATE_URL)) {
+    sendApiError('Invalid redirect_url format', 400);
+}
+
 // Get cart from session
 session_start();
 $cart_key = "nivas_cart$user_id";
@@ -135,11 +144,16 @@ foreach ($cart_events as $event_id) {
 }
 
 // Prepare payment parameters
+// Use redirect_url if provided, otherwise use default API verify endpoint
+$callback_url = $redirect_url 
+    ? $redirect_url . (strpos($redirect_url, '?') !== false ? '&' : '?') . 'tx_ref=' . $tx_ref
+    : 'https://api.nivasity.com/payment/verify.php?tx_ref=' . $tx_ref;
+
 $payment_data = [
     'amount' => $total_amount,
     'email' => $user['email'],
     'reference' => $tx_ref,
-    'callback_url' => 'https://api.nivasity.com/payment/verify.php?tx_ref=' . $tx_ref,
+    'callback_url' => $callback_url,
     'customer_name' => $user['first_name'] . ' ' . $user['last_name'],
     'customer_phone' => $user['phone'],
     'meta' => [
@@ -268,6 +282,7 @@ sendApiSuccess('Payment initialized successfully', [
         ?? $init_result['data']['link']
         ?? $init_result['data']['payment_url']
         ?? null,
+    'callback_url' => $callback_url,
     'gateway' => $gatewayName,
     'subtotal' => $subtotal,
     'charge' => $charge,
