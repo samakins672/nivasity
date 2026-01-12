@@ -709,6 +709,7 @@ $event_query2 = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' 
           <ul>
             <li><a href="t&c.html">Terms and Conditions</a></li>
             <li><a href="p&p.html">Privacy and Policy</a></li>
+            <li><a href="delete-account.html">Delete Account</a></li>
             <li><a href="sitemap.xml">Sitemap</a></li>
           </ul>
         </div>

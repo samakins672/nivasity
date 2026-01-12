@@ -248,6 +248,60 @@ if (isset($_POST['deactivate_acct'])) {
   }
 }
 
+if (isset($_POST['delete_account_request'])) {
+  $email = mysqli_real_escape_string($conn, $_POST['email']);
+  $password = md5($_POST['password']);
+  $reason = mysqli_real_escape_string($conn, $_POST['reason']);
+
+  // Check if user data exists and password is correct
+  $user_query = mysqli_query($conn, "SELECT * FROM users WHERE email = '$email' AND password = '$password'");
+
+  if (mysqli_num_rows($user_query) == 1) {
+    $user = mysqli_fetch_array($user_query);
+    $user_id = $user['id'];
+    $first_name = $user['first_name'];
+    $last_name = $user['last_name'];
+
+    // Update user status to deactivated
+    mysqli_query($conn, "UPDATE users SET status = 'deactivated' WHERE id = $user_id");
+
+    if (mysqli_affected_rows($conn) >= 1) {
+      // Send notification email to support
+      $subject = "Account Deletion Request - $first_name $last_name";
+      $body = "<b>Account Deletion Request</b><br><br>
+              <b>User Information:</b><br>
+              Name: $first_name $last_name<br>
+              Email: $email<br>
+              User ID: $user_id<br><br>
+              <b>Reason for deletion:</b><br>
+              $reason<br><br>
+              The account has been deactivated.";
+      
+      // Send notification to support
+      sendMail($subject, $body, 'support@nivasity.com');
+
+      // Send confirmation email to user
+      $user_subject = "Your Account Deletion Request - Nivasity";
+      $user_body = "Hello $first_name,<br><br>
+                    We have received your request to delete your Nivasity account. Your account has been deactivated.<br><br>
+                    If you did not make this request, please contact our support team immediately at support@nivasity.com.<br><br>
+                    We're sorry to see you go. If you change your mind, please contact our support team within 30 days to reactivate your account.<br><br>
+                    Best regards,<br><b>Nivasity Team</b>";
+      
+      sendMail($user_subject, $user_body, $email);
+
+      $statusRes = "success";
+      $messageRes = "Your account deletion request has been received. Your account has been deactivated. If you change your mind, please contact support@nivasity.com within 30 days.";
+    } else {
+      $statusRes = "error";
+      $messageRes = "Internal Server Error. Please try again later!";
+    }
+  } else {
+    $statusRes = "failed";
+    $messageRes = "Email or Password incorrect!";
+  }
+}
+
 if (isset($_POST['logout'])) {
   session_start();
   session_unset();
