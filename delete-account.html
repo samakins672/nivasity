@@ -185,9 +185,6 @@
       button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing...';
       button.disabled = true;
       
-      // Create FormData from the form
-      var formData = new FormData(form);
-      
       // Send AJAX request
       var xhr = new XMLHttpRequest();
       xhr.open('POST', 'model/user.php', true);
@@ -248,7 +245,8 @@
         button.disabled = false;
       }
       
-      // Convert FormData to URL-encoded string
+      // Create URL-encoded string from form data
+      var formData = new FormData(form);
       var params = new URLSearchParams(formData).toString();
       xhr.send(params);
     });
