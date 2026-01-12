@@ -268,11 +268,14 @@ if (isset($_POST['delete_account_request'])) {
     if (mysqli_affected_rows($conn) >= 1) {
       // Send notification email to support
       $subject = "Account Deletion Request - $first_name $last_name";
+      $first_name_escaped = htmlspecialchars($first_name, ENT_QUOTES, 'UTF-8');
+      $last_name_escaped = htmlspecialchars($last_name, ENT_QUOTES, 'UTF-8');
+      $email_escaped = htmlspecialchars($email, ENT_QUOTES, 'UTF-8');
       $reason_escaped = htmlspecialchars($reason, ENT_QUOTES, 'UTF-8');
       $body = "<b>Account Deletion Request</b><br><br>
               <b>User Information:</b><br>
-              Name: $first_name $last_name<br>
-              Email: $email<br>
+              Name: $first_name_escaped $last_name_escaped<br>
+              Email: $email_escaped<br>
               User ID: $user_id<br><br>
               <b>Reason for deletion:</b><br>
               $reason_escaped<br><br>
@@ -283,7 +286,7 @@ if (isset($_POST['delete_account_request'])) {
 
       // Send confirmation email to user
       $user_subject = "Your Account Deletion Request - Nivasity";
-      $user_body = "Hello $first_name,<br><br>
+      $user_body = "Hello $first_name_escaped,<br><br>
                     We have received your request to delete your Nivasity account. Your account has been deactivated.<br><br>
                     If you did not make this request, please contact our support team immediately at support@nivasity.com.<br><br>
                     We're sorry to see you go. If you change your mind, please contact our support team within 30 days to reactivate your account.<br><br>
