@@ -172,66 +172,86 @@
   <script src="assets/js/script.js"></script>
 
   <script>
-    // Use jQuery if available
-    if (typeof jQuery !== 'undefined') {
-      $(document).ready(function () {
-        // Handle form submission
-      $('#deleteAccountForm').submit(function (event) {
-        event.preventDefault();
-
-        var button = $('#submitButton');
-        var originalText = button.html();
-
-        // Disable button and show loading state
-        button.html('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing...');
-        button.prop('disabled', true);
-
-        $.ajax({
-          type: 'POST',
-          url: 'model/user.php',
-          data: $(this).serialize(),
-          dataType: 'json',
-          success: function (data) {
-            // Use text() instead of html() to prevent XSS
-            $('#alertBanner').text(data.message);
-
-            if (data.status == 'success') {
-              $('#alertBanner').removeClass('alert-info alert-danger').addClass('alert-success');
+    // Handle form submission with pure JavaScript (works even if jQuery fails to load)
+    document.getElementById('deleteAccountForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+      
+      var form = this;
+      var button = document.getElementById('submitButton');
+      var originalText = button.innerHTML;
+      var alertBanner = document.getElementById('alertBanner');
+      
+      // Disable button and show loading state
+      button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing...';
+      button.disabled = true;
+      
+      // Create FormData from the form
+      var formData = new FormData(form);
+      
+      // Send AJAX request
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', 'model/user.php', true);
+      xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          try {
+            var data = JSON.parse(xhr.responseText);
+            
+            // Use textContent instead of innerHTML to prevent XSS
+            alertBanner.textContent = data.message;
+            
+            if (data.status === 'success') {
+              alertBanner.className = 'alert alert-success text-center alert-dismissible end-2 top-2 fade show position-fixed w-auto p-2 px-4';
               
               // Clear the form
-              $('#deleteAccountForm')[0].reset();
+              form.reset();
               
               // Redirect to signin page after 3 seconds
-              setTimeout(function () {
+              setTimeout(function() {
                 window.location.href = "signin.html";
               }, 3000);
             } else {
-              $('#alertBanner').removeClass('alert-success alert-info').addClass('alert-danger');
-              button.html(originalText);
-              button.prop('disabled', false);
+              alertBanner.className = 'alert alert-danger text-center alert-dismissible end-2 top-2 fade show position-fixed w-auto p-2 px-4';
+              button.innerHTML = originalText;
+              button.disabled = false;
             }
-
-            $('#alertBanner').fadeIn();
-
-            setTimeout(function () {
-              $('#alertBanner').fadeOut();
+            
+            alertBanner.style.display = 'block';
+            
+            setTimeout(function() {
+              alertBanner.style.display = 'none';
             }, 5000);
-          },
-          error: function () {
-            $('#alertBanner').text('An error occurred. Please try again later.');
-            $('#alertBanner').removeClass('alert-success alert-info').addClass('alert-danger');
-            $('#alertBanner').fadeIn();
-
-            setTimeout(function () {
-              $('#alertBanner').fadeOut();
-            }, 5000);
-
-            button.html(originalText);
-            button.prop('disabled', false);
+          } catch (e) {
+            console.error('Error parsing response:', e);
+            showError('An error occurred. Please try again later.');
           }
-        });
-      });
-    }
+        } else {
+          showError('An error occurred. Please try again later.');
+        }
+      };
+      
+      xhr.onerror = function() {
+        showError('An error occurred. Please try again later.');
+      };
+      
+      function showError(message) {
+        alertBanner.textContent = message;
+        alertBanner.className = 'alert alert-danger text-center alert-dismissible end-2 top-2 fade show position-fixed w-auto p-2 px-4';
+        alertBanner.style.display = 'block';
+        
+        setTimeout(function() {
+          alertBanner.style.display = 'none';
+        }, 5000);
+        
+        button.innerHTML = originalText;
+        button.disabled = false;
+      }
+      
+      // Convert FormData to URL-encoded string
+      var params = new URLSearchParams(formData).toString();
+      xhr.send(params);
+    });
   </script>
 
 </body>
