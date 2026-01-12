@@ -268,13 +268,14 @@ if (isset($_POST['delete_account_request'])) {
     if (mysqli_affected_rows($conn) >= 1) {
       // Send notification email to support
       $subject = "Account Deletion Request - $first_name $last_name";
+      $reason_escaped = htmlspecialchars($reason, ENT_QUOTES, 'UTF-8');
       $body = "<b>Account Deletion Request</b><br><br>
               <b>User Information:</b><br>
               Name: $first_name $last_name<br>
               Email: $email<br>
               User ID: $user_id<br><br>
               <b>Reason for deletion:</b><br>
-              $reason<br><br>
+              $reason_escaped<br><br>
               The account has been deactivated.";
       
       // Send notification to support

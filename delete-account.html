@@ -187,7 +187,8 @@
           data: $(this).serialize(),
           dataType: 'json',
           success: function (data) {
-            $('#alertBanner').html(data.message);
+            // Use text() instead of html() to prevent XSS
+            $('#alertBanner').text(data.message);
 
             if (data.status == 'success') {
               $('#alertBanner').removeClass('alert-info alert-danger').addClass('alert-success');
@@ -212,7 +213,7 @@
             }, 5000);
           },
           error: function () {
-            $('#alertBanner').html('An error occurred. Please try again later.');
+            $('#alertBanner').text('An error occurred. Please try again later.');
             $('#alertBanner').removeClass('alert-success alert-info').addClass('alert-danger');
             $('#alertBanner').fadeIn();
 
