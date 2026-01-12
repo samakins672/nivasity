@@ -256,7 +256,6 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
           <ul>
             <li><a href="t&c.html">Terms and Conditions</a></li>
             <li><a href="p&p.html">Privacy and Policy</a></li>
-            <li><a href="delete-account.html">Delete Account</a></li>
             <li><a href="sitemap.xml">Sitemap</a></li>
           </ul>
         </div>

@@ -150,11 +150,16 @@
 
   <!-- Spinner Start -->
   <div id="spinner"
-    class="show bg-white position-fixed translate-middle w-100 vh-100 top-50 start-50 d-flex align-items-center justify-content-center">
+    class="d-none bg-white position-fixed translate-middle w-100 vh-100 top-50 start-50 align-items-center justify-content-center"
+    style="z-index: 9999; display: none !important;">
     <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
       <span class="sr-only">Loading...</span>
     </div>
   </div>
+  <script>
+    // The spinner is hidden by default with d-none and display:none
+    // script.js will handle showing/hiding if needed when jQuery loads
+  </script>
   <!-- Spinner End -->
 
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
@@ -163,14 +168,14 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
   <script src="assets/vendors/select2/select2.min.js"></script>
 
-  <script>
-    $(document).ready(function () {
-      // Hide spinner after page loads
-      setTimeout(function () {
-        $('#spinner').removeClass('show');
-      }, 500);
+  <!-- main js -->
+  <script src="assets/js/script.js"></script>
 
-      // Handle form submission
+  <script>
+    // Use jQuery if available
+    if (typeof $ !== 'undefined') {
+      $(document).ready(function () {
+        // Handle form submission
       $('#deleteAccountForm').submit(function (event) {
         event.preventDefault();
 
@@ -226,7 +231,8 @@
           }
         });
       });
-    });
+      });
+    }
   </script>
 
 </body>
