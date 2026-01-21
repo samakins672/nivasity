@@ -12,6 +12,7 @@ require_once __DIR__ . '/../config/fw.php';
 require_once 'PaymentGatewayFactory.php';
 include('functions.php');
 include('mail.php');
+require_once __DIR__ . '/notifications.php';
 
 header('Content-Type: application/json');
 
@@ -224,6 +225,14 @@ mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, 
 
 // Send congratulatory email
 sendCongratulatoryEmail($conn, $user_id, $ref_id, $manual_ids, $event_ids, $total_amount);
+
+// Send push notification to user
+notifyUser($conn, $user_id, 
+    'Payment Successful', 
+    "Your payment of ₦" . number_format($total_amount, 2) . " has been confirmed.", 
+    'payment', 
+    ['tx_ref' => $ref_id, 'amount' => $total_amount, 'status' => 'successful']
+);
 
 // Update cart status
 mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$ref_id_esc'");
