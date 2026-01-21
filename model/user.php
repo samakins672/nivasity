@@ -301,8 +301,14 @@ if (isset($_POST['login'])) {
       $messageRes = "Logged in successfully!";
     }
   } else {
-    $statusRes = "failed";
-    $messageRes = "Email or Password incorrect!";
+    // Differentiate between Google Sign-In and regular login
+    if ($_POST['login'] === 'g_signin') {
+      $statusRes = "not_registered";
+      $messageRes = "No account found with this Google email. Please sign up first to create an account.";
+    } else {
+      $statusRes = "failed";
+      $messageRes = "Email or Password incorrect!";
+    }
   }
 }
 

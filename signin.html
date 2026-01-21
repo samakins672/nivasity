@@ -341,6 +341,11 @@
             $('#alertBanner').removeClass('alert-success');
             $('#alertBanner').removeClass('alert-info');
             $('#alertBanner').addClass('alert-warning');
+          } else if (data.status == 'not_registered') {
+            $('#alertBanner').removeClass('alert-danger');
+            $('#alertBanner').removeClass('alert-success');
+            $('#alertBanner').removeClass('alert-warning');
+            $('#alertBanner').addClass('alert-info');
           } else {
             $('#alertBanner').removeClass('alert-warning');
             $('#alertBanner').removeClass('alert-success');
