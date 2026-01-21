@@ -5,6 +5,7 @@ require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/../../model/PaymentGatewayFactory.php';
 require_once __DIR__ . '/../../model/functions.php';
 require_once __DIR__ . '/../../model/mail.php';
+require_once __DIR__ . '/../../model/notifications.php';
 require_once __DIR__ . '/../../config/fw.php';
 
 // Only accept GET requests
@@ -173,6 +174,20 @@ while ($cart_item = mysqli_fetch_assoc($cart_items_for_email)) {
 
 // Send congratulatory email
 sendCongratulatoryEmail($conn, $user_id, $tx_ref, $manual_ids, $event_ids, $amount);
+
+// Send push notification for successful payment
+notifyUser(
+    $conn,
+    $user_id,
+    'Payment Successful',
+    "Your payment of ₦" . number_format($amount, 2) . " has been confirmed.",
+    'payment',
+    [
+        'tx_ref' => $tx_ref,
+        'amount' => $amount,
+        'status' => 'success'
+    ]
+);
 
 // Clear session cart
 session_start();

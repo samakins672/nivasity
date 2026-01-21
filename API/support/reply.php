@@ -4,6 +4,7 @@ require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/../../model/mail.php';
 require_once __DIR__ . '/../../model/functions.php';
+require_once __DIR__ . '/../../model/notifications.php';
 
 // Only accept POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -94,6 +95,9 @@ $attachmentInfo = $storedFilePath ? "<br><br>File attached: <a href='https://fun
 $supportMessage = "User: {$user['first_name']} {$user['last_name']} (User id: $user_id) has replied to ticket #{$ticket['code']}<br><br>Message: <br>$e_message{$attachmentInfo}";
 
 sendMail($supportSubject, $supportMessage, $supportEmail);
+
+// Note: Notification to user will be sent when admin replies
+// This is a user reply, so we only notify support team via email
 
 sendApiSuccess('Reply added successfully', [
     'ticket_id' => $ticket_id,
