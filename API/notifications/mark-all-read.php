@@ -6,7 +6,7 @@
  */
 
 require_once __DIR__ . '/../config.php';
-require_once __DIR__ . '/../middleware/auth.php';
+require_once __DIR__ . '/../auth.php';
 
 header('Content-Type: application/json');
 
@@ -18,14 +18,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // Authenticate user
-$auth_result = authenticate();
-if (!$auth_result['success']) {
-    http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => $auth_result['message']]);
-    exit;
-}
-
-$user_id = $auth_result['user_id'];
+$user = authenticateApiRequest($conn);
+requireStudentRole($user);
+$user_id = $user['id'];
 
 try {
     // Mark all unread notifications as read
