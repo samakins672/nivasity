@@ -53,32 +53,31 @@ if ($platform !== null && !in_array($platform, ['android', 'ios', 'web'])) {
 }
 
 try {
-    // Check if token already exists (for any user)
-    $check_query = "SELECT id, user_id, disabled_at FROM notification_devices WHERE expo_push_token = ?";
-    $stmt = mysqli_prepare($conn, $check_query);
-    mysqli_stmt_bind_param($stmt, 's', $expo_push_token);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
+    // First check if this user already has a device registered
+    $user_device_query = "SELECT id, expo_push_token FROM notification_devices WHERE user_id = ? AND disabled_at IS NULL LIMIT 1";
+    $stmt_user = mysqli_prepare($conn, $user_device_query);
+    mysqli_stmt_bind_param($stmt_user, 'i', $user_id);
+    mysqli_stmt_execute($stmt_user);
+    $user_device_result = mysqli_stmt_get_result($stmt_user);
     
-    if ($existing = mysqli_fetch_assoc($result)) {
-        // Token exists - update it
-        $device_id = $existing['id'];
+    if ($user_device = mysqli_fetch_assoc($user_device_result)) {
+        // User already has a device registered - update it
+        $device_id = $user_device['id'];
         
-        // If token belongs to a different user, reassign it
-        if ($existing['user_id'] != $user_id) {
-            error_log("Expo token $expo_push_token reassigned from user {$existing['user_id']} to user $user_id");
+        // Log if the token is changing
+        if ($user_device['expo_push_token'] !== $expo_push_token) {
+            error_log("User $user_id changing token from {$user_device['expo_push_token']} to $expo_push_token");
         }
         
-        // Update existing record - reactivate if disabled, update user_id if changed
+        // Update existing record with new token and platform info
         $update_query = "UPDATE notification_devices 
-                        SET user_id = ?, 
+                        SET expo_push_token = ?, 
                             platform = ?, 
                             app_version = ?, 
-                            disabled_at = NULL, 
                             updated_at = NOW() 
                         WHERE id = ?";
         $stmt_update = mysqli_prepare($conn, $update_query);
-        mysqli_stmt_bind_param($stmt_update, 'issi', $user_id, $platform, $app_version, $device_id);
+        mysqli_stmt_bind_param($stmt_update, 'sssi', $expo_push_token, $platform, $app_version, $device_id);
         
         if (!mysqli_stmt_execute($stmt_update)) {
             throw new Exception('Failed to update device token');
@@ -86,21 +85,51 @@ try {
         
         mysqli_stmt_close($stmt_update);
     } else {
-        // Token doesn't exist - insert new record
-        $insert_query = "INSERT INTO notification_devices 
-                        (user_id, expo_push_token, platform, app_version, created_at, updated_at) 
-                        VALUES (?, ?, ?, ?, NOW(), NOW())";
-        $stmt_insert = mysqli_prepare($conn, $insert_query);
-        mysqli_stmt_bind_param($stmt_insert, 'isss', $user_id, $expo_push_token, $platform, $app_version);
+        // Check if the token exists for a different user
+        $check_query = "SELECT id, user_id FROM notification_devices WHERE expo_push_token = ?";
+        $stmt = mysqli_prepare($conn, $check_query);
+        mysqli_stmt_bind_param($stmt, 's', $expo_push_token);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
         
-        if (!mysqli_stmt_execute($stmt_insert)) {
-            throw new Exception('Failed to register device token');
+        if ($existing = mysqli_fetch_assoc($result)) {
+            // Token exists for different user - reassign it
+            error_log("Expo token $expo_push_token reassigned from user {$existing['user_id']} to user $user_id");
+            
+            $reassign_query = "UPDATE notification_devices 
+                              SET user_id = ?, 
+                                  platform = ?, 
+                                  app_version = ?, 
+                                  disabled_at = NULL, 
+                                  updated_at = NOW() 
+                              WHERE id = ?";
+            $stmt_reassign = mysqli_prepare($conn, $reassign_query);
+            mysqli_stmt_bind_param($stmt_reassign, 'issi', $user_id, $platform, $app_version, $existing['id']);
+            
+            if (!mysqli_stmt_execute($stmt_reassign)) {
+                throw new Exception('Failed to reassign device token');
+            }
+            
+            mysqli_stmt_close($stmt_reassign);
+        } else {
+            // New token for this user - insert new record
+            $insert_query = "INSERT INTO notification_devices 
+                            (user_id, expo_push_token, platform, app_version, created_at, updated_at) 
+                            VALUES (?, ?, ?, ?, NOW(), NOW())";
+            $stmt_insert = mysqli_prepare($conn, $insert_query);
+            mysqli_stmt_bind_param($stmt_insert, 'isss', $user_id, $expo_push_token, $platform, $app_version);
+            
+            if (!mysqli_stmt_execute($stmt_insert)) {
+                throw new Exception('Failed to register device token');
+            }
+            
+            mysqli_stmt_close($stmt_insert);
         }
         
-        mysqli_stmt_close($stmt_insert);
+        mysqli_stmt_close($stmt);
     }
     
-    mysqli_stmt_close($stmt);
+    mysqli_stmt_close($stmt_user);
     
     // Success response
     http_response_code(200);

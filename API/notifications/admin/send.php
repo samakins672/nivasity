@@ -26,9 +26,12 @@ if (empty($email) || empty($password) || empty($title) || empty($body)) {
 }
 
 // Validate admin credentials from admins table
-// Password can be sent as MD5 hash or plain text (will be hashed if not already)
-$password_hash = (strlen($password) === 32 && ctype_xdigit($password)) ? $password : md5($password);
-$admin_query = mysqli_query($conn, "SELECT * FROM admins WHERE email = '$email' AND password = '$password_hash' AND status = 'active' LIMIT 1");
+// Password must be MD5 hash (32 character hexadecimal)
+if (strlen($password) !== 32 || !ctype_xdigit($password)) {
+    sendApiError('Password must be MD5 hash (32 character hexadecimal string)', 400);
+}
+
+$admin_query = mysqli_query($conn, "SELECT * FROM admins WHERE email = '$email' AND password = '$password' AND status = 'active' LIMIT 1");
 
 if (mysqli_num_rows($admin_query) === 0) {
     error_log("Admin Send Notification: Failed login attempt for email: $email");
@@ -36,6 +39,13 @@ if (mysqli_num_rows($admin_query) === 0) {
 }
 
 $admin = mysqli_fetch_assoc($admin_query);
+
+// Enforce role restriction: only roles 1, 2, or 3 are allowed
+$allowed_roles = [1, 2, 3];
+if (!in_array((int)$admin['role'], $allowed_roles)) {
+    error_log("Admin Send Notification: Unauthorized role {$admin['role']} for email: $email");
+    sendApiError('Insufficient permissions to send notifications', 403);
+}
 
 // Determine target users
 $user_ids = [];

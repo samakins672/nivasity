@@ -125,15 +125,15 @@ if ($new_status === 'resolved' || $new_status === 'closed') {
 
 **Authentication:** Requires admin email and password from `admins` table
 
-**Password format:** Can be sent as either:
-- Plain text password (will be hashed automatically)
-- MD5 hash of the password (32-character hexadecimal string)
+**Password format:** Must be MD5 hash (32-character hexadecimal string)
+
+**Role requirement:** Admin role must be 1, 2, or 3
 
 **Request format:**
 ```json
 {
   "email": "admin@school.edu",
-  "password": "5f4dcc3b5aa765d61d8327deb882cf99",  // MD5 hash (recommended) or plain text
+  "password": "5f4dcc3b5aa765d61d8327deb882cf99",  // MD5 hash (required)
   "title": "Important Announcement",
   "body": "Classes will resume on Monday.",
   "type": "general",
@@ -168,7 +168,7 @@ if ($new_status === 'resolved' || $new_status === 'closed') {
 
 **Example usage:**
 
-School-wide announcement (with MD5 hashed password):
+School-wide announcement:
 ```bash
 curl -X POST https://api.nivasity.com/notifications/admin/send.php \
   -H "Content-Type: application/json" \
@@ -182,13 +182,13 @@ curl -X POST https://api.nivasity.com/notifications/admin/send.php \
   }'
 ```
 
-Single user notification (with plain text password):
+Single user notification:
 ```bash
 curl -X POST https://api.nivasity.com/notifications/admin/send.php \
   -H "Content-Type: application/json" \
   -d '{
     "email": "admin@school.edu",
-    "password": "mypassword",
+    "password": "098f6bcd4621d373cade4e832627b4f6",
     "title": "Your Request Approved",
     "body": "Your request has been approved by the admin.",
     "type": "general",
@@ -196,7 +196,18 @@ curl -X POST https://api.nivasity.com/notifications/admin/send.php \
   }'
 ```
 
-**Note:** For better security, it's recommended to send the MD5 hash of the password rather than plain text.
+**Generating MD5 hash:**
+```bash
+# On Linux/Mac
+echo -n "your_password" | md5sum
+
+# On PHP
+echo md5("your_password");
+
+# JavaScript/Node.js
+const crypto = require('crypto');
+const hash = crypto.createHash('md5').update('your_password').digest('hex');
+```
 
 ## Summary of Integration Status
 
