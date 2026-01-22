@@ -76,7 +76,7 @@ if (count($user_ids) === 1) {
     
     sendApiSuccess('Notification sent successfully', [
         'notification_id' => $result['notification_id'],
-        'push_sent' => $result['push_sent'],
+        'push_sent' => $result['push_result']['success'] ?? false,
         'recipients' => 1
     ], 201);
 } else {
@@ -84,8 +84,8 @@ if (count($user_ids) === 1) {
     $result = notifyMultipleUsers($conn, $user_ids, $title, $body, $type, $data);
     
     sendApiSuccess('Notifications sent successfully', [
-        'notifications_created' => $result['notifications_created'],
-        'push_sent' => $result['push_sent'],
+        'notifications_created' => $result['created_count'],
+        'push_sent' => $result['push_result']['success'] ?? false,
         'recipients' => count($user_ids)
     ], 201);
 }
