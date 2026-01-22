@@ -25,9 +25,9 @@ if (empty($email) || empty($password) || empty($title) || empty($body)) {
     sendApiError('Email, password, title, and body are required', 400);
 }
 
-// Validate admin credentials from users table (role must be hoc, org_admin, or admin)
+// Validate admin credentials from admins table
 $password_hash = md5($password);
-$admin_query = mysqli_query($conn, "SELECT * FROM users WHERE email = '$email' AND password = '$password_hash' LIMIT 1");
+$admin_query = mysqli_query($conn, "SELECT * FROM admins WHERE email = '$email' AND password = '$password_hash' AND status = 'active' LIMIT 1");
 
 if (mysqli_num_rows($admin_query) === 0) {
     error_log("Admin Send Notification: Failed login attempt for email: $email");
@@ -35,12 +35,6 @@ if (mysqli_num_rows($admin_query) === 0) {
 }
 
 $admin = mysqli_fetch_assoc($admin_query);
-
-// Check if user has admin privileges (hoc, org_admin, or admin role)
-if (!in_array($admin['role'], ['hoc', 'org_admin', 'admin'])) {
-    error_log("Admin Send Notification: Unauthorized access attempt by user {$admin['id']} with role {$admin['role']}");
-    sendApiError('Unauthorized: Admin privileges required', 403);
-}
 
 // Determine target users
 $user_ids = [];
