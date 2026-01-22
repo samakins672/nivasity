@@ -85,6 +85,10 @@ if (count($user_ids) === 1) {
     // Single user
     $result = notifyUser($conn, $user_ids[0], $title, $body, $type, $data);
     
+    if (!$result['success']) {
+        sendApiError($result['message'], 400);
+    }
+    
     sendApiSuccess('Notification sent successfully', [
         'notification_id' => $result['notification_id'],
         'push_sent' => $result['push_result']['success'] ?? false,
@@ -94,10 +98,15 @@ if (count($user_ids) === 1) {
     // Multiple users
     $result = notifyMultipleUsers($conn, $user_ids, $title, $body, $type, $data);
     
+    // Check if any notifications were created
+    if ($result['created_count'] === 0) {
+        sendApiError('No notifications created - no users have registered devices', 400);
+    }
+    
     sendApiSuccess('Notifications sent successfully', [
         'notifications_created' => $result['created_count'],
         'push_sent' => $result['push_result']['success'] ?? false,
-        'recipients' => count($user_ids)
+        'recipients' => $result['created_count']
     ], 201);
 }
 ?>
