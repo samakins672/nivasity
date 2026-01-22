@@ -182,6 +182,7 @@ function sendExpoBatch($messages) {
 
 /**
  * Create notification and send push notification
+ * Only creates notification if user has registered device
  * 
  * @param mysqli $conn Database connection
  * @param int $user_id User ID
@@ -192,6 +193,23 @@ function sendExpoBatch($messages) {
  * @return array Result with 'success', 'notification_id', and 'push_result'
  */
 function notifyUser($conn, $user_id, $title, $body, $type = null, $data = null) {
+    // First check if user has a registered device
+    $device_check_query = "SELECT COUNT(*) as device_count FROM notification_devices 
+                          WHERE user_id = ? AND disabled_at IS NULL";
+    $stmt = mysqli_prepare($conn, $device_check_query);
+    mysqli_stmt_bind_param($stmt, 'i', $user_id);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $row = mysqli_fetch_assoc($result);
+    mysqli_stmt_close($stmt);
+    
+    if ($row['device_count'] == 0) {
+        return [
+            'success' => false,
+            'message' => 'User has no registered device'
+        ];
+    }
+    
     // Create notification in database
     $notification_id = createNotification($conn, $user_id, $title, $body, $type, $data);
     
@@ -218,6 +236,7 @@ function notifyUser($conn, $user_id, $title, $body, $type = null, $data = null) 
 
 /**
  * Create notifications for multiple users (fan-out on write)
+ * Only creates notifications for users with registered devices
  * 
  * @param mysqli $conn Database connection
  * @param array $user_ids Array of user IDs
@@ -231,14 +250,30 @@ function notifyMultipleUsers($conn, $user_ids, $title, $body, $type = null, $dat
     $created_count = 0;
     $push_tokens = [];
     
-    // Create notification for each user and collect their tokens
+    // Create notification ONLY for users with registered devices and collect their tokens
     foreach ($user_ids as $user_id) {
+        // Check if user has a registered device
+        $device_check_query = "SELECT expo_push_token FROM notification_devices 
+                              WHERE user_id = ? AND disabled_at IS NULL LIMIT 1";
+        $stmt = mysqli_prepare($conn, $device_check_query);
+        mysqli_stmt_bind_param($stmt, 'i', $user_id);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        $device_row = mysqli_fetch_assoc($result);
+        mysqli_stmt_close($stmt);
+        
+        // Skip users without registered devices
+        if (!$device_row) {
+            continue;
+        }
+        
+        // User has device, create notification
         $notification_id = createNotification($conn, $user_id, $title, $body, $type, $data);
         
         if ($notification_id) {
             $created_count++;
             
-            // Get user's device tokens
+            // Get all user's device tokens (user might have multiple devices in future)
             $tokens_query = "SELECT expo_push_token FROM notification_devices 
                             WHERE user_id = ? AND disabled_at IS NULL";
             $stmt = mysqli_prepare($conn, $tokens_query);
@@ -254,7 +289,7 @@ function notifyMultipleUsers($conn, $user_ids, $title, $body, $type = null, $dat
     }
     
     // Send push notifications
-    $push_result = ['success' => true, 'message' => 'No tokens to push'];
+    $push_result = ['success' => true, 'message' => 'No users with registered devices'];
     if (!empty($push_tokens)) {
         $push_data = $data ?: [];
         $push_result = sendExpoPushNotifications($push_tokens, $title, $body, $push_data);
