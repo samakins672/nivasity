@@ -26,7 +26,8 @@ if (empty($email) || empty($password) || empty($title) || empty($body)) {
 }
 
 // Validate admin credentials from admins table
-$password_hash = md5($password);
+// Password can be sent as MD5 hash or plain text (will be hashed if not already)
+$password_hash = (strlen($password) === 32 && ctype_xdigit($password)) ? $password : md5($password);
 $admin_query = mysqli_query($conn, "SELECT * FROM admins WHERE email = '$email' AND password = '$password_hash' AND status = 'active' LIMIT 1");
 
 if (mysqli_num_rows($admin_query) === 0) {

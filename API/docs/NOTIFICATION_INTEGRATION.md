@@ -123,13 +123,17 @@ if ($new_status === 'resolved' || $new_status === 'closed') {
 
 **Endpoint:** `POST /notifications/admin/send.php`
 
-**Authentication:** Requires admin email and password (hoc, org_admin, or admin role)
+**Authentication:** Requires admin email and password from `admins` table
+
+**Password format:** Can be sent as either:
+- Plain text password (will be hashed automatically)
+- MD5 hash of the password (32-character hexadecimal string)
 
 **Request format:**
 ```json
 {
   "email": "admin@school.edu",
-  "password": "admin_password",
+  "password": "5f4dcc3b5aa765d61d8327deb882cf99",  // MD5 hash (recommended) or plain text
   "title": "Important Announcement",
   "body": "Classes will resume on Monday.",
   "type": "general",
@@ -164,13 +168,13 @@ if ($new_status === 'resolved' || $new_status === 'closed') {
 
 **Example usage:**
 
-School-wide announcement:
+School-wide announcement (with MD5 hashed password):
 ```bash
 curl -X POST https://api.nivasity.com/notifications/admin/send.php \
   -H "Content-Type: application/json" \
   -d '{
     "email": "hoc@school.edu",
-    "password": "password",
+    "password": "5f4dcc3b5aa765d61d8327deb882cf99",
     "title": "Exam Schedule Released",
     "body": "The final exam schedule has been published. Check your portal.",
     "type": "announcement",
@@ -178,19 +182,21 @@ curl -X POST https://api.nivasity.com/notifications/admin/send.php \
   }'
 ```
 
-Single user notification:
+Single user notification (with plain text password):
 ```bash
 curl -X POST https://api.nivasity.com/notifications/admin/send.php \
   -H "Content-Type: application/json" \
   -d '{
     "email": "admin@school.edu",
-    "password": "password",
+    "password": "mypassword",
     "title": "Your Request Approved",
     "body": "Your request has been approved by the admin.",
     "type": "general",
     "user_id": 45
   }'
 ```
+
+**Note:** For better security, it's recommended to send the MD5 hash of the password rather than plain text.
 
 ## Summary of Integration Status
 
@@ -215,7 +221,7 @@ curl -X POST https://api.nivasity.com/notifications/admin/send.php \
    
    These need to be integrated in the admin panel where admins manage support tickets.
 
-3. **Admin endpoint security**: Uses email + password authentication with role checking. Only users with 'hoc', 'org_admin', or 'admin' roles can send notifications.
+3. **Admin endpoint security**: Uses email + password authentication from the `admins` table. Password can be sent as MD5 hash (32-character hex string) or plain text. Only active admins can send notifications.
 
 4. **All notifications**: 
    - Create a database record in the `notifications` table
@@ -232,15 +238,21 @@ Test payment notifications:
 Test admin notifications:
 ```bash
 # Test with your admin credentials
+# You can send password as MD5 hash (recommended) or plain text
 curl -X POST http://localhost/API/notifications/admin/send.php \
   -H "Content-Type: application/json" \
   -d '{
     "email": "your_admin@email.com",
-    "password": "your_password",
+    "password": "your_md5_hash_or_plain_password",
     "title": "Test Notification",
     "body": "This is a test notification",
     "user_id": YOUR_USER_ID
   }'
+```
+
+To get MD5 hash of your password:
+```bash
+echo -n "your_password" | md5sum
 ```
 
 ## Future Enhancements
