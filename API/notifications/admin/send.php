@@ -47,15 +47,33 @@ if (!in_array((int)$admin['role'], $allowed_roles)) {
     sendApiError('Insufficient permissions to send notifications', 403);
 }
 
-// Determine target users
+// Determine target users - only ONE targeting method allowed
 $user_ids = [];
+$targeting_methods_count = 0;
+
+// Count how many targeting methods are provided
+if (isset($input['user_id']) && !empty($input['user_id'])) $targeting_methods_count++;
+if (isset($input['user_ids']) && is_array($input['user_ids']) && !empty($input['user_ids'])) $targeting_methods_count++;
+if (isset($input['school_id']) && !empty($input['school_id'])) $targeting_methods_count++;
+if (isset($input['broadcast']) && $input['broadcast'] === true) $targeting_methods_count++;
+
+// Only allow ONE targeting method
+if ($targeting_methods_count === 0) {
+    sendApiError('Target users must be specified (user_id, user_ids, school_id, or broadcast)', 400);
+}
+
+if ($targeting_methods_count > 1) {
+    sendApiError('Only one targeting method allowed (user_id, user_ids, school_id, or broadcast)', 400);
+}
 
 if (isset($input['user_id']) && !empty($input['user_id'])) {
     // Single user notification
     $user_ids = [(int)$input['user_id']];
+    error_log("Admin Send: Targeting single user_id: {$input['user_id']}");
 } elseif (isset($input['user_ids']) && is_array($input['user_ids'])) {
     // Multiple specific users
     $user_ids = array_map('intval', $input['user_ids']);
+    error_log("Admin Send: Targeting user_ids array: " . json_encode($user_ids));
 } elseif (isset($input['school_id']) && !empty($input['school_id'])) {
     // All users in a school
     $school_id = (int)$input['school_id'];
@@ -63,14 +81,14 @@ if (isset($input['user_id']) && !empty($input['user_id'])) {
     while ($user = mysqli_fetch_assoc($users_query)) {
         $user_ids[] = (int)$user['id'];
     }
+    error_log("Admin Send: Targeting school_id $school_id, found " . count($user_ids) . " users");
 } elseif (isset($input['broadcast']) && $input['broadcast'] === true) {
     // System-wide broadcast to all active users
     $users_query = mysqli_query($conn, "SELECT id FROM users WHERE status = 'active'");
     while ($user = mysqli_fetch_assoc($users_query)) {
         $user_ids[] = (int)$user['id'];
     }
-} else {
-    sendApiError('Target users must be specified (user_id, user_ids, school_id, or broadcast)', 400);
+    error_log("Admin Send: Broadcasting to all users, found " . count($user_ids) . " users");
 }
 
 if (empty($user_ids)) {
