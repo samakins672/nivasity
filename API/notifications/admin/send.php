@@ -99,8 +99,10 @@ if (empty($user_ids)) {
 error_log("Admin Send Notification: Admin {$admin['id']} ({$admin['email']}) sending notification to " . count($user_ids) . " users");
 
 // Send notifications
-if (count($user_ids) === 1) {
-    // Single user
+// Use single-user path ONLY for explicit user_id targeting
+// Use multi-user path for user_ids, school_id, and broadcast (even if only 1 user found)
+if (isset($input['user_id']) && count($user_ids) === 1) {
+    // Single user (explicitly targeted via user_id parameter)
     $result = notifyUser($conn, $user_ids[0], $title, $body, $type, $data);
     
     if (!$result['success']) {
@@ -113,7 +115,8 @@ if (count($user_ids) === 1) {
         'recipients' => 1
     ], 201);
 } else {
-    // Multiple users
+    // Multiple users OR query-based targeting (user_ids, school_id, broadcast)
+    // Always use multi-user path for these, even if only 1 user found
     $result = notifyMultipleUsers($conn, $user_ids, $title, $body, $type, $data);
     
     // Check if any notifications were created
