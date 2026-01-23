@@ -40,6 +40,18 @@ notifyUser(
 - Payment amount
 - Status
 
+**Action payload for deep linking:**
+```php
+[
+    'action' => 'order_receipt',
+    'tx_ref' => $tx_ref,
+    'amount' => $amount,
+    'status' => 'success'
+]
+```
+
+This allows the mobile app to navigate directly to the payment receipt screen when user taps the notification.
+
 ## 2. Material Upload Notifications
 
 **Helper function:** `notifyMaterialUpload()` in `model/notification_helpers.php`
@@ -62,6 +74,20 @@ notifyMaterialUpload($conn, $manual_id, $uploader_id);
 - Title and course code
 - Price
 - Uploader name
+
+**Action payload for deep linking:**
+```php
+[
+    'action' => 'material_details',
+    'manual_id' => $manual_id,
+    'title' => $manual['title'],
+    'course_code' => $manual['course_code'],
+    'price' => $manual['price'],
+    'uploader' => $uploader_name
+]
+```
+
+This allows the mobile app to navigate directly to the material details screen when user taps the notification.
 
 ### Integration Points for Material Uploads
 
@@ -102,6 +128,32 @@ require_once __DIR__ . '/../../model/notification_helpers.php';
 // After ticket status is updated
 notifySupportTicketStatusChange($conn, $ticket_id, $user_id, 'resolved');
 ```
+
+**Action payloads for deep linking:**
+
+Reply notification:
+```php
+[
+    'action' => 'support_ticket',
+    'ticket_id' => $ticket_id,
+    'ticket_code' => $ticket['code'],
+    'subject' => $ticket['subject'],
+    'replier' => $replier_name
+]
+```
+
+Status change notification:
+```php
+[
+    'action' => 'support_ticket',
+    'ticket_id' => $ticket_id,
+    'ticket_code' => $ticket['code'],
+    'subject' => $ticket['subject'],
+    'status' => $new_status
+]
+```
+
+These allow the mobile app to navigate directly to the support ticket detail screen when user taps the notification.
 
 ### Integration Points for Support Tickets
 
@@ -218,9 +270,162 @@ const hash = crypto.createHash('md5').update('your_password').digest('hex');
 | Support ticket replies | ⚠️ Helper ready | model/notification_helpers.php |
 | Support status changes | ⚠️ Helper ready | model/notification_helpers.php |
 | Admin manual notifications | ✅ Complete | API/notifications/admin/send.php |
+| Deep linking action payloads | ✅ Complete | All notifications include action data |
 
 ✅ = Fully integrated and working
 ⚠️ = Helper function created, needs integration in admin panel
+
+## Mobile App Deep Linking
+
+All notifications now include action payloads that enable deep linking. When users tap on a notification (push or in-app), the mobile app can navigate directly to the relevant screen.
+
+### How It Works
+
+**Backend:** Every notification includes an `action` field and relevant identifiers in the `data` JSON field.
+
+**Mobile App:** Handle notification taps using Expo's notification listener.
+
+### Implementation in Mobile App (Expo)
+
+```javascript
+import * as Notifications from 'expo-notifications';
+import { useNavigation } from '@react-navigation/native';
+
+// Setup notification handler
+Notifications.addNotificationResponseReceivedListener(response => {
+  const data = response.notification.request.content.data;
+  
+  // Handle different notification actions
+  switch(data.action) {
+    case 'order_receipt':
+      // Navigate to payment receipt screen
+      navigation.navigate('PaymentReceipt', { 
+        tx_ref: data.tx_ref,
+        amount: data.amount
+      });
+      break;
+      
+    case 'material_details':
+      // Navigate to material details screen
+      navigation.navigate('MaterialDetails', { 
+        manual_id: data.manual_id,
+        title: data.title
+      });
+      break;
+      
+    case 'support_ticket':
+      // Navigate to support ticket screen
+      navigation.navigate('TicketDetails', { 
+        ticket_id: data.ticket_id,
+        ticket_code: data.ticket_code
+      });
+      break;
+      
+    default:
+      // Unknown action or general notification
+      navigation.navigate('Notifications');
+      break;
+  }
+});
+```
+
+### Action Types and Data
+
+**1. Payment Receipts** (`action: 'order_receipt'`)
+```json
+{
+  "action": "order_receipt",
+  "tx_ref": "NVS-123456",
+  "amount": 5000,
+  "status": "success"
+}
+```
+
+**2. Material Details** (`action: 'material_details'`)
+```json
+{
+  "action": "material_details",
+  "manual_id": 789,
+  "title": "Introduction to Computer Science",
+  "course_code": "CSC101",
+  "price": 1500,
+  "uploader": "Prof. John Doe"
+}
+```
+
+**3. Support Tickets** (`action: 'support_ticket'`)
+```json
+{
+  "action": "support_ticket",
+  "ticket_id": 123,
+  "ticket_code": "TKT-001",
+  "subject": "Payment Issue",
+  "replier": "Support Team"
+}
+```
+
+### Testing Deep Linking
+
+**Test payment notification deep link:**
+1. Make a payment via the API
+2. Tap on the push notification or in-app notification
+3. Verify navigation to payment receipt screen with transaction details
+
+**Test material notification deep link:**
+1. Admin uploads a new material (once integrated)
+2. Student receives notification
+3. Tap notification → navigates to material details screen
+
+**Test support ticket deep link:**
+1. Admin replies to a support ticket (once integrated)
+2. User receives notification
+3. Tap notification → navigates to ticket conversation
+
+### Handling In-App Notification List
+
+The notification list endpoint (`GET /notifications/list.php`) returns notifications with the `data` field parsed as JSON:
+
+```json
+{
+  "notifications": [
+    {
+      "id": 123,
+      "title": "Payment Successful",
+      "body": "Your payment of ₦5,000.00 has been confirmed.",
+      "type": "payment",
+      "data": {
+        "action": "order_receipt",
+        "tx_ref": "NVS-123456",
+        "amount": 5000
+      },
+      "read_at": null,
+      "created_at": "2026-01-22 10:15:00"
+    }
+  ]
+}
+```
+
+When user taps an in-app notification, use the same navigation logic:
+
+```javascript
+const handleNotificationTap = (notification) => {
+  if (notification.data?.action === 'order_receipt') {
+    navigation.navigate('PaymentReceipt', { 
+      tx_ref: notification.data.tx_ref 
+    });
+  }
+  // ... handle other actions
+};
+```
+
+### Benefits
+
+✅ **Better UX** - Users land directly on relevant screens
+✅ **Payment receipts** - Quick access to transaction details
+✅ **Material discovery** - Direct navigation to new uploads
+✅ **Support engagement** - Immediate access to ticket updates
+✅ **Consistent** - Works for both push and in-app notifications
+✅ **Extensible** - Easy to add new action types
 
 ## Notes
 
@@ -232,12 +437,15 @@ const hash = crypto.createHash('md5').update('your_password').digest('hex');
    
    These need to be integrated in the admin panel where admins manage support tickets.
 
-3. **Admin endpoint security**: Uses email + password authentication from the `admins` table. Password can be sent as MD5 hash (32-character hex string) or plain text. Only active admins can send notifications.
+3. **Admin endpoint security**: Uses email + password authentication from the `admins` table. Password must be MD5 hash (32-character hex string). Only active admins with role 1, 2, or 3 can send notifications.
 
 4. **All notifications**: 
    - Create a database record in the `notifications` table
    - Send push notification via Expo to all registered devices
-   - Include relevant data for the mobile app to handle
+   - Include action payload for deep linking
+   - Data field allows mobile app to navigate to relevant screens
+
+5. **Deep linking**: All notifications automatically include action payloads (payment, material, support) enabling direct navigation when users tap notifications.
 
 ## Testing
 
@@ -269,9 +477,9 @@ echo -n "your_password" | md5sum
 ## Future Enhancements
 
 Potential additional notification triggers:
-- Material price changes
-- Event reminders
-- Settlement processed
-- Account verification
-- Password reset
-- New announcements from school
+- Material price changes (with deep link to material details)
+- Event reminders (with deep link to event details)
+- Settlement processed (with deep link to settlement history)
+- Account verification (with deep link to verification screen)
+- Password reset (with deep link to reset screen)
+- New announcements from school (with deep link to announcements)
