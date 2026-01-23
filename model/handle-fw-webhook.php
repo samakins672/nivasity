@@ -197,7 +197,7 @@ foreach ($cartItems as $refId) {
         'Payment Successful', 
         "Your payment of ₦" . number_format($total_amount, 2) . " has been confirmed.", 
         'payment', 
-        ['tx_ref' => $tx_ref, 'amount' => $total_amount, 'status' => 'successful']
+        ['action' => 'order_receipt', 'tx_ref' => $tx_ref, 'amount' => $total_amount, 'status' => 'successful']
     );
     
     mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$tx_ref'");

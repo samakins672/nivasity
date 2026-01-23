@@ -57,6 +57,7 @@ function notifyMaterialUpload($conn, $manual_id, $uploader_id) {
     $body = "New material: {$manual['title']} ({$manual['course_code']}) has been uploaded.";
     $type = 'materials';
     $data = [
+        'action' => 'material_details',
         'manual_id' => $manual_id,
         'title' => $manual['title'],
         'course_code' => $manual['course_code'],
@@ -97,6 +98,7 @@ function notifySupportTicketReply($conn, $ticket_id, $user_id, $replier_name = '
     $body = "You have a new reply on your ticket: {$ticket['subject']}";
     $type = 'support';
     $data = [
+        'action' => 'support_ticket',
         'ticket_id' => $ticket_id,
         'ticket_code' => $ticket['code'],
         'subject' => $ticket['subject'],
@@ -136,6 +138,7 @@ function notifySupportTicketStatusChange($conn, $ticket_id, $user_id, $new_statu
     $body = "Your ticket '{$ticket['subject']}' has been marked as $new_status.";
     $type = 'support';
     $data = [
+        'action' => 'support_ticket',
         'ticket_id' => $ticket_id,
         'ticket_code' => $ticket['code'],
         'subject' => $ticket['subject'],

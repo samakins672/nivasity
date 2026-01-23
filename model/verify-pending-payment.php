@@ -231,7 +231,7 @@ notifyUser($conn, $user_id,
     'Payment Successful', 
     "Your payment of ₦" . number_format($total_amount, 2) . " has been confirmed.", 
     'payment', 
-    ['tx_ref' => $ref_id, 'amount' => $total_amount, 'status' => 'successful']
+    ['action' => 'order_receipt', 'tx_ref' => $ref_id, 'amount' => $total_amount, 'status' => 'successful']
 );
 
 // Update cart status
