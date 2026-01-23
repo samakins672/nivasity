@@ -383,7 +383,17 @@ Notifications.addNotificationResponseReceivedListener(response => {
 
 ### Handling In-App Notification List
 
-The notification list endpoint (`GET /notifications/list.php`) returns notifications with the `data` field parsed as JSON:
+The notification list endpoint (`GET /notifications/list.php`) returns notifications with the `data` field parsed as JSON.
+
+**Query Parameters:**
+- `page` (int, optional, default: 1): Page number
+- `limit` (int, optional, default: 50): Results per page (max 100)
+- `end_date` (string, optional): Filter notifications created on or before this date
+  - Format: `YYYY-MM-DD` or `YYYY-MM-DD HH:MM:SS`
+  - Example: `2026-01-21` or `2026-01-21 15:30:00`
+  - Use for implementing "load more" or date range filtering
+
+**Example Response:**
 
 ```json
 {
@@ -418,6 +428,36 @@ const handleNotificationTap = (notification) => {
 };
 ```
 
+**Example: Implementing "Load More" with end_date:**
+
+```javascript
+const [notifications, setNotifications] = useState([]);
+const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+const loadMoreNotifications = async () => {
+  if (notifications.length === 0) return;
+  
+  // Get the created_at of the last notification
+  const lastNotification = notifications[notifications.length - 1];
+  const endDate = lastNotification.created_at;
+  
+  setIsLoadingMore(true);
+  
+  const response = await fetch(
+    `/notifications/list.php?page=1&limit=20&end_date=${encodeURIComponent(endDate)}`,
+    {
+      headers: { 'Authorization': `Bearer ${token}` }
+    }
+  );
+  
+  const data = await response.json();
+  
+  // Append older notifications
+  setNotifications([...notifications, ...data.data.notifications]);
+  setIsLoadingMore(false);
+};
+```
+
 ### Benefits
 
 ✅ **Better UX** - Users land directly on relevant screens
@@ -426,6 +466,7 @@ const handleNotificationTap = (notification) => {
 ✅ **Support engagement** - Immediate access to ticket updates
 ✅ **Consistent** - Works for both push and in-app notifications
 ✅ **Extensible** - Easy to add new action types
+✅ **Date filtering** - Efficient "load more" functionality with end_date parameter
 
 ## Notes
 

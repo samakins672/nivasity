@@ -115,11 +115,14 @@ All endpoints require JWT authentication via Bearer token in the Authorization h
 
 **Endpoint:** `GET /notifications/list.php`
 
-**Description:** Returns paginated list of notifications for the authenticated user, sorted newest first. Includes unread count.
+**Description:** Returns paginated list of notifications for the authenticated user, sorted newest first. Includes unread count. Supports date filtering.
 
 **Query Parameters:**
 - `page` (int, optional, default: 1): Page number (min 1)
 - `limit` (int, optional, default: 50): Results per page (min 1, max 100)
+- `end_date` (string, optional): Filter notifications created on or before this date. Accepts formats:
+  - `YYYY-MM-DD` (e.g., `2026-01-21`) - Includes all notifications up to end of that day
+  - `YYYY-MM-DD HH:MM:SS` (e.g., `2026-01-21 15:30:00`) - Includes notifications up to exact time
 
 **Response (200 OK):**
 ```json
@@ -162,6 +165,16 @@ All endpoints require JWT authentication via Bearer token in the Authorization h
 **Notes:**
 - `read_at` is `null` for unread notifications
 - `data` is a JSON object parsed from the stored JSON string
+- Use `end_date` parameter to load older notifications (e.g., for "load more" functionality)
+
+**Example with date filter:**
+```bash
+# Get notifications before January 20, 2026
+GET /notifications/list.php?page=1&limit=20&end_date=2026-01-20
+
+# Get notifications before a specific time
+GET /notifications/list.php?end_date=2026-01-21 15:30:00
+```
 
 ---
 
