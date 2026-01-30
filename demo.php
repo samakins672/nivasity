@@ -58,22 +58,64 @@ if (empty($code)) {
 // Sanitize the code
 $code = mysqli_real_escape_string($conn, $code);
 
-// Set timezone (must match the dashboard timezone)
-date_default_timezone_set('Africa/Lagos');
+// Get current datetime
 $now = date('Y-m-d H:i:s');
 
 // Query to fetch the login code details
-$query = "SELECT qlc.*, u.email, u.id as user_id, u.role, u.first_name, u.last_name, u.school, u.dept
+// Check user status to ensure only verified/active accounts can use quick login
+$query = "SELECT qlc.*, u.email, u.id as user_id, u.role, u.first_name, u.last_name, u.school, u.dept, u.status
           FROM quick_login_codes qlc
           JOIN users u ON qlc.student_id = u.id
           WHERE qlc.code = '$code'
           AND qlc.status = 'active'
           AND qlc.expiry_datetime > '$now'
+          AND u.status NOT IN ('unverified', 'denied', 'deactivated')
           LIMIT 1";
 
 $result = mysqli_query($conn, $query);
 
-if (!$result || mysqli_num_rows($result) == 0) {
+// Check for database errors
+if ($result === FALSE) {
+    http_response_code(500);
+    die('
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>System Error</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+        <style>
+            body { 
+                font-family: Arial, sans-serif; 
+                padding: 50px; 
+                text-align: center;
+                background-color: #f5f5f5;
+            }
+            .error { 
+                color: #d32f2f;
+                margin-bottom: 20px;
+            }
+            .container {
+                background: white;
+                padding: 40px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                max-width: 600px;
+                margin: 0 auto;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1 class="error">System Error</h1>
+            <p>An error occurred while processing your request. Please try again later.</p>
+        </div>
+    </body>
+    </html>
+    ');
+}
+
+if (mysqli_num_rows($result) == 0) {
     // Invalid or expired code
     http_response_code(403);
     die('
@@ -123,15 +165,54 @@ if (!$result || mysqli_num_rows($result) == 0) {
 $login_data = mysqli_fetch_assoc($result);
 
 // Mark the code as used to prevent reuse
-mysqli_query($conn, "UPDATE quick_login_codes SET status = 'used' WHERE code = '$code'");
+$update_result = mysqli_query($conn, "UPDATE quick_login_codes SET status = 'used' WHERE code = '$code'");
+
+// Check if update was successful
+if (!$update_result || mysqli_affected_rows($conn) == 0) {
+    http_response_code(500);
+    die('
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>System Error</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+        <style>
+            body { 
+                font-family: Arial, sans-serif; 
+                padding: 50px; 
+                text-align: center;
+                background-color: #f5f5f5;
+            }
+            .error { 
+                color: #d32f2f;
+                margin-bottom: 20px;
+            }
+            .container {
+                background: white;
+                padding: 40px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                max-width: 600px;
+                margin: 0 auto;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1 class="error">System Error</h1>
+            <p>Failed to process login. Please try again.</p>
+        </div>
+    </body>
+    </html>
+    ');
+}
 
 // Set session variables for the user (matching the application's session structure)
 $_SESSION['nivas_userId'] = $login_data['user_id'];
-$_SESSION['nivas_userEmail'] = $login_data['email'];
 $_SESSION['nivas_userRole'] = $login_data['role'];
 $_SESSION['nivas_userName'] = $login_data['first_name'];
 $_SESSION['nivas_userSch'] = $login_data['school'];
-$_SESSION['nivas_userDept'] = $login_data['dept'];
 
 // Update last login timestamp
 mysqli_query($conn, "UPDATE users SET last_login = '$now' WHERE id = " . $login_data['user_id']);
