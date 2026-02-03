@@ -164,6 +164,12 @@ if (mysqli_num_rows($result) == 0) {
 
 $login_data = mysqli_fetch_assoc($result);
 
+// Redirect users with school ID 1 to FUNAAB instance
+if ($login_data['school'] == 1) {
+    header('Location: https://funaab.nivasity.com/demo.php?code=' . urlencode($code));
+    exit();
+}
+
 // Mark the code as used to prevent reuse
 $update_result = mysqli_query($conn, "UPDATE quick_login_codes SET status = 'used' WHERE code = '$code'");
 
