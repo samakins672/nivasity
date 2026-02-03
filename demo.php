@@ -220,7 +220,7 @@ mysqli_query($conn, "UPDATE users SET last_login = '$now' WHERE id = " . $login_
 // Redirect to the appropriate dashboard based on user role
 // Students go to store.php, others go to their respective dashboards
 if ($login_data['role'] === 'student') {
-    header('Location: /store.php?loggedin');
+    header('Location: /?loggedin');
 } elseif ($login_data['role'] === 'hoc' || $login_data['role'] === 'org_admin') {
     header('Location: /admin/user.php?loggedin');
 } else {
