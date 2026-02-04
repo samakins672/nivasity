@@ -222,10 +222,10 @@ mysqli_query($conn, "UPDATE users SET last_login = '$now' WHERE id = " . $login_
 if ($login_data['role'] === 'student') {
     header('Location: /?loggedin');
 } elseif ($login_data['role'] === 'hoc' || $login_data['role'] === 'org_admin') {
-    header('Location: /admin/user.php?loggedin');
+    header('Location: /admin?loggedin');
 } else {
     // Fallback to store page
-    header('Location: /store.php?loggedin');
+    header('Location: /?loggedin');
 }
 exit();
 ?>
