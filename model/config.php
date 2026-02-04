@@ -1,5 +1,5 @@
 <?php
-require("../config/db.php");
+require_once __DIR__ . '/../config/db.php';
 $conn = mysqli_connect("localhost", DB_USERNAME, DB_PASSWORD, "niverpay_db");
 
 if (!$conn) {

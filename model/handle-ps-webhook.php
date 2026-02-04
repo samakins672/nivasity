@@ -10,10 +10,11 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 require_once 'config.php';
-require_once '../config/fw.php';
+require_once __DIR__ . '/../config/fw.php';
 require_once 'PaymentGatewayFactory.php';
 include('mail.php');
 include('functions.php');
+require_once __DIR__ . '/notifications.php';
 
 // Parse incoming webhook
 $raw = file_get_contents('php://input');
@@ -181,6 +182,15 @@ foreach ($cartItems as $refId) {
     mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, 'successful', 'PAYSTACK')");
     
     sendCongratulatoryEmail($conn, $user_id, $tx_ref, $manual_ids, $event_ids, $total_amount);
+    
+    // Send push notification to user
+    notifyUser($conn, $user_id, 
+        'Payment Successful', 
+        "Your payment of ₦" . number_format($total_amount, 2) . " has been confirmed.", 
+        'payment', 
+        ['action' => 'order_receipt', 'tx_ref' => $tx_ref, 'amount' => $total_amount, 'status' => 'successful']
+    );
+    
     mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$tx_ref'");
     sendMail('Paystack Webhook: Success', 'Processed ref ' . $tx_ref . ' for user ' . $user_id . ' amount NGN ' . number_format($total_amount, 2), 'webhook@nivasity.com');
 }

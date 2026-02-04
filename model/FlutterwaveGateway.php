@@ -69,7 +69,7 @@ class FlutterwaveGateway implements PaymentGateway {
     public function initializePayment($params) {
         // Flutterwave uses client-side initialization with FlutterwaveCheckout
         // Return the configuration needed for frontend
-        return [
+        $config = [
             'status' => 'success',
             'gateway' => 'flutterwave',
             'public_key' => $this->publicKey,
@@ -85,6 +85,13 @@ class FlutterwaveGateway implements PaymentGateway {
                 'description' => $params['description'] ?? 'Payment for items',
             ]
         ];
+        
+        // Add meta if provided (Flutterwave uses "meta")
+        if (isset($params['meta'])) {
+            $config['meta'] = $params['meta'];
+        }
+        
+        return $config;
     }
     
     /**

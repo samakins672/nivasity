@@ -1,0 +1,54 @@
+# Nivasity Mobile API - Access Control
+
+# Enable mod_rewrite
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Restrict access to api.nivasity.com only (can be disabled for testing)
+    # RewriteCond %{HTTP_HOST} !^api\.nivasity\.com$ [NC]
+    # RewriteRule ^ - [F,L]
+</IfModule>
+
+# Security Headers
+<IfModule mod_headers.c>
+    # CORS Headers (adjust origins as needed)
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
+    Header always set Access-Control-Max-Age "3600"
+    
+    # Security headers
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# Handle OPTIONS requests for CORS preflight
+<IfModule mod_rewrite.c>
+    RewriteCond %{REQUEST_METHOD} OPTIONS
+    RewriteRule ^(.*)$ $1 [R=200,L]
+</IfModule>
+
+# Deny access to sensitive files
+<FilesMatch "^(config|auth)\.php$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# PHP Settings
+<IfModule mod_php7.c>
+    php_value upload_max_filesize 10M
+    php_value post_max_size 10M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+</IfModule>
+
+# Enable error logging (disable display_errors in production)
+php_flag display_errors Off
+php_flag log_errors On
+
+# Directory browsing
+Options -Indexes
+
+# Default character set
+AddDefaultCharset UTF-8

@@ -1,5 +1,5 @@
 <?php
-require_once '../config/fw.php';
+require_once __DIR__ . '/../config/fw.php';
 
 // Assuming you are receiving account_number and bank_code as GET parameters
 $accountNumber = $_GET['account_number'] ?? '';
