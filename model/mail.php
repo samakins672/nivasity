@@ -111,6 +111,69 @@ function buildEmailTemplate($body)
 HTML;
 }
 
+/**
+ * Check Brevo account credits
+ * Returns the subscription credits or false on error
+ * Uses caching to avoid excessive API calls (cache expires after 5 minutes)
+ */
+function checkBrevoCredits()
+{
+  static $cachedCredits = null;
+  static $cacheTime = null;
+  
+  // Check if cache is valid (5 minutes)
+  if ($cachedCredits !== null && $cacheTime !== null && (time() - $cacheTime) < 300) {
+    return $cachedCredits;
+  }
+  
+  if (!defined('BREVO_API_KEY') || !BREVO_API_KEY) {
+    error_log('Brevo API key not configured for credit check');
+    return false;
+  }
+  
+  $ch = curl_init('https://api.brevo.com/v3/account');
+  curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    'accept: application/json',
+    'api-key: ' . BREVO_API_KEY,
+  ]);
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+  
+  $response = curl_exec($ch);
+  
+  if ($response === false) {
+    error_log('Brevo credit check error: ' . curl_error($ch));
+    curl_close($ch);
+    return false;
+  }
+  
+  $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+  curl_close($ch);
+  
+  if ($statusCode >= 200 && $statusCode < 300) {
+    $accountData = json_decode($response, true);
+    
+    // Look for subscription credits in the plan array
+    if (isset($accountData['plan']) && is_array($accountData['plan'])) {
+      foreach ($accountData['plan'] as $plan) {
+        if (isset($plan['type']) && $plan['type'] === 'subscription' && isset($plan['credits'])) {
+          $credits = (int)$plan['credits'];
+          // Cache the result
+          $cachedCredits = $credits;
+          $cacheTime = time();
+          error_log(sprintf('Brevo subscription credits: %d', $credits));
+          return $credits;
+        }
+      }
+    }
+    
+    error_log('No subscription plan found in Brevo account data');
+    return 0; // No subscription credits found
+  }
+  
+  error_log(sprintf('Brevo credit check failed with status %s', $statusCode));
+  return false;
+}
+
 function sendMail($subject, $body, $to)
 {
   $body_ = buildEmailTemplate($body);
@@ -158,6 +221,19 @@ function sendBrevoMail($subject, $body, $to, $replyToEmail = null)
     return 'error';
   }
 
+  // Check Brevo credits before attempting to send
+  $credits = checkBrevoCredits();
+  
+  if ($credits === false) {
+    error_log('Unable to check Brevo credits, falling back to default SMTP');
+    return sendMail($subject, $body, $to);
+  }
+  
+  if ($credits <= 50) {
+    error_log(sprintf('Brevo credits (%d) are low (<=50), falling back to default SMTP', $credits));
+    return sendMail($subject, $body, $to);
+  }
+
   $senderName = defined('BREVO_SENDER_NAME') && BREVO_SENDER_NAME ? BREVO_SENDER_NAME : 'Nivasity';
 
   $payload = [
@@ -195,7 +271,7 @@ function sendBrevoMail($subject, $body, $to, $replyToEmail = null)
   curl_setopt($ch, CURLOPT_POSTFIELDS, $encodedPayload);
   curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
-  error_log(sprintf('Brevo request initiated for %s with subject "%s"', $to, $subject));
+  error_log(sprintf('Brevo request initiated for %s with subject "%s" (credits: %d)', $to, $subject, $credits));
 
   $response = curl_exec($ch);
 
