@@ -1,6 +1,6 @@
 <?php
 require_once 'payment_freeze.php';
-require_once '../config/fw.php';
+require_once __DIR__ . '/../config/fw.php';
 require_once 'PaymentGatewayFactory.php';
 
 // Check if payments are frozen

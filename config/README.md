@@ -4,6 +4,50 @@
 
 Create a `config/mail.php` file in this directory (it remains ignored by git) and define your SMTP and Brevo credentials as PHP `define` statements. You can copy from `mail.example.php` and update the placeholders. The application automatically loads `config/mail.php` wherever mail functions are used.
 
+## JWT Configuration (API Authentication)
+
+The API uses JWT (JSON Web Tokens) for authentication. The JWT secret key must be configured securely.
+
+### Setup Instructions
+
+1. **Create jwt.php from example:**
+   ```bash
+   cp config/jwt.example.php config/jwt.php
+   ```
+
+2. **Edit jwt.php and set a secure secret key:**
+   - Generate a random secret key (at least 32 characters)
+   - You can use: `openssl rand -base64 64`
+   - Replace the default value in `JWT_SECRET_KEY`
+
+3. **Production deployment options:**
+
+   **Option A: Use environment variables (Recommended)**
+   ```php
+   define('JWT_SECRET_KEY', getenv('JWT_SECRET_KEY') ?: 'fallback_dev_key');
+   ```
+   Then set `JWT_SECRET_KEY` in your server environment variables.
+
+   **Option B: Use the config file directly**
+   ```php
+   define('JWT_SECRET_KEY', 'your_long_random_secret_key_here');
+   ```
+   Ensure `config/jwt.php` is NOT committed to version control.
+
+### Important Security Notes
+
+- **NEVER commit the actual jwt.php file** - it's already in .gitignore
+- The JWT secret key is critical for API security
+- If compromised, all issued tokens can be forged
+- Change the key immediately if you suspect it has been exposed
+- Use different keys for development, staging, and production environments
+
+### Token Expiry Settings
+
+You can also configure token expiration times in `config/jwt.php`:
+- `JWT_ACCESS_TOKEN_EXPIRY` - Default: 3600 seconds (1 hour)
+- `JWT_REFRESH_TOKEN_EXPIRY` - Default: 604800 seconds (7 days)
+
 ## Payment Gateway Configuration
 
 The system supports multiple payment gateways (Flutterwave, Paystack, and Interswitch). 

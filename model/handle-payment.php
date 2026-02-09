@@ -8,7 +8,7 @@
 
 session_start();
 require_once 'config.php';
-require_once '../config/fw.php';
+require_once __DIR__ . '/../config/fw.php';
 require_once 'PaymentGatewayFactory.php';
 include('mail.php');
 include('functions.php');

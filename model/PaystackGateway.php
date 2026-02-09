@@ -88,6 +88,11 @@ class PaystackGateway implements PaymentGateway {
         ];
         
         // Add subaccount if provided
+        if (isset($params['split_code'])) {
+            $postData['split_code'] = $params['split_code'];
+        }
+        
+        // Add subaccount if provided
         if (isset($params['subaccount'])) {
             $postData['subaccount'] = $params['subaccount'];
         }
@@ -95,6 +100,11 @@ class PaystackGateway implements PaymentGateway {
         // Add transaction charge if provided
         if (isset($params['transaction_charge'])) {
             $postData['transaction_charge'] = $params['transaction_charge'];
+        }
+        
+        // Add metadata if provided (Paystack uses "metadata")
+        if (isset($params['metadata'])) {
+            $postData['metadata'] = $params['metadata'];
         }
         
         curl_setopt_array($curl, array(
