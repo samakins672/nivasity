@@ -5,6 +5,10 @@ require_once __DIR__ . '/../config/mail.php';
 //These must be at the top of your script, not inside a function
 use PHPMailer\PHPMailer\PHPMailer;
 
+// Brevo credit check configuration
+define('BREVO_MIN_CREDITS_THRESHOLD', 50);
+define('BREVO_CREDITS_CACHE_TTL', 300); // 5 minutes in seconds
+
 function buildEmailTemplate($body)
 {
   $body = str_replace("\r\n", '<br>', $body);
@@ -114,15 +118,15 @@ HTML;
 /**
  * Check Brevo account credits
  * Returns the subscription credits or false on error
- * Uses caching to avoid excessive API calls (cache expires after 5 minutes)
+ * Uses caching to avoid excessive API calls (cache expires after BREVO_CREDITS_CACHE_TTL seconds)
  */
 function checkBrevoCredits()
 {
   static $cachedCredits = null;
   static $cacheTime = null;
   
-  // Check if cache is valid (5 minutes)
-  if ($cachedCredits !== null && $cacheTime !== null && (time() - $cacheTime) < 300) {
+  // Check if cache is valid
+  if ($cachedCredits !== null && $cacheTime !== null && (time() - $cacheTime) < BREVO_CREDITS_CACHE_TTL) {
     return $cachedCredits;
   }
   
@@ -166,8 +170,9 @@ function checkBrevoCredits()
       }
     }
     
-    error_log('No subscription plan found in Brevo account data');
-    return 0; // No subscription credits found
+    // No subscription plan found - treat as error condition to avoid false positives
+    error_log('No subscription plan found in Brevo account data - treating as error');
+    return false;
   }
   
   error_log(sprintf('Brevo credit check failed with status %s', $statusCode));
@@ -229,8 +234,8 @@ function sendBrevoMail($subject, $body, $to, $replyToEmail = null)
     return sendMail($subject, $body, $to);
   }
   
-  if ($credits <= 50) {
-    error_log(sprintf('Brevo credits (%d) are low (<=50), falling back to default SMTP', $credits));
+  if ($credits <= BREVO_MIN_CREDITS_THRESHOLD) {
+    error_log(sprintf('Brevo credits (%d) are low (<=%d), falling back to default SMTP', $credits, BREVO_MIN_CREDITS_THRESHOLD));
     return sendMail($subject, $body, $to);
   }
 
