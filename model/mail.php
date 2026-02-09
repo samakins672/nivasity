@@ -179,7 +179,7 @@ function checkBrevoCredits()
   return false;
 }
 
-function sendMail($subject, $body, $to)
+function sendMail($subject, $body, $to, $replyToEmail = null)
 {
   $body_ = buildEmailTemplate($body);
 
@@ -198,6 +198,11 @@ function sendMail($subject, $body, $to)
 
   //Recipients
   $mail->setFrom("contact@nivasity.com", "Nivasity");
+  
+  // Set reply-to if provided
+  if ($replyToEmail) {
+    $mail->addReplyTo($replyToEmail);
+  }
 
   // Set your email subject and body
   $mail->Subject = $subject;
@@ -231,12 +236,12 @@ function sendBrevoMail($subject, $body, $to, $replyToEmail = null)
   
   if ($credits === false) {
     error_log('Unable to check Brevo credits, falling back to default SMTP');
-    return sendMail($subject, $body, $to);
+    return sendMail($subject, $body, $to, $replyToEmail);
   }
   
   if ($credits <= BREVO_MIN_CREDITS_THRESHOLD) {
     error_log(sprintf('Brevo credits (%d) are low (<=%d), falling back to default SMTP', $credits, BREVO_MIN_CREDITS_THRESHOLD));
-    return sendMail($subject, $body, $to);
+    return sendMail($subject, $body, $to, $replyToEmail);
   }
 
   $senderName = defined('BREVO_SENDER_NAME') && BREVO_SENDER_NAME ? BREVO_SENDER_NAME : 'Nivasity';
