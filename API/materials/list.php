@@ -27,8 +27,9 @@ $offset = ($page - 1) * $limit;
 // Exclude materials with due date passed over 24 hours ago
 $where_conditions = ["m.school_id = $school_id", "m.status = 'open'", "m.due_date >= DATE_SUB(NOW(), INTERVAL 24 HOUR)"];
 
-// Get user's faculty from their department
+// Get user's faculty from their department and sanitize dept
 $user_faculty = null;
+$user_dept_safe = null;
 if ($user_dept) {
     $user_dept_safe = (int)$user_dept; // Sanitize as integer
     $dept_query = mysqli_query($conn, "SELECT faculty_id FROM depts WHERE id = $user_dept_safe LIMIT 1");
@@ -39,9 +40,9 @@ if ($user_dept) {
 }
 
 // Filter by: department-specific materials OR faculty-level materials (dept=0 with matching faculty)
-if ($user_dept && $user_faculty) {
+if ($user_dept_safe && $user_faculty) {
     $where_conditions[] = "(m.dept = $user_dept_safe OR (m.dept = 0 AND m.faculty = $user_faculty))";
-} elseif ($user_dept) {
+} elseif ($user_dept_safe) {
     // If no faculty found, just filter by department
     $where_conditions[] = "m.dept = $user_dept_safe";
 }
