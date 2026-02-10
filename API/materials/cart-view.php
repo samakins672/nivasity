@@ -53,10 +53,11 @@ while ($row = mysqli_fetch_assoc($result)) {
         'course_code' => $row['course_code'],
         'price' => (float)$row['price'],
         'status' => $row['status'],
-        'dept_name' => $row['dept_name'],
+        'dept' => $row['dept'],
+        'dept_name' => ($row['dept'] == 0) ? 'All Departments' : $row['dept_name'],
         'host_faculty' => $row['host_faculty'],
         'host_faculty_name' => $row['host_faculty_name'],
-        'level' => $row['level'] ? (int)$row['level'] : null,
+        'level' => $row['level'] ? (string)$row['level'] : null,
         'seller_name' => $row['first_name'] . ' ' . $row['last_name']
     ];
     
