@@ -86,6 +86,7 @@ $materialData = [
     'dept_name' => $material['dept_name'],
     'faculty' => $material['faculty'],
     'faculty_name' => $material['faculty_name'],
+    'level' => $material['level'] !== null ? (int)$material['level'] : null,
     'seller' => [
         'id' => $material['user_id'],
         'name' => $material['first_name'] . ' ' . $material['last_name'],

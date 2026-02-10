@@ -93,6 +93,7 @@ while ($row = mysqli_fetch_assoc($result)) {
         'dept_name' => $row['dept_name'],
         'faculty' => $row['faculty'],
         'faculty_name' => $row['faculty_name'],
+        'level' => $row['level'] !== null ? (int)$row['level'] : null,
         'seller_name' => $row['first_name'] . ' ' . $row['last_name'],
         'is_purchased' => $is_purchased,
         'created_at' => $row['created_at']

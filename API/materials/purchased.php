@@ -24,7 +24,7 @@ $count_query = mysqli_query($conn, "SELECT COUNT(*) as total FROM manuals_bought
 $total = mysqli_fetch_array($count_query)['total'];
 
 // Fetch purchased materials
-$query = "SELECT mb.*, m.title, m.course_code, m.dept, d.name as dept_name, u.first_name, u.last_name
+$query = "SELECT mb.*, m.title, m.course_code, m.dept, m.level, d.name as dept_name, u.first_name, u.last_name
           FROM manuals_bought mb
           JOIN manuals m ON mb.manual_id = m.id
           LEFT JOIN depts d ON m.dept = d.id
@@ -43,6 +43,7 @@ while ($row = mysqli_fetch_assoc($result)) {
         'course_code' => $row['course_code'],
         'price' => (float)$row['price'],
         'dept_name' => $row['dept_name'],
+        'level' => $row['level'] !== null ? (int)$row['level'] : null,
         'seller_name' => $row['first_name'] . ' ' . $row['last_name'],
         'ref_id' => $row['ref_id'],
         'purchased_at' => $row['created_at']
