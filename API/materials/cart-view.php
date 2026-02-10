@@ -35,10 +35,11 @@ $cart_ids = array_map('intval', $_SESSION[$cart_key]);
 $ids_string = implode(',', $cart_ids);
 
 // Fetch cart items
-$query = "SELECT m.*, u.first_name, u.last_name, d.name as dept_name
+$query = "SELECT m.*, u.first_name, u.last_name, d.name as dept_name, hf.name as host_faculty_name
           FROM manuals m
           LEFT JOIN users u ON m.user_id = u.id
           LEFT JOIN depts d ON m.dept = d.id
+          LEFT JOIN faculties hf ON m.host_faculty = hf.id
           WHERE m.id IN ($ids_string) AND m.school_id = $school_id";
 
 $result = mysqli_query($conn, $query);
@@ -52,7 +53,11 @@ while ($row = mysqli_fetch_assoc($result)) {
         'course_code' => $row['course_code'],
         'price' => (float)$row['price'],
         'status' => $row['status'],
-        'dept_name' => $row['dept_name'],
+        'dept' => (int)$row['dept'],
+        'dept_name' => ((int)$row['dept'] === 0) ? 'All Departments' : $row['dept_name'],
+        'host_faculty' => $row['host_faculty'],
+        'host_faculty_name' => $row['host_faculty_name'],
+        'level' => $row['level'] ? (string)$row['level'] : null,
         'seller_name' => $row['first_name'] . ' ' . $row['last_name']
     ];
     

@@ -23,13 +23,28 @@ $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
 $limit = isset($_GET['limit']) ? min(100, max(1, (int)$_GET['limit'])) : 20;
 $offset = ($page - 1) * $limit;
 
-// Build query - filter by school AND user's department
+// Build query - filter by school AND (user's department OR faculty-level materials)
 // Exclude materials with due date passed over 24 hours ago
 $where_conditions = ["m.school_id = $school_id", "m.status = 'open'", "m.due_date >= DATE_SUB(NOW(), INTERVAL 24 HOUR)"];
 
-// Filter by user's department
+// Get user's faculty from their department and sanitize dept
+$user_faculty = null;
+$user_dept_safe = null;
 if ($user_dept) {
-    $where_conditions[] = "m.dept = $user_dept";
+    $user_dept_safe = (int)$user_dept; // Sanitize as integer
+    $dept_query = mysqli_query($conn, "SELECT faculty_id FROM depts WHERE id = $user_dept_safe LIMIT 1");
+    if ($dept_query && mysqli_num_rows($dept_query) > 0) {
+        $dept_row = mysqli_fetch_assoc($dept_query);
+        $user_faculty = (int)$dept_row['faculty_id']; // Sanitize as integer
+    }
+}
+
+// Filter by: department-specific materials OR faculty-level materials (dept=0 with matching faculty)
+if ($user_dept_safe && $user_faculty) {
+    $where_conditions[] = "(m.dept = $user_dept_safe OR (m.dept = 0 AND m.faculty = $user_faculty))";
+} elseif ($user_dept_safe) {
+    // If no faculty found, just filter by department
+    $where_conditions[] = "m.dept = $user_dept_safe";
 }
 
 if (!empty($search)) {
@@ -58,11 +73,12 @@ switch ($sort) {
 }
 
 // Fetch manuals
-$query = "SELECT m.*, u.first_name, u.last_name, d.name as dept_name, f.name as faculty_name
+$query = "SELECT m.*, u.first_name, u.last_name, d.name as dept_name, f.name as faculty_name, hf.name as host_faculty_name
           FROM manuals m
           LEFT JOIN users u ON m.user_id = u.id
           LEFT JOIN depts d ON m.dept = d.id
           LEFT JOIN faculties f ON m.faculty = f.id
+          LEFT JOIN faculties hf ON m.host_faculty = hf.id
           WHERE $where_clause
           ORDER BY $order_by
           LIMIT $limit OFFSET $offset";
@@ -89,10 +105,13 @@ while ($row = mysqli_fetch_assoc($result)) {
         'quantity' => (int)$row['quantity'],
         'due_date' => $row['due_date'],
         'is_overdue' => $is_overdue,
-        'dept' => $row['dept'],
-        'dept_name' => $row['dept_name'],
+        'dept' => (int)$row['dept'],
+        'dept_name' => ((int)$row['dept'] === 0) ? 'All Departments' : $row['dept_name'],
         'faculty' => $row['faculty'],
         'faculty_name' => $row['faculty_name'],
+        'host_faculty' => $row['host_faculty'],
+        'host_faculty_name' => $row['host_faculty_name'],
+        'level' => $row['level'] ? (string)$row['level'] : null,
         'seller_name' => $row['first_name'] . ' ' . $row['last_name'],
         'is_purchased' => $is_purchased,
         'created_at' => $row['created_at']
