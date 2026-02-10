@@ -58,11 +58,12 @@ switch ($sort) {
 }
 
 // Fetch manuals
-$query = "SELECT m.*, u.first_name, u.last_name, d.name as dept_name, f.name as faculty_name
+$query = "SELECT m.*, u.first_name, u.last_name, d.name as dept_name, f.name as faculty_name, hf.name as host_faculty_name
           FROM manuals m
           LEFT JOIN users u ON m.user_id = u.id
           LEFT JOIN depts d ON m.dept = d.id
           LEFT JOIN faculties f ON m.faculty = f.id
+          LEFT JOIN faculties hf ON m.host_faculty = hf.id
           WHERE $where_clause
           ORDER BY $order_by
           LIMIT $limit OFFSET $offset";
@@ -93,6 +94,9 @@ while ($row = mysqli_fetch_assoc($result)) {
         'dept_name' => $row['dept_name'],
         'faculty' => $row['faculty'],
         'faculty_name' => $row['faculty_name'],
+        'host_faculty' => $row['host_faculty'],
+        'host_faculty_name' => $row['host_faculty_name'],
+        'level' => $row['level'] ? (int)$row['level'] : null,
         'seller_name' => $row['first_name'] . ' ' . $row['last_name'],
         'is_purchased' => $is_purchased,
         'created_at' => $row['created_at']

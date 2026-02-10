@@ -35,11 +35,12 @@ if ($manual_id) {
 }
 
 // Fetch material details
-$query = "SELECT m.*, u.first_name, u.last_name, u.phone, u.email, d.name as dept_name, f.name as faculty_name
+$query = "SELECT m.*, u.first_name, u.last_name, u.phone, u.email, d.name as dept_name, f.name as faculty_name, hf.name as host_faculty_name
           FROM manuals m
           LEFT JOIN users u ON m.user_id = u.id
           LEFT JOIN depts d ON m.dept = d.id
           LEFT JOIN faculties f ON m.faculty = f.id
+          LEFT JOIN faculties hf ON m.host_faculty = hf.id
           WHERE $where_condition AND m.school_id = $school_id
           LIMIT 1";
 
@@ -86,6 +87,9 @@ $materialData = [
     'dept_name' => $material['dept_name'],
     'faculty' => $material['faculty'],
     'faculty_name' => $material['faculty_name'],
+    'host_faculty' => $material['host_faculty'],
+    'host_faculty_name' => $material['host_faculty_name'],
+    'level' => $material['level'] ? (int)$material['level'] : null,
     'seller' => [
         'id' => $material['user_id'],
         'name' => $material['first_name'] . ' ' . $material['last_name'],

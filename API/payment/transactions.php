@@ -43,14 +43,17 @@ while ($row = mysqli_fetch_assoc($result)) {
     $items = [];
     
     // Get manuals
-    $manuals_query = mysqli_query($conn, "SELECT mb.*, m.title, m.course_code FROM manuals_bought mb JOIN manuals m ON mb.manual_id = m.id WHERE mb.ref_id = '$tx_ref' AND mb.buyer = $user_id");
+    $manuals_query = mysqli_query($conn, "SELECT mb.*, m.title, m.course_code, m.level, m.host_faculty, hf.name as host_faculty_name FROM manuals_bought mb JOIN manuals m ON mb.manual_id = m.id LEFT JOIN faculties hf ON m.host_faculty = hf.id WHERE mb.ref_id = '$tx_ref' AND mb.buyer = $user_id");
     while ($manual = mysqli_fetch_assoc($manuals_query)) {
         $items[] = [
             'type' => 'manual',
             'id' => $manual['manual_id'],
             'title' => $manual['title'],
             'course_code' => $manual['course_code'],
-            'price' => (float)$manual['price']
+            'price' => (float)$manual['price'],
+            'host_faculty' => $manual['host_faculty'],
+            'host_faculty_name' => $manual['host_faculty_name'],
+            'level' => $manual['level'] ? (int)$manual['level'] : null
         ];
     }
     
