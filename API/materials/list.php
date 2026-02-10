@@ -30,10 +30,11 @@ $where_conditions = ["m.school_id = $school_id", "m.status = 'open'", "m.due_dat
 // Get user's faculty from their department
 $user_faculty = null;
 if ($user_dept) {
-    $dept_query = mysqli_query($conn, "SELECT faculty_id FROM depts WHERE id = $user_dept LIMIT 1");
+    $user_dept_safe = (int)$user_dept; // Sanitize as integer
+    $dept_query = mysqli_query($conn, "SELECT faculty_id FROM depts WHERE id = $user_dept_safe LIMIT 1");
     if ($dept_query && mysqli_num_rows($dept_query) > 0) {
         $dept_row = mysqli_fetch_assoc($dept_query);
-        $user_faculty = $dept_row['faculty_id'];
+        $user_faculty = (int)$dept_row['faculty_id']; // Sanitize as integer
     }
 }
 
