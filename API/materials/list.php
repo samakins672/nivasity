@@ -105,7 +105,7 @@ while ($row = mysqli_fetch_assoc($result)) {
         'quantity' => (int)$row['quantity'],
         'due_date' => $row['due_date'],
         'is_overdue' => $is_overdue,
-        'dept' => $row['dept'],
+        'dept' => (int)$row['dept'],
         'dept_name' => ((int)$row['dept'] === 0) ? 'All Departments' : $row['dept_name'],
         'faculty' => $row['faculty'],
         'faculty_name' => $row['faculty_name'],
