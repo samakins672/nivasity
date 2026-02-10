@@ -84,7 +84,7 @@ $materialData = [
     'status' => $is_overdue ? 'overdue' : $material['status'],
     'is_overdue' => $is_overdue,
     'dept' => $material['dept'],
-    'dept_name' => ($material['dept'] === 0) ? 'All Departments' : $material['dept_name'],
+    'dept_name' => ((int)$material['dept'] === 0) ? 'All Departments' : $material['dept_name'],
     'faculty' => $material['faculty'],
     'faculty_name' => $material['faculty_name'],
     'host_faculty' => $material['host_faculty'],

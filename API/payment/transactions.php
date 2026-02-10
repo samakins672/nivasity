@@ -52,7 +52,7 @@ while ($row = mysqli_fetch_assoc($result)) {
             'course_code' => $manual['course_code'],
             'price' => (float)$manual['price'],
             'dept' => $manual['dept'],
-            'dept_name' => ($manual['dept'] === 0) ? 'All Departments' : $manual['dept_name'],
+            'dept_name' => ((int)$manual['dept'] === 0) ? 'All Departments' : $manual['dept_name'],
             'host_faculty' => $manual['host_faculty'],
             'host_faculty_name' => $manual['host_faculty_name'],
             'level' => $manual['level'] ? (string)$manual['level'] : null
