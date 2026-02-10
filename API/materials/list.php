@@ -23,7 +23,7 @@ $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
 $limit = isset($_GET['limit']) ? min(100, max(1, (int)$_GET['limit'])) : 20;
 $offset = ($page - 1) * $limit;
 
-// Build query - filter by school AND user's faculty (via department)
+// Build query - filter by school AND (user's department OR faculty-level materials)
 // Exclude materials with due date passed over 24 hours ago
 $where_conditions = ["m.school_id = $school_id", "m.status = 'open'", "m.due_date >= DATE_SUB(NOW(), INTERVAL 24 HOUR)"];
 
@@ -38,9 +38,12 @@ if ($user_dept) {
     }
 }
 
-// Filter by user's faculty (materials where faculty matches user's dept faculty)
-if ($user_faculty) {
-    $where_conditions[] = "m.faculty = $user_faculty";
+// Filter by: department-specific materials OR faculty-level materials (dept=0 with matching faculty)
+if ($user_dept && $user_faculty) {
+    $where_conditions[] = "(m.dept = $user_dept_safe OR (m.dept = 0 AND m.faculty = $user_faculty))";
+} elseif ($user_dept) {
+    // If no faculty found, just filter by department
+    $where_conditions[] = "m.dept = $user_dept_safe";
 }
 
 if (!empty($search)) {
