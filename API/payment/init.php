@@ -4,11 +4,21 @@ require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/../../model/PaymentGatewayFactory.php';
 require_once __DIR__ . '/../../model/functions.php';
+require_once __DIR__ . '/../../model/payment_freeze.php';
 require_once __DIR__ . '/../../config/fw.php';
 
 // Only accept POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     sendApiError('Method not allowed', 405);
+}
+
+// Check if payments are frozen
+if (is_payment_frozen()) {
+    $freeze_info = get_payment_freeze_info();
+    $message = ($freeze_info && isset($freeze_info['message'])) 
+        ? $freeze_info['message'] 
+        : 'Payments are currently paused. Please try again later.';
+    sendApiError($message, 403);
 }
 
 // Authenticate user
