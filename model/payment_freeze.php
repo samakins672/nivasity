@@ -79,7 +79,7 @@ function get_payment_freeze_info() {
         
         // Validate strtotime result
         if ($timestamp !== false) {
-            $formattedExpiry = date('l, F j, Y \a\t g:i A', $timestamp);
+            $formattedExpiry = date('l, F jS, Y', $timestamp);
         }
     }
     
