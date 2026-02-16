@@ -88,7 +88,7 @@ $supportEmail = 'support@nivasity.com';
 $supportSubject = "Important: New Support Request - Ticket #$ticketCode";
 $e_message = str_replace('\r\n', '<br>', $message);
 
-$attachmentInfo = $storedFilePath ? "<br><br>File attached: <a href='https://funaab.nivasity.com/{$storedFilePath}'>View Attachment</a>" : '';
+$attachmentInfo = $storedFilePath ? "<br><br>File attached: <a href='https://cc.nivasity.com/{$storedFilePath}'>View Attachment</a>" : '';
 
 $supportMessage = "User: {$user['first_name']} {$user['last_name']} (User id: $user_id)<br>Email: <a href='mailto:{$user['email']}'>{$user['email']}</a><br>Category: $category<br>Message: <br>$e_message{$attachmentInfo}";
 
