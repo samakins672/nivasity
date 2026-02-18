@@ -78,7 +78,7 @@ if ($user['status'] === 'unverified') {
     }
     
     $subject = "Verify Your Account on NIVASITY";
-    $first_name = $user['first_name'];
+    $first_name = htmlspecialchars($user['first_name'], ENT_QUOTES, 'UTF-8');
     $body = "Hello $first_name,
 <br><br>
 We noticed you tried to log in with an unverified account. We've sent you a new verification link to complete your registration.
