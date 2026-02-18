@@ -17,7 +17,11 @@
     <li class="nav-item active">
       <?php if (mysqli_num_rows($settlement_query) > 0): ?>
         <?php if ($_SESSION['nivas_userRole'] == 'hoc'): ?>
-        <a class="nav-link bg-primary" href="javascript:;" data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual' : 'verificationManual' ?>">
+        <a class="nav-link <?php echo (defined('MATERIAL_MANAGEMENT_ENABLED') && !MATERIAL_MANAGEMENT_ENABLED) ? 'bg-secondary' : 'bg-primary'; ?> sidebar-add-material-btn" 
+           href="javascript:;" 
+           <?php if (!defined('MATERIAL_MANAGEMENT_ENABLED') || MATERIAL_MANAGEMENT_ENABLED): ?>
+           data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual' : 'verificationManual' ?>"
+           <?php endif; ?>>
           <i class="mdi mdi-plus menu-icon text-white"></i>
           <span class="menu-title text-white fw-bold">
             New Material
@@ -29,7 +33,11 @@
         <?php endif; ?>
         </span>
       <?php else: ?> 
-        <a class="nav-link bg-primary" href="javascript:;" data-bs-toggle="modal" data-bs-target="#addSettlement">
+        <a class="nav-link <?php echo (defined('MATERIAL_MANAGEMENT_ENABLED') && !MATERIAL_MANAGEMENT_ENABLED) ? 'bg-secondary' : 'bg-primary'; ?> sidebar-add-material-btn" 
+           href="javascript:;" 
+           <?php if (!defined('MATERIAL_MANAGEMENT_ENABLED') || MATERIAL_MANAGEMENT_ENABLED): ?>
+           data-bs-toggle="modal" data-bs-target="#addSettlement"
+           <?php endif; ?>>
           <i class="mdi mdi-plus menu-icon text-white"></i>
           <span class="menu-title text-white fw-bold">
             Add Settlement

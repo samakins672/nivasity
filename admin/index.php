@@ -377,19 +377,15 @@ if (mysqli_num_rows($settlement_query) == 0) {
                             <div class="d-sm-flex justify-content-end">
                               <div>
                               <?php if (mysqli_num_rows($settlement_query) > 0): ?>
-                                <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button" id="addMaterialBtn"
+                                <button class="btn <?php echo MATERIAL_MANAGEMENT_ENABLED ? 'btn-primary' : 'btn-secondary'; ?> btn-lg text-white mb-0 me-0" type="button" id="addMaterialBtn"
                                   <?php if (MATERIAL_MANAGEMENT_ENABLED): ?>
                                   data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual' : 'verificationManual' ?>"
-                                  <?php else: ?>
-                                  disabled
                                   <?php endif; ?>><i class="mdi mdi-book"></i>Add new
                                   material</button>
                               <?php else: ?> 
-                                <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button" id="addMaterialBtn"
+                                <button class="btn <?php echo MATERIAL_MANAGEMENT_ENABLED ? 'btn-primary' : 'btn-secondary'; ?> btn-lg text-white mb-0 me-0" type="button" id="addMaterialBtn"
                                   <?php if (MATERIAL_MANAGEMENT_ENABLED): ?>
                                   data-bs-toggle="modal" data-bs-target="#addSettlement"
-                                  <?php else: ?>
-                                  disabled
                                   <?php endif; ?>><i class="mdi mdi-book"></i>Add new
                                   material</button>
                               <?php endif; ?> 
@@ -1041,7 +1037,14 @@ if (mysqli_num_rows($settlement_query) == 0) {
 
       // Handle disabled material management button click
       <?php if (!MATERIAL_MANAGEMENT_ENABLED): ?>
+      // Handle main "Add new material" button click
       $('#addMaterialBtn').on('click', function(e) {
+        e.preventDefault();
+        alert('<?php echo addslashes(MATERIAL_MANAGEMENT_DISABLED_MESSAGE); ?>');
+      });
+      
+      // Handle sidebar "New Material" button click
+      $('.sidebar-add-material-btn').on('click', function(e) {
         e.preventDefault();
         alert('<?php echo addslashes(MATERIAL_MANAGEMENT_DISABLED_MESSAGE); ?>');
       });
