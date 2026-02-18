@@ -101,8 +101,16 @@ if ($user_query->num_rows === 1) {
         $user_id = $user['id'];
         $verificationCode = generateVerificationCode(12);
         
-        while (!isCodeUnique($verificationCode, $conn, 'verification_code')) {
+        // Ensure uniqueness with retry limit to prevent infinite loops
+        $retryCount = 0;
+        $maxRetries = 10;
+        while (!isCodeUnique($verificationCode, $conn, 'verification_code') && $retryCount < $maxRetries) {
             $verificationCode = generateVerificationCode(12);
+            $retryCount++;
+        }
+        
+        if ($retryCount >= $maxRetries) {
+            sendApiError('Unable to generate verification code. Please try again.', 500);
         }
         
         // Update or insert verification code
@@ -134,11 +142,11 @@ if ($user_query->num_rows === 1) {
         
         // Prepare verification link based on role
         if ($user['role'] === 'org_admin') {
-            $verificationLink = "setup_org.html?verify=$verificationCode";
+            $verificationLink = "setup_org.html?verify=" . urlencode($verificationCode);
         } elseif ($user['role'] === 'visitor') {
-            $verificationLink = "verify.html?verify=$verificationCode";
+            $verificationLink = "verify.html?verify=" . urlencode($verificationCode);
         } else {
-            $verificationLink = "setup.html?verify=$verificationCode";
+            $verificationLink = "setup.html?verify=" . urlencode($verificationCode);
         }
         
         $subject = "Verify Your Account on NIVASITY";
@@ -248,8 +256,16 @@ Best regards,<br><b>Nivasity Team</b>";
     // Generate verification code for new user
     $verificationCode = generateVerificationCode(12);
     
-    while (!isCodeUnique($verificationCode, $conn, 'verification_code')) {
+    // Ensure uniqueness with retry limit to prevent infinite loops
+    $retryCount = 0;
+    $maxRetries = 10;
+    while (!isCodeUnique($verificationCode, $conn, 'verification_code') && $retryCount < $maxRetries) {
         $verificationCode = generateVerificationCode(12);
+        $retryCount++;
+    }
+    
+    if ($retryCount >= $maxRetries) {
+        sendApiError('Unable to generate verification code. Please try again.', 500);
     }
     
     // Insert verification code
@@ -263,7 +279,7 @@ Best regards,<br><b>Nivasity Team</b>";
     }
     
     // Prepare verification link based on role
-    $verificationLink = "setup.html?verify=$verificationCode";
+    $verificationLink = "setup.html?verify=" . urlencode($verificationCode);
     
     $subject = "Verify Your Account on NIVASITY";
     $first_name_escaped = htmlspecialchars($first_name, ENT_QUOTES, 'UTF-8');
