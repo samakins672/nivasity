@@ -279,8 +279,87 @@ if (isset($_POST['login'])) {
     session_start();
     $user = mysqli_fetch_array($user_query);
     if ($user['status'] == 'unverified') {
-      $statusRes = "unverified";
-      $messageRes = "Your email is unverified. <br>Please check your mail inbox for the verification link.";
+      // Auto-resend verification link
+      $user_id = $user['id'];
+      $verificationCode = generateVerificationCode(12);
+      
+      // Ensure uniqueness with retry limit
+      $retryCount = 0;
+      $maxRetries = 10;
+      while (!isCodeUnique($verificationCode, $conn, 'verification_code') && $retryCount < $maxRetries) {
+        $verificationCode = generateVerificationCode(12);
+        $retryCount++;
+      }
+      
+      if ($retryCount >= $maxRetries) {
+        $statusRes = "error";
+        $messageRes = "Unable to generate verification code. Please try again.";
+      } else {
+        // Update or insert verification code using prepared statement
+        $stmt = $conn->prepare("SELECT user_id FROM verification_code WHERE user_id = ?");
+        $stmt->bind_param('i', $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+        
+        if ($result->num_rows > 0) {
+          $stmt = $conn->prepare("UPDATE verification_code SET code = ? WHERE user_id = ?");
+          $stmt->bind_param('si', $verificationCode, $user_id);
+          $updateSuccess = $stmt->execute();
+          $stmt->close();
+          
+          if (!$updateSuccess) {
+            $statusRes = "error";
+            $messageRes = "Your email is unverified. We encountered an issue generating a new verification link. Please try again or contact support.";
+          }
+        } else {
+          $stmt = $conn->prepare("INSERT INTO verification_code (user_id, code) VALUES (?, ?)");
+          $stmt->bind_param('is', $user_id, $verificationCode);
+          $insertSuccess = $stmt->execute();
+          $stmt->close();
+          
+          if (!$insertSuccess) {
+            $statusRes = "error";
+            $messageRes = "Your email is unverified. We encountered an issue generating a new verification link. Please try again or contact support.";
+          }
+        }
+        
+        // Only proceed with email if DB operations succeeded
+        if ($statusRes !== "error") {
+          // Prepare verification link based on role
+          if ($user['role'] == 'org_admin') {
+            $verificationLink = "setup_org.html?verify=" . urlencode($verificationCode);
+          } elseif ($user['role'] == 'visitor') {
+            $verificationLink = "verify.html?verify=" . urlencode($verificationCode);
+          } else {
+            $verificationLink = "setup.html?verify=" . urlencode($verificationCode);
+          }
+          
+          $subject = "Verify Your Account on NIVASITY";
+          $first_name = htmlspecialchars($user['first_name'], ENT_QUOTES, 'UTF-8');
+          $verificationLinkEscaped = htmlspecialchars($verificationLink, ENT_QUOTES, 'UTF-8');
+          $body = "Hello $first_name,
+<br><br>
+We noticed you tried to log in with an unverified account. We're sending you a verification link to complete your registration.
+<br><br>
+Click on the following link to verify your account: <a href='https://funaab.nivasity.com/$verificationLinkEscaped'>Verify Account</a>
+<br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationLinkEscaped
+<br><br>
+Thank you for choosing Nivasity. We look forward to serving you!
+<br><br>
+Best regards,<br><b>Nivasity Team</b>";
+          
+          $mailStatus = sendBrevoMail($subject, $body, $user['email']);
+          
+          if ($mailStatus === "success") {
+            $statusRes = "unverified";
+            $messageRes = "Your email is unverified. <br>We've sent you a new verification link. Please check your inbox (and spam folder).";
+          } else {
+            $statusRes = "unverified";
+            $messageRes = "Your email is unverified. <br>We tried to send you a new verification link, but encountered an issue. Please use the resend verification option or contact support.";
+          }
+        }
+      }
     } elseif ($user['status'] == 'denied') {
       $statusRes = "denied";
       $messageRes = "Your account is temporarily suspended. Contact our support team for help.";
