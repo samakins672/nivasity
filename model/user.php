@@ -280,12 +280,13 @@ if (isset($_POST['login'])) {
     $user = mysqli_fetch_array($user_query);
     if ($user['status'] == 'unverified') {
       // Auto-resend verification link
+      $statusRes = "unverified"; // Initialize status
       $user_id = $user['id'];
       $verificationCode = generateVerificationCode(12);
       
       // Ensure uniqueness with retry limit
       $retryCount = 0;
-      $maxRetries = 10;
+      $maxRetries = 5; // Reduced from 10 - collisions are extremely rare
       while (!isCodeUnique($verificationCode, $conn, 'verification_code') && $retryCount < $maxRetries) {
         $verificationCode = generateVerificationCode(12);
         $retryCount++;
