@@ -6,10 +6,10 @@ This document explains how the bulk verification resend functionality works in N
 
 ## Purpose
 
-Allows authorized administrators to resend verification emails to **all unverified users** in the system at once. This is useful for:
-- Helping users who never received their initial verification email
+Allows authorized administrators to resend verification emails to **unverified users registered in the past 14 days**. This is useful for:
+- Helping recent users who never received their initial verification email
 - Re-sending after email system issues
-- Cleaning up pending verifications
+- Following up with new registrations
 
 ## Location
 
@@ -40,11 +40,17 @@ $allowedEmails = [
 
 ```php
 $pendingUsersQuery = mysqli_query($conn, 
-  "SELECT id, first_name, email, role FROM users WHERE status = 'unverified'"
+  "SELECT id, first_name, email, role 
+   FROM users 
+   WHERE status = 'unverified' 
+   AND last_login >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+   ORDER BY last_login DESC"
 );
 ```
 
-Fetches ALL users with `status = 'unverified'` from the database.
+Fetches users with `status = 'unverified'` who registered in the **past 14 days**.
+
+**Note:** Uses `last_login` field as a proxy for registration date. Since unverified users have never logged in, this field contains their registration timestamp (set by `DEFAULT current_timestamp()` on row creation).
 
 ### 3. Process Each User
 
@@ -108,7 +114,7 @@ The page shows an HTML table with:
 | user@example.com | Success | Verification email sent. |
 | user2@example.com | Error | Failed to send verification email. |
 
-**Summary:** "Successfully sent X of Y verification emails."
+**Summary:** "Successfully sent X of Y verification emails to users registered in the past 14 days."
 
 ## Usage Instructions
 
@@ -144,7 +150,8 @@ Uses `sendBrevoMail()` function which:
 
 **users table:**
 - Queried for: `id`, `first_name`, `email`, `role`
-- Filter: `status = 'unverified'`
+- Filter: `status = 'unverified'` AND `last_login >= DATE_SUB(NOW(), INTERVAL 14 DAY)`
+- **Note:** `last_login` is used as a proxy for registration date since unverified users haven't logged in yet. This field defaults to `current_timestamp()` on row creation.
 
 **verification_code table:**
 - Fields: `user_id`, `code`, `exp_date`
@@ -171,8 +178,8 @@ Uses `sendBrevoMail()` function which:
 
 **Scalability:**
 - Processes users sequentially (one at a time)
-- No pagination - loads ALL unverified users
-- Could be slow with hundreds of pending users
+- Filters to users from past 14 days only (reduces load vs all unverified users)
+- Could still be slow with hundreds of recent pending users
 - Email sending is the bottleneck
 
 **Recommendations for Large Scale:**
@@ -201,8 +208,10 @@ Uses `sendBrevoMail()` function which:
 ## Change History
 
 - **Original Implementation:** Bulk resend for all unverified users
-- **Recent Updates:** Login flows now auto-resend verification emails
-- **Current State:** Working as designed, documentation added
+- **Recent Updates:** 
+  - Login flows now auto-resend verification emails
+  - Added 14-day filter to only target recent registrations
+- **Current State:** Filters to users registered in past 14 days, documentation updated
 
 ## Support
 
