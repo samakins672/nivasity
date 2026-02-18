@@ -45,9 +45,20 @@ if ($user['status'] === 'unverified') {
     $existingCode = mysqli_query($conn, "SELECT user_id FROM verification_code WHERE user_id = $user_id");
     
     if (mysqli_num_rows($existingCode) > 0) {
-        mysqli_query($conn, "UPDATE verification_code SET code = '$verificationCode' WHERE user_id = $user_id");
+        $stmt = $conn->prepare("UPDATE verification_code SET code = ? WHERE user_id = ?");
+        $stmt->bind_param('si', $verificationCode, $user_id);
+        $stmt->execute();
+        $stmt->close();
     } else {
-        mysqli_query($conn, "INSERT INTO verification_code (user_id, code) VALUES ($user_id, '$verificationCode')");
+        $stmt = $conn->prepare("INSERT INTO verification_code (user_id, code) VALUES (?, ?)");
+        $stmt->bind_param('is', $user_id, $verificationCode);
+        $stmt->execute();
+        $stmt->close();
+    }
+    
+    // Check if database operation was successful
+    if (mysqli_affected_rows($conn) < 1 && mysqli_errno($conn) !== 0) {
+        sendApiError('Your email is unverified. We encountered an issue generating a new verification link. Please try the resend verification option or contact support.', 500);
     }
     
     // Prepare verification link based on role
