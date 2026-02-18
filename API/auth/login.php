@@ -31,7 +31,50 @@ $user = mysqli_fetch_array($user_query);
 
 // Check user status
 if ($user['status'] === 'unverified') {
-    sendApiError('Your email is unverified. Please check your mail inbox for the verification link.', 403);
+    // Auto-resend verification link
+    require_once __DIR__ . '/../../model/mail.php';
+    
+    $user_id = $user['id'];
+    $verificationCode = generateVerificationCode(12);
+    
+    while (!isCodeUnique($verificationCode, $conn, 'verification_code')) {
+        $verificationCode = generateVerificationCode(12);
+    }
+    
+    // Update or insert verification code
+    $existingCode = mysqli_query($conn, "SELECT user_id FROM verification_code WHERE user_id = $user_id");
+    
+    if (mysqli_num_rows($existingCode) > 0) {
+        mysqli_query($conn, "UPDATE verification_code SET code = '$verificationCode' WHERE user_id = $user_id");
+    } else {
+        mysqli_query($conn, "INSERT INTO verification_code (user_id, code) VALUES ($user_id, '$verificationCode')");
+    }
+    
+    // Prepare verification link based on role
+    if ($user['role'] === 'org_admin') {
+        $verificationLink = "setup_org.html?verify=$verificationCode";
+    } elseif ($user['role'] === 'visitor') {
+        $verificationLink = "verify.html?verify=$verificationCode";
+    } else {
+        $verificationLink = "setup.html?verify=$verificationCode";
+    }
+    
+    $subject = "Verify Your Account on NIVASITY";
+    $first_name = $user['first_name'];
+    $body = "Hello $first_name,
+<br><br>
+We noticed you tried to log in with an unverified account. We've sent you a new verification link to complete your registration.
+<br><br>
+Click on the following link to verify your account: <a href='https://funaab.nivasity.com/$verificationLink'>Verify Account</a>
+<br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationLink
+<br><br>
+Thank you for choosing Nivasity. We look forward to serving you!
+<br><br>
+Best regards,<br><b>Nivasity Team</b>";
+    
+    sendBrevoMail($subject, $body, $user['email']);
+    
+    sendApiError('Your email is unverified. We\'ve sent you a new verification link. Please check your inbox (and spam folder).', 403);
 }
 
 if ($user['status'] === 'denied') {
