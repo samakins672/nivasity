@@ -730,7 +730,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                 <!-- Access Denied Modal -->
                 <div class="modal fade" id="accessDeniedModal" tabindex="-1" role="dialog" aria-labelledby="accessDeniedModalLabel"
                   aria-hidden="true">
-                  <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
+                  <div class="modal-dialog modal-dialog-centered" role="document">
                     <div class="modal-content">
                       <div class="modal-header">
                         <h4 class="modal-title fw-bold" id="accessDeniedModalLabel">Access Denied</h4>
