@@ -17,8 +17,11 @@
     <li class="nav-item active">
       <?php if (mysqli_num_rows($settlement_query) > 0): ?>
         <?php if ($_SESSION['nivas_userRole'] == 'hoc'): ?>
-        <a class="nav-link <?php echo (MATERIAL_MANAGEMENT_ENABLED) ? 'bg-primary' : 'bg-secondary'; ?> sidebar-add-material-btn" 
-           href="javascript:;" 
+        <a class="nav-link bg-primary sidebar-add-material-btn" 
+           href="javascript:;"
+           <?php if (!MATERIAL_MANAGEMENT_ENABLED): ?>
+           style="background-color: #6c757d;"
+           <?php endif; ?>
            <?php if (MATERIAL_MANAGEMENT_ENABLED): ?>
            data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual' : 'verificationManual' ?>"
            <?php endif; ?>>
@@ -33,8 +36,11 @@
         <?php endif; ?>
         </span>
       <?php else: ?> 
-        <a class="nav-link <?php echo (MATERIAL_MANAGEMENT_ENABLED) ? 'bg-primary' : 'bg-secondary'; ?> sidebar-add-material-btn" 
-           href="javascript:;" 
+        <a class="nav-link bg-primary sidebar-add-material-btn" 
+           href="javascript:;"
+           <?php if (!MATERIAL_MANAGEMENT_ENABLED): ?>
+           style="background-color: #6c757d;"
+           <?php endif; ?>
            <?php if (MATERIAL_MANAGEMENT_ENABLED): ?>
            data-bs-toggle="modal" data-bs-target="#addSettlement"
            <?php endif; ?>>

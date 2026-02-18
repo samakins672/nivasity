@@ -377,13 +377,19 @@ if (mysqli_num_rows($settlement_query) == 0) {
                             <div class="d-sm-flex justify-content-end">
                               <div>
                               <?php if (mysqli_num_rows($settlement_query) > 0): ?>
-                                <button class="btn <?php echo MATERIAL_MANAGEMENT_ENABLED ? 'btn-primary' : 'btn-secondary'; ?> btn-lg text-white mb-0 me-0" type="button" id="addMaterialBtn"
+                                <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button" id="addMaterialBtn"
+                                  <?php if (!MATERIAL_MANAGEMENT_ENABLED): ?>
+                                  style="background-color: #6c757d; border-color: #6c757d;"
+                                  <?php endif; ?>
                                   <?php if (MATERIAL_MANAGEMENT_ENABLED): ?>
                                   data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual' : 'verificationManual' ?>"
                                   <?php endif; ?>><i class="mdi mdi-book"></i>Add new
                                   material</button>
                               <?php else: ?> 
-                                <button class="btn <?php echo MATERIAL_MANAGEMENT_ENABLED ? 'btn-primary' : 'btn-secondary'; ?> btn-lg text-white mb-0 me-0" type="button" id="addMaterialBtn"
+                                <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button" id="addMaterialBtn"
+                                  <?php if (!MATERIAL_MANAGEMENT_ENABLED): ?>
+                                  style="background-color: #6c757d; border-color: #6c757d;"
+                                  <?php endif; ?>
                                   <?php if (MATERIAL_MANAGEMENT_ENABLED): ?>
                                   data-bs-toggle="modal" data-bs-target="#addSettlement"
                                   <?php endif; ?>><i class="mdi mdi-book"></i>Add new
@@ -721,6 +727,25 @@ if (mysqli_num_rows($settlement_query) == 0) {
                   </div>
                 </div>
 
+                <!-- Access Denied Modal -->
+                <div class="modal fade" id="accessDeniedModal" tabindex="-1" role="dialog" aria-labelledby="accessDeniedModalLabel"
+                  aria-hidden="true">
+                  <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h4 class="modal-title fw-bold" id="accessDeniedModalLabel">Access Denied</h4>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body">
+                        <p><?php echo defined('MATERIAL_MANAGEMENT_DISABLED_MESSAGE') ? MATERIAL_MANAGEMENT_DISABLED_MESSAGE : 'The School Management has disabled material management at this level. Please reach out to your faculty managers to make enquiry.'; ?></p>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-lg btn-primary" data-bs-dismiss="modal">Close</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <!-- User Verification Modal -->
                 <div class="modal fade" id="verificationManual" tabindex="-1" role="dialog" aria-labelledby="verificationManualLabel"
                   aria-hidden="true">
@@ -1040,13 +1065,13 @@ if (mysqli_num_rows($settlement_query) == 0) {
       // Handle main "Add new material" button click
       $('#addMaterialBtn').on('click', function(e) {
         e.preventDefault();
-        alert('<?php echo addslashes(MATERIAL_MANAGEMENT_DISABLED_MESSAGE); ?>');
+        $('#accessDeniedModal').modal('show');
       });
       
       // Handle sidebar "New Material" button click
       $('.sidebar-add-material-btn').on('click', function(e) {
         e.preventDefault();
-        alert('<?php echo addslashes(MATERIAL_MANAGEMENT_DISABLED_MESSAGE); ?>');
+        $('#accessDeniedModal').modal('show');
       });
       <?php endif; ?>
 
