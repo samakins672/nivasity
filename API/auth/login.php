@@ -42,23 +42,30 @@ if ($user['status'] === 'unverified') {
     }
     
     // Update or insert verification code
-    $existingCode = mysqli_query($conn, "SELECT user_id FROM verification_code WHERE user_id = $user_id");
+    $stmt = $conn->prepare("SELECT user_id FROM verification_code WHERE user_id = ?");
+    $stmt->bind_param('i', $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $stmt->close();
     
-    if (mysqli_num_rows($existingCode) > 0) {
+    if ($result->num_rows > 0) {
         $stmt = $conn->prepare("UPDATE verification_code SET code = ? WHERE user_id = ?");
         $stmt->bind_param('si', $verificationCode, $user_id);
-        $stmt->execute();
+        $updateSuccess = $stmt->execute();
         $stmt->close();
+        
+        if (!$updateSuccess) {
+            sendApiError('Your email is unverified. We encountered an issue generating a new verification link. Please try the resend verification option or contact support.', 500);
+        }
     } else {
         $stmt = $conn->prepare("INSERT INTO verification_code (user_id, code) VALUES (?, ?)");
         $stmt->bind_param('is', $user_id, $verificationCode);
-        $stmt->execute();
+        $insertSuccess = $stmt->execute();
         $stmt->close();
-    }
-    
-    // Check if database operation was successful
-    if (mysqli_affected_rows($conn) < 1 && mysqli_errno($conn) !== 0) {
-        sendApiError('Your email is unverified. We encountered an issue generating a new verification link. Please try the resend verification option or contact support.', 500);
+        
+        if (!$insertSuccess) {
+            sendApiError('Your email is unverified. We encountered an issue generating a new verification link. Please try the resend verification option or contact support.', 500);
+        }
     }
     
     // Prepare verification link based on role
@@ -86,7 +93,7 @@ Best regards,<br><b>Nivasity Team</b>";
     $mailStatus = sendBrevoMail($subject, $body, $user['email']);
     
     if ($mailStatus === "success") {
-        sendApiError('Your email is unverified. We\'ve sent you a new verification link. Please check your inbox (and spam folder).', 403);
+        sendApiError("Your email is unverified. We've sent you a new verification link. Please check your inbox (and spam folder).", 403);
     } else {
         sendApiError('Your email is unverified. We tried to send you a new verification link, but encountered an issue. Please use the resend verification option or contact support.', 403);
     }
