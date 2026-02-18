@@ -154,7 +154,7 @@ if ($user_query->num_rows === 1) {
         $verificationLinkEscaped = htmlspecialchars($verificationLink, ENT_QUOTES, 'UTF-8');
         $body = "Hello $first_name_escaped,
 <br><br>
-We noticed you tried to log in with Google but your account is still unverified. We've sent you a verification link to complete your registration.
+We noticed you tried to log in with Google but your account is still unverified. We're sending you a verification link to complete your registration.
 <br><br>
 Click on the following link to verify your account: <a href='https://funaab.nivasity.com/$verificationLinkEscaped'>Verify Account</a>
 <br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationLinkEscaped
@@ -286,7 +286,7 @@ Best regards,<br><b>Nivasity Team</b>";
     $verificationLinkEscaped = htmlspecialchars($verificationLink, ENT_QUOTES, 'UTF-8');
     $body = "Hello $first_name_escaped,
 <br><br>
-Welcome to Nivasity! You've successfully created an account using Google Sign-In. To complete your registration, please verify your email address.
+Welcome to Nivasity! You've successfully created an account using Google Sign-In. We're sending you a verification link to complete your registration.
 <br><br>
 Click on the following link to verify your account and complete setup: <a href='https://funaab.nivasity.com/$verificationLinkEscaped'>Verify Account</a>
 <br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationLinkEscaped
