@@ -72,9 +72,13 @@ Thank you for choosing Nivasity. We look forward to serving you!
 <br><br>
 Best regards,<br><b>Nivasity Team</b>";
     
-    sendBrevoMail($subject, $body, $user['email']);
+    $mailStatus = sendBrevoMail($subject, $body, $user['email']);
     
-    sendApiError('Your email is unverified. We\'ve sent you a new verification link. Please check your inbox (and spam folder).', 403);
+    if ($mailStatus === "success") {
+        sendApiError('Your email is unverified. We\'ve sent you a new verification link. Please check your inbox (and spam folder).', 403);
+    } else {
+        sendApiError('Your email is unverified. We tried to send you a new verification link, but encountered an issue. Please use the resend verification option or contact support.', 403);
+    }
 }
 
 if ($user['status'] === 'denied') {
