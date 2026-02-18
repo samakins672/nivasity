@@ -74,13 +74,17 @@ if (!$google_id || !$email) {
 }
 
 // Check if user exists with this email
-$user_query = mysqli_query($conn, "SELECT * FROM users WHERE email = '$email'");
+$stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+$stmt->bind_param('s', $email);
+$stmt->execute();
+$user_query = $stmt->get_result();
+$stmt->close();
 
-if (mysqli_num_rows($user_query) === 1) {
+if ($user_query->num_rows === 1) {
     // User exists - perform login
-    $user = mysqli_fetch_array($user_query);
+    $user = $user_query->fetch_array();
     
-    // Check user status
+    // Check user status - deny/deactivate takes priority over unverified
     if ($user['status'] === 'denied') {
         sendApiError('Your account is temporarily suspended. Contact our support team for help.', 403);
     }
@@ -89,20 +93,96 @@ if (mysqli_num_rows($user_query) === 1) {
         sendApiError('Your account has been deactivated. Contact our support team to reopen your account.', 403);
     }
     
+    // Check if user is unverified - Google OAuth users also need to verify
+    if ($user['status'] === 'unverified') {
+        // Auto-resend verification link (same as regular login)
+        require_once __DIR__ . '/../../model/mail.php';
+        
+        $user_id = $user['id'];
+        $verificationCode = generateVerificationCode(12);
+        
+        // Ensure uniqueness with retry limit to prevent infinite loops
+        $retryCount = 0;
+        $maxRetries = 5; // Collisions are extremely rare with 12-char alphanumeric
+        while (!isCodeUnique($verificationCode, $conn, 'verification_code') && $retryCount < $maxRetries) {
+            $verificationCode = generateVerificationCode(12);
+            $retryCount++;
+        }
+        
+        if ($retryCount >= $maxRetries) {
+            sendApiError('Unable to generate verification code. Please try again.', 500);
+        }
+        
+        // Update or insert verification code
+        $stmt = $conn->prepare("SELECT user_id FROM verification_code WHERE user_id = ?");
+        $stmt->bind_param('i', $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+        
+        if ($result->num_rows > 0) {
+            $stmt = $conn->prepare("UPDATE verification_code SET code = ? WHERE user_id = ?");
+            $stmt->bind_param('si', $verificationCode, $user_id);
+            $updateSuccess = $stmt->execute();
+            $stmt->close();
+            
+            if (!$updateSuccess) {
+                sendApiError('Your email is unverified. We encountered an issue generating a new verification link. Please try again or contact support.', 500);
+            }
+        } else {
+            $stmt = $conn->prepare("INSERT INTO verification_code (user_id, code) VALUES (?, ?)");
+            $stmt->bind_param('is', $user_id, $verificationCode);
+            $insertSuccess = $stmt->execute();
+            $stmt->close();
+            
+            if (!$insertSuccess) {
+                sendApiError('Your email is unverified. We encountered an issue generating a new verification link. Please try again or contact support.', 500);
+            }
+        }
+        
+        // Prepare verification link based on role
+        if ($user['role'] === 'org_admin') {
+            $verificationLink = "setup_org.html?verify=" . urlencode($verificationCode);
+        } elseif ($user['role'] === 'visitor') {
+            $verificationLink = "verify.html?verify=" . urlencode($verificationCode);
+        } else {
+            $verificationLink = "setup.html?verify=" . urlencode($verificationCode);
+        }
+        
+        $subject = "Verify Your Account on NIVASITY";
+        $first_name_escaped = htmlspecialchars($user['first_name'], ENT_QUOTES, 'UTF-8');
+        $verificationLinkEscaped = htmlspecialchars($verificationLink, ENT_QUOTES, 'UTF-8');
+        $body = "Hello $first_name_escaped,
+<br><br>
+We noticed you tried to log in with Google but your account is still unverified. We're sending you a verification link to complete your registration.
+<br><br>
+Click on the following link to verify your account: <a href='https://funaab.nivasity.com/$verificationLinkEscaped'>Verify Account</a>
+<br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationLinkEscaped
+<br><br>
+Thank you for choosing Nivasity. We look forward to serving you!
+<br><br>
+Best regards,<br><b>Nivasity Team</b>";
+        
+        $mailStatus = sendBrevoMail($subject, $body, $user['email']);
+        
+        if ($mailStatus === "success") {
+            sendApiError("Your email is unverified. We've sent you a new verification link. Please check your inbox (and spam folder).", 403);
+        } else {
+            sendApiError('Your email is unverified. We tried to send you a new verification link, but encountered an issue. Please use the resend verification option or contact support.', 403);
+        }
+    }
+    
     // Only allow student and hoc roles for API
     if ($user['role'] !== 'student' && $user['role'] !== 'hoc') {
         sendApiError('Access denied. This API is for students only.', 403);
     }
     
-    // If account was unverified and email is verified by Google, mark as verified
-    if ($user['status'] === 'unverified' && $email_verified === 'true') {
-        mysqli_query($conn, "UPDATE users SET status = 'active' WHERE id = {$user['id']}");
-        $user['status'] = 'active';
-    }
-    
     // Update profile picture if not set
     if (empty($user['profile_pic']) && !empty($profile_pic)) {
-        mysqli_query($conn, "UPDATE users SET profile_pic = '$profile_pic' WHERE id = {$user['id']}");
+        $stmt = $conn->prepare("UPDATE users SET profile_pic = ? WHERE id = ?");
+        $stmt->bind_param('si', $profile_pic, $user['id']);
+        $stmt->execute();
+        $stmt->close();
         $user['profile_pic'] = $profile_pic;
     }
     
@@ -140,12 +220,18 @@ if (mysqli_num_rows($user_query) === 1) {
     }
     
     // Validate school exists and is active
-    $school_check = mysqli_query($conn, "SELECT id FROM schools WHERE id = $school_id AND status = 'active'");
-    if (mysqli_num_rows($school_check) === 0) {
+    $stmt = $conn->prepare("SELECT id FROM schools WHERE id = ? AND status = 'active'");
+    $stmt->bind_param('i', $school_id);
+    $stmt->execute();
+    $school_check = $stmt->get_result();
+    $stmt->close();
+    
+    if ($school_check->num_rows === 0) {
         sendApiError('Invalid school_id. School does not exist or is not active.', 400);
     }
     
-    $status = $email_verified === 'true' ? 'active' : 'unverified';
+    // All new users start as unverified - they need to go through setup
+    $status = 'unverified';
     $role = 'student';
     
     // Generate a random password (user won't need it for Google auth)
@@ -156,15 +242,69 @@ if (mysqli_num_rows($user_query) === 1) {
     $gender = $input['gender'] ?? '';
     
     // Create user
-    mysqli_query($conn, "INSERT INTO users (first_name, last_name, email, phone, password, role, school, gender, profile_pic, status)"
-        . " VALUES ('$first_name', '$last_name', '$email', '$phone', '$random_password', '$role', $school_id, '$gender', '$profile_pic', '$status')");
-    $user_id = mysqli_insert_id($conn);
+    $stmt = $conn->prepare("INSERT INTO users (first_name, last_name, email, phone, password, role, school, gender, profile_pic, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param('ssssssisss', $first_name, $last_name, $email, $phone, $random_password, $role, $school_id, $gender, $profile_pic, $status);
+    $stmt->execute();
+    $user_id = $conn->insert_id;
+    $affected = $stmt->affected_rows;
+    $stmt->close();
     
-    if (mysqli_affected_rows($conn) < 1) {
+    if ($affected < 1) {
         sendApiError('Failed to create user account. Please try again later!', 500);
     }
     
+    // Generate verification code for new user
+    $verificationCode = generateVerificationCode(12);
+    
+    // Ensure uniqueness with retry limit to prevent infinite loops
+    $retryCount = 0;
+    $maxRetries = 5; // Collisions are extremely rare with 12-char alphanumeric
+    while (!isCodeUnique($verificationCode, $conn, 'verification_code') && $retryCount < $maxRetries) {
+        $verificationCode = generateVerificationCode(12);
+        $retryCount++;
+    }
+    
+    if ($retryCount >= $maxRetries) {
+        sendApiError('Unable to generate verification code. Please try again.', 500);
+    }
+    
+    // Insert verification code
+    $stmt = $conn->prepare("INSERT INTO verification_code (user_id, code) VALUES (?, ?)");
+    $stmt->bind_param('is', $user_id, $verificationCode);
+    $insertSuccess = $stmt->execute();
+    $stmt->close();
+    
+    if (!$insertSuccess) {
+        sendApiError('Account created but failed to generate verification code. Please contact support.', 500);
+    }
+    
+    // Prepare verification link based on role
+    $verificationLink = "setup.html?verify=" . urlencode($verificationCode);
+    
+    $subject = "Verify Your Account on NIVASITY";
+    $first_name_escaped = htmlspecialchars($first_name, ENT_QUOTES, 'UTF-8');
+    $verificationLinkEscaped = htmlspecialchars($verificationLink, ENT_QUOTES, 'UTF-8');
+    $body = "Hello $first_name_escaped,
+<br><br>
+Welcome to Nivasity! You've successfully created an account using Google Sign-In. We're sending you a verification link to complete your registration.
+<br><br>
+Click on the following link to verify your account and complete setup: <a href='https://funaab.nivasity.com/$verificationLinkEscaped'>Verify Account</a>
+<br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationLinkEscaped
+<br><br>
+Thank you for choosing Nivasity. We look forward to serving you!
+<br><br>
+Best regards,<br><b>Nivasity Team</b>";
+    
+    // Send verification email
+    $mailStatus = sendBrevoMail($subject, $body, $email);
+    
+    // Note: We don't fail registration if email fails, but we inform the user
+    // They can use the resend-verification endpoint to get a new link
+    
     // Generate JWT tokens
+    // Note: Tokens are provided immediately to allow app to persist session
+    // The app should check user.status and guide unverified users through verification
+    // Protected routes should verify user status before granting access
     $tokens = generateTokenPair($user_id, $role, $school_id);
     
     // Prepare user data
@@ -188,6 +328,11 @@ if (mysqli_num_rows($user_query) === 1) {
     // Combine user data with tokens
     $responseData = array_merge($userData, $tokens);
     
-    sendApiSuccess('Account created and logged in successfully with Google!', $responseData, 201);
+    // Inform user about email status in the message
+    if ($mailStatus === "success") {
+        sendApiSuccess('Account created successfully with Google! Please check your email for verification link.', $responseData, 201);
+    } else {
+        sendApiSuccess('Account created successfully with Google! However, we could not send the verification email. Please use the resend verification option.', $responseData, 201);
+    }
 }
 ?>

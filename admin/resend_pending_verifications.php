@@ -33,7 +33,16 @@ if (!in_array($currentEmail, $allowedEmails, true)) {
   exit();
 }
 
-$pendingUsersQuery = mysqli_query($conn, "SELECT id, first_name, email, role FROM users WHERE status = 'unverified'");
+// Get all unverified users created in the past 14 days
+// Using last_login as a proxy for creation date since unverified users haven't logged in yet
+// The last_login field defaults to current_timestamp() on row creation
+$pendingUsersQuery = mysqli_query($conn, 
+  "SELECT id, first_name, email, role 
+   FROM users 
+   WHERE status = 'unverified' 
+   AND last_login >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+   ORDER BY last_login DESC"
+);
 
 if (!$pendingUsersQuery) {
   http_response_code(500);
@@ -115,7 +124,7 @@ mysqli_free_result($pendingUsersQuery);
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Resent Verification Links</title>
+  <title>Resend Verification Links (Past 14 Days)</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -166,12 +175,12 @@ mysqli_free_result($pendingUsersQuery);
 </head>
 
 <body>
-  <h1>Verification Resend Summary</h1>
+  <h1>Verification Resend Summary (Past 14 Days)</h1>
   <p class="summary">
     <?php if ($totalCount === 0): ?>
-      No users are currently waiting for verification.
+      No users registered in the past 14 days are currently waiting for verification.
     <?php else: ?>
-      Successfully sent <?php echo $successCount; ?> of <?php echo $totalCount; ?> verification emails.
+      Successfully sent <?php echo $successCount; ?> of <?php echo $totalCount; ?> verification emails to users registered in the past 14 days.
     <?php endif; ?>
   </p>
   <?php if (!empty($results)): ?>

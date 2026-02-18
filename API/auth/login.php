@@ -31,7 +31,81 @@ $user = mysqli_fetch_array($user_query);
 
 // Check user status
 if ($user['status'] === 'unverified') {
-    sendApiError('Your email is unverified. Please check your mail inbox for the verification link.', 403);
+    // Auto-resend verification link
+    require_once __DIR__ . '/../../model/mail.php';
+    
+    $user_id = $user['id'];
+    $verificationCode = generateVerificationCode(12);
+    
+    // Ensure uniqueness with retry limit
+    $retryCount = 0;
+    $maxRetries = 5; // Collisions are extremely rare with 12-char alphanumeric
+    while (!isCodeUnique($verificationCode, $conn, 'verification_code') && $retryCount < $maxRetries) {
+        $verificationCode = generateVerificationCode(12);
+        $retryCount++;
+    }
+    
+    if ($retryCount >= $maxRetries) {
+        sendApiError('Unable to generate verification code. Please try again.', 500);
+    }
+    
+    // Update or insert verification code
+    $stmt = $conn->prepare("SELECT user_id FROM verification_code WHERE user_id = ?");
+    $stmt->bind_param('i', $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $stmt->close();
+    
+    if ($result->num_rows > 0) {
+        $stmt = $conn->prepare("UPDATE verification_code SET code = ? WHERE user_id = ?");
+        $stmt->bind_param('si', $verificationCode, $user_id);
+        $updateSuccess = $stmt->execute();
+        $stmt->close();
+        
+        if (!$updateSuccess) {
+            sendApiError('Your email is unverified. We encountered an issue generating a new verification link. Please try again or contact support.', 500);
+        }
+    } else {
+        $stmt = $conn->prepare("INSERT INTO verification_code (user_id, code) VALUES (?, ?)");
+        $stmt->bind_param('is', $user_id, $verificationCode);
+        $insertSuccess = $stmt->execute();
+        $stmt->close();
+        
+        if (!$insertSuccess) {
+            sendApiError('Your email is unverified. We encountered an issue generating a new verification link. Please try again or contact support.', 500);
+        }
+    }
+    
+    // Prepare verification link based on role
+    if ($user['role'] === 'org_admin') {
+        $verificationLink = "setup_org.html?verify=$verificationCode";
+    } elseif ($user['role'] === 'visitor') {
+        $verificationLink = "verify.html?verify=$verificationCode";
+    } else {
+        $verificationLink = "setup.html?verify=$verificationCode";
+    }
+    
+    $subject = "Verify Your Account on NIVASITY";
+    $first_name = htmlspecialchars($user['first_name'], ENT_QUOTES, 'UTF-8');
+    $verificationLinkEscaped = htmlspecialchars($verificationLink, ENT_QUOTES, 'UTF-8');
+    $body = "Hello $first_name,
+<br><br>
+We noticed you tried to log in with an unverified account. We've sent you a new verification link to complete your registration.
+<br><br>
+Click on the following link to verify your account: <a href='https://funaab.nivasity.com/$verificationLinkEscaped'>Verify Account</a>
+<br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationLinkEscaped
+<br><br>
+Thank you for choosing Nivasity. We look forward to serving you!
+<br><br>
+Best regards,<br><b>Nivasity Team</b>";
+    
+    $mailStatus = sendBrevoMail($subject, $body, $user['email']);
+    
+    if ($mailStatus === "success") {
+        sendApiError("Your email is unverified. We've sent you a new verification link. Please check your inbox (and spam folder).", 403);
+    } else {
+        sendApiError('Your email is unverified. We tried to send you a new verification link, but encountered an issue. Please use the resend verification option or contact support.', 403);
+    }
 }
 
 if ($user['status'] === 'denied') {
