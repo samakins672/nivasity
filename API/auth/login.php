@@ -55,7 +55,7 @@ if ($user['status'] === 'unverified') {
         $stmt->close();
         
         if (!$updateSuccess) {
-            sendApiError('Your email is unverified. We encountered an issue generating a new verification link. Please try the resend verification option or contact support.', 500);
+            sendApiError('Your email is unverified. We encountered an issue generating a new verification link. Please try again or contact support.', 500);
         }
     } else {
         $stmt = $conn->prepare("INSERT INTO verification_code (user_id, code) VALUES (?, ?)");
@@ -64,7 +64,7 @@ if ($user['status'] === 'unverified') {
         $stmt->close();
         
         if (!$insertSuccess) {
-            sendApiError('Your email is unverified. We encountered an issue generating a new verification link. Please try the resend verification option or contact support.', 500);
+            sendApiError('Your email is unverified. We encountered an issue generating a new verification link. Please try again or contact support.', 500);
         }
     }
     
@@ -79,12 +79,13 @@ if ($user['status'] === 'unverified') {
     
     $subject = "Verify Your Account on NIVASITY";
     $first_name = htmlspecialchars($user['first_name'], ENT_QUOTES, 'UTF-8');
+    $verificationLinkEscaped = htmlspecialchars($verificationLink, ENT_QUOTES, 'UTF-8');
     $body = "Hello $first_name,
 <br><br>
 We noticed you tried to log in with an unverified account. We've sent you a new verification link to complete your registration.
 <br><br>
-Click on the following link to verify your account: <a href='https://funaab.nivasity.com/$verificationLink'>Verify Account</a>
-<br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationLink
+Click on the following link to verify your account: <a href='https://funaab.nivasity.com/$verificationLinkEscaped'>Verify Account</a>
+<br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationLinkEscaped
 <br><br>
 Thank you for choosing Nivasity. We look forward to serving you!
 <br><br>
