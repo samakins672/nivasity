@@ -84,7 +84,77 @@ if ($user_query->num_rows === 1) {
     // User exists - perform login
     $user = $user_query->fetch_array();
     
-    // Check user status
+    // Check user status - Google OAuth users also need to verify
+    if ($user['status'] === 'unverified') {
+        // Auto-resend verification link (same as regular login)
+        require_once __DIR__ . '/../../model/mail.php';
+        
+        $user_id = $user['id'];
+        $verificationCode = generateVerificationCode(12);
+        
+        while (!isCodeUnique($verificationCode, $conn, 'verification_code')) {
+            $verificationCode = generateVerificationCode(12);
+        }
+        
+        // Update or insert verification code
+        $stmt = $conn->prepare("SELECT user_id FROM verification_code WHERE user_id = ?");
+        $stmt->bind_param('i', $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+        
+        if ($result->num_rows > 0) {
+            $stmt = $conn->prepare("UPDATE verification_code SET code = ? WHERE user_id = ?");
+            $stmt->bind_param('si', $verificationCode, $user_id);
+            $updateSuccess = $stmt->execute();
+            $stmt->close();
+            
+            if (!$updateSuccess) {
+                sendApiError('Your email is unverified. We encountered an issue generating a new verification link. Please try again or contact support.', 500);
+            }
+        } else {
+            $stmt = $conn->prepare("INSERT INTO verification_code (user_id, code) VALUES (?, ?)");
+            $stmt->bind_param('is', $user_id, $verificationCode);
+            $insertSuccess = $stmt->execute();
+            $stmt->close();
+            
+            if (!$insertSuccess) {
+                sendApiError('Your email is unverified. We encountered an issue generating a new verification link. Please try again or contact support.', 500);
+            }
+        }
+        
+        // Prepare verification link based on role
+        if ($user['role'] === 'org_admin') {
+            $verificationLink = "setup_org.html?verify=$verificationCode";
+        } elseif ($user['role'] === 'visitor') {
+            $verificationLink = "verify.html?verify=$verificationCode";
+        } else {
+            $verificationLink = "setup.html?verify=$verificationCode";
+        }
+        
+        $subject = "Verify Your Account on NIVASITY";
+        $first_name = htmlspecialchars($user['first_name'], ENT_QUOTES, 'UTF-8');
+        $verificationLinkEscaped = htmlspecialchars($verificationLink, ENT_QUOTES, 'UTF-8');
+        $body = "Hello $first_name,
+<br><br>
+We noticed you tried to log in with Google but your account is still unverified. We've sent you a verification link to complete your registration.
+<br><br>
+Click on the following link to verify your account: <a href='https://funaab.nivasity.com/$verificationLinkEscaped'>Verify Account</a>
+<br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationLinkEscaped
+<br><br>
+Thank you for choosing Nivasity. We look forward to serving you!
+<br><br>
+Best regards,<br><b>Nivasity Team</b>";
+        
+        $mailStatus = sendBrevoMail($subject, $body, $user['email']);
+        
+        if ($mailStatus === "success") {
+            sendApiError("Your email is unverified. We've sent you a new verification link. Please check your inbox (and spam folder).", 403);
+        } else {
+            sendApiError('Your email is unverified. We tried to send you a new verification link, but encountered an issue. Please use the resend verification option or contact support.', 403);
+        }
+    }
+    
     if ($user['status'] === 'denied') {
         sendApiError('Your account is temporarily suspended. Contact our support team for help.', 403);
     }
@@ -96,16 +166,6 @@ if ($user_query->num_rows === 1) {
     // Only allow student and hoc roles for API
     if ($user['role'] !== 'student' && $user['role'] !== 'hoc') {
         sendApiError('Access denied. This API is for students only.', 403);
-    }
-    
-    // If account was unverified and email is verified by Google, mark as verified
-    if ($user['status'] === 'unverified' && $email_verified === true) {
-        $stmt = $conn->prepare("UPDATE users SET status = ? WHERE id = ?");
-        $status = 'active';
-        $stmt->bind_param('si', $status, $user['id']);
-        $stmt->execute();
-        $stmt->close();
-        $user['status'] = 'active';
     }
     
     // Update profile picture if not set
@@ -161,7 +221,8 @@ if ($user_query->num_rows === 1) {
         sendApiError('Invalid school_id. School does not exist or is not active.', 400);
     }
     
-    $status = $email_verified === true ? 'active' : 'unverified';
+    // All new users start as unverified - they need to go through setup
+    $status = 'unverified';
     $role = 'student';
     
     // Generate a random password (user won't need it for Google auth)
@@ -182,6 +243,39 @@ if ($user_query->num_rows === 1) {
     if ($affected < 1) {
         sendApiError('Failed to create user account. Please try again later!', 500);
     }
+    
+    // Generate verification code for new user
+    $verificationCode = generateVerificationCode(12);
+    
+    while (!isCodeUnique($verificationCode, $conn, 'verification_code')) {
+        $verificationCode = generateVerificationCode(12);
+    }
+    
+    // Insert verification code
+    $stmt = $conn->prepare("INSERT INTO verification_code (user_id, code) VALUES (?, ?)");
+    $stmt->bind_param('is', $user_id, $verificationCode);
+    $stmt->execute();
+    $stmt->close();
+    
+    // Prepare verification link based on role
+    $verificationLink = "setup.html?verify=$verificationCode";
+    
+    $subject = "Verify Your Account on NIVASITY";
+    $first_name_escaped = htmlspecialchars($first_name, ENT_QUOTES, 'UTF-8');
+    $verificationLinkEscaped = htmlspecialchars($verificationLink, ENT_QUOTES, 'UTF-8');
+    $body = "Hello $first_name_escaped,
+<br><br>
+Welcome to Nivasity! You've successfully created an account using Google Sign-In. To complete your registration, please verify your email address.
+<br><br>
+Click on the following link to verify your account and complete setup: <a href='https://funaab.nivasity.com/$verificationLinkEscaped'>Verify Account</a>
+<br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationLinkEscaped
+<br><br>
+Thank you for choosing Nivasity. We look forward to serving you!
+<br><br>
+Best regards,<br><b>Nivasity Team</b>";
+    
+    // Send verification email
+    sendBrevoMail($subject, $body, $email);
     
     // Generate JWT tokens
     $tokens = generateTokenPair($user_id, $role, $school_id);
