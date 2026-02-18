@@ -103,7 +103,7 @@ if ($user_query->num_rows === 1) {
         
         // Ensure uniqueness with retry limit to prevent infinite loops
         $retryCount = 0;
-        $maxRetries = 10;
+        $maxRetries = 5; // Collisions are extremely rare with 12-char alphanumeric
         while (!isCodeUnique($verificationCode, $conn, 'verification_code') && $retryCount < $maxRetries) {
             $verificationCode = generateVerificationCode(12);
             $retryCount++;
@@ -258,7 +258,7 @@ Best regards,<br><b>Nivasity Team</b>";
     
     // Ensure uniqueness with retry limit to prevent infinite loops
     $retryCount = 0;
-    $maxRetries = 10;
+    $maxRetries = 5; // Collisions are extremely rare with 12-char alphanumeric
     while (!isCodeUnique($verificationCode, $conn, 'verification_code') && $retryCount < $maxRetries) {
         $verificationCode = generateVerificationCode(12);
         $retryCount++;

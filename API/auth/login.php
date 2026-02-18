@@ -37,8 +37,16 @@ if ($user['status'] === 'unverified') {
     $user_id = $user['id'];
     $verificationCode = generateVerificationCode(12);
     
-    while (!isCodeUnique($verificationCode, $conn, 'verification_code')) {
+    // Ensure uniqueness with retry limit
+    $retryCount = 0;
+    $maxRetries = 5; // Collisions are extremely rare with 12-char alphanumeric
+    while (!isCodeUnique($verificationCode, $conn, 'verification_code') && $retryCount < $maxRetries) {
         $verificationCode = generateVerificationCode(12);
+        $retryCount++;
+    }
+    
+    if ($retryCount >= $maxRetries) {
+        sendApiError('Unable to generate verification code. Please try again.', 500);
     }
     
     // Update or insert verification code
