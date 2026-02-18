@@ -296,6 +296,9 @@ if (isset($_POST['login'])) {
         $statusRes = "error";
         $messageRes = "Unable to generate verification code. Please try again.";
       } else {
+        // Error message for database failures
+        $dbErrorMsg = "Your email is unverified. We encountered an issue generating a new verification link. Please try again or contact support.";
+        
         // Update or insert verification code using prepared statement
         $stmt = $conn->prepare("SELECT user_id FROM verification_code WHERE user_id = ?");
         $stmt->bind_param('i', $user_id);
@@ -311,7 +314,7 @@ if (isset($_POST['login'])) {
           
           if (!$updateSuccess) {
             $statusRes = "error";
-            $messageRes = "Your email is unverified. We encountered an issue generating a new verification link. Please try again or contact support.";
+            $messageRes = $dbErrorMsg;
           }
         } else {
           $stmt = $conn->prepare("INSERT INTO verification_code (user_id, code) VALUES (?, ?)");
@@ -321,7 +324,7 @@ if (isset($_POST['login'])) {
           
           if (!$insertSuccess) {
             $statusRes = "error";
-            $messageRes = "Your email is unverified. We encountered an issue generating a new verification link. Please try again or contact support.";
+            $messageRes = $dbErrorMsg;
           }
         }
         
@@ -337,6 +340,7 @@ if (isset($_POST['login'])) {
           }
           
           $subject = "Verify Your Account on NIVASITY";
+          // Escape user data for safe inclusion in HTML email
           $first_name = htmlspecialchars($user['first_name'], ENT_QUOTES, 'UTF-8');
           $verificationLinkEscaped = htmlspecialchars($verificationLink, ENT_QUOTES, 'UTF-8');
           $body = "Hello $first_name,
