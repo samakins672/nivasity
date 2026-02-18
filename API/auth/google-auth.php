@@ -133,9 +133,9 @@ if ($user_query->num_rows === 1) {
         }
         
         $subject = "Verify Your Account on NIVASITY";
-        $first_name = htmlspecialchars($user['first_name'], ENT_QUOTES, 'UTF-8');
+        $first_name_escaped = htmlspecialchars($user['first_name'], ENT_QUOTES, 'UTF-8');
         $verificationLinkEscaped = htmlspecialchars($verificationLink, ENT_QUOTES, 'UTF-8');
-        $body = "Hello $first_name,
+        $body = "Hello $first_name_escaped,
 <br><br>
 We noticed you tried to log in with Google but your account is still unverified. We've sent you a verification link to complete your registration.
 <br><br>
@@ -234,7 +234,7 @@ Best regards,<br><b>Nivasity Team</b>";
     
     // Create user
     $stmt = $conn->prepare("INSERT INTO users (first_name, last_name, email, phone, password, role, school, gender, profile_pic, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param('ssssssssss', $first_name, $last_name, $email, $phone, $random_password, $role, $school_id, $gender, $profile_pic, $status);
+    $stmt->bind_param('ssssssisss', $first_name, $last_name, $email, $phone, $random_password, $role, $school_id, $gender, $profile_pic, $status);
     $stmt->execute();
     $user_id = $conn->insert_id;
     $affected = $stmt->affected_rows;
@@ -278,6 +278,9 @@ Best regards,<br><b>Nivasity Team</b>";
     sendBrevoMail($subject, $body, $email);
     
     // Generate JWT tokens
+    // Note: Tokens are provided immediately to allow app to persist session
+    // The app should check user.status and guide unverified users through verification
+    // Protected routes should verify user status before granting access
     $tokens = generateTokenPair($user_id, $role, $school_id);
     
     // Prepare user data
