@@ -74,11 +74,15 @@ if (!$google_id || !$email) {
 }
 
 // Check if user exists with this email
-$user_query = mysqli_query($conn, "SELECT * FROM users WHERE email = '$email'");
+$stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+$stmt->bind_param('s', $email);
+$stmt->execute();
+$user_query = $stmt->get_result();
+$stmt->close();
 
-if (mysqli_num_rows($user_query) === 1) {
+if ($user_query->num_rows === 1) {
     // User exists - perform login
-    $user = mysqli_fetch_array($user_query);
+    $user = $user_query->fetch_array();
     
     // Check user status
     if ($user['status'] === 'denied') {
@@ -95,14 +99,21 @@ if (mysqli_num_rows($user_query) === 1) {
     }
     
     // If account was unverified and email is verified by Google, mark as verified
-    if ($user['status'] === 'unverified' && $email_verified === 'true') {
-        mysqli_query($conn, "UPDATE users SET status = 'active' WHERE id = {$user['id']}");
+    if ($user['status'] === 'unverified' && $email_verified === true) {
+        $stmt = $conn->prepare("UPDATE users SET status = ? WHERE id = ?");
+        $status = 'active';
+        $stmt->bind_param('si', $status, $user['id']);
+        $stmt->execute();
+        $stmt->close();
         $user['status'] = 'active';
     }
     
     // Update profile picture if not set
     if (empty($user['profile_pic']) && !empty($profile_pic)) {
-        mysqli_query($conn, "UPDATE users SET profile_pic = '$profile_pic' WHERE id = {$user['id']}");
+        $stmt = $conn->prepare("UPDATE users SET profile_pic = ? WHERE id = ?");
+        $stmt->bind_param('si', $profile_pic, $user['id']);
+        $stmt->execute();
+        $stmt->close();
         $user['profile_pic'] = $profile_pic;
     }
     
@@ -140,12 +151,17 @@ if (mysqli_num_rows($user_query) === 1) {
     }
     
     // Validate school exists and is active
-    $school_check = mysqli_query($conn, "SELECT id FROM schools WHERE id = $school_id AND status = 'active'");
-    if (mysqli_num_rows($school_check) === 0) {
+    $stmt = $conn->prepare("SELECT id FROM schools WHERE id = ? AND status = 'active'");
+    $stmt->bind_param('i', $school_id);
+    $stmt->execute();
+    $school_check = $stmt->get_result();
+    $stmt->close();
+    
+    if ($school_check->num_rows === 0) {
         sendApiError('Invalid school_id. School does not exist or is not active.', 400);
     }
     
-    $status = $email_verified === 'true' ? 'active' : 'unverified';
+    $status = $email_verified === true ? 'active' : 'unverified';
     $role = 'student';
     
     // Generate a random password (user won't need it for Google auth)
@@ -156,11 +172,14 @@ if (mysqli_num_rows($user_query) === 1) {
     $gender = $input['gender'] ?? '';
     
     // Create user
-    mysqli_query($conn, "INSERT INTO users (first_name, last_name, email, phone, password, role, school, gender, profile_pic, status)"
-        . " VALUES ('$first_name', '$last_name', '$email', '$phone', '$random_password', '$role', $school_id, '$gender', '$profile_pic', '$status')");
-    $user_id = mysqli_insert_id($conn);
+    $stmt = $conn->prepare("INSERT INTO users (first_name, last_name, email, phone, password, role, school, gender, profile_pic, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param('ssssssssss', $first_name, $last_name, $email, $phone, $random_password, $role, $school_id, $gender, $profile_pic, $status);
+    $stmt->execute();
+    $user_id = $conn->insert_id;
+    $affected = $stmt->affected_rows;
+    $stmt->close();
     
-    if (mysqli_affected_rows($conn) < 1) {
+    if ($affected < 1) {
         sendApiError('Failed to create user account. Please try again later!', 500);
     }
     
