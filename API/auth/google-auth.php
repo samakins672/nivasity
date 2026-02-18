@@ -84,7 +84,16 @@ if ($user_query->num_rows === 1) {
     // User exists - perform login
     $user = $user_query->fetch_array();
     
-    // Check user status - Google OAuth users also need to verify
+    // Check user status - deny/deactivate takes priority over unverified
+    if ($user['status'] === 'denied') {
+        sendApiError('Your account is temporarily suspended. Contact our support team for help.', 403);
+    }
+    
+    if ($user['status'] === 'deactivated') {
+        sendApiError('Your account has been deactivated. Contact our support team to reopen your account.', 403);
+    }
+    
+    // Check if user is unverified - Google OAuth users also need to verify
     if ($user['status'] === 'unverified') {
         // Auto-resend verification link (same as regular login)
         require_once __DIR__ . '/../../model/mail.php';
@@ -153,14 +162,6 @@ Best regards,<br><b>Nivasity Team</b>";
         } else {
             sendApiError('Your email is unverified. We tried to send you a new verification link, but encountered an issue. Please use the resend verification option or contact support.', 403);
         }
-    }
-    
-    if ($user['status'] === 'denied') {
-        sendApiError('Your account is temporarily suspended. Contact our support team for help.', 403);
-    }
-    
-    if ($user['status'] === 'deactivated') {
-        sendApiError('Your account has been deactivated. Contact our support team to reopen your account.', 403);
     }
     
     // Only allow student and hoc roles for API
