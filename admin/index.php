@@ -4,6 +4,19 @@ include('../model/config.php');
 include('../model/page_config.php');
 include('../model/system_alerts.php');
 
+// Include material management configuration
+if (file_exists('../config/material_management.php')) {
+  include('../config/material_management.php');
+} else {
+  // Set defaults if config file doesn't exist
+  if (!defined('MATERIAL_MANAGEMENT_ENABLED')) {
+    define('MATERIAL_MANAGEMENT_ENABLED', true);
+  }
+  if (!defined('MATERIAL_MANAGEMENT_DISABLED_MESSAGE')) {
+    define('MATERIAL_MANAGEMENT_DISABLED_MESSAGE', 'The School Management has disabled material management at this level. Please reach out to your faculty managers to make enquiry.');
+  }
+}
+
 // Fetch active system alerts
 $system_alerts = get_active_system_alerts($conn);
 
@@ -364,12 +377,22 @@ if (mysqli_num_rows($settlement_query) == 0) {
                             <div class="d-sm-flex justify-content-end">
                               <div>
                               <?php if (mysqli_num_rows($settlement_query) > 0): ?>
-                                <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"
-                                  data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual' : 'verificationManual' ?>"><i class="mdi mdi-book"></i>Add new
+                                <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button" id="addMaterialBtn"
+                                  <?php if (!MATERIAL_MANAGEMENT_ENABLED): ?>
+                                  style="background-color: #6c757d; border-color: #6c757d;"
+                                  <?php endif; ?>
+                                  <?php if (MATERIAL_MANAGEMENT_ENABLED): ?>
+                                  data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual' : 'verificationManual' ?>"
+                                  <?php endif; ?>><i class="mdi mdi-book"></i>Add new
                                   material</button>
                               <?php else: ?> 
-                                <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button"
-                                  data-bs-toggle="modal" data-bs-target="#addSettlement"><i class="mdi mdi-book"></i>Add new
+                                <button class="btn btn-primary btn-lg text-white mb-0 me-0" type="button" id="addMaterialBtn"
+                                  <?php if (!MATERIAL_MANAGEMENT_ENABLED): ?>
+                                  style="background-color: #6c757d; border-color: #6c757d;"
+                                  <?php endif; ?>
+                                  <?php if (MATERIAL_MANAGEMENT_ENABLED): ?>
+                                  data-bs-toggle="modal" data-bs-target="#addSettlement"
+                                  <?php endif; ?>><i class="mdi mdi-book"></i>Add new
                                   material</button>
                               <?php endif; ?> 
                               </div>
@@ -385,7 +408,9 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                     <th class="d-sm-none-2">Availability</th>
                                     <th class="d-sm-none-2">Due Date</th>
                                     <th>Status</th>
+                                    <?php if (MATERIAL_MANAGEMENT_ENABLED): ?>
                                     <th>Actions</th>
+                                    <?php endif; ?>
                                   </tr>
                                 </thead>
                                 <tbody id="manual_tbody">
@@ -448,6 +473,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                         <td>
                                           <div class="badge <?php echo ($status == 'open') ? 'bg-success' : 'bg-danger'; ?>"> <?php echo ($status == 'open') ? 'Active' : 'Closed'; ?> </div>
                                         </td>
+                                        <?php if (MATERIAL_MANAGEMENT_ENABLED): ?>
                                         <td>
                                           <div class="dropdown">
                                             <button type="button" class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="true">
@@ -483,6 +509,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                             </div>
                                           </div>
                                         </td>
+                                        <?php endif; ?>
                                       </tr>
                                   <?php } ?>
                                 </tbody>
@@ -696,6 +723,25 @@ if (mysqli_num_rows($settlement_query) == 0) {
                           <button id="export_manual_submit" type="submit" class="btn btn-lg btn-dark"><i class="mdi mdi-file-export text-white"></i> Proceed Export</button>
                         </div>
                       </form>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Access Denied Modal -->
+                <div class="modal fade" id="accessDeniedModal" tabindex="-1" role="dialog" aria-labelledby="accessDeniedModalLabel"
+                  aria-hidden="true">
+                  <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h4 class="modal-title fw-bold" id="accessDeniedModalLabel">Access Denied</h4>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body">
+                        <p><?php echo htmlspecialchars(defined('MATERIAL_MANAGEMENT_DISABLED_MESSAGE') ? MATERIAL_MANAGEMENT_DISABLED_MESSAGE : 'The School Management has disabled material management at this level. Please reach out to your faculty managers to make enquiry.', ENT_QUOTES, 'UTF-8'); ?></p>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-lg btn-primary" data-bs-dismiss="modal">Close</button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1013,6 +1059,21 @@ if (mysqli_num_rows($settlement_query) == 0) {
   <script>
     $(document).ready(function () {
       $('.btn').attr('data-mdb-ripple-duration', '0');
+
+      // Handle disabled material management button click
+      <?php if (!MATERIAL_MANAGEMENT_ENABLED): ?>
+      // Handle main "Add new material" button click
+      $('#addMaterialBtn').on('click', function(e) {
+        e.preventDefault();
+        $('#accessDeniedModal').modal('show');
+      });
+      
+      // Handle sidebar "New Material" button click
+      $('.sidebar-add-material-btn').on('click', function(e) {
+        e.preventDefault();
+        $('#accessDeniedModal').modal('show');
+      });
+      <?php endif; ?>
 
       $('#addManual').on('hidden.bs.modal', function () {
         // Reset the form by setting its values to empty
