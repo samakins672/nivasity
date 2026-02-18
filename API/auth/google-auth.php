@@ -254,8 +254,12 @@ Best regards,<br><b>Nivasity Team</b>";
     // Insert verification code
     $stmt = $conn->prepare("INSERT INTO verification_code (user_id, code) VALUES (?, ?)");
     $stmt->bind_param('is', $user_id, $verificationCode);
-    $stmt->execute();
+    $insertSuccess = $stmt->execute();
     $stmt->close();
+    
+    if (!$insertSuccess) {
+        sendApiError('Account created but failed to generate verification code. Please contact support.', 500);
+    }
     
     // Prepare verification link based on role
     $verificationLink = "setup.html?verify=$verificationCode";
@@ -275,7 +279,10 @@ Thank you for choosing Nivasity. We look forward to serving you!
 Best regards,<br><b>Nivasity Team</b>";
     
     // Send verification email
-    sendBrevoMail($subject, $body, $email);
+    $mailStatus = sendBrevoMail($subject, $body, $email);
+    
+    // Note: We don't fail registration if email fails, but we inform the user
+    // They can use the resend-verification endpoint to get a new link
     
     // Generate JWT tokens
     // Note: Tokens are provided immediately to allow app to persist session
@@ -304,6 +311,11 @@ Best regards,<br><b>Nivasity Team</b>";
     // Combine user data with tokens
     $responseData = array_merge($userData, $tokens);
     
-    sendApiSuccess('Account created and logged in successfully with Google!', $responseData, 201);
+    // Inform user about email status in the message
+    if ($mailStatus === "success") {
+        sendApiSuccess('Account created successfully with Google! Please check your email for verification link.', $responseData, 201);
+    } else {
+        sendApiSuccess('Account created successfully with Google! However, we could not send the verification email. Please use the resend verification option.', $responseData, 201);
+    }
 }
 ?>
