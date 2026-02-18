@@ -248,3 +248,50 @@ The payment freeze system allows you to temporarily pause all payment operations
   - `config/payment_freeze.php` — Your actual configuration (git-ignored)
   - `model/payment_freeze.php` — Helper functions for checking freeze status
   - `index.php` — Frontend checkout integration with modal display
+
+## Material Management Configuration
+
+The material management configuration allows School Management to control whether HOC/Admin users can manage materials in the admin panel. When disabled, HOC/Admin users can view materials but cannot add, edit, or delete them.
+
+- **Configuration File**
+  - Create `config/material_management.php` by copying `config/material_management.example.php`
+  - `config/material_management.php` is ignored by git for per-environment configuration
+  - Two main settings:
+    - `MATERIAL_MANAGEMENT_ENABLED` — Set to `true` to allow HOC/Admin to manage materials (default), `false` to disable material management
+    - `MATERIAL_MANAGEMENT_DISABLED_MESSAGE` — Custom message displayed when users click the disabled "Add new material" button
+
+- **How It Works**
+  - When `MATERIAL_MANAGEMENT_ENABLED` is set to `true` (default):
+    - HOC/Admin can add new materials
+    - The action column on the materials table is visible with edit/export/delete options
+    - Everything works as normal
+  - When `MATERIAL_MANAGEMENT_ENABLED` is set to `false`:
+    - The "Add new material" button is disabled
+    - Clicking the disabled button shows an alert with the configured message
+    - The action column on the materials table is completely removed
+    - HOC/Admin can still view materials and their statistics but cannot modify them
+
+- **Usage Examples**
+  ```php
+  // Example 1: Enable material management (default behavior)
+  define('MATERIAL_MANAGEMENT_ENABLED', true);
+  define('MATERIAL_MANAGEMENT_DISABLED_MESSAGE', 'The School Management has disabled material management at this level. Please reach out to your faculty managers to make enquiry.');
+
+  // Example 2: Disable material management with custom message
+  define('MATERIAL_MANAGEMENT_ENABLED', false);
+  define('MATERIAL_MANAGEMENT_DISABLED_MESSAGE', 'Material management is currently restricted. Please contact your department head for assistance.');
+
+  // Example 3: Disable with default message
+  define('MATERIAL_MANAGEMENT_ENABLED', false);
+  define('MATERIAL_MANAGEMENT_DISABLED_MESSAGE', 'The School Management has disabled material management at this level. Please reach out to your faculty managers to make enquiry.');
+  ```
+
+- **Default Message**
+  - The default message is:
+    - "The School Management has disabled material management at this level. Please reach out to your faculty managers to make enquiry."
+  - This message guides users to contact their faculty managers for material-related inquiries
+
+- **Files Involved**
+  - `config/material_management.example.php` — Example configuration template
+  - `config/material_management.php` — Your actual configuration (git-ignored)
+  - `admin/index.php` — Admin dashboard with conditional material management UI
