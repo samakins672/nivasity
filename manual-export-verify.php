@@ -37,10 +37,10 @@ if ($code !== '') {
     : "'given' AS export_status";
   $grantedBySelect = $hasGrantedBy ? "a.granted_by" : "NULL AS granted_by";
   $grantedAtSelect = $hasGrantedAt ? "a.granted_at" : "NULL AS granted_at";
-  $grantedByUserSelect = $hasGrantedBy
-    ? "CONCAT(COALESCE(g.first_name, ''), ' ', COALESCE(g.last_name, '')) AS granted_by_name, g.email AS granted_by_email"
-    : "'' AS granted_by_name, '' AS granted_by_email";
-  $grantedByJoin = $hasGrantedBy ? "LEFT JOIN users AS g ON g.id = a.granted_by" : "";
+  $grantedByAdminSelect = $hasGrantedBy
+    ? "CONCAT(COALESCE(ad.first_name, ''), ' ', COALESCE(ad.last_name, '')) AS granted_by_name"
+    : "'' AS granted_by_name";
+  $grantedByJoin = $hasGrantedBy ? "LEFT JOIN admins AS ad ON ad.id = a.granted_by" : "";
 
   $sql = "
     SELECT 
@@ -51,7 +51,7 @@ if ($code !== '') {
       $statusSelect,
       $grantedBySelect,
       $grantedAtSelect,
-      $grantedByUserSelect,
+      $grantedByAdminSelect,
       m.title AS manual_title,
       m.course_code,
       m.code AS manual_internal_code,
@@ -264,14 +264,18 @@ function formatDateTimeReadable($dt) {
                     $rawStatus = strtolower(trim((string)($record['export_status'] ?? '')));
                     if ($rawStatus === 'granted') {
                       $status = 'Granted';
+                      $statusBadgeClass = 'bg-success';
                     } elseif ($rawStatus === 'pending') {
                       $status = 'Pending';
+                      $statusBadgeClass = 'bg-warning text-dark';
                     } elseif ($rawStatus === 'given' || $rawStatus === '') {
                       $status = 'Given';
+                      $statusBadgeClass = 'bg-secondary';
                     } else {
                       $status = ucfirst($rawStatus);
+                      $statusBadgeClass = 'bg-info text-dark';
                     }
-                    echo h($status); 
+                    echo '<span class="badge rounded-pill ' . h($statusBadgeClass) . '">' . h($status) . '</span>';
                   ?>
                 </div>
               </div>
@@ -285,7 +289,6 @@ function formatDateTimeReadable($dt) {
 
             <?php
               $grantedByName = trim((string)($record['granted_by_name'] ?? ''));
-              $grantedByEmail = trim((string)($record['granted_by_email'] ?? ''));
               $grantedById = isset($record['granted_by']) ? (int)$record['granted_by'] : 0;
               $grantedAt = !empty($record['granted_at']) ? formatDateTimeReadable($record['granted_at']) : '';
             ?>
@@ -303,9 +306,6 @@ function formatDateTimeReadable($dt) {
                     }
                   ?>
                 </div>
-                <?php if ($grantedByEmail !== ''): ?>
-                  <div class="text-muted small"><?php echo h($grantedByEmail); ?></div>
-                <?php endif; ?>
               </div>
               <div class="col-md-6">
                 <div class="meta-label">Granted At</div>
