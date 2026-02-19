@@ -40,7 +40,7 @@ if ($user_dept) {
 }
 
 // Filter by: department-specific materials OR faculty-level materials (dept=0 with matching faculty)
-if ($user_dept_safe && $user_faculty) {
+if ($user_dept_safe && $user_faculty !== null) {
     $where_conditions[] = "(m.dept = $user_dept_safe OR (m.dept = 0 AND m.faculty = $user_faculty))";
 } elseif ($user_dept_safe) {
     // If no faculty found, just filter by department

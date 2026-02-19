@@ -406,7 +406,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                     <?php endif; ?>      
                   </div>
                   <?php if ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'hoc'): ?>
-                  <div class="tab-pane fade hide" id="manuals" role="tabpanel" aria-labelledby="manuals">
+                  <div class="tab-pane fade" id="manuals" role="tabpanel" aria-labelledby="profile-tab">
                     <div class="row flex-grow">
                       <div class="col-12 grid-margin stretch-card">
                         <div class="card card-rounded shadow-sm">
@@ -582,7 +582,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                   </div>
                   
                   <?php elseif ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'org_admin'): ?>
-                  <div class="tab-pane fade hide" id="events" role="tabpanel" aria-labelledby="events">
+                  <div class="tab-pane fade" id="events" role="tabpanel" aria-labelledby="contact-tab">
                     <div class="row flex-grow">
                         <div class="col-12 grid-margin stretch-card">
                           <div class="card card-rounded shadow-sm">
