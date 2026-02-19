@@ -207,12 +207,12 @@ if (mysqli_num_rows($settlement_query) == 0) {
                     <?php if ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'hoc'): ?>
                     <li class="nav-item">
                       <a class="nav-link px-3 fw-bold" id="profile-tab" data-bs-toggle="tab" href="#manuals" role="tab"
-                        aria-selected="false">Materials</a>
+                        aria-controls="manuals" aria-selected="false">Materials</a>
                     </li>
                     <?php elseif ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'org_admin'): ?>
                     <li class="nav-item">
                       <a class="nav-link px-3 fw-bold" id="contact-tab" data-bs-toggle="tab" href="#events" role="tab"
-                        aria-selected="false">Events</a>
+                        aria-controls="events" aria-selected="false">Events</a>
                     </li>
                     <?php endif; ?>
                   </ul>
@@ -220,7 +220,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                   </div>
                 </div>
                 <div class="tab-content tab-content-basic">
-                  <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview">
+                  <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="home-tab">
                     <?php if ($user_status == 'verified'): ?>
                     <div class="row flex-grow">
                       <div class="col-12">
