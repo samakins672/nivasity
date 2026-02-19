@@ -828,7 +828,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                         <input type="hidden" name="code" value="0">
                         <input type="hidden" name="manual_id" value="0">
                         <div class="modal-body">
-                          <div class="alert alert-warning py-2 px-3 mb-3 small">
+                          <div class="alert alert-secondary py-2 px-3 mb-3 small">
                             Export includes only students yet to be marked as collected on the platform.
                             Students already granted will not appear in subsequent exports.
                           </div>
@@ -1626,9 +1626,9 @@ if (mysqli_num_rows($settlement_query) == 0) {
         var firstCheck = "Export will only include students yet to be marked as collected on the platform. Continue?";
         var secondCheck = "Once this list is granted, those students will not be in the next/subsequent export for this material. Proceed now?";
 
-        if (!window.confirm(firstCheck)) {
-          return;
-        }
+        // if (!window.confirm(firstCheck)) {
+        //   return;
+        // }
         if (!window.confirm(secondCheck)) {
           return;
         }
