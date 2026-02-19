@@ -115,10 +115,26 @@ The export API now returns an additional `status` field for each student:
 
 ## Security Considerations
 
+### Changes Made
 - No new security vulnerabilities introduced
-- Uses existing authentication and authorization
-- SQL queries use proper escaping with `mysqli_real_escape_string()`
-- No direct user input for status field (controlled by system logic)
+- Uses existing authentication and authorization patterns
+- SQL queries use proper integer casting for `$manualId` (cast to int on line 32)
+- Status field is system-controlled (not user input)
+- Output properly escaped using existing `h()` function in verification page
+
+### Existing Security Patterns Followed
+- **Input Validation**: `$manualId` is validated and cast to integer before use
+- **Session Authentication**: Uses existing `$_SESSION['nivas_userId']` for user identification
+- **SQL Escaping**: New code follows existing patterns (uses `mysqli_real_escape_string()` where needed)
+- **Output Escaping**: HTML output in verification page uses `h()` function with `htmlspecialchars()`
+
+### Status Field Security
+- **Not User Controlled**: The status field ('given' or 'granted') is set by system logic only
+- **Hardcoded Values**: Only two possible values are used: 'given' and 'granted'
+- **Database Level**: Admin must manually update status to 'granted' via SQL (intentional design)
+
+### Note on Pre-existing Code
+The codebase uses `mysqli_real_escape_string()` and string concatenation for SQL queries. While prepared statements would be more secure, this implementation maintains consistency with the existing codebase to minimize changes. Any security improvements should be applied codebase-wide, not just to new features.
 
 ## Future Enhancements
 
