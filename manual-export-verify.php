@@ -16,6 +16,7 @@ if ($code !== '') {
       a.students_count,
       a.total_amount,
       a.downloaded_at,
+      a.status,
       m.title AS manual_title,
       m.course_code,
       m.code AS manual_internal_code,
@@ -208,19 +209,28 @@ function formatDateTimeReadable($dt) {
             </div>
 
             <div class="row g-3 mb-3">
-              <div class="col-md-4">
+              <div class="col-md-3">
                 <div class="meta-label">Total Students</div>
                 <div class="meta-value">
                   <?php echo (int)$record['students_count']; ?>
                 </div>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-3">
                 <div class="meta-label">Total Amount</div>
                 <div class="meta-value">
                   &#8358; <?php echo formatAmount($record['total_amount']); ?>
                 </div>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-3">
+                <div class="meta-label">Status</div>
+                <div class="meta-value">
+                  <?php 
+                    $status = !empty($record['status']) ? ucfirst(strtolower($record['status'])) : 'Given';
+                    echo h($status); 
+                  ?>
+                </div>
+              </div>
+              <div class="col-md-3">
                 <div class="meta-label">Date Exported</div>
                 <div class="meta-value">
                   <?php echo h(formatDateTimeReadable($record['downloaded_at'])); ?>

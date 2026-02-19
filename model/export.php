@@ -48,11 +48,13 @@ if (isset($_POST['manual_id'])) {
   // Fetch user details from the users table and price from manuals_bought table
   $query = "
     SELECT
+      u.id AS user_id,
       u.first_name,
       u.last_name,
       u.matric_no,
       u.adm_year,
-      mb.price
+      mb.price,
+      mb.created_at
     FROM
       manuals_bought AS mb
     JOIN
@@ -69,19 +71,80 @@ if (isset($_POST['manual_id'])) {
   $result = mysqli_query($conn, $query);
   $usersData = [];
   $totalAmount = 0;
+  $lastStudentId = null;
+  $lastPurchaseTime = null;
 
   while ($row = mysqli_fetch_assoc($result)) {
     $price = (int)$row['price'];
     $totalAmount += $price;
+    $userId = (int)$row['user_id'];
+    $createdAt = $row['created_at'];
+    
+    // Track the last student ID based on purchase time
+    if ($lastPurchaseTime === null || strtotime($createdAt) > strtotime($lastPurchaseTime)) {
+      $lastStudentId = $userId;
+      $lastPurchaseTime = $createdAt;
+    }
+    
     $usersData[] = [
+      'user_id' => $userId,
       'name' => $row['first_name'] . ' ' . $row['last_name'],
       'matric_no' => $row['matric_no'],
       'adm_year' => $row['adm_year'],
       'price' => $price,
+      'status' => 'given', // Default status, will be updated later
     ];
   }
 
   $studentsCount = count($usersData);
+
+  // Check for previous exports with status='granted' for this manual
+  $grantedStudentIds = [];
+  $prevExportQuery = "
+    SELECT last_student_id
+    FROM manual_export_audits
+    WHERE manual_id = $manualId
+      AND status = 'granted'
+      AND last_student_id IS NOT NULL
+    ORDER BY downloaded_at DESC
+    LIMIT 1
+  ";
+  $prevExportRes = mysqli_query($conn, $prevExportQuery);
+  
+  if ($prevExportRes && mysqli_num_rows($prevExportRes) > 0) {
+    $prevExportRow = mysqli_fetch_assoc($prevExportRes);
+    $prevLastStudentId = (int)$prevExportRow['last_student_id'];
+    
+    // Get all student IDs up to and including the last granted student ID
+    // based on their purchase order (created_at)
+    $grantedQuery = "
+      SELECT DISTINCT mb.buyer
+      FROM manuals_bought AS mb
+      WHERE mb.manual_id = $manualId
+        AND mb.status = 'successful'
+        AND mb.created_at <= (
+          SELECT created_at
+          FROM manuals_bought
+          WHERE manual_id = $manualId
+            AND buyer = $prevLastStudentId
+            AND status = 'successful'
+          ORDER BY created_at DESC
+          LIMIT 1
+        )
+    ";
+    $grantedRes = mysqli_query($conn, $grantedQuery);
+    while ($grantedRow = mysqli_fetch_assoc($grantedRes)) {
+      $grantedStudentIds[] = (int)$grantedRow['buyer'];
+    }
+  }
+  
+  // Update status for granted students
+  foreach ($usersData as &$user) {
+    if (in_array($user['user_id'], $grantedStudentIds)) {
+      $user['status'] = 'granted';
+    }
+  }
+  unset($user); // Break reference
 
   // Generate and persist a verification code for this export
   $verificationCode = generateManualExportCode($conn);
@@ -92,11 +155,12 @@ if (isset($_POST['manual_id'])) {
   $hocUserIdInt = $hocUserId ?: 0;
   $studentsCountInt = (int)$studentsCount;
   $totalAmountInt = (int)$totalAmount;
+  $lastStudentIdValue = $lastStudentId ? (int)$lastStudentId : 'NULL';
 
   mysqli_query(
     $conn,
-    "INSERT INTO manual_export_audits (code, manual_id, hoc_user_id, students_count, total_amount, downloaded_at)
-     VALUES ('$safeCode', $manualIdInt, $hocUserIdInt, $studentsCountInt, $totalAmountInt, '$safeDownloadedAt')"
+    "INSERT INTO manual_export_audits (code, manual_id, hoc_user_id, students_count, total_amount, downloaded_at, last_student_id, status)
+     VALUES ('$safeCode', $manualIdInt, $hocUserIdInt, $studentsCountInt, $totalAmountInt, '$safeDownloadedAt', $lastStudentIdValue, 'given')"
   );
 
   // Fetch HOC basic info for display (if available)
