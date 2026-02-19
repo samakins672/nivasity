@@ -75,6 +75,29 @@ function exportRunQuery(mysqli $conn, $sql, $requestId, $step, array $context = 
   return $res;
 }
 
+function exportResolveAuditStatusColumn(mysqli $conn, $requestId) {
+  static $resolved = null;
+  if ($resolved !== null) {
+    return $resolved;
+  }
+
+  $hasGrantStatus = mysqli_query($conn, "SHOW COLUMNS FROM manual_export_audits LIKE 'grant_status'");
+  if ($hasGrantStatus && mysqli_num_rows($hasGrantStatus) > 0) {
+    $resolved = 'grant_status';
+    return $resolved;
+  }
+
+  $hasStatus = mysqli_query($conn, "SHOW COLUMNS FROM manual_export_audits LIKE 'status'");
+  if ($hasStatus && mysqli_num_rows($hasStatus) > 0) {
+    $resolved = 'status';
+    return $resolved;
+  }
+
+  exportLog($requestId, 'Audit status column not found; export will continue without granted lookups');
+  $resolved = '';
+  return $resolved;
+}
+
 // Check if the manual ID is provided in the POST request
 if (isset($_POST['manual_id'])) {
   $requestId = exportRequestId();
@@ -86,6 +109,7 @@ if (isset($_POST['manual_id'])) {
     }
 
     $hocUserId = isset($_SESSION['nivas_userId']) ? (int)$_SESSION['nivas_userId'] : 0;
+    $auditStatusColumn = exportResolveAuditStatusColumn($conn, $requestId);
     exportLog($requestId, 'Manual export started', ['manual_id' => $manualId, 'hoc_user_id' => $hocUserId]);
 
     $manualRes = exportRunQuery(
@@ -161,24 +185,28 @@ if (isset($_POST['manual_id'])) {
 
     // Check for previous exports with status='granted' for this manual
     $grantedStudentIds = [];
-    $prevExportQuery = "
-      SELECT last_student_id
-      FROM manual_export_audits
-      WHERE manual_id = $manualId
-        AND status = 'granted'
-        AND last_student_id IS NOT NULL
-      ORDER BY downloaded_at DESC
-      LIMIT 1
-    ";
-    $prevExportRes = exportRunQuery(
-      $conn,
-      $prevExportQuery,
-      $requestId,
-      'load_last_granted_export',
-      ['manual_id' => $manualId]
-    );
+    $prevExportRes = false;
+    if ($auditStatusColumn !== '') {
+      $safeAuditStatusColumn = ($auditStatusColumn === 'grant_status') ? 'grant_status' : 'status';
+      $prevExportQuery = "
+        SELECT last_student_id
+        FROM manual_export_audits
+        WHERE manual_id = $manualId
+          AND `$safeAuditStatusColumn` = 'granted'
+          AND last_student_id IS NOT NULL
+        ORDER BY downloaded_at DESC
+        LIMIT 1
+      ";
+      $prevExportRes = exportRunQuery(
+        $conn,
+        $prevExportQuery,
+        $requestId,
+        'load_last_granted_export',
+        ['manual_id' => $manualId, 'audit_status_column' => $safeAuditStatusColumn]
+      );
+    }
 
-    if (mysqli_num_rows($prevExportRes) > 0) {
+    if ($prevExportRes && mysqli_num_rows($prevExportRes) > 0) {
       $prevExportRow = mysqli_fetch_assoc($prevExportRes);
       $prevLastStudentId = (int)$prevExportRow['last_student_id'];
 
@@ -229,21 +257,24 @@ if (isset($_POST['manual_id'])) {
     $studentsCountInt = (int)$studentsCount;
     $totalAmountInt = (int)$totalAmount;
 
-    // Construct the INSERT query with proper NULL handling
-    if ($lastStudentId) {
-      $lastStudentIdValue = (int)$lastStudentId;
-      $insertQuery = "INSERT INTO manual_export_audits (code, manual_id, hoc_user_id, students_count, total_amount, downloaded_at, last_student_id, status)
-                      VALUES ('$safeCode', $manualIdInt, $hocUserIdInt, $studentsCountInt, $totalAmountInt, '$safeDownloadedAt', $lastStudentIdValue, 'given')";
+    // Construct the INSERT query with proper NULL handling.
+    // Export creation must remain pending; grant action is handled in command center.
+    $lastStudentSql = $lastStudentId ? (int)$lastStudentId : 'NULL';
+    if ($auditStatusColumn !== '') {
+      $safeAuditStatusColumn = ($auditStatusColumn === 'grant_status') ? 'grant_status' : 'status';
+      $auditStatusInitial = 'pending';
+      $insertQuery = "INSERT INTO manual_export_audits (code, manual_id, hoc_user_id, students_count, total_amount, downloaded_at, last_student_id, `$safeAuditStatusColumn`)
+                      VALUES ('$safeCode', $manualIdInt, $hocUserIdInt, $studentsCountInt, $totalAmountInt, '$safeDownloadedAt', $lastStudentSql, '$auditStatusInitial')";
     } else {
-      $insertQuery = "INSERT INTO manual_export_audits (code, manual_id, hoc_user_id, students_count, total_amount, downloaded_at, last_student_id, status)
-                      VALUES ('$safeCode', $manualIdInt, $hocUserIdInt, $studentsCountInt, $totalAmountInt, '$safeDownloadedAt', NULL, 'given')";
+      $insertQuery = "INSERT INTO manual_export_audits (code, manual_id, hoc_user_id, students_count, total_amount, downloaded_at, last_student_id)
+                      VALUES ('$safeCode', $manualIdInt, $hocUserIdInt, $studentsCountInt, $totalAmountInt, '$safeDownloadedAt', $lastStudentSql)";
     }
     exportRunQuery(
       $conn,
       $insertQuery,
       $requestId,
       'insert_export_audit',
-      ['manual_id' => $manualIdInt, 'hoc_user_id' => $hocUserIdInt]
+      ['manual_id' => $manualIdInt, 'hoc_user_id' => $hocUserIdInt, 'audit_status_column' => $auditStatusColumn]
     );
 
     // Fetch HOC basic info for display (if available)
