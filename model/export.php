@@ -98,6 +98,19 @@ function exportResolveAuditStatusColumn(mysqli $conn, $requestId) {
   return $resolved;
 }
 
+function exportAuditHasColumn(mysqli $conn, $columnName) {
+  static $columnCache = [];
+  if (isset($columnCache[$columnName])) {
+    return $columnCache[$columnName];
+  }
+
+  $safeColumn = mysqli_real_escape_string($conn, $columnName);
+  $res = mysqli_query($conn, "SHOW COLUMNS FROM manual_export_audits LIKE '$safeColumn'");
+  $hasColumn = ($res && mysqli_num_rows($res) > 0);
+  $columnCache[$columnName] = $hasColumn;
+  return $hasColumn;
+}
+
 function exportManualsBoughtHasColumn(mysqli $conn, $columnName) {
   static $columnCache = [];
   if (isset($columnCache[$columnName])) {
@@ -138,11 +151,54 @@ if (isset($_POST['manual_id'])) {
     }
     $manualRow = mysqli_fetch_assoc($manualRes);
 
+    $manualsBoughtHasId = exportManualsBoughtHasColumn($conn, 'id');
+    $manualsBoughtHasGrantStatus = exportManualsBoughtHasColumn($conn, 'grant_status');
+    $fromBoughtId = null;
+    $toBoughtId = null;
+
+    if ($manualsBoughtHasId) {
+      // from_bought_id: first successful payment row that is still pending grant.
+      $fromWhereParts = [
+        "mb.manual_id = $manualId",
+        "mb.status = 'successful'",
+      ];
+      if ($manualsBoughtHasGrantStatus) {
+        $fromWhereParts[] = "(mb.grant_status IS NULL OR LOWER(TRIM(CAST(mb.grant_status AS CHAR))) IN ('', '0', 'pending', 'false'))";
+      }
+      $fromWhere = implode(" AND ", $fromWhereParts);
+      $fromRangeRes = exportRunQuery(
+        $conn,
+        "SELECT MIN(mb.id) AS from_bought_id FROM manuals_bought AS mb WHERE $fromWhere",
+        $requestId,
+        'load_export_from_bought_id',
+        ['manual_id' => $manualId]
+      );
+      $fromRangeRow = mysqli_fetch_assoc($fromRangeRes);
+      if ($fromRangeRow && $fromRangeRow['from_bought_id'] !== null) {
+        $fromBoughtId = (int)$fromRangeRow['from_bought_id'];
+      }
+
+      // to_bought_id: latest successful payment row for this manual.
+      $toRangeRes = exportRunQuery(
+        $conn,
+        "SELECT MAX(mb.id) AS to_bought_id FROM manuals_bought AS mb WHERE mb.manual_id = $manualId AND mb.status = 'successful'",
+        $requestId,
+        'load_export_to_bought_id',
+        ['manual_id' => $manualId]
+      );
+      $toRangeRow = mysqli_fetch_assoc($toRangeRes);
+      if ($toRangeRow && $toRangeRow['to_bought_id'] !== null) {
+        $toBoughtId = (int)$toRangeRow['to_bought_id'];
+      }
+    } else {
+      exportLog($requestId, 'manuals_bought.id missing; from_bought_id/to_bought_id will not be populated', ['manual_id' => $manualId]);
+    }
+
     $manualBuyerFilters = [
       "mb.manual_id = $manualId",
       "mb.status = 'successful'",
     ];
-    if (exportManualsBoughtHasColumn($conn, 'grant_status')) {
+    if ($manualsBoughtHasGrantStatus) {
       // Only export students still pending in manuals_bought.
       $manualBuyerFilters[] = "(mb.grant_status IS NULL OR LOWER(TRIM(CAST(mb.grant_status AS CHAR))) IN ('', '0', 'pending', 'false'))";
     }
@@ -225,21 +281,41 @@ if (isset($_POST['manual_id'])) {
     // Construct the INSERT query with proper NULL handling.
     // Export creation must remain pending; grant action is handled in command center.
     $lastStudentSql = $lastStudentId ? (int)$lastStudentId : 'NULL';
+    $insertColumns = ['code', 'manual_id', 'hoc_user_id', 'students_count', 'total_amount', 'downloaded_at', 'last_student_id'];
+    $insertValues = ["'$safeCode'", (string)$manualIdInt, (string)$hocUserIdInt, (string)$studentsCountInt, (string)$totalAmountInt, "'$safeDownloadedAt'", (string)$lastStudentSql];
+
+    if (exportAuditHasColumn($conn, 'from_bought_id')) {
+      $insertColumns[] = 'from_bought_id';
+      $insertValues[] = ($fromBoughtId !== null) ? (string)$fromBoughtId : 'NULL';
+    }
+    if (exportAuditHasColumn($conn, 'to_bought_id')) {
+      $insertColumns[] = 'to_bought_id';
+      $insertValues[] = ($toBoughtId !== null) ? (string)$toBoughtId : 'NULL';
+    }
     if ($auditStatusColumn !== '') {
       $safeAuditStatusColumn = ($auditStatusColumn === 'grant_status') ? 'grant_status' : 'status';
-      $auditStatusInitial = 'pending';
-      $insertQuery = "INSERT INTO manual_export_audits (code, manual_id, hoc_user_id, students_count, total_amount, downloaded_at, last_student_id, `$safeAuditStatusColumn`)
-                      VALUES ('$safeCode', $manualIdInt, $hocUserIdInt, $studentsCountInt, $totalAmountInt, '$safeDownloadedAt', $lastStudentSql, '$auditStatusInitial')";
-    } else {
-      $insertQuery = "INSERT INTO manual_export_audits (code, manual_id, hoc_user_id, students_count, total_amount, downloaded_at, last_student_id)
-                      VALUES ('$safeCode', $manualIdInt, $hocUserIdInt, $studentsCountInt, $totalAmountInt, '$safeDownloadedAt', $lastStudentSql)";
+      $insertColumns[] = $safeAuditStatusColumn;
+      $insertValues[] = "'pending'";
     }
+
+    $insertColumnSql = implode(', ', array_map(function ($col) {
+      return "`$col`";
+    }, $insertColumns));
+    $insertValueSql = implode(', ', $insertValues);
+    $insertQuery = "INSERT INTO manual_export_audits ($insertColumnSql) VALUES ($insertValueSql)";
+
     exportRunQuery(
       $conn,
       $insertQuery,
       $requestId,
       'insert_export_audit',
-      ['manual_id' => $manualIdInt, 'hoc_user_id' => $hocUserIdInt, 'audit_status_column' => $auditStatusColumn]
+      [
+        'manual_id' => $manualIdInt,
+        'hoc_user_id' => $hocUserIdInt,
+        'audit_status_column' => $auditStatusColumn,
+        'from_bought_id' => $fromBoughtId,
+        'to_bought_id' => $toBoughtId
+      ]
     );
     $exportAuditId = mysqli_insert_id($conn);
 
@@ -266,6 +342,8 @@ if (isset($_POST['manual_id'])) {
       'students_count' => $studentsCountInt,
       'total_amount' => $totalAmountInt,
       'last_student_id' => $lastStudentId,
+      'from_bought_id' => $fromBoughtId,
+      'to_bought_id' => $toBoughtId,
     ]);
 
     $response = [
@@ -282,6 +360,8 @@ if (isset($_POST['manual_id'])) {
         'code' => $manualRow['code'],
       ],
       'export_audit_id' => (int)$exportAuditId,
+      'from_bought_id' => $fromBoughtId,
+      'to_bought_id' => $toBoughtId,
       'hoc' => [
         'id' => $hocUserIdInt,
         'name' => $hocName,

@@ -32,13 +32,11 @@ if ($code !== '') {
   $auditStatusColumn = resolveAuditStatusColumn($conn);
   $hasGrantedBy = auditHasColumn($conn, 'granted_by');
   $hasGrantedAt = auditHasColumn($conn, 'granted_at');
-  $hasLastStudentId = auditHasColumn($conn, 'last_student_id');
   $statusSelect = ($auditStatusColumn === 'grant_status' || $auditStatusColumn === 'status')
     ? "a.`$auditStatusColumn` AS export_status"
     : "'given' AS export_status";
   $grantedBySelect = $hasGrantedBy ? "a.granted_by" : "NULL AS granted_by";
   $grantedAtSelect = $hasGrantedAt ? "a.granted_at" : "NULL AS granted_at";
-  $lastStudentSelect = $hasLastStudentId ? "a.last_student_id" : "NULL AS last_student_id";
   $grantedByUserSelect = $hasGrantedBy
     ? "CONCAT(COALESCE(g.first_name, ''), ' ', COALESCE(g.last_name, '')) AS granted_by_name, g.email AS granted_by_email"
     : "'' AS granted_by_name, '' AS granted_by_email";
@@ -53,7 +51,6 @@ if ($code !== '') {
       $statusSelect,
       $grantedBySelect,
       $grantedAtSelect,
-      $lastStudentSelect,
       $grantedByUserSelect,
       m.title AS manual_title,
       m.course_code,
@@ -291,10 +288,9 @@ function formatDateTimeReadable($dt) {
               $grantedByEmail = trim((string)($record['granted_by_email'] ?? ''));
               $grantedById = isset($record['granted_by']) ? (int)$record['granted_by'] : 0;
               $grantedAt = !empty($record['granted_at']) ? formatDateTimeReadable($record['granted_at']) : '';
-              $lastStudentId = isset($record['last_student_id']) ? (int)$record['last_student_id'] : 0;
             ?>
             <div class="row g-3 mb-3">
-              <div class="col-md-4">
+              <div class="col-md-6">
                 <div class="meta-label">Granted By</div>
                 <div class="meta-value">
                   <?php
@@ -311,16 +307,10 @@ function formatDateTimeReadable($dt) {
                   <div class="text-muted small"><?php echo h($grantedByEmail); ?></div>
                 <?php endif; ?>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-6">
                 <div class="meta-label">Granted At</div>
                 <div class="meta-value">
                   <?php echo h($grantedAt !== '' ? $grantedAt : '-'); ?>
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="meta-label">Last Student ID</div>
-                <div class="meta-value">
-                  <?php echo h($lastStudentId > 0 ? $lastStudentId : '-'); ?>
                 </div>
               </div>
             </div>

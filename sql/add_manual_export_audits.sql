@@ -5,6 +5,8 @@ CREATE TABLE `manual_export_audits` (
   `hoc_user_id` INT(11) NOT NULL,               -- users.id of HOC/admin who exported
   `students_count` INT(11) NOT NULL,            -- number of unique students in the export
   `total_amount` INT(11) NOT NULL,              -- total amount paid across all rows (in kobo-free integer, same as manuals_bought.price)
+  `from_bought_id` INT(11) DEFAULT NULL,        -- start manuals_bought.id used for export grant range
+  `to_bought_id` INT(11) DEFAULT NULL,          -- end manuals_bought.id used for export grant range
   `downloaded_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `grant_status` VARCHAR(20) NOT NULL DEFAULT 'pending', -- pending or granted
   `granted_by` INT(11) DEFAULT NULL,             -- admin user id that granted export
@@ -15,6 +17,7 @@ CREATE TABLE `manual_export_audits` (
   UNIQUE KEY `ux_manual_export_code` (`code`),
   KEY `idx_manual_export_manual` (`manual_id`),
   KEY `idx_manual_export_hoc` (`hoc_user_id`),
+  KEY `idx_manual_export_bought_range` (`from_bought_id`, `to_bought_id`),
   KEY `idx_manual_export_grant_status` (`grant_status`),
   KEY `idx_manual_export_last_student` (`last_student_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
