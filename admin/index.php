@@ -515,7 +515,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                               <i class="mdi mdi-dots-vertical fs-4"></i>
                                             </button>
                                             <div class="dropdown-menu">
-                                              <?php if($manual['user_id'] === $user_id): ?>
+                                              <?php if((int)$manual['user_id'] === (int)$user_id): ?>
                                               <a class="dropdown-item view-edit-manual border-bottom d-flex" href="javascript:;"
                                                 data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>"
                                                 data-course_code="<?php echo $manual['course_code']; ?>" data-price="<?php echo $manual['price']; ?>"
@@ -532,11 +532,11 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                                   <i class="mdi mdi-export-variant pe-2"></i> Export list
                                                 </a>
                                               <?php endif; ?>
-                                              <a class="dropdown-item <?php echo ($manuals_bought_cnt < 1 || $manual['user_id'] !== $user_id) ? 'border-bottom' : '' ?> share_button d-flex" data-title="<?php echo $manual['title']; ?>" 
+                                              <a class="dropdown-item <?php echo ($manuals_bought_cnt < 1 || (int)$manual['user_id'] !== (int)$user_id) ? 'border-bottom' : '' ?> share_button d-flex" data-title="<?php echo $manual['title']; ?>" 
                                                 data-product_id="<?php echo $manual['id']; ?>" data-type="product" href="javascript:;"> 
                                                 <i class="mdi mdi-content-copy pe-2"></i> Copy share link
                                               </a>
-                                              <?php if($manuals_bought_cnt < 1 && $manual['user_id'] === $user_id): ?>
+                                              <?php if($manuals_bought_cnt < 1 && (int)$manual['user_id'] === (int)$user_id): ?>
                                                 <a class="dropdown-item close-manual d-flex" href="javascript:;"
                                                   data-product_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>" data-type="product"
                                                   data-bs-toggle="modal" data-bs-target="#closeManual">
