@@ -70,7 +70,8 @@ if ($_SESSION['nivas_userRole'] == 'hoc' && $user_dept && $user_faculty) {
   $school_id_safe = (int)$school_id;
   $manual_query = mysqli_query($conn, "SELECT * FROM $item_table WHERE (user_id = $user_id_safe OR dept = $user_dept_safe OR (dept = 0 AND faculty = $user_faculty_safe)) AND school_id = $school_id_safe ORDER BY `id` DESC");
 } else {
-  $manual_query = mysqli_query($conn, "SELECT * FROM $item_table WHERE user_id = $user_id ORDER BY `id` DESC");
+  $user_id_safe = (int)$user_id; // Sanitize as integer
+  $manual_query = mysqli_query($conn, "SELECT * FROM $item_table WHERE user_id = $user_id_safe ORDER BY `id` DESC");
 }
 $faculties = [];
 if ($_SESSION['nivas_userRole'] == 'hoc') {
@@ -94,7 +95,8 @@ if ($_SESSION['nivas_userRole'] == 'hoc' && $user_dept && $user_faculty) {
     WHERE (mb.seller = $user_id_safe OR m.dept = $user_dept_safe OR (m.dept = 0 AND m.faculty = $user_faculty_safe)) 
     ORDER BY mb.created_at DESC LIMIT 6");
 } else {
-  $transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM $item_table2 WHERE seller = $user_id ORDER BY `created_at` DESC LIMIT 6");
+  $user_id_safe = (int)$user_id; // Sanitize as integer
+  $transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM $item_table2 WHERE seller = $user_id_safe ORDER BY `created_at` DESC LIMIT 6");
 }
 
 $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE school_id = $school_id AND type = 'school' ORDER BY `id` DESC LIMIT 1");

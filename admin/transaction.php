@@ -39,7 +39,8 @@ if ($_SESSION['nivas_userRole'] == 'hoc' && $user_dept && $user_faculty) {
     WHERE (mb.seller = $user_id_safe OR m.dept = $user_dept_safe OR (m.dept = 0 AND m.faculty = $user_faculty_safe)) 
     ORDER BY mb.created_at DESC");
 } else {
-  $transaction_query = mysqli_query($conn, "SELECT * FROM $item_table2 WHERE seller = $user_id ORDER BY `created_at` DESC");
+  $user_id_safe = (int)$user_id; // Sanitize as integer
+  $transaction_query = mysqli_query($conn, "SELECT * FROM $item_table2 WHERE seller = $user_id_safe ORDER BY `created_at` DESC");
 }
 
 ?>
