@@ -438,6 +438,9 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                 <?php
                                 while ($manual = mysqli_fetch_array($manual_query)) {
                                   $manual_id = $manual['id'];
+                                  $manual_title_esc = htmlspecialchars((string)$manual['title'], ENT_QUOTES, 'UTF-8');
+                                  $manual_course_code_esc = htmlspecialchars((string)$manual['course_code'], ENT_QUOTES, 'UTF-8');
+                                  $manual_code_esc = htmlspecialchars((string)$manual['code'], ENT_QUOTES, 'UTF-8');
                                   $is_shared_admin_material = (
                                     $_SESSION['nivas_userRole'] == 'hoc'
                                     && (int) $manual['user_id'] === 0
@@ -467,8 +470,8 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                       <td>
                                         <div class="d-flex ">
                                           <div>
-                                            <h6><span class="d-sm-none-2"><?php echo $manual['title'] ?> -</span> <?php echo $manual['course_code'] ?></h6>
-                                            <p class="d-sm-none-2">ID: <span class="fw-bold"><?php echo $manual['code'] ?></span></p>
+                                            <h6><span class="d-sm-none-2"><?php echo $manual_title_esc ?> -</span> <?php echo $manual_course_code_esc ?></h6>
+                                            <p class="d-sm-none-2">ID: <span class="fw-bold"><?php echo $manual_code_esc ?></span></p>
                                           </div>
                                         </div>
                                       </td>
@@ -509,8 +512,8 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                             <div class="dropdown-menu">
                                               <?php if ($can_modify_material): ?>
                                                 <a class="dropdown-item view-edit-manual border-bottom d-flex" href="javascript:;"
-                                                  data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>"
-                                                  data-course_code="<?php echo $manual['course_code']; ?>" data-price="<?php echo $manual['price']; ?>"
+                                                  data-manual_id="<?php echo (int)$manual['id']; ?>" data-title="<?php echo $manual_title_esc; ?>"
+                                                  data-course_code="<?php echo $manual_course_code_esc; ?>" data-price="<?php echo (int)$manual['price']; ?>"
                                                   data-quantity="<?php echo $manual['quantity']; ?>"
                                                   data-due_date="<?php echo date('Y-m-d', strtotime($manual['due_date'])); ?>"
                                                   data-faculty="<?php echo isset($manual['faculty']) ? (int) $manual['faculty'] : ''; ?>"
@@ -520,17 +523,17 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                               <?php endif; ?>
                                               <?php if($manuals_bought_cnt >= 1): ?>
                                                 <a class="dropdown-item export-manual border-bottom d-flex" href="javascript:;" data-bs-toggle="modal" data-bs-target="#exportManual"
-                                                  data-manual_id="<?php echo $manual['id']; ?>" data-code="<?php echo $manual['course_code']; ?>">
+                                                  data-manual_id="<?php echo (int)$manual['id']; ?>" data-code="<?php echo $manual_course_code_esc; ?>">
                                                   <i class="mdi mdi-export-variant pe-2"></i> Export list
                                                 </a>
                                               <?php endif; ?>
-                                              <a class="dropdown-item <?php echo ($manuals_bought_cnt < 1) ? 'border-bottom' : '' ?> share_button d-flex" data-title="<?php echo $manual['title']; ?>" 
-                                                data-product_id="<?php echo $manual['id']; ?>" data-type="product" href="javascript:;"> 
+                                              <a class="dropdown-item <?php echo ($manuals_bought_cnt < 1) ? 'border-bottom' : '' ?> share_button d-flex" data-title="<?php echo $manual_title_esc; ?>" 
+                                                data-product_id="<?php echo (int)$manual['id']; ?>" data-type="product" href="javascript:;"> 
                                                 <i class="mdi mdi-content-copy pe-2"></i> Copy share link
                                               </a>
                                               <?php if($can_modify_material && $manuals_bought_cnt < 1): ?>
                                                 <a class="dropdown-item close-manual d-flex" href="javascript:;"
-                                                  data-product_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>" data-type="product"
+                                                  data-product_id="<?php echo (int)$manual['id']; ?>" data-title="<?php echo $manual_title_esc; ?>" data-type="product"
                                                   data-bs-toggle="modal" data-bs-target="#closeManual">
                                                   <i class="mdi mdi-delete pe-2"></i> Delete material
                                                 </a>
@@ -1218,7 +1221,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
       });
 
       // Handle click event of View/Edit button
-      $('.view-edit-manual').on('click', function () {
+      $(document).on('click', '.view-edit-manual', function () {
         // Get the manual details from the data- attributes
         var manualId = $(this).data('manual_id');
         var title = $(this).data('title');
@@ -1287,7 +1290,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
       });
 
       // Handle click event of View/Edit button
-      $('.view-edit-event').on('click', function () {
+      $(document).on('click', '.view-edit-event', function () {
         // Get the event details from the data- attributes
         var eventId = $(this).data('event_id');
         var title = $(this).data('title');
@@ -1321,7 +1324,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
       });
 
       // Handle click event of email_event_guests button
-      $('.email_event_guests').on('click', function () {
+      $(document).on('click', '.email_event_guests', function () {
         // Get the event details from the data- attributes
         var eventId = $(this).data('event_id');
         var title = $(this).data('title');
@@ -1478,7 +1481,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
       });
 
       // Handle click event of View/Edit button
-      $('.close-manual').on('click', function () {
+      $(document).on('click', '.close-manual', function () {
         // Get the manual details from the data- attributes
         var product_id = $(this).data('product_id');
         var type = $(this).data('type');
@@ -1540,7 +1543,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
       });
 
       // Event listener for the export button click
-      $(".export-manual").click(function () {
+      $(document).on('click', '.export-manual', function () {
         // Get the manual details from the data- attributes
         var manualId = $(this).data('manual_id');
         var code = $(this).data('code');
@@ -1654,7 +1657,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
         }, 2000);
       });
 
-      $('.export_event').click(function (event) {
+      $(document).on('click', '.export_event', function (event) {
         var event_id = $(this).data('event_id');
         var title = $(this).data('title');
 
