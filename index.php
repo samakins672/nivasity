@@ -146,7 +146,6 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
                             while ($manual = mysqli_fetch_array($manual_query)) {
                               $manual_id = $manual['id'];
-                              $seller_id = $manual['user_id'];
 
                               // Check if the manual has been bought by the current user
                               $is_bought_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM manuals_bought WHERE manual_id = $manual_id AND buyer = $user_id AND school_id = $school_id");
@@ -158,13 +157,10 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                                 continue;
                               }
 
-                              $seller_q = mysqli_fetch_array(mysqli_query($conn, "SELECT first_name, last_name FROM users WHERE id = $seller_id"));
-                              $seller_fn = $seller_q['first_name'];
-                              $seller_ln = $seller_q['last_name'];
-
                               // Retrieve and format the due date
                               $due_date = date('j M, Y', strtotime($manual['due_date']));
                               $due_date2 = date('Y-m-d', strtotime($manual['due_date']));
+                              $material_scope_label = ((int)$manual['dept'] === 0 && (int)$manual['faculty'] > 0) ? 'Faculty' : 'Department';
                               // Retrieve the status
                               $status = $manual['status'];
                               $status_c = 'success';
@@ -196,7 +192,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                                             <h3 class="fw-bold price">₦ <?php echo number_format($manual['price']) ?></h3>
                                             <p class="card-text">
                                               Due date:<span class="fw-bold text-<?php echo $status_c ?> due_date"> <?php echo $due_date ?></span><br>
-                                              <span class="text-secondary"><?php echo $seller_fn . ' ' . $seller_ln ?> (HOC/Lecturer)</span>
+                                              <span class="text-secondary">By: <?php echo $material_scope_label; ?></span>
                                             </p>
                                           </div>
                                         </div>
