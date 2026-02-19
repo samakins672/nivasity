@@ -10,13 +10,32 @@ if ($_SESSION['nivas_userRole'] == 'student') {
   $item_table = "manuals";
   $item_table2 = "manuals_bought";
   $column_id = "manual_id";
+  
+  // Get admin's faculty for filtering materials
+  $user_faculty = null;
+  if ($user_dept) {
+    $dept_query = mysqli_query($conn, "SELECT faculty_id FROM depts WHERE id = $user_dept LIMIT 1");
+    if ($dept_query && mysqli_num_rows($dept_query) > 0) {
+      $dept_row = mysqli_fetch_assoc($dept_query);
+      $user_faculty = (int)$dept_row['faculty_id'];
+    }
+  }
 } else {
   $item_table = "events";
   $item_table2 = "event_tickets";
   $column_id = "event_id";
 }
 
-$transaction_query = mysqli_query($conn, "SELECT * FROM $item_table2 WHERE seller = $user_id ORDER BY `created_at` DESC");
+// Build transaction query for HOC - include transactions from their department materials
+if ($_SESSION['nivas_userRole'] == 'hoc' && $user_dept && $user_faculty) {
+  // Include transactions where seller is this user OR material belongs to their department/faculty
+  $transaction_query = mysqli_query($conn, "SELECT mb.* FROM $item_table2 mb 
+    LEFT JOIN $item_table m ON mb.{$column_id} = m.id 
+    WHERE (mb.seller = $user_id OR m.dept = $user_dept OR (m.dept = 0 AND m.faculty = $user_faculty)) 
+    ORDER BY mb.created_at DESC");
+} else {
+  $transaction_query = mysqli_query($conn, "SELECT * FROM $item_table2 WHERE seller = $user_id ORDER BY `created_at` DESC");
+}
 
 ?>
 <!DOCTYPE html>

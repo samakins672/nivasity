@@ -27,6 +27,16 @@ if ($_SESSION['nivas_userRole'] == 'student' || $_SESSION['nivas_userRole'] == '
   $item_table = "manuals";
   $item_table2 = "manuals_bought";
   $column_id = "manual_id";
+  
+  // Get admin's faculty for filtering materials
+  $user_faculty = null;
+  if ($user_dept) {
+    $dept_query = mysqli_query($conn, "SELECT faculty_id FROM depts WHERE id = $user_dept LIMIT 1");
+    if ($dept_query && mysqli_num_rows($dept_query) > 0) {
+      $dept_row = mysqli_fetch_assoc($dept_query);
+      $user_faculty = (int)$dept_row['faculty_id'];
+    }
+  }
 } else {
   $item_table = "events";
   $item_table2 = "event_tickets";
@@ -49,7 +59,13 @@ $manual_query2 = mysqli_query($conn, "SELECT $column_id, SUM(price) AS total_sal
     LIMIT 3");
 
 
-$manual_query = mysqli_query($conn, "SELECT * FROM $item_table WHERE user_id = $user_id ORDER BY `id` DESC");
+// Build manual query for HOC - include materials from their department
+if ($_SESSION['nivas_userRole'] == 'hoc' && $user_dept && $user_faculty) {
+  // Include: materials posted by this user OR materials posted to their department OR materials posted to their faculty (dept=0)
+  $manual_query = mysqli_query($conn, "SELECT * FROM $item_table WHERE (user_id = $user_id OR dept = $user_dept OR (dept = 0 AND faculty = $user_faculty)) AND school_id = $school_id ORDER BY `id` DESC");
+} else {
+  $manual_query = mysqli_query($conn, "SELECT * FROM $item_table WHERE user_id = $user_id ORDER BY `id` DESC");
+}
 $faculties = [];
 if ($_SESSION['nivas_userRole'] == 'hoc') {
   $faculties_query = mysqli_query($conn, "SELECT id, name FROM faculties WHERE school_id = $school_id AND status = 'active' ORDER BY name ASC");
@@ -60,7 +76,16 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
 }
 $event_query = mysqli_query($conn, "SELECT * FROM events WHERE user_id = $user_id ORDER BY `id` DESC");
 
-$transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM $item_table2 WHERE seller = $user_id ORDER BY `created_at` DESC LIMIT 6");
+// Build transaction query for HOC - include transactions from their department materials
+if ($_SESSION['nivas_userRole'] == 'hoc' && $user_dept && $user_faculty) {
+  // Include transactions where seller is this user OR material belongs to their department/faculty
+  $transaction_query = mysqli_query($conn, "SELECT DISTINCT mb.ref_id, mb.buyer FROM $item_table2 mb 
+    LEFT JOIN $item_table m ON mb.{$column_id} = m.id 
+    WHERE (mb.seller = $user_id OR m.dept = $user_dept OR (m.dept = 0 AND m.faculty = $user_faculty)) 
+    ORDER BY mb.created_at DESC LIMIT 6");
+} else {
+  $transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM $item_table2 WHERE seller = $user_id ORDER BY `created_at` DESC LIMIT 6");
+}
 
 $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE school_id = $school_id AND type = 'school' ORDER BY `id` DESC LIMIT 1");
 if (mysqli_num_rows($settlement_query) == 0) {
@@ -478,6 +503,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                               <i class="mdi mdi-dots-vertical fs-4"></i>
                                             </button>
                                             <div class="dropdown-menu">
+                                              <?php if($manual['user_id'] == $user_id): ?>
                                               <a class="dropdown-item view-edit-manual border-bottom d-flex" href="javascript:;"
                                                 data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>"
                                                 data-course_code="<?php echo $manual['course_code']; ?>" data-price="<?php echo $manual['price']; ?>"
@@ -487,17 +513,18 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                                 data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual': 'verificationManual'?>">
                                                 <i class="mdi mdi-book-edit pe-2"></i> Edit material
                                               </a>
+                                              <?php endif; ?>
                                               <?php if($manuals_bought_cnt >= 1): ?>
                                                 <a class="dropdown-item export-manual border-bottom d-flex" href="javascript:;" data-bs-toggle="modal" data-bs-target="#exportManual"
                                                   data-manual_id="<?php echo $manual['id']; ?>" data-code="<?php echo $manual['course_code']; ?>">
                                                   <i class="mdi mdi-export-variant pe-2"></i> Export list
                                                 </a>
                                               <?php endif; ?>
-                                              <a class="dropdown-item <?php echo ($manuals_bought_cnt < 1) ? 'border-bottom' : '' ?> share_button d-flex" data-title="<?php echo $manual['title']; ?>" 
+                                              <a class="dropdown-item <?php echo ($manuals_bought_cnt < 1 || $manual['user_id'] != $user_id) ? 'border-bottom' : '' ?> share_button d-flex" data-title="<?php echo $manual['title']; ?>" 
                                                 data-product_id="<?php echo $manual['id']; ?>" data-type="product" href="javascript:;"> 
                                                 <i class="mdi mdi-content-copy pe-2"></i> Copy share link
                                               </a>
-                                              <?php if($manuals_bought_cnt < 1): ?>
+                                              <?php if($manuals_bought_cnt < 1 && $manual['user_id'] == $user_id): ?>
                                                 <a class="dropdown-item close-manual d-flex" href="javascript:;"
                                                   data-product_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>" data-type="product"
                                                   data-bs-toggle="modal" data-bs-target="#closeManual">

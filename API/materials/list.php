@@ -73,7 +73,7 @@ switch ($sort) {
 }
 
 // Fetch manuals
-$query = "SELECT m.*, u.first_name, u.last_name, d.name as dept_name, f.name as faculty_name, hf.name as host_faculty_name
+$query = "SELECT m.*, u.first_name, u.last_name, u.role as poster_role, d.name as dept_name, f.name as faculty_name, hf.name as host_faculty_name
           FROM manuals m
           LEFT JOIN users u ON m.user_id = u.id
           LEFT JOIN depts d ON m.dept = d.id
@@ -96,6 +96,12 @@ while ($row = mysqli_fetch_assoc($result)) {
     $now = time();
     $is_overdue = ($now > $due_date);
     
+    // Determine seller name: Show "Faculty" for admin-posted materials
+    $seller_name = $row['first_name'] . ' ' . $row['last_name'];
+    if ($row['poster_role'] === 'hoc') {
+        $seller_name = 'Faculty';
+    }
+    
     $materials[] = [
         'id' => $row['id'],
         'code' => $row['code'],
@@ -112,7 +118,7 @@ while ($row = mysqli_fetch_assoc($result)) {
         'host_faculty' => $row['host_faculty'],
         'host_faculty_name' => $row['host_faculty_name'],
         'level' => $row['level'] ? (string)$row['level'] : null,
-        'seller_name' => $row['first_name'] . ' ' . $row['last_name'],
+        'seller_name' => $seller_name,
         'is_purchased' => $is_purchased,
         'created_at' => $row['created_at']
     ];

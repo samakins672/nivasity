@@ -35,7 +35,7 @@ $cart_ids = array_map('intval', $_SESSION[$cart_key]);
 $ids_string = implode(',', $cart_ids);
 
 // Fetch cart items
-$query = "SELECT m.*, u.first_name, u.last_name, d.name as dept_name, hf.name as host_faculty_name
+$query = "SELECT m.*, u.first_name, u.last_name, u.role as poster_role, d.name as dept_name, hf.name as host_faculty_name
           FROM manuals m
           LEFT JOIN users u ON m.user_id = u.id
           LEFT JOIN depts d ON m.dept = d.id
@@ -47,6 +47,12 @@ $cart_items = [];
 $subtotal = 0;
 
 while ($row = mysqli_fetch_assoc($result)) {
+    // Determine seller name: Show "Faculty" for admin-posted materials
+    $seller_name = $row['first_name'] . ' ' . $row['last_name'];
+    if ($row['poster_role'] === 'hoc') {
+        $seller_name = 'Faculty';
+    }
+    
     $item = [
         'id' => $row['id'],
         'title' => $row['title'],
@@ -58,7 +64,7 @@ while ($row = mysqli_fetch_assoc($result)) {
         'host_faculty' => $row['host_faculty'],
         'host_faculty_name' => $row['host_faculty_name'],
         'level' => $row['level'] ? (string)$row['level'] : null,
-        'seller_name' => $row['first_name'] . ' ' . $row['last_name']
+        'seller_name' => $seller_name
     ];
     
     $cart_items[] = $item;
