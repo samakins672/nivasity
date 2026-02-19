@@ -262,7 +262,7 @@ if (isset($_POST['manual_id'])) {
     if ($studentsCount < 1) {
       exportJsonResponse([
         'status' => 'error',
-        'message' => 'No pending students to export for this material.',
+        'message' => 'No pending collection students for this material. Export only works for students yet to be marked as collected.',
         'request_id' => $requestId,
       ], 409);
       exit;

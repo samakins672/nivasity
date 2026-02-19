@@ -828,6 +828,10 @@ if (mysqli_num_rows($settlement_query) == 0) {
                         <input type="hidden" name="code" value="0">
                         <input type="hidden" name="manual_id" value="0">
                         <div class="modal-body">
+                          <div class="alert alert-warning py-2 px-3 mb-3 small">
+                            Export includes only students yet to be marked as collected on the platform.
+                            Students already granted will not appear in subsequent exports.
+                          </div>
                           <div class="form-outline mb-4">
                             <input type="text" name="rrr" class="form-control form-control-lg w-100">
                             <label class="form-label" for="rrr">RRR Number (Optional)</label>
@@ -1619,6 +1623,15 @@ if (mysqli_num_rows($settlement_query) == 0) {
         var manualId = $('#export-manual-form input[name="manual_id"]').val();
         var code = $('#export-manual-form input[name="code"]').val();
         var rrr = $('#export-manual-form input[name="rrr"]').val();
+        var firstCheck = "Export will only include students yet to be marked as collected on the platform. Continue?";
+        var secondCheck = "Once this list is granted, those students will not be in the next/subsequent export for this material. Proceed now?";
+
+        if (!window.confirm(firstCheck)) {
+          return;
+        }
+        if (!window.confirm(secondCheck)) {
+          return;
+        }
 
         // Define export button
         var button = $('#export_manual_submit');
@@ -1704,8 +1717,19 @@ if (mysqli_num_rows($settlement_query) == 0) {
               button.html(originalText);
               button.prop("disabled", false);
             },
-            error: function () {
-              alert("Error fetching data.");
+            error: function (xhr) {
+              var errorMessage = "Error fetching data.";
+              if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+              } else if (xhr && xhr.responseText) {
+                try {
+                  var parsed = JSON.parse(xhr.responseText);
+                  if (parsed && parsed.message) {
+                    errorMessage = parsed.message;
+                  }
+                } catch (e) {}
+              }
+              alert(errorMessage);
               button.html(originalText);
               button.prop("disabled", false);
             }
