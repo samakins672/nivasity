@@ -18,7 +18,9 @@
  * Set to false to disable material management at the HOC/Admin level
  * 
  * When set to false:
- * - The action column on the materials table will be removed
+ * - The action column on the materials table will still be visible
+ * - Only the "Export list" action will be available for materials with purchases
+ * - Edit, Share, and Delete actions will be hidden
  * - The "Add new material" button will be disabled
  * - Clicking the disabled button shows a message directing users to contact faculty managers
  */
