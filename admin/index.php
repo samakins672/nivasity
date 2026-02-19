@@ -49,7 +49,30 @@ $manual_query2 = mysqli_query($conn, "SELECT $column_id, SUM(price) AS total_sal
     LIMIT 3");
 
 
-$manual_query = mysqli_query($conn, "SELECT * FROM $item_table WHERE user_id = $user_id ORDER BY `id` DESC");
+$manual_query_sql = "SELECT * FROM $item_table WHERE user_id = $user_id ORDER BY `id` DESC";
+if ($_SESSION['nivas_userRole'] == 'hoc') {
+  $user_dept_int = (int) $user_dept;
+  $school_id_int = (int) $school_id;
+  $user_faculty_id = 0;
+
+  $user_dept_meta_q = mysqli_query($conn, "SELECT faculty_id FROM depts WHERE id = $user_dept_int AND school_id = $school_id_int LIMIT 1");
+  if ($user_dept_meta_q && mysqli_num_rows($user_dept_meta_q) > 0) {
+    $user_dept_meta = mysqli_fetch_assoc($user_dept_meta_q);
+    $user_faculty_id = isset($user_dept_meta['faculty_id']) ? (int) $user_dept_meta['faculty_id'] : 0;
+  }
+
+  $shared_visibility = "m.dept = $user_dept_int";
+  if ($user_faculty_id > 0) {
+    $shared_visibility .= " OR (m.dept = 0 AND m.faculty = $user_faculty_id)";
+  }
+
+  $manual_query_sql = "SELECT *
+    FROM manuals AS m
+    WHERE m.user_id = $user_id
+       OR (m.user_id = 0 AND m.school_id = $school_id_int AND ($shared_visibility))
+    ORDER BY m.id DESC";
+}
+$manual_query = mysqli_query($conn, $manual_query_sql);
 $faculties = [];
 if ($_SESSION['nivas_userRole'] == 'hoc') {
   $faculties_query = mysqli_query($conn, "SELECT id, name FROM faculties WHERE school_id = $school_id AND status = 'active' ORDER BY name ASC");
@@ -415,6 +438,12 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                 <?php
                                 while ($manual = mysqli_fetch_array($manual_query)) {
                                   $manual_id = $manual['id'];
+                                  $is_shared_admin_material = (
+                                    $_SESSION['nivas_userRole'] == 'hoc'
+                                    && (int) $manual['user_id'] === 0
+                                    && (int) $user_id !== 0
+                                  );
+                                  $can_modify_material = MATERIAL_MANAGEMENT_ENABLED && !$is_shared_admin_material;
 
                                   $manuals_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(manual_id) FROM $item_table2 WHERE manual_id = $manual_id"))[0];
                                   $manuals_bought_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM $item_table2 WHERE manual_id = $manual_id"))[0];
@@ -478,15 +507,17 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                               <i class="mdi mdi-dots-vertical fs-4"></i>
                                             </button>
                                             <div class="dropdown-menu">
-                                              <a class="dropdown-item view-edit-manual border-bottom d-flex" href="javascript:;"
-                                                data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>"
-                                                data-course_code="<?php echo $manual['course_code']; ?>" data-price="<?php echo $manual['price']; ?>"
-                                                data-quantity="<?php echo $manual['quantity']; ?>"
-                                                data-due_date="<?php echo date('Y-m-d', strtotime($manual['due_date'])); ?>"
-                                                data-faculty="<?php echo isset($manual['faculty']) ? (int) $manual['faculty'] : ''; ?>"
-                                                data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual': 'verificationManual'?>">
-                                                <i class="mdi mdi-book-edit pe-2"></i> Edit material
-                                              </a>
+                                              <?php if ($can_modify_material): ?>
+                                                <a class="dropdown-item view-edit-manual border-bottom d-flex" href="javascript:;"
+                                                  data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>"
+                                                  data-course_code="<?php echo $manual['course_code']; ?>" data-price="<?php echo $manual['price']; ?>"
+                                                  data-quantity="<?php echo $manual['quantity']; ?>"
+                                                  data-due_date="<?php echo date('Y-m-d', strtotime($manual['due_date'])); ?>"
+                                                  data-faculty="<?php echo isset($manual['faculty']) ? (int) $manual['faculty'] : ''; ?>"
+                                                  data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual': 'verificationManual'?>">
+                                                  <i class="mdi mdi-book-edit pe-2"></i> Edit material
+                                                </a>
+                                              <?php endif; ?>
                                               <?php if($manuals_bought_cnt >= 1): ?>
                                                 <a class="dropdown-item export-manual border-bottom d-flex" href="javascript:;" data-bs-toggle="modal" data-bs-target="#exportManual"
                                                   data-manual_id="<?php echo $manual['id']; ?>" data-code="<?php echo $manual['course_code']; ?>">
@@ -497,12 +528,17 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                                 data-product_id="<?php echo $manual['id']; ?>" data-type="product" href="javascript:;"> 
                                                 <i class="mdi mdi-content-copy pe-2"></i> Copy share link
                                               </a>
-                                              <?php if($manuals_bought_cnt < 1): ?>
+                                              <?php if($can_modify_material && $manuals_bought_cnt < 1): ?>
                                                 <a class="dropdown-item close-manual d-flex" href="javascript:;"
                                                   data-product_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>" data-type="product"
                                                   data-bs-toggle="modal" data-bs-target="#closeManual">
                                                   <i class="mdi mdi-delete pe-2"></i> Delete material
                                                 </a>
+                                              <?php endif; ?>
+                                              <?php if ($is_shared_admin_material): ?>
+                                                <span class="dropdown-item disabled text-muted">
+                                                  <i class="mdi mdi-shield-lock-outline pe-2"></i> Managed by school admin
+                                                </span>
                                               <?php endif; ?>
                                             </div>
                                           </div>
