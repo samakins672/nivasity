@@ -507,21 +507,23 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                             </div>
                                           </div>
                                           <?php else: ?>
-                                          <?php if ($manuals_bought_cnt > 0): ?>
                                           <div class="dropdown">
                                             <button type="button" class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="true">
                                               <i class="mdi mdi-dots-vertical fs-4"></i>
                                             </button>
                                             <div class="dropdown-menu">
-                                              <a class="dropdown-item export-manual d-flex" href="javascript:;" data-bs-toggle="modal" data-bs-target="#exportManual"
-                                                data-manual_id="<?php echo $manual['id']; ?>" data-code="<?php echo $manual['course_code']; ?>">
-                                                <i class="mdi mdi-export-variant pe-2"></i> Export list
+                                              <?php if ($manuals_bought_cnt > 0): ?>
+                                                <a class="dropdown-item export-manual border-bottom d-flex" href="javascript:;" data-bs-toggle="modal" data-bs-target="#exportManual"
+                                                  data-manual_id="<?php echo $manual['id']; ?>" data-code="<?php echo $manual['course_code']; ?>">
+                                                  <i class="mdi mdi-export-variant pe-2"></i> Export list
+                                                </a>
+                                              <?php endif; ?>
+                                              <a class="dropdown-item <?php echo ($manuals_bought_cnt < 1) ? 'border-bottom' : '' ?> share_button d-flex" data-title="<?php echo $manual['title']; ?>" 
+                                                data-product_id="<?php echo $manual['id']; ?>" data-type="product" href="javascript:;"> 
+                                                <i class="mdi mdi-content-copy pe-2"></i> Copy share link
                                               </a>
                                             </div>
                                           </div>
-                                          <?php else: ?>
-                                          <span class="text-muted">-</span>
-                                          <?php endif; ?>
                                           <?php endif; ?>
                                         </td>
                                       </tr>
