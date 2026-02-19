@@ -155,13 +155,18 @@ if (isset($_POST['manual_id'])) {
   $hocUserIdInt = $hocUserId ?: 0;
   $studentsCountInt = (int)$studentsCount;
   $totalAmountInt = (int)$totalAmount;
-  $lastStudentIdValue = $lastStudentId ? (int)$lastStudentId : 'NULL';
+  
+  // Construct the INSERT query with proper NULL handling
+  if ($lastStudentId) {
+    $lastStudentIdValue = (int)$lastStudentId;
+    $insertQuery = "INSERT INTO manual_export_audits (code, manual_id, hoc_user_id, students_count, total_amount, downloaded_at, last_student_id, status)
+                    VALUES ('$safeCode', $manualIdInt, $hocUserIdInt, $studentsCountInt, $totalAmountInt, '$safeDownloadedAt', $lastStudentIdValue, 'given')";
+  } else {
+    $insertQuery = "INSERT INTO manual_export_audits (code, manual_id, hoc_user_id, students_count, total_amount, downloaded_at, last_student_id, status)
+                    VALUES ('$safeCode', $manualIdInt, $hocUserIdInt, $studentsCountInt, $totalAmountInt, '$safeDownloadedAt', NULL, 'given')";
+  }
 
-  mysqli_query(
-    $conn,
-    "INSERT INTO manual_export_audits (code, manual_id, hoc_user_id, students_count, total_amount, downloaded_at, last_student_id, status)
-     VALUES ('$safeCode', $manualIdInt, $hocUserIdInt, $studentsCountInt, $totalAmountInt, '$safeDownloadedAt', $lastStudentIdValue, 'given')"
-  );
+  mysqli_query($conn, $insertQuery);
 
   // Fetch HOC basic info for display (if available)
   $hocName = null;
