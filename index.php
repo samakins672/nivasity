@@ -21,9 +21,23 @@ if (!isset($_SESSION["nivas_cart_event$user_id"])) {
 $total_cart_items = count($_SESSION["nivas_cart$user_id"]) + count($_SESSION["nivas_cart_event$user_id"]);
 $total_cart_price = 0;
 
-$t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals WHERE dept = $user_dept AND status = 'open' AND school_id = $school_id"))[0];
+$user_dept_int = (int) $user_dept;
+$school_id_int = (int) $school_id;
+$user_faculty_id = 0;
+$user_dept_meta_q = mysqli_query($conn, "SELECT faculty_id FROM depts WHERE id = $user_dept_int AND school_id = $school_id_int LIMIT 1");
+if ($user_dept_meta_q && mysqli_num_rows($user_dept_meta_q) > 0) {
+  $user_dept_meta = mysqli_fetch_assoc($user_dept_meta_q);
+  $user_faculty_id = isset($user_dept_meta['faculty_id']) ? (int) $user_dept_meta['faculty_id'] : 0;
+}
 
-$manual_query = mysqli_query($conn, "SELECT * FROM manuals WHERE dept = $user_dept AND status = 'open' AND school_id = $school_id ORDER BY `id` DESC");
+$manual_visibility_where = "m.dept = $user_dept_int";
+if ($user_faculty_id > 0) {
+  $manual_visibility_where .= " OR (m.dept = 0 AND m.faculty = $user_faculty_id)";
+}
+
+$t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(m.id) FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int"))[0];
+
+$manual_query = mysqli_query($conn, "SELECT * FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int ORDER BY m.id DESC");
 
 $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' ORDER BY `id` DESC");
 
