@@ -183,8 +183,8 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
                               ?>
                                   <div class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card sortable-card">
-                                    <div class="card card-rounded shadow-sm">
-                                      <div class="card-body">
+                                    <div class="card card-rounded shadow-sm h-100">
+                                      <div class="card-body d-flex flex-column h-100">
                                         <h4 class="card-title"><?php echo $manual['title'] ?> <span class="text-secondary">- <?php echo $manual['course_code'] ?></span></h4>
                                         <div class="media">
                                           <i class="mdi mdi-book icon-lg text-secondary d-flex align-self-start me-3"></i>
@@ -196,18 +196,20 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                                             </p>
                                           </div>
                                         </div>
-                                        <hr>
-                                        <div class="d-flex justify-content-between">
-                                          <?php if ($status != 'disabled'): ?>
-                                                <a href="javascript:;" title="Copy share link">
-                                                  <i class="mdi mdi-share-variant icon-md text-muted share_button" data-title="<?php echo $manual['title']; ?>" data-product_id="<?php echo $manual['id']; ?>" data-type="product"></i>
-                                                </a>
-                                                <button class="btn <?php echo $button_class; ?> btn-lg m-0 cart-button" data-product-id="<?php echo $manual['id']; ?>">
-                                                  <?php echo $button_text; ?>
-                                                </button>
-                                          <?php else: ?>
-                                                <h4 class="fw-bold text-danger">Overdue !</h4>
-                                          <?php endif; ?>
+                                        <div class="mt-auto pt-2">
+                                          <hr class="my-2">
+                                          <div class="d-flex justify-content-between align-items-center">
+                                            <?php if ($status != 'disabled'): ?>
+                                                  <a href="javascript:;" title="Copy share link">
+                                                    <i class="mdi mdi-share-variant icon-md text-muted share_button" data-title="<?php echo $manual['title']; ?>" data-product_id="<?php echo $manual['id']; ?>" data-type="product"></i>
+                                                  </a>
+                                                  <button class="btn <?php echo $button_class; ?> btn-lg m-0 cart-button" data-product-id="<?php echo $manual['id']; ?>">
+                                                    <?php echo $button_text; ?>
+                                                  </button>
+                                            <?php else: ?>
+                                                  <h4 class="fw-bold text-danger mb-0">Overdue !</h4>
+                                            <?php endif; ?>
+                                            </div>
                                           </div>
                                         </div>
                                       </div>
