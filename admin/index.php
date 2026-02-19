@@ -867,7 +867,6 @@ if (mysqli_num_rows($settlement_query) == 0) {
                       <div class="modal-header">
                         <h5 class="modal-title" id="addManualLabel">New Course Material</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </button>
                       </div>
                       <form id="manual-form">
                         <input type="hidden" name="manual_id" value="0">
