@@ -507,7 +507,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                             </div>
                                           </div>
                                           <?php else: ?>
-                                          <?php if($manuals_bought_cnt >= 1): ?>
+                                          <?php if ($manuals_bought_cnt > 0): ?>
                                           <div class="dropdown">
                                             <button type="button" class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="true">
                                               <i class="mdi mdi-dots-vertical fs-4"></i>
