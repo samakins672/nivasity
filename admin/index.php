@@ -408,9 +408,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                     <th class="d-sm-none-2">Availability</th>
                                     <th class="d-sm-none-2">Due Date</th>
                                     <th>Status</th>
-                                    <?php if (MATERIAL_MANAGEMENT_ENABLED): ?>
                                     <th>Actions</th>
-                                    <?php endif; ?>
                                   </tr>
                                 </thead>
                                 <tbody id="manual_tbody">
@@ -473,8 +471,8 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                         <td>
                                           <div class="badge <?php echo ($status == 'open') ? 'bg-success' : 'bg-danger'; ?>"> <?php echo ($status == 'open') ? 'Active' : 'Closed'; ?> </div>
                                         </td>
-                                        <?php if (MATERIAL_MANAGEMENT_ENABLED): ?>
                                         <td>
+                                          <?php if (MATERIAL_MANAGEMENT_ENABLED): ?>
                                           <div class="dropdown">
                                             <button type="button" class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="true">
                                               <i class="mdi mdi-dots-vertical fs-4"></i>
@@ -508,8 +506,26 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                               <?php endif; ?>
                                             </div>
                                           </div>
+                                          <?php else: ?>
+                                          <div class="dropdown">
+                                            <button type="button" class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="true">
+                                              <i class="mdi mdi-dots-vertical fs-4"></i>
+                                            </button>
+                                            <div class="dropdown-menu">
+                                              <?php if ($manuals_bought_cnt > 0): ?>
+                                                <a class="dropdown-item export-manual border-bottom d-flex" href="javascript:;" data-bs-toggle="modal" data-bs-target="#exportManual"
+                                                  data-manual_id="<?php echo $manual['id']; ?>" data-code="<?php echo $manual['course_code']; ?>">
+                                                  <i class="mdi mdi-export-variant pe-2"></i> Export list
+                                                </a>
+                                              <?php endif; ?>
+                                              <a class="dropdown-item <?php echo ($manuals_bought_cnt < 1) ? 'border-bottom' : '' ?> share_button d-flex" data-title="<?php echo $manual['title']; ?>" 
+                                                data-product_id="<?php echo $manual['id']; ?>" data-type="product" href="javascript:;"> 
+                                                <i class="mdi mdi-content-copy pe-2"></i> Copy share link
+                                              </a>
+                                            </div>
+                                          </div>
+                                          <?php endif; ?>
                                         </td>
-                                        <?php endif; ?>
                                       </tr>
                                   <?php } ?>
                                 </tbody>
