@@ -515,7 +515,12 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                               <i class="mdi mdi-dots-vertical fs-4"></i>
                                             </button>
                                             <div class="dropdown-menu">
-                                              <?php if((int)$manual['user_id'] === (int)$user_id): ?>
+                                              <?php 
+                                              // For faculty-level materials (dept=0), any admin in that faculty can edit
+                                              // For department materials, only the owner can edit
+                                              $can_edit = ((int)$manual['user_id'] === (int)$user_id) || ((int)$manual['dept'] === 0 && isset($user_faculty) && (int)$manual['faculty'] === $user_faculty);
+                                              if($can_edit): 
+                                              ?>
                                               <a class="dropdown-item view-edit-manual border-bottom d-flex" href="javascript:;"
                                                 data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>"
                                                 data-course_code="<?php echo $manual['course_code']; ?>" data-price="<?php echo $manual['price']; ?>"
@@ -532,11 +537,11 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                                   <i class="mdi mdi-export-variant pe-2"></i> Export list
                                                 </a>
                                               <?php endif; ?>
-                                              <a class="dropdown-item <?php echo ($manuals_bought_cnt < 1 || (int)$manual['user_id'] !== (int)$user_id) ? 'border-bottom' : '' ?> share_button d-flex" data-title="<?php echo $manual['title']; ?>" 
+                                              <a class="dropdown-item <?php echo ($manuals_bought_cnt < 1 || !$can_edit) ? 'border-bottom' : '' ?> share_button d-flex" data-title="<?php echo $manual['title']; ?>" 
                                                 data-product_id="<?php echo $manual['id']; ?>" data-type="product" href="javascript:;"> 
                                                 <i class="mdi mdi-content-copy pe-2"></i> Copy share link
                                               </a>
-                                              <?php if($manuals_bought_cnt < 1 && (int)$manual['user_id'] === (int)$user_id): ?>
+                                              <?php if($manuals_bought_cnt < 1 && $can_edit): ?>
                                                 <a class="dropdown-item close-manual d-flex" href="javascript:;"
                                                   data-product_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>" data-type="product"
                                                   data-bs-toggle="modal" data-bs-target="#closeManual">
