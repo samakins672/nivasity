@@ -98,6 +98,19 @@ function exportResolveAuditStatusColumn(mysqli $conn, $requestId) {
   return $resolved;
 }
 
+function exportManualsBoughtHasColumn(mysqli $conn, $columnName) {
+  static $columnCache = [];
+  if (isset($columnCache[$columnName])) {
+    return $columnCache[$columnName];
+  }
+
+  $safeColumn = mysqli_real_escape_string($conn, $columnName);
+  $res = mysqli_query($conn, "SHOW COLUMNS FROM manuals_bought LIKE '$safeColumn'");
+  $hasColumn = ($res && mysqli_num_rows($res) > 0);
+  $columnCache[$columnName] = $hasColumn;
+  return $hasColumn;
+}
+
 // Check if the manual ID is provided in the POST request
 if (isset($_POST['manual_id'])) {
   $requestId = exportRequestId();
@@ -125,6 +138,16 @@ if (isset($_POST['manual_id'])) {
     }
     $manualRow = mysqli_fetch_assoc($manualRes);
 
+    $manualBuyerFilters = [
+      "mb.manual_id = $manualId",
+      "mb.status = 'successful'",
+    ];
+    if (exportManualsBoughtHasColumn($conn, 'grant_status')) {
+      // Only export students still pending in manuals_bought.
+      $manualBuyerFilters[] = "(mb.grant_status IS NULL OR LOWER(TRIM(CAST(mb.grant_status AS CHAR))) IN ('', '0', 'pending', 'false'))";
+    }
+    $manualBuyerWhere = implode("\n        AND ", $manualBuyerFilters);
+
     $query = "
       SELECT
         u.id AS user_id,
@@ -141,8 +164,7 @@ if (isset($_POST['manual_id'])) {
       ON
         mb.buyer = u.id
       WHERE
-        mb.manual_id = $manualId
-        AND mb.status = 'successful'
+        $manualBuyerWhere
       ORDER BY
         u.matric_no ASC
     ";
@@ -177,75 +199,18 @@ if (isset($_POST['manual_id'])) {
         'matric_no' => $row['matric_no'],
         'adm_year' => $row['adm_year'],
         'price' => $price,
-        'status' => 'given', // Default status, will be updated later
       ];
     }
 
     $studentsCount = count($usersData);
-
-    // Check for previous exports with status='granted' for this manual
-    $grantedStudentIds = [];
-    $prevExportRes = false;
-    if ($auditStatusColumn !== '') {
-      $safeAuditStatusColumn = ($auditStatusColumn === 'grant_status') ? 'grant_status' : 'status';
-      $prevExportQuery = "
-        SELECT last_student_id
-        FROM manual_export_audits
-        WHERE manual_id = $manualId
-          AND `$safeAuditStatusColumn` = 'granted'
-          AND last_student_id IS NOT NULL
-        ORDER BY downloaded_at DESC
-        LIMIT 1
-      ";
-      $prevExportRes = exportRunQuery(
-        $conn,
-        $prevExportQuery,
-        $requestId,
-        'load_last_granted_export',
-        ['manual_id' => $manualId, 'audit_status_column' => $safeAuditStatusColumn]
-      );
+    if ($studentsCount < 1) {
+      exportJsonResponse([
+        'status' => 'error',
+        'message' => 'No pending students to export for this material.',
+        'request_id' => $requestId,
+      ], 409);
+      exit;
     }
-
-    if ($prevExportRes && mysqli_num_rows($prevExportRes) > 0) {
-      $prevExportRow = mysqli_fetch_assoc($prevExportRes);
-      $prevLastStudentId = (int)$prevExportRow['last_student_id'];
-
-      // Get all student IDs up to and including the last granted student ID
-      // based on their purchase order (created_at)
-      $grantedQuery = "
-        SELECT DISTINCT mb.buyer
-        FROM manuals_bought AS mb
-        WHERE mb.manual_id = $manualId
-          AND mb.status = 'successful'
-          AND mb.created_at <= (
-            SELECT created_at
-            FROM manuals_bought
-            WHERE manual_id = $manualId
-              AND buyer = $prevLastStudentId
-              AND status = 'successful'
-            ORDER BY created_at DESC
-            LIMIT 1
-          )
-      ";
-      $grantedRes = exportRunQuery(
-        $conn,
-        $grantedQuery,
-        $requestId,
-        'load_granted_students_cutoff',
-        ['manual_id' => $manualId, 'last_granted_student_id' => $prevLastStudentId]
-      );
-      while ($grantedRow = mysqli_fetch_assoc($grantedRes)) {
-        $grantedStudentIds[] = (int)$grantedRow['buyer'];
-      }
-    }
-
-    // Update status for granted students
-    foreach ($usersData as &$user) {
-      if (in_array($user['user_id'], $grantedStudentIds, true)) {
-        $user['status'] = 'granted';
-      }
-    }
-    unset($user); // Break reference
 
     // Generate and persist a verification code for this export
     $verificationCode = generateManualExportCode($conn);
@@ -276,6 +241,7 @@ if (isset($_POST['manual_id'])) {
       'insert_export_audit',
       ['manual_id' => $manualIdInt, 'hoc_user_id' => $hocUserIdInt, 'audit_status_column' => $auditStatusColumn]
     );
+    $exportAuditId = mysqli_insert_id($conn);
 
     // Fetch HOC basic info for display (if available)
     $hocName = null;
@@ -315,6 +281,7 @@ if (isset($_POST['manual_id'])) {
         'course_code' => $manualRow['course_code'],
         'code' => $manualRow['code'],
       ],
+      'export_audit_id' => (int)$exportAuditId,
       'hoc' => [
         'id' => $hocUserIdInt,
         'name' => $hocName,

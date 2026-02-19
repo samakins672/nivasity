@@ -1674,21 +1674,17 @@ if (mysqli_num_rows($settlement_query) == 0) {
               var table;
               if (rrr === '') {
                 // Format data into a table
-                table = "<table><tr><th>S/N</th><th>NAMES</th><th>MATRIC NO</th><th>ADMISSION YEAR</th><th>PRICE PAID</th><th>STATUS</th></tr>";
+                table = "<table><tr><th>S/N</th><th>NAMES</th><th>MATRIC NO</th><th>ADMISSION YEAR</th><th>PRICE PAID</th></tr>";
 
                 $.each(rows, function (index, item) {
-                  var status = item.status || 'given';
-                  var statusUpper = status.charAt(0).toUpperCase() + status.slice(1);
-                  table += "<tr><td>" + (index + 1) + "</td><td>" + item.name + "</td><td>" + item.matric_no + "</td><td>" + item.adm_year + "</td><td>" + item.price + "</td><td>" + statusUpper + "</td></tr>";
+                  table += "<tr><td>" + (index + 1) + "</td><td>" + item.name + "</td><td>" + item.matric_no + "</td><td>" + item.adm_year + "</td><td>" + item.price + "</td></tr>";
                 });
               } else {
                 // Format data into a table
-                table = "<table><tr><th>S/N</th><th>NAMES</th><th>MATRIC NO</th><th>ADMISSION YEAR</th><th>PRICE PAID</th><th>RRR</th><th>STATUS</th></tr>";
+                table = "<table><tr><th>S/N</th><th>NAMES</th><th>MATRIC NO</th><th>ADMISSION YEAR</th><th>PRICE PAID</th><th>RRR</th></tr>";
 
                 $.each(rows, function (index, item) {
-                  var status = item.status || 'given';
-                  var statusUpper = status.charAt(0).toUpperCase() + status.slice(1);
-                  table += "<tr><td>" + (index + 1) + "</td><td>" + item.name + "</td><td>" + item.matric_no + "</td><td>" + item.adm_year + "</td><td>" + item.price + "</td><td>" + rrr + "</td><td>" + statusUpper + "</td></tr>";
+                  table += "<tr><td>" + (index + 1) + "</td><td>" + item.name + "</td><td>" + item.matric_no + "</td><td>" + item.adm_year + "</td><td>" + item.price + "</td><td>" + rrr + "</td></tr>";
                 });
               }
 
