@@ -806,7 +806,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                         </div>
                         <div class="modal-footer">
                           <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
-                          <button id="close_manual_submit" type="submit" data-mdb-ripple-duration="0"
+                          <button id="close_manual_submit" type="submit" data-mdb-ripple-duration="0ms"
                             class="btn btn-lg btn-danger">Confirm</button>
                         </div>
                       </form>
@@ -983,7 +983,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                         </div>
                         <div class="modal-footer">
                           <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
-                          <button id="manual_submit" type="submit" data-mdb-ripple-duration="0"
+                          <button id="manual_submit" type="submit" data-mdb-ripple-duration="0ms"
                             class="btn btn-lg btn-primary">Submit</button>
                         </div>
                       </form>
@@ -1088,7 +1088,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                         </div>
                         <div class="modal-footer">
                           <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
-                          <button id="event_submit" type="submit" data-mdb-ripple-duration="0"
+                          <button id="event_submit" type="submit" data-mdb-ripple-duration="0ms"
                             class="btn btn-lg btn-primary">Submit</button>
                         </div>
                       </form>
@@ -1118,7 +1118,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                         </div>
                         <div class="modal-footer">
                           <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
-                          <button id="email_submit" type="submit" data-mdb-ripple-duration="0"
+                          <button id="email_submit" type="submit" data-mdb-ripple-duration="0ms"
                             class="btn btn-lg btn-primary">Submit</button>
                         </div>
                       </form>
