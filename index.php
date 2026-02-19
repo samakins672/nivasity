@@ -23,21 +23,48 @@ $total_cart_price = 0;
 
 $user_dept_int = (int) $user_dept;
 $school_id_int = (int) $school_id;
-$user_faculty_id = 0;
-$user_dept_meta_q = mysqli_query($conn, "SELECT faculty_id FROM depts WHERE id = $user_dept_int AND school_id = $school_id_int LIMIT 1");
-if ($user_dept_meta_q && mysqli_num_rows($user_dept_meta_q) > 0) {
-  $user_dept_meta = mysqli_fetch_assoc($user_dept_meta_q);
-  $user_faculty_id = isset($user_dept_meta['faculty_id']) ? (int) $user_dept_meta['faculty_id'] : 0;
-}
-
 $manual_visibility_where = "m.dept = $user_dept_int";
-if ($user_faculty_id > 0) {
-  $manual_visibility_where .= " OR (m.dept = 0 AND m.faculty = $user_faculty_id)";
+if ($user_dept_int <= 0) {
+  $manual_visibility_where = "1 = 0";
 }
 
-$t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(m.id) FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int"))[0];
+try {
+  $deptsHasFacultyId = false;
+  $manualsHasFaculty = false;
+  $deptsFacultyColumnRes = mysqli_query($conn, "SHOW COLUMNS FROM depts LIKE 'faculty_id'");
+  if ($deptsFacultyColumnRes && mysqli_num_rows($deptsFacultyColumnRes) > 0) {
+    $deptsHasFacultyId = true;
+  }
+  $manualsFacultyColumnRes = mysqli_query($conn, "SHOW COLUMNS FROM manuals LIKE 'faculty'");
+  if ($manualsFacultyColumnRes && mysqli_num_rows($manualsFacultyColumnRes) > 0) {
+    $manualsHasFaculty = true;
+  }
 
-$manual_query = mysqli_query($conn, "SELECT * FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int ORDER BY m.id DESC");
+  if ($deptsHasFacultyId && $manualsHasFaculty && $user_dept_int > 0) {
+    $user_faculty_id = 0;
+    $user_dept_meta_q = mysqli_query($conn, "SELECT faculty_id FROM depts WHERE id = $user_dept_int AND school_id = $school_id_int LIMIT 1");
+    if ($user_dept_meta_q && mysqli_num_rows($user_dept_meta_q) > 0) {
+      $user_dept_meta = mysqli_fetch_assoc($user_dept_meta_q);
+      $user_faculty_id = isset($user_dept_meta['faculty_id']) ? (int) $user_dept_meta['faculty_id'] : 0;
+    }
+
+    if ($user_faculty_id > 0) {
+      $manual_visibility_where .= " OR (m.dept = 0 AND m.faculty = $user_faculty_id)";
+    }
+  }
+} catch (Throwable $e) {
+  error_log('[index] store visibility fallback: ' . $e->getMessage());
+  $manual_visibility_where = "m.dept = $user_dept_int";
+}
+
+try {
+  $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(m.id) FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int"))[0];
+  $manual_query = mysqli_query($conn, "SELECT * FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int ORDER BY m.id DESC");
+} catch (Throwable $e) {
+  error_log('[index] manual query failed, falling back: ' . $e->getMessage());
+  $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int"))[0];
+  $manual_query = mysqli_query($conn, "SELECT * FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int ORDER BY id DESC");
+}
 
 $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' ORDER BY `id` DESC");
 

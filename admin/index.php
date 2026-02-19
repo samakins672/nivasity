@@ -51,28 +51,56 @@ $manual_query2 = mysqli_query($conn, "SELECT $column_id, SUM(price) AS total_sal
 
 $manual_query_sql = "SELECT * FROM $item_table WHERE user_id = $user_id ORDER BY `id` DESC";
 if ($_SESSION['nivas_userRole'] == 'hoc') {
-  $user_dept_int = (int) $user_dept;
-  $school_id_int = (int) $school_id;
-  $user_faculty_id = 0;
+  try {
+    $user_dept_int = (int) $user_dept;
+    $school_id_int = (int) $school_id;
+    $user_faculty_id = 0;
 
-  $user_dept_meta_q = mysqli_query($conn, "SELECT faculty_id FROM depts WHERE id = $user_dept_int AND school_id = $school_id_int LIMIT 1");
-  if ($user_dept_meta_q && mysqli_num_rows($user_dept_meta_q) > 0) {
-    $user_dept_meta = mysqli_fetch_assoc($user_dept_meta_q);
-    $user_faculty_id = isset($user_dept_meta['faculty_id']) ? (int) $user_dept_meta['faculty_id'] : 0;
+    $deptsHasFacultyId = false;
+    $manualsHasFaculty = false;
+    $deptsFacultyColumnRes = mysqli_query($conn, "SHOW COLUMNS FROM depts LIKE 'faculty_id'");
+    if ($deptsFacultyColumnRes && mysqli_num_rows($deptsFacultyColumnRes) > 0) {
+      $deptsHasFacultyId = true;
+    }
+    $manualsFacultyColumnRes = mysqli_query($conn, "SHOW COLUMNS FROM manuals LIKE 'faculty'");
+    if ($manualsFacultyColumnRes && mysqli_num_rows($manualsFacultyColumnRes) > 0) {
+      $manualsHasFaculty = true;
+    }
+
+    $sharedVisibilityParts = [];
+    if ($user_dept_int > 0) {
+      $sharedVisibilityParts[] = "m.dept = $user_dept_int";
+    }
+
+    if ($deptsHasFacultyId && $manualsHasFaculty && $user_dept_int > 0) {
+      $user_dept_meta_q = mysqli_query($conn, "SELECT faculty_id FROM depts WHERE id = $user_dept_int AND school_id = $school_id_int LIMIT 1");
+      if ($user_dept_meta_q && mysqli_num_rows($user_dept_meta_q) > 0) {
+        $user_dept_meta = mysqli_fetch_assoc($user_dept_meta_q);
+        $user_faculty_id = isset($user_dept_meta['faculty_id']) ? (int) $user_dept_meta['faculty_id'] : 0;
+      }
+      if ($user_faculty_id > 0) {
+        $sharedVisibilityParts[] = "(m.dept = 0 AND m.faculty = $user_faculty_id)";
+      }
+    }
+
+    if (!empty($sharedVisibilityParts)) {
+      $shared_visibility = implode(' OR ', $sharedVisibilityParts);
+      $manual_query_sql = "SELECT *
+        FROM manuals AS m
+        WHERE m.user_id = $user_id
+           OR (m.user_id = 0 AND m.school_id = $school_id_int AND ($shared_visibility))
+        ORDER BY m.id DESC";
+    }
+  } catch (Throwable $e) {
+    error_log('[admin/index] shared materials query fallback: ' . $e->getMessage());
   }
-
-  $shared_visibility = "m.dept = $user_dept_int";
-  if ($user_faculty_id > 0) {
-    $shared_visibility .= " OR (m.dept = 0 AND m.faculty = $user_faculty_id)";
-  }
-
-  $manual_query_sql = "SELECT *
-    FROM manuals AS m
-    WHERE m.user_id = $user_id
-       OR (m.user_id = 0 AND m.school_id = $school_id_int AND ($shared_visibility))
-    ORDER BY m.id DESC";
 }
-$manual_query = mysqli_query($conn, $manual_query_sql);
+try {
+  $manual_query = mysqli_query($conn, $manual_query_sql);
+} catch (Throwable $e) {
+  error_log('[admin/index] manual_query failed, falling back: ' . $e->getMessage());
+  $manual_query = mysqli_query($conn, "SELECT * FROM $item_table WHERE user_id = $user_id ORDER BY `id` DESC");
+}
 $faculties = [];
 if ($_SESSION['nivas_userRole'] == 'hoc') {
   $faculties_query = mysqli_query($conn, "SELECT id, name FROM faculties WHERE school_id = $school_id AND status = 'active' ORDER BY name ASC");
@@ -436,6 +464,36 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                 </thead>
                                 <tbody id="manual_tbody">
                                 <?php
+                                $manualSalesMap = [];
+                                if ($manual_query) {
+                                  $manualIds = [];
+                                  while ($manualRowForStats = mysqli_fetch_assoc($manual_query)) {
+                                    $manualIds[] = (int) $manualRowForStats['id'];
+                                  }
+                                  if (!empty($manualIds)) {
+                                    $manualIds = array_values(array_unique($manualIds));
+                                    $manualIdsCsv = implode(',', $manualIds);
+                                    if ($manualIdsCsv !== '') {
+                                      $manualSalesQuery = mysqli_query(
+                                        $conn,
+                                        "SELECT manual_id, COUNT(manual_id) AS cnt, COALESCE(SUM(price), 0) AS total
+                                         FROM $item_table2
+                                         WHERE manual_id IN ($manualIdsCsv)
+                                         GROUP BY manual_id"
+                                      );
+                                      if ($manualSalesQuery) {
+                                        while ($manualSalesRow = mysqli_fetch_assoc($manualSalesQuery)) {
+                                          $manualSalesMap[(int)$manualSalesRow['manual_id']] = [
+                                            'cnt' => (int)$manualSalesRow['cnt'],
+                                            'total' => (int)$manualSalesRow['total'],
+                                          ];
+                                        }
+                                      }
+                                    }
+                                  }
+                                  mysqli_data_seek($manual_query, 0);
+                                }
+
                                 while ($manual = mysqli_fetch_array($manual_query)) {
                                   $manual_id = $manual['id'];
                                   $manual_title_esc = htmlspecialchars((string)$manual['title'], ENT_QUOTES, 'UTF-8');
@@ -448,11 +506,13 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                   );
                                   $can_modify_material = MATERIAL_MANAGEMENT_ENABLED && !$is_shared_admin_material;
 
-                                  $manuals_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(manual_id) FROM $item_table2 WHERE manual_id = $manual_id"))[0];
-                                  $manuals_bought_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM $item_table2 WHERE manual_id = $manual_id"))[0];
+                                  $manualSales = isset($manualSalesMap[(int)$manual_id]) ? $manualSalesMap[(int)$manual_id] : ['cnt' => 0, 'total' => 0];
+                                  $manuals_bought_cnt = (int) $manualSales['cnt'];
+                                  $manuals_bought_price = (int) $manualSales['total'];
 
                                   // Calculate the percentage and total sold/quantity text
-                                  $percentage_sold = ($manuals_bought_cnt / $manual['quantity']) * 100;
+                                  $manualQuantity = max((int)$manual['quantity'], 1);
+                                  $percentage_sold = ($manuals_bought_cnt / $manualQuantity) * 100;
                                   $sold_quantity_text = $manuals_bought_cnt . '/' . $manual['quantity'];
                                   
                                   // Retrieve and format the due date
