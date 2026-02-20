@@ -25,14 +25,11 @@ if (!$manual_q || mysqli_num_rows($manual_q) === 0) {
 }
 
 $manual = mysqli_fetch_array($manual_q);
-$seller_id = intval($manual['user_id']);
-$seller = mysqli_fetch_array(mysqli_query($conn, "SELECT first_name, last_name FROM users WHERE id = $seller_id"));
-$seller_name = ($seller && isset($seller['first_name'])) ? ($seller['first_name'] . ' ' . $seller['last_name']) : 'Lecturer/HOC';
-
 $price = number_format($manual['price']);
 $due_date = date('j M, Y', strtotime($manual['due_date']));
 $due_date2 = date('Y-m-d', strtotime($manual['due_date']));
 $status = $manual['status'];
+$material_scope_label = ((int)$manual['dept'] === 0 && (int)$manual['faculty'] > 0) ? 'Faculty' : 'Department';
 $is_overdue = (date('Y-m-d') > $due_date2) || ($status === 'closed');
 
 // Determine cart status
@@ -71,7 +68,7 @@ $is_public = isset($_GET['public']) || isset($_POST['public']);
       <h5 class="mb-1 fw-bold"><?php echo htmlspecialchars($manual['title']); ?> <span class="text-secondary">- <?php echo htmlspecialchars($manual['course_code']); ?></span></h5>
       <p class="mb-2"><span class="fw-bold">Price:</span> &#8358; <span class="fw-bold"><?php echo $price; ?></span></p>
       <p class="mb-2"><span class="fw-bold">Due date:</span> <span class="fw-bold <?php echo $is_overdue ? 'text-danger' : 'text-success'; ?>"><?php echo $due_date; ?></span></p>
-      <p class="mb-0 text-secondary"><?php echo htmlspecialchars($seller_name); ?> (HOC/Lecturer)</p>
+      <p class="mb-0 text-secondary">By: <?php echo htmlspecialchars($material_scope_label); ?></p>
     </div>
   </div>
   <?php if ($is_overdue): ?>

@@ -25,144 +25,486 @@ function generateManualExportCode(mysqli $conn, $length = 10) {
   return $code;
 }
 
+function exportRequestId() {
+  try {
+    return strtoupper(bin2hex(random_bytes(6)));
+  } catch (Throwable $e) {
+    return strtoupper(uniqid('EXP', false));
+  }
+}
+
+function exportLog($requestId, $message, array $context = []) {
+  $prefix = '[export][' . $requestId . '] ';
+  if (!empty($context)) {
+    $json = json_encode($context, JSON_UNESCAPED_SLASHES);
+    if ($json !== false) {
+      error_log($prefix . $message . ' | ' . $json);
+      return;
+    }
+  }
+  error_log($prefix . $message);
+}
+
+function exportSqlSnippet($sql, $maxLen = 300) {
+  $oneLine = preg_replace('/\s+/', ' ', trim((string)$sql));
+  if (strlen($oneLine) > $maxLen) {
+    return substr($oneLine, 0, $maxLen) . '...';
+  }
+  return $oneLine;
+}
+
+function exportJsonResponse(array $payload, $statusCode = 200) {
+  if (!headers_sent()) {
+    http_response_code((int)$statusCode);
+    header('Content-Type: application/json');
+  }
+  echo json_encode($payload);
+}
+
+function exportRunQuery(mysqli $conn, $sql, $requestId, $step, array $context = []) {
+  $res = mysqli_query($conn, $sql);
+  if ($res === false) {
+    $sqlError = mysqli_error($conn);
+    exportLog($requestId, 'DB query failed', array_merge($context, [
+      'step' => $step,
+      'sql_error' => $sqlError,
+      'sql' => exportSqlSnippet($sql),
+    ]));
+    throw new RuntimeException($step . ' failed: ' . $sqlError);
+  }
+  return $res;
+}
+
+function exportResolveAuditStatusColumn(mysqli $conn, $requestId) {
+  static $resolved = null;
+  if ($resolved !== null) {
+    return $resolved;
+  }
+
+  $hasGrantStatus = mysqli_query($conn, "SHOW COLUMNS FROM manual_export_audits LIKE 'grant_status'");
+  if ($hasGrantStatus && mysqli_num_rows($hasGrantStatus) > 0) {
+    $resolved = 'grant_status';
+    return $resolved;
+  }
+
+  $hasStatus = mysqli_query($conn, "SHOW COLUMNS FROM manual_export_audits LIKE 'status'");
+  if ($hasStatus && mysqli_num_rows($hasStatus) > 0) {
+    $resolved = 'status';
+    return $resolved;
+  }
+
+  exportLog($requestId, 'Audit status column not found; export will continue without granted lookups');
+  $resolved = '';
+  return $resolved;
+}
+
+function exportAuditHasColumn(mysqli $conn, $columnName) {
+  static $columnCache = [];
+  if (isset($columnCache[$columnName])) {
+    return $columnCache[$columnName];
+  }
+
+  $safeColumn = mysqli_real_escape_string($conn, $columnName);
+  $res = mysqli_query($conn, "SHOW COLUMNS FROM manual_export_audits LIKE '$safeColumn'");
+  $hasColumn = ($res && mysqli_num_rows($res) > 0);
+  $columnCache[$columnName] = $hasColumn;
+  return $hasColumn;
+}
+
+function exportManualsBoughtHasColumn(mysqli $conn, $columnName) {
+  static $columnCache = [];
+  if (isset($columnCache[$columnName])) {
+    return $columnCache[$columnName];
+  }
+
+  $safeColumn = mysqli_real_escape_string($conn, $columnName);
+  $res = mysqli_query($conn, "SHOW COLUMNS FROM manuals_bought LIKE '$safeColumn'");
+  $hasColumn = ($res && mysqli_num_rows($res) > 0);
+  $columnCache[$columnName] = $hasColumn;
+  return $hasColumn;
+}
+
 // Check if the manual ID is provided in the POST request
 if (isset($_POST['manual_id'])) {
-  header('Content-Type: application/json');
-
-  $manualId = isset($_POST['manual_id']) ? (int)$_POST['manual_id'] : 0;
-  if ($manualId <= 0) {
-    echo json_encode(['status' => 'error', 'message' => 'Invalid manual ID']);
-    exit;
-  }
-
-  $hocUserId = isset($_SESSION['nivas_userId']) ? (int)$_SESSION['nivas_userId'] : 0;
-
-  // Fetch manual details
-  $manualRes = mysqli_query($conn, "SELECT id, title, course_code, code FROM manuals WHERE id = $manualId LIMIT 1");
-  if (!$manualRes || mysqli_num_rows($manualRes) < 1) {
-    echo json_encode(['status' => 'error', 'message' => 'Manual not found']);
-    exit;
-  }
-  $manualRow = mysqli_fetch_assoc($manualRes);
-
-  // Fetch user details from the users table and price from manuals_bought table
-  $query = "
-    SELECT
-      u.first_name,
-      u.last_name,
-      u.matric_no,
-      u.adm_year,
-      mb.price
-    FROM
-      manuals_bought AS mb
-    JOIN
-      users AS u
-    ON
-      mb.buyer = u.id
-    WHERE
-      mb.manual_id = $manualId
-      AND mb.status = 'successful'
-    ORDER BY
-      u.matric_no ASC
-  ";
-
-  $result = mysqli_query($conn, $query);
-  $usersData = [];
-  $totalAmount = 0;
-
-  while ($row = mysqli_fetch_assoc($result)) {
-    $price = (int)$row['price'];
-    $totalAmount += $price;
-    $usersData[] = [
-      'name' => $row['first_name'] . ' ' . $row['last_name'],
-      'matric_no' => $row['matric_no'],
-      'adm_year' => $row['adm_year'],
-      'price' => $price,
-    ];
-  }
-
-  $studentsCount = count($usersData);
-
-  // Generate and persist a verification code for this export
-  $verificationCode = generateManualExportCode($conn);
-  $safeCode = mysqli_real_escape_string($conn, $verificationCode);
-  $downloadedAt = date('Y-m-d H:i:s');
-  $safeDownloadedAt = mysqli_real_escape_string($conn, $downloadedAt);
-  $manualIdInt = (int)$manualRow['id'];
-  $hocUserIdInt = $hocUserId ?: 0;
-  $studentsCountInt = (int)$studentsCount;
-  $totalAmountInt = (int)$totalAmount;
-
-  mysqli_query(
-    $conn,
-    "INSERT INTO manual_export_audits (code, manual_id, hoc_user_id, students_count, total_amount, downloaded_at)
-     VALUES ('$safeCode', $manualIdInt, $hocUserIdInt, $studentsCountInt, $totalAmountInt, '$safeDownloadedAt')"
-  );
-
-  // Fetch HOC basic info for display (if available)
-  $hocName = null;
-  $hocEmail = null;
-  if ($hocUserIdInt > 0) {
-    $hocRes = mysqli_query($conn, "SELECT first_name, last_name, email FROM users WHERE id = $hocUserIdInt LIMIT 1");
-    if ($hocRes && mysqli_num_rows($hocRes) > 0) {
-      $hocRow = mysqli_fetch_assoc($hocRes);
-      $hocName = trim($hocRow['first_name'] . ' ' . $hocRow['last_name']);
-      $hocEmail = $hocRow['email'];
+  $requestId = exportRequestId();
+  try {
+    $manualId = isset($_POST['manual_id']) ? (int)$_POST['manual_id'] : 0;
+    if ($manualId <= 0) {
+      exportJsonResponse(['status' => 'error', 'message' => 'Invalid manual ID', 'request_id' => $requestId], 400);
+      exit;
     }
-  }
 
-  $response = [
-    'status' => 'success',
-    'code' => $verificationCode,
-    'students_count' => $studentsCount,
-    'total_amount' => $totalAmount,
-    'downloaded_at' => $downloadedAt,
-    'downloaded_at_readable' => date('j M Y, g:ia', strtotime($downloadedAt)),
-    'manual' => [
-      'id' => $manualIdInt,
-      'title' => $manualRow['title'],
-      'course_code' => $manualRow['course_code'],
-      'code' => $manualRow['code'],
-    ],
-    'hoc' => [
-      'id' => $hocUserIdInt,
-      'name' => $hocName,
-      'email' => $hocEmail,
-    ],
-    'rows' => $usersData,
-  ];
+    $hocUserId = isset($_SESSION['nivas_userId']) ? (int)$_SESSION['nivas_userId'] : 0;
+    $hocDeptId = 0;
+    $applyHocDeptFilter = false;
+    if (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole'] === 'hoc' && $hocUserId > 0) {
+      $hocDeptRes = exportRunQuery(
+        $conn,
+        "SELECT dept FROM users WHERE id = $hocUserId LIMIT 1",
+        $requestId,
+        'load_hoc_dept',
+        ['hoc_user_id' => $hocUserId]
+      );
+      if ($hocDeptRes && mysqli_num_rows($hocDeptRes) > 0) {
+        $hocDeptRow = mysqli_fetch_assoc($hocDeptRes);
+        $hocDeptId = isset($hocDeptRow['dept']) ? (int)$hocDeptRow['dept'] : 0;
+        if ($hocDeptId > 0) {
+          $applyHocDeptFilter = true;
+        }
+      }
+    }
+    $auditStatusColumn = exportResolveAuditStatusColumn($conn, $requestId);
+    exportLog($requestId, 'Manual export started', [
+      'manual_id' => $manualId,
+      'hoc_user_id' => $hocUserId,
+      'hoc_dept_id' => $hocDeptId,
+      'dept_filter_applied' => $applyHocDeptFilter
+    ]);
 
-  echo json_encode($response);
-} elseif (isset($_POST['event_id'])) {
-  $event_id = $_POST['event_id'];
+    $manualRes = exportRunQuery(
+      $conn,
+      "SELECT id, title, course_code, code FROM manuals WHERE id = $manualId LIMIT 1",
+      $requestId,
+      'load_manual',
+      ['manual_id' => $manualId]
+    );
+    if (mysqli_num_rows($manualRes) < 1) {
+      exportJsonResponse(['status' => 'error', 'message' => 'Manual not found', 'request_id' => $requestId], 404);
+      exit;
+    }
+    $manualRow = mysqli_fetch_assoc($manualRes);
 
-  // Fetch user IDs from the manuals_bought_2 table based on the manual ID
-  $userIdsResult = mysqli_query($conn, "SELECT * FROM event_tickets WHERE event_id = $event_id ORDER BY created_at ASC");
+    $manualsBoughtHasId = exportManualsBoughtHasColumn($conn, 'id');
+    $manualsBoughtHasGrantStatus = exportManualsBoughtHasColumn($conn, 'grant_status');
+    $fromBoughtId = null;
+    $toBoughtId = null;
 
-  // Fetch user details from the users table based on the obtained user IDs
-  $usersData = [];
-  while ($row = mysqli_fetch_assoc($userIdsResult)) {
-    $userId = $row['buyer'];
+    if ($manualsBoughtHasId) {
+      // from_bought_id: first successful payment row that is still pending grant.
+      $fromWhereParts = [
+        "mb.manual_id = $manualId",
+        "mb.status = 'successful'",
+      ];
+      $fromJoinSql = "";
+      if ($applyHocDeptFilter) {
+        $fromJoinSql = "JOIN users AS bu ON bu.id = mb.buyer";
+        $fromWhereParts[] = "bu.dept = $hocDeptId";
+      }
+      if ($manualsBoughtHasGrantStatus) {
+        $fromWhereParts[] = "(mb.grant_status IS NULL OR LOWER(TRIM(CAST(mb.grant_status AS CHAR))) IN ('', '0', 'pending', 'false'))";
+      }
+      $fromWhere = implode(" AND ", $fromWhereParts);
+      $fromRangeRes = exportRunQuery(
+        $conn,
+        "SELECT MIN(mb.id) AS from_bought_id FROM manuals_bought AS mb $fromJoinSql WHERE $fromWhere",
+        $requestId,
+        'load_export_from_bought_id',
+        ['manual_id' => $manualId, 'hoc_dept_id' => $hocDeptId]
+      );
+      $fromRangeRow = mysqli_fetch_assoc($fromRangeRes);
+      if ($fromRangeRow && $fromRangeRow['from_bought_id'] !== null) {
+        $fromBoughtId = (int)$fromRangeRow['from_bought_id'];
+      }
 
-    $userDetailsQuery = "SELECT first_name, last_name FROM users WHERE id = $userId";
-    $userDetailsResult = mysqli_query($conn, $userDetailsQuery);
+      // to_bought_id: latest successful payment row for this manual.
+      $toWhereParts = [
+        "mb.manual_id = $manualId",
+        "mb.status = 'successful'",
+      ];
+      $toJoinSql = "";
+      if ($applyHocDeptFilter) {
+        $toJoinSql = "JOIN users AS bu ON bu.id = mb.buyer";
+        $toWhereParts[] = "bu.dept = $hocDeptId";
+      }
+      $toWhere = implode(" AND ", $toWhereParts);
+      $toRangeRes = exportRunQuery(
+        $conn,
+        "SELECT MAX(mb.id) AS to_bought_id FROM manuals_bought AS mb $toJoinSql WHERE $toWhere",
+        $requestId,
+        'load_export_to_bought_id',
+        ['manual_id' => $manualId, 'hoc_dept_id' => $hocDeptId]
+      );
+      $toRangeRow = mysqli_fetch_assoc($toRangeRes);
+      if ($toRangeRow && $toRangeRow['to_bought_id'] !== null) {
+        $toBoughtId = (int)$toRangeRow['to_bought_id'];
+      }
+    } else {
+      exportLog($requestId, 'manuals_bought.id missing; from_bought_id/to_bought_id will not be populated', ['manual_id' => $manualId]);
+    }
 
-    // Fetch user details and add them to the result array
-    if ($userDetailsRow = mysqli_fetch_assoc($userDetailsResult)) {
+    $manualBuyerFilters = [
+      "mb.manual_id = $manualId",
+      "mb.status = 'successful'",
+    ];
+    if ($manualsBoughtHasGrantStatus) {
+      // Only export students still pending in manuals_bought.
+      $manualBuyerFilters[] = "(mb.grant_status IS NULL OR LOWER(TRIM(CAST(mb.grant_status AS CHAR))) IN ('', '0', 'pending', 'false'))";
+    }
+    if ($applyHocDeptFilter) {
+      $manualBuyerFilters[] = "u.dept = $hocDeptId";
+    }
+    $manualBuyerWhere = implode("\n        AND ", $manualBuyerFilters);
+    $boughtIdSelect = $manualsBoughtHasId ? "mb.id AS bought_id," : "0 AS bought_id,";
+
+    $query = "
+      SELECT
+        $boughtIdSelect
+        u.id AS user_id,
+        u.first_name,
+        u.last_name,
+        u.matric_no,
+        u.adm_year,
+        mb.price,
+        mb.created_at
+      FROM
+        manuals_bought AS mb
+      JOIN
+        users AS u
+      ON
+        mb.buyer = u.id
+      WHERE
+        $manualBuyerWhere
+      ORDER BY
+        u.matric_no ASC
+    ";
+
+    $result = exportRunQuery(
+      $conn,
+      $query,
+      $requestId,
+      'load_manual_buyers',
+      ['manual_id' => $manualId]
+    );
+    $usersData = [];
+    $totalAmount = 0;
+    $lastStudentId = null;
+    $lastPurchaseTime = null;
+    $boughtIds = [];
+
+    while ($row = mysqli_fetch_assoc($result)) {
+      $price = (int)$row['price'];
+      $totalAmount += $price;
+      $userId = (int)$row['user_id'];
+      $boughtId = isset($row['bought_id']) ? (int)$row['bought_id'] : 0;
+      $createdAt = $row['created_at'];
+      if ($boughtId > 0) {
+        $boughtIds[] = $boughtId;
+      }
+
+      // Track the last student ID based on purchase time
+      if ($lastPurchaseTime === null || strtotime($createdAt) > strtotime($lastPurchaseTime)) {
+        $lastStudentId = $userId;
+        $lastPurchaseTime = $createdAt;
+      }
+
       $usersData[] = [
-        'name' => $userDetailsRow['first_name'] . ' ' . $userDetailsRow['last_name'],
-        'created_at' => $row['created_at'],
-        'ref_id' => $row['ref_id'],
+        'user_id' => $userId,
+        'name' => $row['first_name'] . ' ' . $row['last_name'],
+        'matric_no' => $row['matric_no'],
+        'adm_year' => $row['adm_year'],
+        'price' => $price,
       ];
     }
-  }
 
-  // Return the result as JSON
-  header('Content-Type: application/json');
-  echo json_encode($usersData);
+    $studentsCount = count($usersData);
+    if ($studentsCount < 1) {
+      exportJsonResponse([
+        'status' => 'error',
+        'message' => 'No pending collection students for this material. Export only works for students yet to be marked as collected.',
+        'request_id' => $requestId,
+      ], 409);
+      exit;
+    }
+
+    // Generate and persist a verification code for this export
+    $verificationCode = generateManualExportCode($conn);
+    $safeCode = mysqli_real_escape_string($conn, $verificationCode);
+    $downloadedAt = date('Y-m-d H:i:s');
+    $safeDownloadedAt = mysqli_real_escape_string($conn, $downloadedAt);
+    $manualIdInt = (int)$manualRow['id'];
+    $hocUserIdInt = $hocUserId ?: 0;
+    $studentsCountInt = (int)$studentsCount;
+    $totalAmountInt = (int)$totalAmount;
+    $boughtIdsJson = json_encode(array_values($boughtIds), JSON_UNESCAPED_SLASHES);
+    if ($boughtIdsJson === false) {
+      $boughtIdsJson = '[]';
+    }
+    $safeBoughtIdsJson = mysqli_real_escape_string($conn, $boughtIdsJson);
+
+    // Construct the INSERT query with proper NULL handling.
+    // Export creation must remain pending; grant action is handled in command center.
+    $lastStudentSql = $lastStudentId ? (int)$lastStudentId : 'NULL';
+    $insertColumns = ['code', 'manual_id', 'hoc_user_id', 'students_count', 'total_amount', 'downloaded_at', 'last_student_id'];
+    $insertValues = ["'$safeCode'", (string)$manualIdInt, (string)$hocUserIdInt, (string)$studentsCountInt, (string)$totalAmountInt, "'$safeDownloadedAt'", (string)$lastStudentSql];
+
+    if (exportAuditHasColumn($conn, 'from_bought_id')) {
+      $insertColumns[] = 'from_bought_id';
+      $insertValues[] = ($fromBoughtId !== null) ? (string)$fromBoughtId : 'NULL';
+    }
+    if (exportAuditHasColumn($conn, 'to_bought_id')) {
+      $insertColumns[] = 'to_bought_id';
+      $insertValues[] = ($toBoughtId !== null) ? (string)$toBoughtId : 'NULL';
+    }
+    if (exportAuditHasColumn($conn, 'bought_ids_json')) {
+      $insertColumns[] = 'bought_ids_json';
+      $insertValues[] = "'$safeBoughtIdsJson'";
+    }
+    if ($auditStatusColumn !== '') {
+      $safeAuditStatusColumn = ($auditStatusColumn === 'grant_status') ? 'grant_status' : 'status';
+      $insertColumns[] = $safeAuditStatusColumn;
+      $insertValues[] = "'pending'";
+    }
+
+    $insertColumnSql = implode(', ', array_map(function ($col) {
+      return "`$col`";
+    }, $insertColumns));
+    $insertValueSql = implode(', ', $insertValues);
+    $insertQuery = "INSERT INTO manual_export_audits ($insertColumnSql) VALUES ($insertValueSql)";
+
+    exportRunQuery(
+      $conn,
+      $insertQuery,
+      $requestId,
+      'insert_export_audit',
+      [
+        'manual_id' => $manualIdInt,
+        'hoc_user_id' => $hocUserIdInt,
+        'audit_status_column' => $auditStatusColumn,
+        'from_bought_id' => $fromBoughtId,
+        'to_bought_id' => $toBoughtId,
+        'bought_ids_count' => count($boughtIds),
+        'dept_filter_applied' => $applyHocDeptFilter,
+        'hoc_dept_id' => $hocDeptId
+      ]
+    );
+    $exportAuditId = mysqli_insert_id($conn);
+
+    // Fetch HOC basic info for display (if available)
+    $hocName = null;
+    $hocEmail = null;
+    if ($hocUserIdInt > 0) {
+      $hocRes = exportRunQuery(
+        $conn,
+        "SELECT first_name, last_name, email FROM users WHERE id = $hocUserIdInt LIMIT 1",
+        $requestId,
+        'load_hoc_details',
+        ['hoc_user_id' => $hocUserIdInt]
+      );
+      if (mysqli_num_rows($hocRes) > 0) {
+        $hocRow = mysqli_fetch_assoc($hocRes);
+        $hocName = trim($hocRow['first_name'] . ' ' . $hocRow['last_name']);
+        $hocEmail = $hocRow['email'];
+      }
+    }
+
+    exportLog($requestId, 'Manual export completed', [
+      'manual_id' => $manualIdInt,
+      'students_count' => $studentsCountInt,
+      'total_amount' => $totalAmountInt,
+      'last_student_id' => $lastStudentId,
+      'from_bought_id' => $fromBoughtId,
+      'to_bought_id' => $toBoughtId,
+      'bought_ids_count' => count($boughtIds),
+    ]);
+
+    $response = [
+      'status' => 'success',
+      'code' => $verificationCode,
+      'students_count' => $studentsCount,
+      'total_amount' => $totalAmount,
+      'downloaded_at' => $downloadedAt,
+      'downloaded_at_readable' => date('j M Y, g:ia', strtotime($downloadedAt)),
+      'manual' => [
+        'id' => $manualIdInt,
+        'title' => $manualRow['title'],
+        'course_code' => $manualRow['course_code'],
+        'code' => $manualRow['code'],
+      ],
+      'export_audit_id' => (int)$exportAuditId,
+      'from_bought_id' => $fromBoughtId,
+      'to_bought_id' => $toBoughtId,
+      'bought_ids_count' => count($boughtIds),
+      'hoc' => [
+        'id' => $hocUserIdInt,
+        'name' => $hocName,
+        'email' => $hocEmail,
+      ],
+      'rows' => $usersData,
+      'request_id' => $requestId,
+    ];
+
+    exportJsonResponse($response);
+  } catch (Throwable $e) {
+    exportLog($requestId, 'Manual export failed', [
+      'manual_id' => isset($manualId) ? (int)$manualId : 0,
+      'hoc_user_id' => isset($hocUserId) ? (int)$hocUserId : 0,
+      'error' => $e->getMessage(),
+      'file' => $e->getFile(),
+      'line' => $e->getLine(),
+    ]);
+    exportJsonResponse([
+      'status' => 'error',
+      'message' => 'Unable to export material right now. Please try again.',
+      'request_id' => $requestId,
+    ], 500);
+  }
+} elseif (isset($_POST['event_id'])) {
+  $requestId = exportRequestId();
+  try {
+    $event_id = isset($_POST['event_id']) ? (int)$_POST['event_id'] : 0;
+    if ($event_id <= 0) {
+      exportJsonResponse(['status' => 'error', 'message' => 'Invalid event ID', 'request_id' => $requestId], 400);
+      exit;
+    }
+
+    $userIdsResult = exportRunQuery(
+      $conn,
+      "SELECT * FROM event_tickets WHERE event_id = $event_id ORDER BY created_at ASC",
+      $requestId,
+      'load_event_buyers',
+      ['event_id' => $event_id]
+    );
+
+    $usersData = [];
+    while ($row = mysqli_fetch_assoc($userIdsResult)) {
+      $userId = (int)$row['buyer'];
+
+      $userDetailsQuery = "SELECT first_name, last_name FROM users WHERE id = $userId";
+      $userDetailsResult = exportRunQuery(
+        $conn,
+        $userDetailsQuery,
+        $requestId,
+        'load_event_buyer_details',
+        ['event_id' => $event_id, 'buyer_id' => $userId]
+      );
+
+      // Fetch user details and add them to the result array
+      if ($userDetailsRow = mysqli_fetch_assoc($userDetailsResult)) {
+        $usersData[] = [
+          'name' => $userDetailsRow['first_name'] . ' ' . $userDetailsRow['last_name'],
+          'created_at' => $row['created_at'],
+          'ref_id' => $row['ref_id'],
+        ];
+      }
+    }
+
+    exportJsonResponse($usersData);
+  } catch (Throwable $e) {
+    exportLog($requestId, 'Event export failed', [
+      'event_id' => isset($event_id) ? (int)$event_id : 0,
+      'error' => $e->getMessage(),
+      'file' => $e->getFile(),
+      'line' => $e->getLine(),
+    ]);
+    exportJsonResponse([
+      'status' => 'error',
+      'message' => 'Unable to export event list right now. Please try again.',
+      'request_id' => $requestId,
+    ], 500);
+  }
 } else {
   // Handle the case where manual_id is not provided
-  echo json_encode(['error' => 'Manual ID not provided']);
+  exportJsonResponse(['status' => 'error', 'message' => 'Manual ID not provided'], 400);
 }
 
 ?>

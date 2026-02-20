@@ -7,8 +7,40 @@ $code = strtoupper($rawCode);
 $record = null;
 $error = null;
 
+function resolveAuditStatusColumn(mysqli $conn) {
+  $hasGrantStatus = mysqli_query($conn, "SHOW COLUMNS FROM manual_export_audits LIKE 'grant_status'");
+  if ($hasGrantStatus && mysqli_num_rows($hasGrantStatus) > 0) {
+    return 'grant_status';
+  }
+
+  $hasStatus = mysqli_query($conn, "SHOW COLUMNS FROM manual_export_audits LIKE 'status'");
+  if ($hasStatus && mysqli_num_rows($hasStatus) > 0) {
+    return 'status';
+  }
+
+  return '';
+}
+
+function auditHasColumn(mysqli $conn, $columnName) {
+  $safeColumn = mysqli_real_escape_string($conn, $columnName);
+  $res = mysqli_query($conn, "SHOW COLUMNS FROM manual_export_audits LIKE '$safeColumn'");
+  return ($res && mysqli_num_rows($res) > 0);
+}
+
 if ($code !== '') {
   $safeCode = mysqli_real_escape_string($conn, $code);
+  $auditStatusColumn = resolveAuditStatusColumn($conn);
+  $hasGrantedBy = auditHasColumn($conn, 'granted_by');
+  $hasGrantedAt = auditHasColumn($conn, 'granted_at');
+  $statusSelect = ($auditStatusColumn === 'grant_status' || $auditStatusColumn === 'status')
+    ? "a.`$auditStatusColumn` AS export_status"
+    : "'given' AS export_status";
+  $grantedBySelect = $hasGrantedBy ? "a.granted_by" : "NULL AS granted_by";
+  $grantedAtSelect = $hasGrantedAt ? "a.granted_at" : "NULL AS granted_at";
+  $grantedByAdminSelect = $hasGrantedBy
+    ? "CONCAT(COALESCE(ad.first_name, ''), ' ', COALESCE(ad.last_name, '')) AS granted_by_name"
+    : "'' AS granted_by_name";
+  $grantedByJoin = $hasGrantedBy ? "LEFT JOIN admins AS ad ON ad.id = a.granted_by" : "";
 
   $sql = "
     SELECT 
@@ -16,6 +48,10 @@ if ($code !== '') {
       a.students_count,
       a.total_amount,
       a.downloaded_at,
+      $statusSelect,
+      $grantedBySelect,
+      $grantedAtSelect,
+      $grantedByAdminSelect,
       m.title AS manual_title,
       m.course_code,
       m.code AS manual_internal_code,
@@ -27,6 +63,7 @@ if ($code !== '') {
     FROM manual_export_audits AS a
     JOIN manuals AS m ON m.id = a.manual_id
     JOIN users AS u ON u.id = a.hoc_user_id
+    $grantedByJoin
     LEFT JOIN depts AS d ON d.id = u.dept
     LEFT JOIN schools AS s ON s.id = u.school
     WHERE a.code = '$safeCode'
@@ -208,22 +245,72 @@ function formatDateTimeReadable($dt) {
             </div>
 
             <div class="row g-3 mb-3">
-              <div class="col-md-4">
+              <div class="col-md-3">
                 <div class="meta-label">Total Students</div>
                 <div class="meta-value">
                   <?php echo (int)$record['students_count']; ?>
                 </div>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-3">
                 <div class="meta-label">Total Amount</div>
                 <div class="meta-value">
                   &#8358; <?php echo formatAmount($record['total_amount']); ?>
                 </div>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-3">
+                <div class="meta-label">Status</div>
+                <div class="meta-value">
+                  <?php 
+                    $rawStatus = strtolower(trim((string)($record['export_status'] ?? '')));
+                    if ($rawStatus === 'granted') {
+                      $status = 'Granted';
+                      $statusBadgeClass = 'bg-success';
+                    } elseif ($rawStatus === 'pending') {
+                      $status = 'Pending';
+                      $statusBadgeClass = 'bg-warning text-dark';
+                    } elseif ($rawStatus === 'given' || $rawStatus === '') {
+                      $status = 'Given';
+                      $statusBadgeClass = 'bg-secondary';
+                    } else {
+                      $status = ucfirst($rawStatus);
+                      $statusBadgeClass = 'bg-info text-dark';
+                    }
+                    echo '<span class="badge rounded-pill ' . h($statusBadgeClass) . '">' . h($status) . '</span>';
+                  ?>
+                </div>
+              </div>
+              <div class="col-md-3">
                 <div class="meta-label">Date Exported</div>
                 <div class="meta-value">
                   <?php echo h(formatDateTimeReadable($record['downloaded_at'])); ?>
+                </div>
+              </div>
+            </div>
+
+            <?php
+              $grantedByName = trim((string)($record['granted_by_name'] ?? ''));
+              $grantedById = isset($record['granted_by']) ? (int)$record['granted_by'] : 0;
+              $grantedAt = !empty($record['granted_at']) ? formatDateTimeReadable($record['granted_at']) : '';
+            ?>
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <div class="meta-label">Granted By</div>
+                <div class="meta-value">
+                  <?php
+                    if ($grantedByName !== '') {
+                      echo h($grantedByName);
+                    } elseif ($grantedById > 0) {
+                      echo 'Admin ID: ' . h($grantedById);
+                    } else {
+                      echo '-';
+                    }
+                  ?>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="meta-label">Granted At</div>
+                <div class="meta-value">
+                  <?php echo h($grantedAt !== '' ? $grantedAt : '-'); ?>
                 </div>
               </div>
             </div>

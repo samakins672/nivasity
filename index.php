@@ -21,9 +21,50 @@ if (!isset($_SESSION["nivas_cart_event$user_id"])) {
 $total_cart_items = count($_SESSION["nivas_cart$user_id"]) + count($_SESSION["nivas_cart_event$user_id"]);
 $total_cart_price = 0;
 
-$t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals WHERE dept = $user_dept AND status = 'open' AND school_id = $school_id"))[0];
+$user_dept_int = (int) $user_dept;
+$school_id_int = (int) $school_id;
+$manual_visibility_where = "m.dept = $user_dept_int";
+if ($user_dept_int <= 0) {
+  $manual_visibility_where = "1 = 0";
+}
 
-$manual_query = mysqli_query($conn, "SELECT * FROM manuals WHERE dept = $user_dept AND status = 'open' AND school_id = $school_id ORDER BY `id` DESC");
+try {
+  $deptsHasFacultyId = false;
+  $manualsHasFaculty = false;
+  $deptsFacultyColumnRes = mysqli_query($conn, "SHOW COLUMNS FROM depts LIKE 'faculty_id'");
+  if ($deptsFacultyColumnRes && mysqli_num_rows($deptsFacultyColumnRes) > 0) {
+    $deptsHasFacultyId = true;
+  }
+  $manualsFacultyColumnRes = mysqli_query($conn, "SHOW COLUMNS FROM manuals LIKE 'faculty'");
+  if ($manualsFacultyColumnRes && mysqli_num_rows($manualsFacultyColumnRes) > 0) {
+    $manualsHasFaculty = true;
+  }
+
+  if ($deptsHasFacultyId && $manualsHasFaculty && $user_dept_int > 0) {
+    $user_faculty_id = 0;
+    $user_dept_meta_q = mysqli_query($conn, "SELECT faculty_id FROM depts WHERE id = $user_dept_int AND school_id = $school_id_int LIMIT 1");
+    if ($user_dept_meta_q && mysqli_num_rows($user_dept_meta_q) > 0) {
+      $user_dept_meta = mysqli_fetch_assoc($user_dept_meta_q);
+      $user_faculty_id = isset($user_dept_meta['faculty_id']) ? (int) $user_dept_meta['faculty_id'] : 0;
+    }
+
+    if ($user_faculty_id > 0) {
+      $manual_visibility_where .= " OR (m.dept = 0 AND m.faculty = $user_faculty_id)";
+    }
+  }
+} catch (Throwable $e) {
+  error_log('[index] store visibility fallback: ' . $e->getMessage());
+  $manual_visibility_where = "m.dept = $user_dept_int";
+}
+
+try {
+  $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(m.id) FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int"))[0];
+  $manual_query = mysqli_query($conn, "SELECT * FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int ORDER BY m.id DESC");
+} catch (Throwable $e) {
+  error_log('[index] manual query failed, falling back: ' . $e->getMessage());
+  $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int"))[0];
+  $manual_query = mysqli_query($conn, "SELECT * FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int ORDER BY id DESC");
+}
 
 $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' ORDER BY `id` DESC");
 
@@ -105,7 +146,6 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
                             while ($manual = mysqli_fetch_array($manual_query)) {
                               $manual_id = $manual['id'];
-                              $seller_id = $manual['user_id'];
 
                               // Check if the manual has been bought by the current user
                               $is_bought_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM manuals_bought WHERE manual_id = $manual_id AND buyer = $user_id AND school_id = $school_id");
@@ -117,13 +157,10 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                                 continue;
                               }
 
-                              $seller_q = mysqli_fetch_array(mysqli_query($conn, "SELECT first_name, last_name FROM users WHERE id = $seller_id"));
-                              $seller_fn = $seller_q['first_name'];
-                              $seller_ln = $seller_q['last_name'];
-
                               // Retrieve and format the due date
                               $due_date = date('j M, Y', strtotime($manual['due_date']));
                               $due_date2 = date('Y-m-d', strtotime($manual['due_date']));
+                              $material_scope_label = ((int)$manual['dept'] === 0 && (int)$manual['faculty'] > 0) ? 'Faculty' : 'Department';
                               // Retrieve the status
                               $status = $manual['status'];
                               $status_c = 'success';
@@ -146,8 +183,8 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
                               ?>
                                   <div class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card sortable-card">
-                                    <div class="card card-rounded shadow-sm">
-                                      <div class="card-body">
+                                    <div class="card card-rounded shadow-sm h-100">
+                                      <div class="card-body d-flex flex-column h-100">
                                         <h4 class="card-title"><?php echo $manual['title'] ?> <span class="text-secondary">- <?php echo $manual['course_code'] ?></span></h4>
                                         <div class="media">
                                           <i class="mdi mdi-book icon-lg text-secondary d-flex align-self-start me-3"></i>
@@ -155,22 +192,24 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                                             <h3 class="fw-bold price">₦ <?php echo number_format($manual['price']) ?></h3>
                                             <p class="card-text">
                                               Due date:<span class="fw-bold text-<?php echo $status_c ?> due_date"> <?php echo $due_date ?></span><br>
-                                              <span class="text-secondary"><?php echo $seller_fn . ' ' . $seller_ln ?> (HOC/Lecturer)</span>
+                                              <span class="text-secondary">By: <?php echo $material_scope_label; ?></span>
                                             </p>
                                           </div>
                                         </div>
-                                        <hr>
-                                        <div class="d-flex justify-content-between">
-                                          <?php if ($status != 'disabled'): ?>
-                                                <a href="javascript:;" title="Copy share link">
-                                                  <i class="mdi mdi-share-variant icon-md text-muted share_button" data-title="<?php echo $manual['title']; ?>" data-product_id="<?php echo $manual['id']; ?>" data-type="product"></i>
-                                                </a>
-                                                <button class="btn <?php echo $button_class; ?> btn-lg m-0 cart-button" data-product-id="<?php echo $manual['id']; ?>">
-                                                  <?php echo $button_text; ?>
-                                                </button>
-                                          <?php else: ?>
-                                                <h4 class="fw-bold text-danger">Overdue !</h4>
-                                          <?php endif; ?>
+                                        <div class="mt-auto pt-2">
+                                          <hr class="my-2">
+                                          <div class="d-flex justify-content-between align-items-center">
+                                            <?php if ($status != 'disabled'): ?>
+                                                  <a href="javascript:;" title="Copy share link">
+                                                    <i class="mdi mdi-share-variant icon-md text-muted share_button" data-title="<?php echo $manual['title']; ?>" data-product_id="<?php echo $manual['id']; ?>" data-type="product"></i>
+                                                  </a>
+                                                  <button class="btn <?php echo $button_class; ?> btn-lg m-0 cart-button" data-product-id="<?php echo $manual['id']; ?>">
+                                                    <?php echo $button_text; ?>
+                                                  </button>
+                                            <?php else: ?>
+                                                  <h4 class="fw-bold text-danger mb-0">Overdue !</h4>
+                                            <?php endif; ?>
+                                            </div>
                                           </div>
                                         </div>
                                       </div>

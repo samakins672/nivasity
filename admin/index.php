@@ -33,13 +33,85 @@ if ($_SESSION['nivas_userRole'] == 'student' || $_SESSION['nivas_userRole'] == '
   $column_id = "event_id";
 }
 
+// Build HOC material visibility once and reuse across overview queries.
+$hocDeptInt = (int)$user_dept;
+$hocSchoolInt = (int)$school_id;
+$hocFacultyId = 0;
+$hocManualVisibilityWhere = "m.user_id = $user_id";
+if ($_SESSION['nivas_userRole'] == 'hoc') {
+  try {
+    $deptsHasFacultyId = false;
+    $manualsHasFaculty = false;
+    $deptsFacultyColumnRes = mysqli_query($conn, "SHOW COLUMNS FROM depts LIKE 'faculty_id'");
+    if ($deptsFacultyColumnRes && mysqli_num_rows($deptsFacultyColumnRes) > 0) {
+      $deptsHasFacultyId = true;
+    }
+    $manualsFacultyColumnRes = mysqli_query($conn, "SHOW COLUMNS FROM manuals LIKE 'faculty'");
+    if ($manualsFacultyColumnRes && mysqli_num_rows($manualsFacultyColumnRes) > 0) {
+      $manualsHasFaculty = true;
+    }
+
+    $sharedVisibilityParts = [];
+    if ($hocDeptInt > 0) {
+      // Admin materials explicitly tied to this HOC department.
+      $sharedVisibilityParts[] = "m.dept = $hocDeptInt";
+    }
+
+    // Admin materials set as faculty-wide (dept=0, faculty matches HOC faculty).
+    if ($deptsHasFacultyId && $manualsHasFaculty && $hocDeptInt > 0) {
+      $userDeptMetaQ = mysqli_query($conn, "SELECT faculty_id FROM depts WHERE id = $hocDeptInt AND school_id = $hocSchoolInt LIMIT 1");
+      if ($userDeptMetaQ && mysqli_num_rows($userDeptMetaQ) > 0) {
+        $userDeptMeta = mysqli_fetch_assoc($userDeptMetaQ);
+        $hocFacultyId = isset($userDeptMeta['faculty_id']) ? (int)$userDeptMeta['faculty_id'] : 0;
+      }
+      if ($hocFacultyId > 0) {
+        $sharedVisibilityParts[] = "(m.dept = 0 AND m.faculty = $hocFacultyId)";
+      }
+    }
+
+    if (!empty($sharedVisibilityParts)) {
+      $sharedVisibility = implode(' OR ', $sharedVisibilityParts);
+      $hocManualVisibilityWhere = "m.user_id = $user_id OR (m.user_id = 0 AND m.school_id = $hocSchoolInt AND ($sharedVisibility))";
+    }
+  } catch (Throwable $e) {
+    error_log('[admin/index] hoc visibility fallback: ' . $e->getMessage());
+  }
+}
+
 $t_items = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM $item_table WHERE user_id = $user_id"))[0];
 $t_items_sold = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT($column_id) FROM $item_table2 WHERE seller = $user_id"))[0];
 $t_items_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM $item_table2 WHERE seller = $user_id"))[0];
 $t_students = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM users WHERE school = $school_id AND dept = $user_dept"))[0];
+if ($_SESSION['nivas_userRole'] == 'hoc') {
+  $t_items = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(m.id) FROM manuals AS m WHERE $hocManualVisibilityWhere"))[0];
+  $t_items_sold = mysqli_fetch_array(mysqli_query(
+    $conn,
+    "SELECT COUNT(mb.manual_id)
+     FROM manuals_bought AS mb
+     JOIN manuals AS m ON m.id = mb.manual_id
+     JOIN users AS bu ON bu.id = mb.buyer
+     WHERE mb.status = 'successful'
+       AND bu.dept = $hocDeptInt
+       AND ($hocManualVisibilityWhere)"
+  ))[0];
+  $t_items_price = mysqli_fetch_array(mysqli_query(
+    $conn,
+    "SELECT COALESCE(SUM(mb.price), 0)
+     FROM manuals_bought AS mb
+     JOIN manuals AS m ON m.id = mb.manual_id
+     JOIN users AS bu ON bu.id = mb.buyer
+     WHERE mb.status = 'successful'
+       AND bu.dept = $hocDeptInt
+       AND ($hocManualVisibilityWhere)"
+  ))[0];
+}
 
 $open_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM $item_table WHERE user_id = $user_id AND status = 'open'"))[0];
 $closed_manuals = $t_items - $open_manuals;
+if ($_SESSION['nivas_userRole'] == 'hoc') {
+  $open_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(m.id) FROM manuals AS m WHERE ($hocManualVisibilityWhere) AND m.status = 'open'"))[0];
+  $closed_manuals = max(0, ((int)$t_items - (int)$open_manuals));
+}
 
 $manual_query2 = mysqli_query($conn, "SELECT $column_id, SUM(price) AS total_sales
     FROM $item_table2
@@ -47,9 +119,33 @@ $manual_query2 = mysqli_query($conn, "SELECT $column_id, SUM(price) AS total_sal
     GROUP BY $column_id
     ORDER BY total_sales DESC
     LIMIT 3");
+if ($_SESSION['nivas_userRole'] == 'hoc') {
+  $manual_query2 = mysqli_query(
+    $conn,
+    "SELECT mb.manual_id AS $column_id, SUM(mb.price) AS total_sales
+     FROM manuals_bought AS mb
+     JOIN manuals AS m ON m.id = mb.manual_id
+     JOIN users AS bu ON bu.id = mb.buyer
+     WHERE mb.status = 'successful'
+       AND bu.dept = $hocDeptInt
+       AND ($hocManualVisibilityWhere)
+     GROUP BY mb.manual_id
+     ORDER BY total_sales DESC
+     LIMIT 3"
+  );
+}
 
 
-$manual_query = mysqli_query($conn, "SELECT * FROM $item_table WHERE user_id = $user_id ORDER BY `id` DESC");
+$manual_query_sql = "SELECT * FROM $item_table WHERE user_id = $user_id ORDER BY `id` DESC";
+if ($_SESSION['nivas_userRole'] == 'hoc') {
+  $manual_query_sql = "SELECT * FROM manuals AS m WHERE $hocManualVisibilityWhere ORDER BY m.id DESC";
+}
+try {
+  $manual_query = mysqli_query($conn, $manual_query_sql);
+} catch (Throwable $e) {
+  error_log('[admin/index] manual_query failed, falling back: ' . $e->getMessage());
+  $manual_query = mysqli_query($conn, "SELECT * FROM $item_table WHERE user_id = $user_id ORDER BY `id` DESC");
+}
 $faculties = [];
 if ($_SESSION['nivas_userRole'] == 'hoc') {
   $faculties_query = mysqli_query($conn, "SELECT id, name FROM faculties WHERE school_id = $school_id AND status = 'active' ORDER BY name ASC");
@@ -61,6 +157,26 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
 $event_query = mysqli_query($conn, "SELECT * FROM events WHERE user_id = $user_id ORDER BY `id` DESC");
 
 $transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM $item_table2 WHERE seller = $user_id ORDER BY `created_at` DESC LIMIT 6");
+if ($_SESSION['nivas_userRole'] == 'hoc') {
+  $transaction_query = mysqli_query(
+    $conn,
+    "SELECT
+        mb.ref_id,
+        mb.buyer,
+        COUNT(mb.ref_id) AS items_count,
+        COALESCE(SUM(mb.price), 0) AS total_amount,
+        MAX(mb.created_at) AS created_at
+     FROM manuals_bought AS mb
+     JOIN manuals AS m ON m.id = mb.manual_id
+     JOIN users AS bu ON bu.id = mb.buyer
+     WHERE mb.status = 'successful'
+       AND bu.dept = $hocDeptInt
+       AND ($hocManualVisibilityWhere)
+     GROUP BY mb.ref_id, mb.buyer
+     ORDER BY created_at DESC
+     LIMIT 6"
+  );
+}
 
 $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE school_id = $school_id AND type = 'school' ORDER BY `id` DESC LIMIT 1");
 if (mysqli_num_rows($settlement_query) == 0) {
@@ -261,7 +377,20 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                         $manual_id = $manual[$column_id];
 
                                         $manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM $item_table WHERE id = $manual_id"));
-                                        $manuals_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT($column_id) FROM $item_table2 WHERE $column_id = $manual_id"))[0];
+                                        if ($_SESSION['nivas_userRole'] == 'hoc' && (int)$user_dept > 0) {
+                                          $hocDeptInt = (int)$user_dept;
+                                          $manuals_bought_cnt = mysqli_fetch_array(mysqli_query(
+                                            $conn,
+                                            "SELECT COUNT(mb.$column_id)
+                                             FROM manuals_bought AS mb
+                                             JOIN users AS bu ON bu.id = mb.buyer
+                                             WHERE mb.$column_id = $manual_id
+                                               AND mb.status = 'successful'
+                                               AND bu.dept = $hocDeptInt"
+                                          ))[0];
+                                        } else {
+                                          $manuals_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT($column_id) FROM $item_table2 WHERE $column_id = $manual_id"))[0];
+                                        }
 
                                         // Retrieve the status
                                         $status = $manuals['status'];
@@ -314,10 +443,15 @@ if (mysqli_num_rows($settlement_query) == 0) {
                               $buyer_id = $transaction['buyer'];
 
                               $buyer = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = $buyer_id"));
-
-                              $transactions_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(ref_id) FROM $item_table2 WHERE ref_id = '$transaction_id' AND seller = $user_id"))[0];
-                              $transactions_bought_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM $item_table2 WHERE ref_id = '$transaction_id' AND seller = $user_id"))[0];
-                              $created_at = mysqli_fetch_array(mysqli_query($conn, "SELECT created_at FROM $item_table2 WHERE ref_id = '$transaction_id' LIMIT 1"))[0];
+                              if ($_SESSION['nivas_userRole'] == 'hoc') {
+                                $transactions_bought_cnt = isset($transaction['items_count']) ? (int)$transaction['items_count'] : 0;
+                                $transactions_bought_price = isset($transaction['total_amount']) ? (int)$transaction['total_amount'] : 0;
+                                $created_at = isset($transaction['created_at']) ? $transaction['created_at'] : null;
+                              } else {
+                                $transactions_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(ref_id) FROM $item_table2 WHERE ref_id = '$transaction_id' AND seller = $user_id"))[0];
+                                $transactions_bought_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM $item_table2 WHERE ref_id = '$transaction_id' AND seller = $user_id"))[0];
+                                $created_at = mysqli_fetch_array(mysqli_query($conn, "SELECT created_at FROM $item_table2 WHERE ref_id = '$transaction_id' LIMIT 1"))[0];
+                              }
                               
                               // Retrieve and format the due date
                               $created_date = date('M j', strtotime($created_at));
@@ -413,14 +547,69 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                 </thead>
                                 <tbody id="manual_tbody">
                                 <?php
+                                $manualSalesMap = [];
+                                if ($manual_query) {
+                                  $manualIds = [];
+                                  while ($manualRowForStats = mysqli_fetch_assoc($manual_query)) {
+                                    $manualIds[] = (int) $manualRowForStats['id'];
+                                  }
+                                  if (!empty($manualIds)) {
+                                    $manualIds = array_values(array_unique($manualIds));
+                                    $manualIdsCsv = implode(',', $manualIds);
+                                    if ($manualIdsCsv !== '') {
+                                      if ($_SESSION['nivas_userRole'] == 'hoc' && (int)$user_dept > 0) {
+                                        $hocDeptInt = (int)$user_dept;
+                                        $manualSalesQuery = mysqli_query(
+                                          $conn,
+                                          "SELECT mb.manual_id, COUNT(mb.manual_id) AS cnt, COALESCE(SUM(mb.price), 0) AS total
+                                           FROM manuals_bought AS mb
+                                           JOIN users AS bu ON bu.id = mb.buyer
+                                           WHERE mb.manual_id IN ($manualIdsCsv)
+                                             AND mb.status = 'successful'
+                                             AND bu.dept = $hocDeptInt
+                                           GROUP BY mb.manual_id"
+                                        );
+                                      } else {
+                                        $manualSalesQuery = mysqli_query(
+                                          $conn,
+                                          "SELECT manual_id, COUNT(manual_id) AS cnt, COALESCE(SUM(price), 0) AS total
+                                           FROM $item_table2
+                                           WHERE manual_id IN ($manualIdsCsv)
+                                           GROUP BY manual_id"
+                                        );
+                                      }
+                                      if ($manualSalesQuery) {
+                                        while ($manualSalesRow = mysqli_fetch_assoc($manualSalesQuery)) {
+                                          $manualSalesMap[(int)$manualSalesRow['manual_id']] = [
+                                            'cnt' => (int)$manualSalesRow['cnt'],
+                                            'total' => (int)$manualSalesRow['total'],
+                                          ];
+                                        }
+                                      }
+                                    }
+                                  }
+                                  mysqli_data_seek($manual_query, 0);
+                                }
+
                                 while ($manual = mysqli_fetch_array($manual_query)) {
                                   $manual_id = $manual['id'];
+                                  $manual_title_esc = htmlspecialchars((string)$manual['title'], ENT_QUOTES, 'UTF-8');
+                                  $manual_course_code_esc = htmlspecialchars((string)$manual['course_code'], ENT_QUOTES, 'UTF-8');
+                                  $manual_code_esc = htmlspecialchars((string)$manual['code'], ENT_QUOTES, 'UTF-8');
+                                  $is_shared_admin_material = (
+                                    $_SESSION['nivas_userRole'] == 'hoc'
+                                    && (int) $manual['user_id'] === 0
+                                    && (int) $user_id !== 0
+                                  );
+                                  $can_modify_material = MATERIAL_MANAGEMENT_ENABLED && !$is_shared_admin_material;
 
-                                  $manuals_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(manual_id) FROM $item_table2 WHERE manual_id = $manual_id"))[0];
-                                  $manuals_bought_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM $item_table2 WHERE manual_id = $manual_id"))[0];
+                                  $manualSales = isset($manualSalesMap[(int)$manual_id]) ? $manualSalesMap[(int)$manual_id] : ['cnt' => 0, 'total' => 0];
+                                  $manuals_bought_cnt = (int) $manualSales['cnt'];
+                                  $manuals_bought_price = (int) $manualSales['total'];
 
                                   // Calculate the percentage and total sold/quantity text
-                                  $percentage_sold = ($manuals_bought_cnt / $manual['quantity']) * 100;
+                                  $manualQuantity = max((int)$manual['quantity'], 1);
+                                  $percentage_sold = ($manuals_bought_cnt / $manualQuantity) * 100;
                                   $sold_quantity_text = $manuals_bought_cnt . '/' . $manual['quantity'];
                                   
                                   // Retrieve and format the due date
@@ -438,8 +627,8 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                       <td>
                                         <div class="d-flex ">
                                           <div>
-                                            <h6><span class="d-sm-none-2"><?php echo $manual['title'] ?> -</span> <?php echo $manual['course_code'] ?></h6>
-                                            <p class="d-sm-none-2">ID: <span class="fw-bold"><?php echo $manual['code'] ?></span></p>
+                                            <h6><span class="d-sm-none-2"><?php echo $manual_title_esc ?> -</span> <?php echo $manual_course_code_esc ?></h6>
+                                            <p class="d-sm-none-2">ID: <span class="fw-bold"><?php echo $manual_code_esc ?></span></p>
                                           </div>
                                         </div>
                                       </td>
@@ -478,31 +667,38 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                               <i class="mdi mdi-dots-vertical fs-4"></i>
                                             </button>
                                             <div class="dropdown-menu">
-                                              <a class="dropdown-item view-edit-manual border-bottom d-flex" href="javascript:;"
-                                                data-manual_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>"
-                                                data-course_code="<?php echo $manual['course_code']; ?>" data-price="<?php echo $manual['price']; ?>"
-                                                data-quantity="<?php echo $manual['quantity']; ?>"
-                                                data-due_date="<?php echo date('Y-m-d', strtotime($manual['due_date'])); ?>"
-                                                data-faculty="<?php echo isset($manual['faculty']) ? (int) $manual['faculty'] : ''; ?>"
-                                                data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual': 'verificationManual'?>">
-                                                <i class="mdi mdi-book-edit pe-2"></i> Edit material
-                                              </a>
+                                              <?php if ($can_modify_material): ?>
+                                                <a class="dropdown-item view-edit-manual border-bottom d-flex" href="javascript:;"
+                                                  data-manual_id="<?php echo (int)$manual['id']; ?>" data-title="<?php echo $manual_title_esc; ?>"
+                                                  data-course_code="<?php echo $manual_course_code_esc; ?>" data-price="<?php echo (int)$manual['price']; ?>"
+                                                  data-quantity="<?php echo $manual['quantity']; ?>"
+                                                  data-due_date="<?php echo date('Y-m-d', strtotime($manual['due_date'])); ?>"
+                                                  data-faculty="<?php echo isset($manual['faculty']) ? (int) $manual['faculty'] : ''; ?>"
+                                                  data-bs-toggle="modal" data-bs-target="#<?php echo $manual_modal = ($user_status == 'verified') ? 'addManual': 'verificationManual'?>">
+                                                  <i class="mdi mdi-book-edit pe-2"></i> Edit material
+                                                </a>
+                                              <?php endif; ?>
                                               <?php if($manuals_bought_cnt >= 1): ?>
                                                 <a class="dropdown-item export-manual border-bottom d-flex" href="javascript:;" data-bs-toggle="modal" data-bs-target="#exportManual"
-                                                  data-manual_id="<?php echo $manual['id']; ?>" data-code="<?php echo $manual['course_code']; ?>">
+                                                  data-manual_id="<?php echo (int)$manual['id']; ?>" data-code="<?php echo $manual_course_code_esc; ?>">
                                                   <i class="mdi mdi-export-variant pe-2"></i> Export list
                                                 </a>
                                               <?php endif; ?>
-                                              <a class="dropdown-item <?php echo ($manuals_bought_cnt < 1) ? 'border-bottom' : '' ?> share_button d-flex" data-title="<?php echo $manual['title']; ?>" 
-                                                data-product_id="<?php echo $manual['id']; ?>" data-type="product" href="javascript:;"> 
+                                              <a class="dropdown-item <?php echo ($manuals_bought_cnt < 1) ? 'border-bottom' : '' ?> share_button d-flex" data-title="<?php echo $manual_title_esc; ?>" 
+                                                data-product_id="<?php echo (int)$manual['id']; ?>" data-type="product" href="javascript:;"> 
                                                 <i class="mdi mdi-content-copy pe-2"></i> Copy share link
                                               </a>
-                                              <?php if($manuals_bought_cnt < 1): ?>
+                                              <?php if($can_modify_material && $manuals_bought_cnt < 1): ?>
                                                 <a class="dropdown-item close-manual d-flex" href="javascript:;"
-                                                  data-product_id="<?php echo $manual['id']; ?>" data-title="<?php echo $manual['title']; ?>" data-type="product"
+                                                  data-product_id="<?php echo (int)$manual['id']; ?>" data-title="<?php echo $manual_title_esc; ?>" data-type="product"
                                                   data-bs-toggle="modal" data-bs-target="#closeManual">
                                                   <i class="mdi mdi-delete pe-2"></i> Delete material
                                                 </a>
+                                              <?php endif; ?>
+                                              <?php if ($is_shared_admin_material): ?>
+                                                <span class="dropdown-item disabled text-muted">
+                                                  <i class="mdi mdi-shield-lock-outline pe-2"></i> Managed by school admin
+                                                </span>
                                               <?php endif; ?>
                                             </div>
                                           </div>
@@ -707,7 +903,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                         </div>
                         <div class="modal-footer">
                           <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
-                          <button id="close_manual_submit" type="submit" data-mdb-ripple-duration="0"
+                          <button id="close_manual_submit" type="submit" data-mdb-ripple-duration="0ms"
                             class="btn btn-lg btn-danger">Confirm</button>
                         </div>
                       </form>
@@ -729,6 +925,10 @@ if (mysqli_num_rows($settlement_query) == 0) {
                         <input type="hidden" name="code" value="0">
                         <input type="hidden" name="manual_id" value="0">
                         <div class="modal-body">
+                          <div class="alert alert-secondary py-2 px-3 mb-3 small">
+                            Export includes only students yet to be marked as collected on the platform.
+                            Students already granted will not appear in subsequent exports.
+                          </div>
                           <div class="form-outline mb-4">
                             <input type="text" name="rrr" class="form-control form-control-lg w-100">
                             <label class="form-label" for="rrr">RRR Number (Optional)</label>
@@ -884,7 +1084,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                         </div>
                         <div class="modal-footer">
                           <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
-                          <button id="manual_submit" type="submit" data-mdb-ripple-duration="0"
+                          <button id="manual_submit" type="submit" data-mdb-ripple-duration="0ms"
                             class="btn btn-lg btn-primary">Submit</button>
                         </div>
                       </form>
@@ -989,7 +1189,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                         </div>
                         <div class="modal-footer">
                           <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
-                          <button id="event_submit" type="submit" data-mdb-ripple-duration="0"
+                          <button id="event_submit" type="submit" data-mdb-ripple-duration="0ms"
                             class="btn btn-lg btn-primary">Submit</button>
                         </div>
                       </form>
@@ -1019,7 +1219,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
                         </div>
                         <div class="modal-footer">
                           <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
-                          <button id="email_submit" type="submit" data-mdb-ripple-duration="0"
+                          <button id="email_submit" type="submit" data-mdb-ripple-duration="0ms"
                             class="btn btn-lg btn-primary">Submit</button>
                         </div>
                       </form>
@@ -1182,7 +1382,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
       });
 
       // Handle click event of View/Edit button
-      $('.view-edit-manual').on('click', function () {
+      $(document).on('click', '.view-edit-manual', function () {
         // Get the manual details from the data- attributes
         var manualId = $(this).data('manual_id');
         var title = $(this).data('title');
@@ -1251,7 +1451,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
       });
 
       // Handle click event of View/Edit button
-      $('.view-edit-event').on('click', function () {
+      $(document).on('click', '.view-edit-event', function () {
         // Get the event details from the data- attributes
         var eventId = $(this).data('event_id');
         var title = $(this).data('title');
@@ -1285,7 +1485,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
       });
 
       // Handle click event of email_event_guests button
-      $('.email_event_guests').on('click', function () {
+      $(document).on('click', '.email_event_guests', function () {
         // Get the event details from the data- attributes
         var eventId = $(this).data('event_id');
         var title = $(this).data('title');
@@ -1442,7 +1642,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
       });
 
       // Handle click event of View/Edit button
-      $('.close-manual').on('click', function () {
+      $(document).on('click', '.close-manual', function () {
         // Get the manual details from the data- attributes
         var product_id = $(this).data('product_id');
         var type = $(this).data('type');
@@ -1504,7 +1704,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
       });
 
       // Event listener for the export button click
-      $(".export-manual").click(function () {
+      $(document).on('click', '.export-manual', function () {
         // Get the manual details from the data- attributes
         var manualId = $(this).data('manual_id');
         var code = $(this).data('code');
@@ -1520,6 +1720,15 @@ if (mysqli_num_rows($settlement_query) == 0) {
         var manualId = $('#export-manual-form input[name="manual_id"]').val();
         var code = $('#export-manual-form input[name="code"]').val();
         var rrr = $('#export-manual-form input[name="rrr"]').val();
+        var firstCheck = "Export will only include students yet to be marked as collected on the platform. Continue?";
+        var secondCheck = "Once this list is granted, those students will not be in the next/subsequent export for this material. Proceed now?";
+
+        // if (!window.confirm(firstCheck)) {
+        //   return;
+        // }
+        if (!window.confirm(secondCheck)) {
+          return;
+        }
 
         // Define export button
         var button = $('#export_manual_submit');
@@ -1605,8 +1814,19 @@ if (mysqli_num_rows($settlement_query) == 0) {
               button.html(originalText);
               button.prop("disabled", false);
             },
-            error: function () {
-              alert("Error fetching data.");
+            error: function (xhr) {
+              var errorMessage = "Error fetching data.";
+              if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+              } else if (xhr && xhr.responseText) {
+                try {
+                  var parsed = JSON.parse(xhr.responseText);
+                  if (parsed && parsed.message) {
+                    errorMessage = parsed.message;
+                  }
+                } catch (e) {}
+              }
+              alert(errorMessage);
               button.html(originalText);
               button.prop("disabled", false);
             }
@@ -1614,7 +1834,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
         }, 2000);
       });
 
-      $('.export_event').click(function (event) {
+      $(document).on('click', '.export_event', function (event) {
         var event_id = $(this).data('event_id');
         var title = $(this).data('title');
 
