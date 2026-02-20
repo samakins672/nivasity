@@ -91,10 +91,14 @@ if ($action === 'email') {
     respond_json('error', 'Email not found for user', 400);
   }
   $subject = 'Payment Receipt - Thank You for Your Purchase';
-  $res = sendMail($subject, $body, $to);
+  $res = sendBrevoMail($subject, $body, $to);
+  if ($res !== 'success') {
+    $res = sendMail($subject, $body, $to);
+  }
   if ($res === 'success') {
     respond_json('success', 'Receipt has been sent to your email');
   }
+  error_log("Order history receipt email failed for user_id={$user_id}, ref={$ref}, email={$to}");
   respond_json('error', 'Failed to send email', 500);
 }
 
