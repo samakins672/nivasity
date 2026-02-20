@@ -352,7 +352,20 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                         $manual_id = $manual[$column_id];
 
                                         $manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM $item_table WHERE id = $manual_id"));
-                                        $manuals_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT($column_id) FROM $item_table2 WHERE $column_id = $manual_id"))[0];
+                                        if ($_SESSION['nivas_userRole'] == 'hoc' && (int)$user_dept > 0) {
+                                          $hocDeptInt = (int)$user_dept;
+                                          $manuals_bought_cnt = mysqli_fetch_array(mysqli_query(
+                                            $conn,
+                                            "SELECT COUNT(mb.$column_id)
+                                             FROM manuals_bought AS mb
+                                             JOIN users AS bu ON bu.id = mb.buyer
+                                             WHERE mb.$column_id = $manual_id
+                                               AND mb.status = 'successful'
+                                               AND bu.dept = $hocDeptInt"
+                                          ))[0];
+                                        } else {
+                                          $manuals_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT($column_id) FROM $item_table2 WHERE $column_id = $manual_id"))[0];
+                                        }
 
                                         // Retrieve the status
                                         $status = $manuals['status'];
@@ -514,13 +527,27 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                     $manualIds = array_values(array_unique($manualIds));
                                     $manualIdsCsv = implode(',', $manualIds);
                                     if ($manualIdsCsv !== '') {
-                                      $manualSalesQuery = mysqli_query(
-                                        $conn,
-                                        "SELECT manual_id, COUNT(manual_id) AS cnt, COALESCE(SUM(price), 0) AS total
-                                         FROM $item_table2
-                                         WHERE manual_id IN ($manualIdsCsv)
-                                         GROUP BY manual_id"
-                                      );
+                                      if ($_SESSION['nivas_userRole'] == 'hoc' && (int)$user_dept > 0) {
+                                        $hocDeptInt = (int)$user_dept;
+                                        $manualSalesQuery = mysqli_query(
+                                          $conn,
+                                          "SELECT mb.manual_id, COUNT(mb.manual_id) AS cnt, COALESCE(SUM(mb.price), 0) AS total
+                                           FROM manuals_bought AS mb
+                                           JOIN users AS bu ON bu.id = mb.buyer
+                                           WHERE mb.manual_id IN ($manualIdsCsv)
+                                             AND mb.status = 'successful'
+                                             AND bu.dept = $hocDeptInt
+                                           GROUP BY mb.manual_id"
+                                        );
+                                      } else {
+                                        $manualSalesQuery = mysqli_query(
+                                          $conn,
+                                          "SELECT manual_id, COUNT(manual_id) AS cnt, COALESCE(SUM(price), 0) AS total
+                                           FROM $item_table2
+                                           WHERE manual_id IN ($manualIdsCsv)
+                                           GROUP BY manual_id"
+                                        );
+                                      }
                                       if ($manualSalesQuery) {
                                         while ($manualSalesRow = mysqli_fetch_assoc($manualSalesQuery)) {
                                           $manualSalesMap[(int)$manualSalesRow['manual_id']] = [
