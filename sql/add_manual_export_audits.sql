@@ -7,6 +7,7 @@ CREATE TABLE `manual_export_audits` (
   `total_amount` INT(11) NOT NULL,              -- total amount paid across all rows (in kobo-free integer, same as manuals_bought.price)
   `from_bought_id` INT(11) DEFAULT NULL,        -- start manuals_bought.id used for export grant range
   `to_bought_id` INT(11) DEFAULT NULL,          -- end manuals_bought.id used for export grant range
+  `bought_ids_json` LONGTEXT DEFAULT NULL,      -- JSON array of manuals_bought.id included in this export
   `downloaded_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `grant_status` VARCHAR(20) NOT NULL DEFAULT 'pending', -- pending or granted
   `granted_by` INT(11) DEFAULT NULL,             -- admin user id that granted export

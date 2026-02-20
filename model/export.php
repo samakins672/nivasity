@@ -135,8 +135,31 @@ if (isset($_POST['manual_id'])) {
     }
 
     $hocUserId = isset($_SESSION['nivas_userId']) ? (int)$_SESSION['nivas_userId'] : 0;
+    $hocDeptId = 0;
+    $applyHocDeptFilter = false;
+    if (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole'] === 'hoc' && $hocUserId > 0) {
+      $hocDeptRes = exportRunQuery(
+        $conn,
+        "SELECT dept FROM users WHERE id = $hocUserId LIMIT 1",
+        $requestId,
+        'load_hoc_dept',
+        ['hoc_user_id' => $hocUserId]
+      );
+      if ($hocDeptRes && mysqli_num_rows($hocDeptRes) > 0) {
+        $hocDeptRow = mysqli_fetch_assoc($hocDeptRes);
+        $hocDeptId = isset($hocDeptRow['dept']) ? (int)$hocDeptRow['dept'] : 0;
+        if ($hocDeptId > 0) {
+          $applyHocDeptFilter = true;
+        }
+      }
+    }
     $auditStatusColumn = exportResolveAuditStatusColumn($conn, $requestId);
-    exportLog($requestId, 'Manual export started', ['manual_id' => $manualId, 'hoc_user_id' => $hocUserId]);
+    exportLog($requestId, 'Manual export started', [
+      'manual_id' => $manualId,
+      'hoc_user_id' => $hocUserId,
+      'hoc_dept_id' => $hocDeptId,
+      'dept_filter_applied' => $applyHocDeptFilter
+    ]);
 
     $manualRes = exportRunQuery(
       $conn,
@@ -162,16 +185,21 @@ if (isset($_POST['manual_id'])) {
         "mb.manual_id = $manualId",
         "mb.status = 'successful'",
       ];
+      $fromJoinSql = "";
+      if ($applyHocDeptFilter) {
+        $fromJoinSql = "JOIN users AS bu ON bu.id = mb.buyer";
+        $fromWhereParts[] = "bu.dept = $hocDeptId";
+      }
       if ($manualsBoughtHasGrantStatus) {
         $fromWhereParts[] = "(mb.grant_status IS NULL OR LOWER(TRIM(CAST(mb.grant_status AS CHAR))) IN ('', '0', 'pending', 'false'))";
       }
       $fromWhere = implode(" AND ", $fromWhereParts);
       $fromRangeRes = exportRunQuery(
         $conn,
-        "SELECT MIN(mb.id) AS from_bought_id FROM manuals_bought AS mb WHERE $fromWhere",
+        "SELECT MIN(mb.id) AS from_bought_id FROM manuals_bought AS mb $fromJoinSql WHERE $fromWhere",
         $requestId,
         'load_export_from_bought_id',
-        ['manual_id' => $manualId]
+        ['manual_id' => $manualId, 'hoc_dept_id' => $hocDeptId]
       );
       $fromRangeRow = mysqli_fetch_assoc($fromRangeRes);
       if ($fromRangeRow && $fromRangeRow['from_bought_id'] !== null) {
@@ -179,12 +207,22 @@ if (isset($_POST['manual_id'])) {
       }
 
       // to_bought_id: latest successful payment row for this manual.
+      $toWhereParts = [
+        "mb.manual_id = $manualId",
+        "mb.status = 'successful'",
+      ];
+      $toJoinSql = "";
+      if ($applyHocDeptFilter) {
+        $toJoinSql = "JOIN users AS bu ON bu.id = mb.buyer";
+        $toWhereParts[] = "bu.dept = $hocDeptId";
+      }
+      $toWhere = implode(" AND ", $toWhereParts);
       $toRangeRes = exportRunQuery(
         $conn,
-        "SELECT MAX(mb.id) AS to_bought_id FROM manuals_bought AS mb WHERE mb.manual_id = $manualId AND mb.status = 'successful'",
+        "SELECT MAX(mb.id) AS to_bought_id FROM manuals_bought AS mb $toJoinSql WHERE $toWhere",
         $requestId,
         'load_export_to_bought_id',
-        ['manual_id' => $manualId]
+        ['manual_id' => $manualId, 'hoc_dept_id' => $hocDeptId]
       );
       $toRangeRow = mysqli_fetch_assoc($toRangeRes);
       if ($toRangeRow && $toRangeRow['to_bought_id'] !== null) {
@@ -202,10 +240,15 @@ if (isset($_POST['manual_id'])) {
       // Only export students still pending in manuals_bought.
       $manualBuyerFilters[] = "(mb.grant_status IS NULL OR LOWER(TRIM(CAST(mb.grant_status AS CHAR))) IN ('', '0', 'pending', 'false'))";
     }
+    if ($applyHocDeptFilter) {
+      $manualBuyerFilters[] = "u.dept = $hocDeptId";
+    }
     $manualBuyerWhere = implode("\n        AND ", $manualBuyerFilters);
+    $boughtIdSelect = $manualsBoughtHasId ? "mb.id AS bought_id," : "0 AS bought_id,";
 
     $query = "
       SELECT
+        $boughtIdSelect
         u.id AS user_id,
         u.first_name,
         u.last_name,
@@ -236,12 +279,17 @@ if (isset($_POST['manual_id'])) {
     $totalAmount = 0;
     $lastStudentId = null;
     $lastPurchaseTime = null;
+    $boughtIds = [];
 
     while ($row = mysqli_fetch_assoc($result)) {
       $price = (int)$row['price'];
       $totalAmount += $price;
       $userId = (int)$row['user_id'];
+      $boughtId = isset($row['bought_id']) ? (int)$row['bought_id'] : 0;
       $createdAt = $row['created_at'];
+      if ($boughtId > 0) {
+        $boughtIds[] = $boughtId;
+      }
 
       // Track the last student ID based on purchase time
       if ($lastPurchaseTime === null || strtotime($createdAt) > strtotime($lastPurchaseTime)) {
@@ -277,6 +325,11 @@ if (isset($_POST['manual_id'])) {
     $hocUserIdInt = $hocUserId ?: 0;
     $studentsCountInt = (int)$studentsCount;
     $totalAmountInt = (int)$totalAmount;
+    $boughtIdsJson = json_encode(array_values($boughtIds), JSON_UNESCAPED_SLASHES);
+    if ($boughtIdsJson === false) {
+      $boughtIdsJson = '[]';
+    }
+    $safeBoughtIdsJson = mysqli_real_escape_string($conn, $boughtIdsJson);
 
     // Construct the INSERT query with proper NULL handling.
     // Export creation must remain pending; grant action is handled in command center.
@@ -291,6 +344,10 @@ if (isset($_POST['manual_id'])) {
     if (exportAuditHasColumn($conn, 'to_bought_id')) {
       $insertColumns[] = 'to_bought_id';
       $insertValues[] = ($toBoughtId !== null) ? (string)$toBoughtId : 'NULL';
+    }
+    if (exportAuditHasColumn($conn, 'bought_ids_json')) {
+      $insertColumns[] = 'bought_ids_json';
+      $insertValues[] = "'$safeBoughtIdsJson'";
     }
     if ($auditStatusColumn !== '') {
       $safeAuditStatusColumn = ($auditStatusColumn === 'grant_status') ? 'grant_status' : 'status';
@@ -314,7 +371,10 @@ if (isset($_POST['manual_id'])) {
         'hoc_user_id' => $hocUserIdInt,
         'audit_status_column' => $auditStatusColumn,
         'from_bought_id' => $fromBoughtId,
-        'to_bought_id' => $toBoughtId
+        'to_bought_id' => $toBoughtId,
+        'bought_ids_count' => count($boughtIds),
+        'dept_filter_applied' => $applyHocDeptFilter,
+        'hoc_dept_id' => $hocDeptId
       ]
     );
     $exportAuditId = mysqli_insert_id($conn);
@@ -344,6 +404,7 @@ if (isset($_POST['manual_id'])) {
       'last_student_id' => $lastStudentId,
       'from_bought_id' => $fromBoughtId,
       'to_bought_id' => $toBoughtId,
+      'bought_ids_count' => count($boughtIds),
     ]);
 
     $response = [
@@ -362,6 +423,7 @@ if (isset($_POST['manual_id'])) {
       'export_audit_id' => (int)$exportAuditId,
       'from_bought_id' => $fromBoughtId,
       'to_bought_id' => $toBoughtId,
+      'bought_ids_count' => count($boughtIds),
       'hoc' => [
         'id' => $hocUserIdInt,
         'name' => $hocName,
