@@ -33,69 +33,13 @@ if ($_SESSION['nivas_userRole'] == 'student' || $_SESSION['nivas_userRole'] == '
   $column_id = "event_id";
 }
 
-$t_items = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM $item_table WHERE user_id = $user_id"))[0];
-$t_items_sold = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT($column_id) FROM $item_table2 WHERE seller = $user_id"))[0];
-$t_items_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM $item_table2 WHERE seller = $user_id"))[0];
-$t_students = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM users WHERE school = $school_id AND dept = $user_dept"))[0];
-if ($_SESSION['nivas_userRole'] == 'hoc') {
-  $hocDeptInt = (int)$user_dept;
-  if ($hocDeptInt > 0) {
-    $t_items_sold = mysqli_fetch_array(mysqli_query(
-      $conn,
-      "SELECT COUNT(mb.manual_id)
-       FROM manuals_bought AS mb
-       JOIN users AS bu ON bu.id = mb.buyer
-       WHERE mb.seller = $user_id
-         AND mb.status = 'successful'
-         AND bu.dept = $hocDeptInt"
-    ))[0];
-    $t_items_price = mysqli_fetch_array(mysqli_query(
-      $conn,
-      "SELECT COALESCE(SUM(mb.price), 0)
-       FROM manuals_bought AS mb
-       JOIN users AS bu ON bu.id = mb.buyer
-       WHERE mb.seller = $user_id
-         AND mb.status = 'successful'
-         AND bu.dept = $hocDeptInt"
-    ))[0];
-  }
-}
-
-$open_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM $item_table WHERE user_id = $user_id AND status = 'open'"))[0];
-$closed_manuals = $t_items - $open_manuals;
-
-$manual_query2 = mysqli_query($conn, "SELECT $column_id, SUM(price) AS total_sales
-    FROM $item_table2
-    WHERE seller  = $user_id
-    GROUP BY $column_id
-    ORDER BY total_sales DESC
-    LIMIT 3");
-if ($_SESSION['nivas_userRole'] == 'hoc') {
-  $hocDeptInt = (int)$user_dept;
-  if ($hocDeptInt > 0) {
-    $manual_query2 = mysqli_query(
-      $conn,
-      "SELECT mb.manual_id AS $column_id, SUM(mb.price) AS total_sales
-       FROM manuals_bought AS mb
-       JOIN users AS bu ON bu.id = mb.buyer
-       WHERE mb.seller = $user_id
-         AND mb.status = 'successful'
-         AND bu.dept = $hocDeptInt
-       GROUP BY mb.manual_id
-       ORDER BY total_sales DESC
-       LIMIT 3"
-    );
-  }
-}
-
-
-$manual_query_sql = "SELECT * FROM $item_table WHERE user_id = $user_id ORDER BY `id` DESC";
+// Build HOC material visibility once and reuse across overview queries.
+$hocDeptInt = (int)$user_dept;
+$hocSchoolInt = (int)$school_id;
+$hocFacultyId = 0;
+$hocManualVisibilityWhere = "m.user_id = $user_id";
 if ($_SESSION['nivas_userRole'] == 'hoc') {
   try {
-    $user_dept_int = (int) $user_dept;
-    $school_id_int = (int) $school_id;
-    $user_faculty_id = 0;
-
     $deptsHasFacultyId = false;
     $manualsHasFaculty = false;
     $deptsFacultyColumnRes = mysqli_query($conn, "SHOW COLUMNS FROM depts LIKE 'faculty_id'");
@@ -108,32 +52,93 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
     }
 
     $sharedVisibilityParts = [];
-    if ($user_dept_int > 0) {
-      $sharedVisibilityParts[] = "m.dept = $user_dept_int";
+    if ($hocDeptInt > 0) {
+      // Admin materials explicitly tied to this HOC department.
+      $sharedVisibilityParts[] = "m.dept = $hocDeptInt";
     }
 
-    if ($deptsHasFacultyId && $manualsHasFaculty && $user_dept_int > 0) {
-      $user_dept_meta_q = mysqli_query($conn, "SELECT faculty_id FROM depts WHERE id = $user_dept_int AND school_id = $school_id_int LIMIT 1");
-      if ($user_dept_meta_q && mysqli_num_rows($user_dept_meta_q) > 0) {
-        $user_dept_meta = mysqli_fetch_assoc($user_dept_meta_q);
-        $user_faculty_id = isset($user_dept_meta['faculty_id']) ? (int) $user_dept_meta['faculty_id'] : 0;
+    // Admin materials set as faculty-wide (dept=0, faculty matches HOC faculty).
+    if ($deptsHasFacultyId && $manualsHasFaculty && $hocDeptInt > 0) {
+      $userDeptMetaQ = mysqli_query($conn, "SELECT faculty_id FROM depts WHERE id = $hocDeptInt AND school_id = $hocSchoolInt LIMIT 1");
+      if ($userDeptMetaQ && mysqli_num_rows($userDeptMetaQ) > 0) {
+        $userDeptMeta = mysqli_fetch_assoc($userDeptMetaQ);
+        $hocFacultyId = isset($userDeptMeta['faculty_id']) ? (int)$userDeptMeta['faculty_id'] : 0;
       }
-      if ($user_faculty_id > 0) {
-        $sharedVisibilityParts[] = "(m.dept = 0 AND m.faculty = $user_faculty_id)";
+      if ($hocFacultyId > 0) {
+        $sharedVisibilityParts[] = "(m.dept = 0 AND m.faculty = $hocFacultyId)";
       }
     }
 
     if (!empty($sharedVisibilityParts)) {
-      $shared_visibility = implode(' OR ', $sharedVisibilityParts);
-      $manual_query_sql = "SELECT *
-        FROM manuals AS m
-        WHERE m.user_id = $user_id
-           OR (m.user_id = 0 AND m.school_id = $school_id_int AND ($shared_visibility))
-        ORDER BY m.id DESC";
+      $sharedVisibility = implode(' OR ', $sharedVisibilityParts);
+      $hocManualVisibilityWhere = "m.user_id = $user_id OR (m.user_id = 0 AND m.school_id = $hocSchoolInt AND ($sharedVisibility))";
     }
   } catch (Throwable $e) {
-    error_log('[admin/index] shared materials query fallback: ' . $e->getMessage());
+    error_log('[admin/index] hoc visibility fallback: ' . $e->getMessage());
   }
+}
+
+$t_items = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM $item_table WHERE user_id = $user_id"))[0];
+$t_items_sold = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT($column_id) FROM $item_table2 WHERE seller = $user_id"))[0];
+$t_items_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM $item_table2 WHERE seller = $user_id"))[0];
+$t_students = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM users WHERE school = $school_id AND dept = $user_dept"))[0];
+if ($_SESSION['nivas_userRole'] == 'hoc') {
+  $t_items = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(m.id) FROM manuals AS m WHERE $hocManualVisibilityWhere"))[0];
+  $t_items_sold = mysqli_fetch_array(mysqli_query(
+    $conn,
+    "SELECT COUNT(mb.manual_id)
+     FROM manuals_bought AS mb
+     JOIN manuals AS m ON m.id = mb.manual_id
+     JOIN users AS bu ON bu.id = mb.buyer
+     WHERE mb.status = 'successful'
+       AND bu.dept = $hocDeptInt
+       AND ($hocManualVisibilityWhere)"
+  ))[0];
+  $t_items_price = mysqli_fetch_array(mysqli_query(
+    $conn,
+    "SELECT COALESCE(SUM(mb.price), 0)
+     FROM manuals_bought AS mb
+     JOIN manuals AS m ON m.id = mb.manual_id
+     JOIN users AS bu ON bu.id = mb.buyer
+     WHERE mb.status = 'successful'
+       AND bu.dept = $hocDeptInt
+       AND ($hocManualVisibilityWhere)"
+  ))[0];
+}
+
+$open_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM $item_table WHERE user_id = $user_id AND status = 'open'"))[0];
+$closed_manuals = $t_items - $open_manuals;
+if ($_SESSION['nivas_userRole'] == 'hoc') {
+  $open_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(m.id) FROM manuals AS m WHERE ($hocManualVisibilityWhere) AND m.status = 'open'"))[0];
+  $closed_manuals = max(0, ((int)$t_items - (int)$open_manuals));
+}
+
+$manual_query2 = mysqli_query($conn, "SELECT $column_id, SUM(price) AS total_sales
+    FROM $item_table2
+    WHERE seller  = $user_id
+    GROUP BY $column_id
+    ORDER BY total_sales DESC
+    LIMIT 3");
+if ($_SESSION['nivas_userRole'] == 'hoc') {
+  $manual_query2 = mysqli_query(
+    $conn,
+    "SELECT mb.manual_id AS $column_id, SUM(mb.price) AS total_sales
+     FROM manuals_bought AS mb
+     JOIN manuals AS m ON m.id = mb.manual_id
+     JOIN users AS bu ON bu.id = mb.buyer
+     WHERE mb.status = 'successful'
+       AND bu.dept = $hocDeptInt
+       AND ($hocManualVisibilityWhere)
+     GROUP BY mb.manual_id
+     ORDER BY total_sales DESC
+     LIMIT 3"
+  );
+}
+
+
+$manual_query_sql = "SELECT * FROM $item_table WHERE user_id = $user_id ORDER BY `id` DESC";
+if ($_SESSION['nivas_userRole'] == 'hoc') {
+  $manual_query_sql = "SELECT * FROM manuals AS m WHERE $hocManualVisibilityWhere ORDER BY m.id DESC";
 }
 try {
   $manual_query = mysqli_query($conn, $manual_query_sql);
@@ -152,6 +157,26 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
 $event_query = mysqli_query($conn, "SELECT * FROM events WHERE user_id = $user_id ORDER BY `id` DESC");
 
 $transaction_query = mysqli_query($conn, "SELECT DISTINCT ref_id, buyer FROM $item_table2 WHERE seller = $user_id ORDER BY `created_at` DESC LIMIT 6");
+if ($_SESSION['nivas_userRole'] == 'hoc') {
+  $transaction_query = mysqli_query(
+    $conn,
+    "SELECT
+        mb.ref_id,
+        mb.buyer,
+        COUNT(mb.ref_id) AS items_count,
+        COALESCE(SUM(mb.price), 0) AS total_amount,
+        MAX(mb.created_at) AS created_at
+     FROM manuals_bought AS mb
+     JOIN manuals AS m ON m.id = mb.manual_id
+     JOIN users AS bu ON bu.id = mb.buyer
+     WHERE mb.status = 'successful'
+       AND bu.dept = $hocDeptInt
+       AND ($hocManualVisibilityWhere)
+     GROUP BY mb.ref_id, mb.buyer
+     ORDER BY created_at DESC
+     LIMIT 6"
+  );
+}
 
 $settlement_query = mysqli_query($conn, "SELECT * FROM settlement_accounts WHERE school_id = $school_id AND type = 'school' ORDER BY `id` DESC LIMIT 1");
 if (mysqli_num_rows($settlement_query) == 0) {
@@ -418,10 +443,15 @@ if (mysqli_num_rows($settlement_query) == 0) {
                               $buyer_id = $transaction['buyer'];
 
                               $buyer = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = $buyer_id"));
-
-                              $transactions_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(ref_id) FROM $item_table2 WHERE ref_id = '$transaction_id' AND seller = $user_id"))[0];
-                              $transactions_bought_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM $item_table2 WHERE ref_id = '$transaction_id' AND seller = $user_id"))[0];
-                              $created_at = mysqli_fetch_array(mysqli_query($conn, "SELECT created_at FROM $item_table2 WHERE ref_id = '$transaction_id' LIMIT 1"))[0];
+                              if ($_SESSION['nivas_userRole'] == 'hoc') {
+                                $transactions_bought_cnt = isset($transaction['items_count']) ? (int)$transaction['items_count'] : 0;
+                                $transactions_bought_price = isset($transaction['total_amount']) ? (int)$transaction['total_amount'] : 0;
+                                $created_at = isset($transaction['created_at']) ? $transaction['created_at'] : null;
+                              } else {
+                                $transactions_bought_cnt = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(ref_id) FROM $item_table2 WHERE ref_id = '$transaction_id' AND seller = $user_id"))[0];
+                                $transactions_bought_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM $item_table2 WHERE ref_id = '$transaction_id' AND seller = $user_id"))[0];
+                                $created_at = mysqli_fetch_array(mysqli_query($conn, "SELECT created_at FROM $item_table2 WHERE ref_id = '$transaction_id' LIMIT 1"))[0];
+                              }
                               
                               // Retrieve and format the due date
                               $created_date = date('M j', strtotime($created_at));
