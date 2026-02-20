@@ -194,7 +194,14 @@ function sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $tot
     if (!$to) { return; }
 
     $subject = "Payment Receipt - Thank You for Your Purchase";
-    sendMail($subject, $message, $to);
+    $mailStatus = sendBrevoMail($subject, $message, $to);
+    if ($mailStatus !== "success") {
+        $mailStatus = sendMail($subject, $message, $to);
+    }
+
+    if ($mailStatus !== "success") {
+        error_log("Payment receipt email failed for user_id={$user_id}, tx_ref={$tx_ref}, email={$to}");
+    }
 }
 
 /**
