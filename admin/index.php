@@ -37,6 +37,29 @@ $t_items = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM $item_t
 $t_items_sold = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT($column_id) FROM $item_table2 WHERE seller = $user_id"))[0];
 $t_items_price = mysqli_fetch_array(mysqli_query($conn, "SELECT SUM(price) FROM $item_table2 WHERE seller = $user_id"))[0];
 $t_students = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM users WHERE school = $school_id AND dept = $user_dept"))[0];
+if ($_SESSION['nivas_userRole'] == 'hoc') {
+  $hocDeptInt = (int)$user_dept;
+  if ($hocDeptInt > 0) {
+    $t_items_sold = mysqli_fetch_array(mysqli_query(
+      $conn,
+      "SELECT COUNT(mb.manual_id)
+       FROM manuals_bought AS mb
+       JOIN users AS bu ON bu.id = mb.buyer
+       WHERE mb.seller = $user_id
+         AND mb.status = 'successful'
+         AND bu.dept = $hocDeptInt"
+    ))[0];
+    $t_items_price = mysqli_fetch_array(mysqli_query(
+      $conn,
+      "SELECT COALESCE(SUM(mb.price), 0)
+       FROM manuals_bought AS mb
+       JOIN users AS bu ON bu.id = mb.buyer
+       WHERE mb.seller = $user_id
+         AND mb.status = 'successful'
+         AND bu.dept = $hocDeptInt"
+    ))[0];
+  }
+}
 
 $open_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM $item_table WHERE user_id = $user_id AND status = 'open'"))[0];
 $closed_manuals = $t_items - $open_manuals;
@@ -47,6 +70,23 @@ $manual_query2 = mysqli_query($conn, "SELECT $column_id, SUM(price) AS total_sal
     GROUP BY $column_id
     ORDER BY total_sales DESC
     LIMIT 3");
+if ($_SESSION['nivas_userRole'] == 'hoc') {
+  $hocDeptInt = (int)$user_dept;
+  if ($hocDeptInt > 0) {
+    $manual_query2 = mysqli_query(
+      $conn,
+      "SELECT mb.manual_id AS $column_id, SUM(mb.price) AS total_sales
+       FROM manuals_bought AS mb
+       JOIN users AS bu ON bu.id = mb.buyer
+       WHERE mb.seller = $user_id
+         AND mb.status = 'successful'
+         AND bu.dept = $hocDeptInt
+       GROUP BY mb.manual_id
+       ORDER BY total_sales DESC
+       LIMIT 3"
+    );
+  }
+}
 
 
 $manual_query_sql = "SELECT * FROM $item_table WHERE user_id = $user_id ORDER BY `id` DESC";
