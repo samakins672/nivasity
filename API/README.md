@@ -57,7 +57,7 @@ When the access token expires, use the refresh token to get a new access token p
 ```
 
 **Note:** 
-- Account is created with status='pending' until OTP is verified
+- Account is created with status='unverified' until OTP is verified
 - OTP expires in 10 minutes (600 seconds)
 - Academic information (department, matric number, admission year) is NOT required at registration
 - Use `/auth/verify-otp.php` to complete registration and get tokens
@@ -105,7 +105,7 @@ When the access token expires, use the refresh token to get a new access token p
       "dept_name": null,
       "matric_no": null,
       "adm_year": null,
-      "status": "active"
+      "status": "unverified"
     }
   }
 }
@@ -127,12 +127,11 @@ When the access token expires, use the refresh token to get a new access token p
 - `404` - Invalid email address
 - `400` - Account already verified (use login instead) [registration only]
 - `400` - Invalid or expired OTP
-- `400` - Invalid reason parameter
 
 #### 3. Resend Registration OTP
 **Endpoint:** `POST /auth/resend-otp.php`
 
-**Description:** Resend verification OTP for pending accounts. Use this if the user didn't receive the initial OTP or if it expired.
+**Description:** Resend verification OTP for unverified accounts. Use this if the user didn't receive the initial OTP or if it expired.
 
 **Request Body (JSON):**
 ```json
@@ -159,7 +158,7 @@ When the access token expires, use the refresh token to get a new access token p
 - `400` - Account already verified (use login instead)
 
 **Note:**
-- Only works for accounts with status='pending'
+- Only works for accounts with status='unverified'
 - Deletes any previous unused OTPs
 - Generates a new 6-digit OTP that expires in 10 minutes
 
@@ -202,6 +201,29 @@ When the access token expires, use the refresh token to get a new access token p
   }
 }
 ```
+
+#### Google Auth
+**Endpoint:** `POST /auth/google-auth.php`
+
+**Description:** Login or register a student account using a Google ID token.
+
+**Request Body (JSON):**
+```json
+{
+  "id_token": "google_id_token",
+  "school_id": 1
+}
+```
+
+**Parameters:**
+- `id_token` (required): Google ID token from client OAuth flow
+- `school_id` (required for first-time users): Active school ID for new account creation
+- `phone` (optional): Used when creating a new account
+- `gender` (optional): Used when creating a new account
+
+**Response (Success):**
+- Existing user: `200` with JWT tokens and user profile
+- New user: `201` with JWT tokens and newly created profile (`status` is `unverified`)
 
 #### 3. Logout
 **Endpoint:** `POST /auth/logout.php`
@@ -276,13 +298,13 @@ When the access token expires, use the refresh token to get a new access token p
 #### Password Reset Flow Overview:
 The password reset process is a **3-step flow** for enhanced security:
 
-1. **Request OTP** → Call `/auth/forgot-password.php` with email
+1. **Request OTP** -> Call `/auth/forgot-password.php` with email
    - User receives 6-digit OTP via email
    
-2. **Verify OTP** → Call `/auth/verify-otp.php` with email, OTP, and `reason: "password_reset"`
+2. **Verify OTP** -> Call `/auth/verify-otp.php` with email, OTP, and `reason: "password_reset"`
    - Returns single-use reset token (expires in 10 minutes)
    
-3. **Reset Password** → Call `/auth/reset-password.php` with token and new password
+3. **Reset Password** -> Call `/auth/reset-password.php` with token and new password
    - Password is updated, user can login with new credentials
 
 This approach separates OTP verification from password update for better security.
@@ -311,12 +333,12 @@ This approach separates OTP verification from password update for better securit
 **Error Responses:**
 - `400` - Missing required fields
 - `401` - Invalid or expired reset token
-- `400` - Password validation errors
+- `404` - User not found
+- `500` - Failed to reset password
 
 **Note:** 
 - Reset token is single-use only and expires in 10 minutes
 - Get reset token from `/auth/verify-otp.php` with `reason: "password_reset"`
-- Password must meet minimum security requirements
 
 #### 7. Resend Verification
 **Endpoint:** `POST /auth/resend-verification.php`
@@ -384,7 +406,7 @@ This approach separates OTP verification from password update for better securit
 - `firstname`: First name (optional)
 - `lastname`: Last name (optional)
 - `phone`: Phone number (optional)
-- `upload`: Profile picture file (optional, JPG/PNG/GIF)
+- `profile_pic`: Profile picture file (optional, JPG/PNG/GIF)
 
 **Response (Success):**
 ```json
@@ -480,6 +502,26 @@ This approach separates OTP verification from password update for better securit
 {
   "status": "success",
   "message": "Account successfully deactivated."
+}
+```
+
+#### Profile Stats
+**Endpoint:** `GET /profile/stats.php`
+
+**Description:** Get dashboard statistics for the authenticated student.
+
+**Authentication:** Required
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Profile statistics retrieved successfully",
+  "data": {
+    "total_materials": 12,
+    "total_spent": 18500,
+    "pending_orders": 1
+  }
 }
 ```
 
@@ -593,6 +635,29 @@ These endpoints provide institutional data needed for registration and profile s
 }
 ```
 
+#### Support Contact
+**Endpoint:** `GET /reference/support.php`
+
+**Description:** Get public support contact information (WhatsApp, email, phone).
+
+**Authentication:** Not required
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Support contact information retrieved successfully",
+  "data": {
+    "contact": {
+      "whatsapp": "+2348012345678",
+      "email": "support@nivasity.com",
+      "phone": "+2348012345678",
+      "updated_at": "2026-02-21 12:00:00"
+    }
+  }
+}
+```
+
 ---
 
 ### Materials/Manuals Endpoints
@@ -600,7 +665,7 @@ These endpoints provide institutional data needed for registration and profile s
 #### 12. List Materials
 **Endpoint:** `GET /materials/list.php`
 
-**Description:** Get list of available materials/manuals filtered by user's school and department.
+**Description:** Get list of available materials/manuals filtered by user's school and academic scope.
 
 **Authentication:** Required
 
@@ -614,9 +679,11 @@ These endpoints provide institutional data needed for registration and profile s
 - `limit` (optional, default: 20, max: 100): Items per page
 
 **Filtering Rules:**
-- Materials are automatically filtered by **user's school AND department**
-- Only materials from your department are shown
-- This ensures relevance to your courses
+- Materials are filtered by **user's school**
+- If user department and faculty are available, results include:
+  - Department-specific materials (`dept = user_dept`)
+  - Faculty-level shared materials (`dept = 0` with matching faculty)
+- Only `open` materials are returned, and due dates older than 24 hours are excluded
 
 **Response (Success):**
 ```json
@@ -785,7 +852,7 @@ GET /materials/details.php?code=MAN-2024-001
 **Response (Success):**
 ```json
 {
-  "success": true,
+  "status": "success",
   "message": "Cart retrieved successfully",
   "data": {
     "items": [
@@ -794,8 +861,13 @@ GET /materials/details.php?code=MAN-2024-001
         "title": "Introduction to Algorithms",
         "course_code": "CSC301",
         "price": 1500,
-        "seller_name": "Dr. John Smith",
-        "due_date": "2024-03-15 23:59:59"
+        "status": "open",
+        "dept": 5,
+        "dept_name": "Computer Science",
+        "host_faculty": 2,
+        "host_faculty_name": "Faculty of Science",
+        "level": "300",
+        "seller_name": "Dr. John Smith"
       }
     ],
     "subtotal": 5000,
@@ -864,11 +936,13 @@ GET /materials/details.php?code=MAN-2024-001
 **Response (Success):**
 ```json
 {
-  "success": true,
-  "message": "Gateway information retrieved successfully",
+  "status": "success",
+  "message": "Active payment gateway retrieved",
   "data": {
-    "active_gateway": "paystack",
-    "gateways": ["paystack", "flutterwave"]
+    "active": "paystack",
+    "available": ["paystack", "flutterwave"],
+    "status": true,
+    "message": ""
   }
 }
 ```
@@ -888,7 +962,7 @@ GET /materials/details.php?code=MAN-2024-001
 ```
 
 **Parameters:**
-- `redirect_url` (optional): Custom URL where users will be redirected after completing payment on the hosted checkout page. If not provided, defaults to the API's verify endpoint. The transaction reference (`tx_ref`) will be automatically appended as a query parameter.
+- `redirect_url` (optional): Custom URL where users will be redirected after payment verification. The gateway callback itself always points to `/payment/callback.php`, and this value is forwarded in payment metadata.
 
 **Payment Split Features:**
 - **Paystack:** Uses Paystack Split API with intelligent caching to avoid recreating splits for identical seller combinations
@@ -913,7 +987,6 @@ The endpoint uses an intelligent caching system to avoid recreating payment spli
   "data": {
     "tx_ref": "nivas_123_1703689200",
     "payment_url": "https://checkout.paystack.com/...",
-    "callback_url": "https://yourapp.com/payment-callback?tx_ref=nivas_123_1703689200",
     "gateway": "paystack",
     "subtotal": 5000,
     "charge": 100,
@@ -934,7 +1007,7 @@ The endpoint uses an intelligent caching system to avoid recreating payment spli
 **Response Fields:**
 - `tx_ref`: Transaction reference for tracking the payment
 - `payment_url`: Hosted checkout URL where user completes payment
-- `callback_url`: URL where user will be redirected after payment (includes `tx_ref` parameter)
+- `redirect_url` (optional): Returned only when you passed `redirect_url` in request body
 - `gateway`: Payment gateway being used (paystack/flutterwave)
 - `subtotal`: Total cost of items before gateway charges
 - `charge`: Gateway processing fees
@@ -1204,6 +1277,112 @@ This allows the payment gateway to redirect back to your mobile app after the us
 
 ---
 
+### Additional Implemented Endpoints
+
+#### Payment Callback
+**Endpoint:** `GET /payment/callback.php`
+
+**Description:** Gateway callback endpoint used after hosted checkout. Verifies and processes payment, then either redirects to `redirect_url` (if provided in metadata) or returns JSON.
+
+**Authentication:** Not required
+
+**Query Parameters:**
+- `tx_ref` (required): Transaction reference
+
+#### Bulk Verify Pending Payments
+**Endpoint:** `GET /payment/verify-bulk.php`
+**Endpoint:** `POST /payment/verify-bulk.php`
+
+**Description:** Bulk verification utility for pending cart payments. Used for scheduled reconciliation and maintenance.
+
+**Authentication:** Not required
+
+**Notes:**
+- `POST /payment/verify-bulk.php` is also supported for filtered checks
+- Supports CLI execution for cron jobs
+
+#### Notifications: List Inbox
+**Endpoint:** `GET /notifications/list.php`
+
+**Description:** Get paginated notifications inbox and unread count for authenticated user.
+
+**Authentication:** Required
+
+**Query Parameters:**
+- `page` (optional, default: 1)
+- `limit` (optional, default: 50, max: 100)
+- `end_date` (optional): `YYYY-MM-DD` or `YYYY-MM-DD HH:MM:SS`
+
+#### Notifications: Mark One as Read
+**Endpoint:** `POST /notifications/mark-read.php`
+
+**Description:** Mark a single notification as read.
+
+**Authentication:** Required
+
+**Request Body (JSON):**
+```json
+{
+  "id": 123
+}
+```
+
+#### Notifications: Mark All as Read
+**Endpoint:** `POST /notifications/mark-all-read.php`
+
+**Description:** Mark all unread notifications as read for authenticated user.
+
+**Authentication:** Required
+
+#### Notifications: Register Device
+**Endpoint:** `POST /notifications/register-device.php`
+
+**Description:** Register or update an Expo push token for authenticated user.
+
+**Authentication:** Required
+
+**Request Body (JSON):**
+```json
+{
+  "expo_push_token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]",
+  "platform": "android",
+  "app_version": "1.0.0"
+}
+```
+
+#### Notifications: Unregister Device
+**Endpoint:** `POST /notifications/unregister-device.php`
+
+**Description:** Disable a registered Expo push token for authenticated user.
+
+**Authentication:** Required
+
+**Request Body (JSON):**
+```json
+{
+  "expo_push_token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+}
+```
+
+#### Notifications: Admin Send
+**Endpoint:** `POST /notifications/admin/send.php`
+
+**Description:** Admin-only notification dispatch endpoint (single user, multiple users, school-wide, or broadcast).
+
+**Authentication:** Uses admin credentials in request body (not Bearer token)
+
+**Request Body (JSON):**
+```json
+{
+  "email": "admin@example.com",
+  "password": "md5_hash_of_password",
+  "title": "Important Update",
+  "body": "Message body",
+  "type": "general",
+  "broadcast": true
+}
+```
+
 ## Error Responses
 
 All error responses follow this format:
@@ -1231,7 +1410,7 @@ This API is designed exclusively for students (role: `student` or `hoc`). All au
 
 ## Domain Restriction
 
-This API is only accessible through `api.nivasity.com`. Requests from other domains will be blocked.
+Domain restriction can be enforced at web-server level. In this repository, the host restriction rule exists in `API/.htaccess` but is currently commented out for flexibility across environments.
 
 ## CORS Headers
 
@@ -1245,10 +1424,12 @@ The API includes CORS headers to allow cross-origin requests from authorized mob
 2. All monetary amounts are in Nigerian Naira (NGN)
 3. File uploads are limited to PDF and image files (JPG, JPEG, PNG, GIF)
 4. Maximum file size for uploads is determined by server configuration
-5. Session cookies are used for authentication - ensure your HTTP client supports cookies
+5. Authentication uses `Authorization: Bearer <access_token>` for protected endpoints
+6. Session storage is used for cart state (`/materials/cart-*` and payment initialization flow)
 
 ---
 
 ## Support
 
 For API support, contact: support@nivasity.com
+
