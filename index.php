@@ -23,14 +23,17 @@ $total_cart_price = 0;
 
 $user_dept_int = (int) $user_dept;
 $school_id_int = (int) $school_id;
-$manual_visibility_where = "m.dept = $user_dept_int";
-if ($user_dept_int <= 0) {
-  $manual_visibility_where = "1 = 0";
+$legacy_manual_visibility_where = "1 = 0";
+$manual_visibility_where = "1 = 0";
+
+if ($user_dept_int > 0) {
+  $legacy_manual_visibility_where = "m.dept = $user_dept_int";
 }
 
 try {
   $deptsHasFacultyId = false;
   $manualsHasFaculty = false;
+  $manualsHasDepts = false;
   $deptsFacultyColumnRes = mysqli_query($conn, "SHOW COLUMNS FROM depts LIKE 'faculty_id'");
   if ($deptsFacultyColumnRes && mysqli_num_rows($deptsFacultyColumnRes) > 0) {
     $deptsHasFacultyId = true;
@@ -38,6 +41,10 @@ try {
   $manualsFacultyColumnRes = mysqli_query($conn, "SHOW COLUMNS FROM manuals LIKE 'faculty'");
   if ($manualsFacultyColumnRes && mysqli_num_rows($manualsFacultyColumnRes) > 0) {
     $manualsHasFaculty = true;
+  }
+  $manualsDeptsColumnRes = mysqli_query($conn, "SHOW COLUMNS FROM manuals LIKE 'depts'");
+  if ($manualsDeptsColumnRes && mysqli_num_rows($manualsDeptsColumnRes) > 0) {
+    $manualsHasDepts = true;
   }
 
   if ($deptsHasFacultyId && $manualsHasFaculty && $user_dept_int > 0) {
@@ -49,12 +56,19 @@ try {
     }
 
     if ($user_faculty_id > 0) {
-      $manual_visibility_where .= " OR (m.dept = 0 AND m.faculty = $user_faculty_id)";
+      $legacy_manual_visibility_where .= " OR (m.dept = 0 AND m.faculty = $user_faculty_id)";
     }
+  }
+
+  if ($manualsHasDepts && $user_dept_int > 0) {
+    $normalized_depts_expr = "REPLACE(REPLACE(REPLACE(REPLACE(m.depts, '[', ''), ']', ''), '\"', ''), ' ', '')";
+    $manual_visibility_where = "(m.depts IS NOT NULL AND FIND_IN_SET($user_dept_int, $normalized_depts_expr) > 0) OR (m.depts IS NULL AND ($legacy_manual_visibility_where))";
+  } else {
+    $manual_visibility_where = $legacy_manual_visibility_where;
   }
 } catch (Throwable $e) {
   error_log('[index] store visibility fallback: ' . $e->getMessage());
-  $manual_visibility_where = "m.dept = $user_dept_int";
+  $manual_visibility_where = $legacy_manual_visibility_where;
 }
 
 try {

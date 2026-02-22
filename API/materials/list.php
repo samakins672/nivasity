@@ -23,7 +23,7 @@ $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
 $limit = isset($_GET['limit']) ? min(100, max(1, (int)$_GET['limit'])) : 20;
 $offset = ($page - 1) * $limit;
 
-// Build query - filter by school AND (user's department OR faculty-level materials)
+// Build query - filter by school and due date; visibility is added below
 // Exclude materials with due date passed over 24 hours ago
 $where_conditions = ["m.school_id = $school_id", "m.status = 'open'", "m.due_date >= DATE_SUB(NOW(), INTERVAL 24 HOUR)"];
 
@@ -39,12 +39,23 @@ if ($user_dept) {
     }
 }
 
-// Filter by: department-specific materials OR faculty-level materials (dept=0 with matching faculty)
+// Legacy visibility condition (used when m.depts is null)
+$legacy_visibility_condition = "1 = 0";
 if ($user_dept_safe && $user_faculty) {
-    $where_conditions[] = "(m.dept = $user_dept_safe OR (m.dept = 0 AND m.faculty = $user_faculty))";
+    $legacy_visibility_condition = "(m.dept = $user_dept_safe OR (m.dept = 0 AND m.faculty = $user_faculty))";
 } elseif ($user_dept_safe) {
-    // If no faculty found, just filter by department
-    $where_conditions[] = "m.dept = $user_dept_safe";
+    $legacy_visibility_condition = "m.dept = $user_dept_safe";
+}
+
+// New visibility condition:
+// - if m.depts is set, user dept must be included in m.depts
+// - if m.depts is null, fall back to legacy dept/faculty visibility
+if ($user_dept_safe) {
+    $normalized_depts_expr = "REPLACE(REPLACE(REPLACE(REPLACE(m.depts, '[', ''), ']', ''), '\"', ''), ' ', '')";
+    $where_conditions[] = "((m.depts IS NOT NULL AND FIND_IN_SET($user_dept_safe, $normalized_depts_expr) > 0) OR (m.depts IS NULL AND ($legacy_visibility_condition)))";
+} else {
+    // Without a department, student cannot be matched to any department-scoped material.
+    $where_conditions[] = "1 = 0";
 }
 
 if (!empty($search)) {
@@ -85,6 +96,7 @@ $query = "SELECT m.*, u.first_name, u.last_name, d.name as dept_name, f.name as 
 
 $result = mysqli_query($conn, $query);
 $materials = [];
+$dept_name_cache = [];
 
 while ($row = mysqli_fetch_assoc($result)) {
     // Check if user already bought this material
@@ -96,6 +108,40 @@ while ($row = mysqli_fetch_assoc($result)) {
     $now = time();
     $is_overdue = ($now > $due_date);
     
+    $coverage = strtolower((string)($row['coverage'] ?? ''));
+    $dept_name = ((int)$row['dept'] === 0) ? 'All Departments' : $row['dept_name'];
+
+    if ($coverage === 'school') {
+        $dept_name = 'All Departments in School';
+    } elseif ($coverage === 'faculty') {
+        $dept_name = 'All Departments in Faculty';
+    } elseif ($coverage === 'custom') {
+        $depts_raw = (string)($row['depts'] ?? '');
+        $normalized_depts = str_replace(['[', ']', '"', "'", ' '], '', $depts_raw);
+        $depts_list = array_filter(explode(',', $normalized_depts), function ($dept_id) {
+            return ctype_digit($dept_id) && (int)$dept_id > 0;
+        });
+        $unique_depts = array_values(array_unique($depts_list));
+        $dept_count = count($unique_depts);
+
+        if ($dept_count === 1) {
+            $single_dept_id = (int)$unique_depts[0];
+
+            if (!isset($dept_name_cache[$single_dept_id])) {
+                $dept_name_query = mysqli_query($conn, "SELECT name FROM depts WHERE id = $single_dept_id LIMIT 1");
+                if ($dept_name_query && mysqli_num_rows($dept_name_query) > 0) {
+                    $dept_name_cache[$single_dept_id] = mysqli_fetch_assoc($dept_name_query)['name'];
+                } else {
+                    $dept_name_cache[$single_dept_id] = null;
+                }
+            }
+
+            $dept_name = $dept_name_cache[$single_dept_id] ?: '1 Department';
+        } else {
+            $dept_name = $dept_count . ' Departments';
+        }
+    }
+
     $materials[] = [
         'id' => $row['id'],
         'code' => $row['code'],
@@ -106,7 +152,7 @@ while ($row = mysqli_fetch_assoc($result)) {
         'due_date' => $row['due_date'],
         'is_overdue' => $is_overdue,
         'dept' => (int)$row['dept'],
-        'dept_name' => ((int)$row['dept'] === 0) ? 'All Departments' : $row['dept_name'],
+        'dept_name' => $dept_name,
         'faculty' => $row['faculty'],
         'faculty_name' => $row['faculty_name'],
         'host_faculty' => $row['host_faculty'],
