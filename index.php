@@ -537,8 +537,14 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         var actionsEl = document.getElementById('mobileAppPromoActions');
         if (!titleEl || !bodyEl || !actionsEl) return;
 
-        var modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+        var modalInstance;
+        if (bootstrap.Modal && typeof bootstrap.Modal.getOrCreateInstance === 'function') {
+          modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+        } else {
+          modalInstance = new bootstrap.Modal(modalEl);
+        }
         var selectedDevice = '';
+        var selectedComfort = '';
 
         function submitComfortSurvey(deviceChoice, comfortLevel) {
           if (!deviceChoice || !comfortLevel) return;
@@ -554,6 +560,25 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           }).fail(function () {
             console.warn('Unable to save mobile experience survey response.');
           });
+        }
+
+        function getComfortIntroMessage() {
+          if (selectedComfort === 'love_it') {
+            return "Thank you for the 💛. We're glad Nivasity is working great for you 😉.";
+          }
+          if (selectedComfort === 'its_cool') {
+            return "Thanks for sharing. We're happy things feel cool so far 🙂.";
+          }
+          if (selectedComfort === 'its_okay') {
+            return "Thanks for your honest feedback 👍. We know there's room to improve and we're working on it.";
+          }
+          if (selectedComfort === 'kinda_stressful') {
+            return "Thanks for telling us. We're sorry it has felt stressful 🥺, and we're improving the experience.";
+          }
+          if (selectedComfort === 'not_good_experience') {
+            return "We appreciate your honesty. We're sorry your experience has not been good 😣, and our team is prioritizing fixes.";
+          }
+          return "Thanks for being part of Nivasity. We're constantly improving your experience.";
         }
 
         function renderStep(step) {
@@ -582,14 +607,18 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           }
 
           if (step === 'iphone') {
-            titleEl.textContent = 'Nivasity iOS App Coming Soon';
-            bodyEl.textContent = "We're excited to announce that our team is actively building the Nivasity iOS app and working to launch by March 2026, to give all students a smoother experience.";
+            titleEl.textContent = 'Nivasity iOS App Coming Soon 🎊';
+            bodyEl.innerHTML = ''
+              + '<p class="mb-2">' + getComfortIntroMessage() + '</p><br>'
+              + "<p class=\"mb-0\">We're excited to announce that our team is <strong>actively building</strong> the Nivasity iOS app and working to launch by <strong>March 2026</strong>, to give all students a <strong>smoother experience</strong>.</p>";
             actionsEl.innerHTML = '<button type="button" class="btn btn-primary" data-app-action="cancel">Cancel</button>';
             return;
           }
 
-          titleEl.textContent = 'Nivasity Android App Is Live';
-          bodyEl.textContent = "We're happy to announce that our team has launched the Nivasity app on Google Play Store.";
+          titleEl.textContent = 'Nivasity Android App Is Live 🎊';
+          bodyEl.innerHTML = ''
+            + '<p class="mb-2">' + getComfortIntroMessage() + '</p><br>'
+            + "<p class=\"mb-0\">We're happy to announce that our team has <strong>launched</strong> the Nivasity app on <strong>Google Play Store</strong>.</p>";
           actionsEl.innerHTML = ''
             + '<button type="button" class="btn btn-light" data-app-action="cancel">Cancel</button>'
             + '<a href="' + playStoreUrl + '" target="_blank" rel="noopener noreferrer" class="btn btn-primary" data-app-action="install">Install now</a>';
@@ -605,6 +634,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
           var comfort = e.target.getAttribute('data-app-comfort');
           if (comfort) {
+            selectedComfort = comfort;
             submitComfortSurvey(selectedDevice, comfort);
             renderStep(selectedDevice || 'android');
             return;
