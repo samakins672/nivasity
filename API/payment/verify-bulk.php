@@ -159,6 +159,8 @@ $results = [];
 $verified_count = 0;
 $failed_count = 0;
 $already_processed_count = 0;
+$not_found_count = 0;
+$error_count = 0;
 
 if ($isCli) {
     echo "Found $total_refs pending cart reference(s) to verify\n";
@@ -211,12 +213,14 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
             mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$current_ref'");
         }
         $result['status'] = 'already_processed';
+        $result['reason'] = 'already_processed';
         $result['message'] = 'Already processed';
         $already_processed_count++;
         $results[] = $result;
         
         if ($isCli) {
             echo "  -> Already processed\n";
+            logMessage("SKIPPED for $current_ref: already_processed", $logFile);
         }
         continue;
     }
@@ -228,13 +232,15 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
         $gateway = PaymentGatewayFactory::getGateway($gateway_name);
     } catch (Exception $e) {
         $result['status'] = 'error';
-        $result['message'] = 'Gateway configuration error';
+        $result['reason'] = 'gateway_configuration_error';
+        $result['message'] = 'Gateway configuration error: ' . $e->getMessage();
         $failed_count++;
+        $error_count++;
         $results[] = $result;
         
         if ($isCli) {
             echo "  -> ERROR: Gateway configuration error\n";
-            logMessage("ERROR for $current_ref: Gateway configuration error", $logFile);
+            logMessage("FAILED for $current_ref: gateway_configuration_error - " . $e->getMessage(), $logFile);
         }
         continue;
     }
@@ -245,13 +251,15 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
         $verificationResult = $gateway->verifyTransaction($current_ref);
     } catch (Exception $e) {
         $result['status'] = 'error';
+        $result['reason'] = 'verification_exception';
         $result['message'] = 'Verification failed: ' . $e->getMessage();
         $failed_count++;
+        $error_count++;
         $results[] = $result;
         
         if ($isCli) {
             echo "  -> ERROR: Verification failed: " . $e->getMessage() . "\n";
-            logMessage("ERROR for $current_ref: " . $e->getMessage(), $logFile);
+            logMessage("FAILED for $current_ref: verification_exception - " . $e->getMessage(), $logFile);
         }
         continue;
     }
@@ -259,12 +267,15 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
     // Check if verification was successful
     if (!$verificationResult || !isset($verificationResult['status']) || $verificationResult['status'] !== true) {
         $result['status'] = 'not_found';
-        $result['message'] = 'No successful payment found';
+        $result['reason'] = 'no_successful_payment_found';
+        $result['message'] = isset($verificationResult['message']) ? $verificationResult['message'] : 'No successful payment found';
         $failed_count++;
+        $not_found_count++;
         $results[] = $result;
         
         if ($isCli) {
             echo "  -> No successful payment found\n";
+            logMessage("FAILED for $current_ref: no_successful_payment_found - " . $result['message'], $logFile);
         }
         continue;
     }
@@ -273,13 +284,15 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
     $cart_items_query = mysqli_query($conn, "SELECT * FROM cart WHERE ref_id = '$current_ref'");
     if (!$cart_items_query || mysqli_num_rows($cart_items_query) < 1) {
         $result['status'] = 'error';
+        $result['reason'] = 'cart_not_found';
         $result['message'] = 'Cart data not found';
         $failed_count++;
+        $error_count++;
         $results[] = $result;
         
         if ($isCli) {
             echo "  -> ERROR: Cart data not found\n";
-            logMessage("ERROR for $current_ref: Cart data not found", $logFile);
+            logMessage("FAILED for $current_ref: cart_not_found", $logFile);
         }
         continue;
     }
@@ -288,13 +301,15 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
     $user_query = mysqli_query($conn, "SELECT school FROM users WHERE id = $cart_user_id LIMIT 1");
     if (!$user_query || mysqli_num_rows($user_query) === 0) {
         $result['status'] = 'error';
+        $result['reason'] = 'user_not_found';
         $result['message'] = 'User not found';
         $failed_count++;
+        $error_count++;
         $results[] = $result;
         
         if ($isCli) {
             echo "  -> ERROR: User not found\n";
-            logMessage("ERROR for $current_ref: User not found", $logFile);
+            logMessage("FAILED for $current_ref: user_not_found", $logFile);
         }
         continue;
     }
@@ -361,13 +376,15 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
     
     if ($items_processed === 0) {
         $result['status'] = 'error';
+        $result['reason'] = 'no_items_processed';
         $result['message'] = 'No items could be processed';
         $failed_count++;
+        $error_count++;
         $results[] = $result;
         
         if ($isCli) {
             echo "  -> ERROR: No items could be processed\n";
-            logMessage("ERROR for $current_ref: No items could be processed", $logFile);
+            logMessage("FAILED for $current_ref: no_items_processed", $logFile);
         }
         continue;
     }
@@ -387,13 +404,15 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
         
         if (!$tx_insert) {
             $result['status'] = 'error';
-            $result['message'] = 'Failed to record transaction';
+            $result['reason'] = 'transaction_record_failed';
+            $result['message'] = 'Failed to record transaction: ' . mysqli_error($conn);
             $failed_count++;
+            $error_count++;
             $results[] = $result;
             
             if ($isCli) {
                 echo "  -> ERROR: Failed to record transaction\n";
-                logMessage("ERROR for $current_ref: Failed to record transaction", $logFile);
+                logMessage("FAILED for $current_ref: transaction_record_failed - " . mysqli_error($conn), $logFile);
             }
             continue;
         }
@@ -404,6 +423,7 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
     
     // Success
     $result['status'] = 'verified';
+    $result['reason'] = 'verified';
     $result['message'] = $dry_run ? 'Payment verified (DRY RUN)' : 'Payment verified and processed';
     $result['amount'] = $total_amount;
     $result['items_processed'] = $items_processed;
@@ -421,7 +441,9 @@ $summary = [
     'total_refs_checked' => $total_refs,
     'verified' => $verified_count,
     'already_processed' => $already_processed_count,
-    'failed' => $failed_count
+    'failed' => $failed_count,
+    'failed_not_found' => $not_found_count,
+    'failed_errors' => $error_count
 ];
 
 // Output based on execution mode
@@ -433,8 +455,13 @@ if ($isCli) {
     echo "  Verified: {$summary['verified']}\n";
     echo "  Already processed: {$summary['already_processed']}\n";
     echo "  Failed: {$summary['failed']}\n";
+    echo "    - No successful payment found: {$summary['failed_not_found']}\n";
+    echo "    - Processing/config errors: {$summary['failed_errors']}\n";
     
-    logMessage("Bulk verification completed - Total: {$summary['total_refs_checked']}, Verified: {$summary['verified']}, Already: {$summary['already_processed']}, Failed: {$summary['failed']}", $logFile);
+    logMessage(
+        "Bulk verification completed - Total: {$summary['total_refs_checked']}, Verified: {$summary['verified']}, Already: {$summary['already_processed']}, Failed: {$summary['failed']} (No successful payment: {$summary['failed_not_found']}, Errors: {$summary['failed_errors']})",
+        $logFile
+    );
     
     // Exit with appropriate code
     if ($summary['failed'] > 0 && $summary['verified'] === 0) {
