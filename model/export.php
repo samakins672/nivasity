@@ -136,11 +136,13 @@ if (isset($_POST['manual_id'])) {
 
     $hocUserId = isset($_SESSION['nivas_userId']) ? (int)$_SESSION['nivas_userId'] : 0;
     $hocDeptId = 0;
+    $hocSchoolId = isset($_SESSION['nivas_userSch']) ? (int)$_SESSION['nivas_userSch'] : 0;
     $applyHocDeptFilter = false;
+    $isHocUser = isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole'] === 'hoc';
     if (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole'] === 'hoc' && $hocUserId > 0) {
       $hocDeptRes = exportRunQuery(
         $conn,
-        "SELECT dept FROM users WHERE id = $hocUserId LIMIT 1",
+        "SELECT dept, school FROM users WHERE id = $hocUserId LIMIT 1",
         $requestId,
         'load_hoc_dept',
         ['hoc_user_id' => $hocUserId]
@@ -148,9 +150,18 @@ if (isset($_POST['manual_id'])) {
       if ($hocDeptRes && mysqli_num_rows($hocDeptRes) > 0) {
         $hocDeptRow = mysqli_fetch_assoc($hocDeptRes);
         $hocDeptId = isset($hocDeptRow['dept']) ? (int)$hocDeptRow['dept'] : 0;
+        $hocSchoolId = isset($hocDeptRow['school']) ? (int)$hocDeptRow['school'] : $hocSchoolId;
         if ($hocDeptId > 0) {
           $applyHocDeptFilter = true;
         }
+      }
+      if ($hocDeptId <= 0) {
+        exportJsonResponse([
+          'status' => 'error',
+          'message' => 'Your department is required before exporting material lists.',
+          'request_id' => $requestId,
+        ], 403);
+        exit;
       }
     }
     $auditStatusColumn = exportResolveAuditStatusColumn($conn, $requestId);
@@ -173,6 +184,74 @@ if (isset($_POST['manual_id'])) {
       exit;
     }
     $manualRow = mysqli_fetch_assoc($manualRes);
+
+    if ($isHocUser && $hocUserId > 0) {
+      $deptsHasFacultyId = false;
+      $manualsHasFaculty = false;
+      $manualsHasDepts = false;
+      $hocFacultyId = 0;
+      $hocLegacySharedVisibilityWhere = "1 = 0";
+      $hocSharedVisibilityWhere = "1 = 0";
+
+      $deptsFacultyColumnRes = mysqli_query($conn, "SHOW COLUMNS FROM depts LIKE 'faculty_id'");
+      if ($deptsFacultyColumnRes && mysqli_num_rows($deptsFacultyColumnRes) > 0) {
+        $deptsHasFacultyId = true;
+      }
+
+      $manualsFacultyColumnRes = mysqli_query($conn, "SHOW COLUMNS FROM manuals LIKE 'faculty'");
+      if ($manualsFacultyColumnRes && mysqli_num_rows($manualsFacultyColumnRes) > 0) {
+        $manualsHasFaculty = true;
+      }
+
+      $manualsDeptsColumnRes = mysqli_query($conn, "SHOW COLUMNS FROM manuals LIKE 'depts'");
+      if ($manualsDeptsColumnRes && mysqli_num_rows($manualsDeptsColumnRes) > 0) {
+        $manualsHasDepts = true;
+      }
+
+      $legacySharedVisibilityParts = [];
+      if ($hocDeptId > 0) {
+        $legacySharedVisibilityParts[] = "m.dept = $hocDeptId";
+      }
+
+      if ($deptsHasFacultyId && $manualsHasFaculty && $hocDeptId > 0) {
+        $userDeptMetaQ = mysqli_query($conn, "SELECT faculty_id FROM depts WHERE id = $hocDeptId AND school_id = $hocSchoolId LIMIT 1");
+        if ($userDeptMetaQ && mysqli_num_rows($userDeptMetaQ) > 0) {
+          $userDeptMeta = mysqli_fetch_assoc($userDeptMetaQ);
+          $hocFacultyId = isset($userDeptMeta['faculty_id']) ? (int)$userDeptMeta['faculty_id'] : 0;
+        }
+        if ($hocFacultyId > 0) {
+          $legacySharedVisibilityParts[] = "(m.dept = 0 AND m.faculty = $hocFacultyId)";
+        }
+      }
+
+      if (!empty($legacySharedVisibilityParts)) {
+        $hocLegacySharedVisibilityWhere = implode(' OR ', $legacySharedVisibilityParts);
+      }
+
+      if ($manualsHasDepts && $hocDeptId > 0) {
+        $normalized_depts_expr = "REPLACE(REPLACE(REPLACE(REPLACE(m.depts, '[', ''), ']', ''), '\"', ''), ' ', '')";
+        $hocSharedVisibilityWhere = "(m.depts IS NOT NULL AND FIND_IN_SET($hocDeptId, $normalized_depts_expr) > 0) OR (m.depts IS NULL AND ($hocLegacySharedVisibilityWhere))";
+      } else {
+        $hocSharedVisibilityWhere = $hocLegacySharedVisibilityWhere;
+      }
+
+      $hocAccessWhere = "m.id = $manualId AND (m.user_id = $hocUserId OR (m.user_id = 0 AND m.school_id = $hocSchoolId AND ($hocSharedVisibilityWhere)))";
+      $manualAccessRes = exportRunQuery(
+        $conn,
+        "SELECT 1 FROM manuals AS m WHERE $hocAccessWhere LIMIT 1",
+        $requestId,
+        'validate_hoc_manual_visibility',
+        ['manual_id' => $manualId, 'hoc_user_id' => $hocUserId, 'hoc_dept_id' => $hocDeptId]
+      );
+      if (mysqli_num_rows($manualAccessRes) < 1) {
+        exportJsonResponse([
+          'status' => 'error',
+          'message' => 'You are not permitted to export this material.',
+          'request_id' => $requestId,
+        ], 403);
+        exit;
+      }
+    }
 
     $manualsBoughtHasId = exportManualsBoughtHasColumn($conn, 'id');
     $manualsBoughtHasGrantStatus = exportManualsBoughtHasColumn($conn, 'grant_status');

@@ -38,10 +38,13 @@ $hocDeptInt = (int)$user_dept;
 $hocSchoolInt = (int)$school_id;
 $hocFacultyId = 0;
 $hocManualVisibilityWhere = "m.user_id = $user_id";
+$hocLegacySharedVisibilityWhere = "1 = 0";
+$hocSharedVisibilityWhere = "1 = 0";
 if ($_SESSION['nivas_userRole'] == 'hoc') {
   try {
     $deptsHasFacultyId = false;
     $manualsHasFaculty = false;
+    $manualsHasDepts = false;
     $deptsFacultyColumnRes = mysqli_query($conn, "SHOW COLUMNS FROM depts LIKE 'faculty_id'");
     if ($deptsFacultyColumnRes && mysqli_num_rows($deptsFacultyColumnRes) > 0) {
       $deptsHasFacultyId = true;
@@ -50,14 +53,18 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
     if ($manualsFacultyColumnRes && mysqli_num_rows($manualsFacultyColumnRes) > 0) {
       $manualsHasFaculty = true;
     }
-
-    $sharedVisibilityParts = [];
-    if ($hocDeptInt > 0) {
-      // Admin materials explicitly tied to this HOC department.
-      $sharedVisibilityParts[] = "m.dept = $hocDeptInt";
+    $manualsDeptsColumnRes = mysqli_query($conn, "SHOW COLUMNS FROM manuals LIKE 'depts'");
+    if ($manualsDeptsColumnRes && mysqli_num_rows($manualsDeptsColumnRes) > 0) {
+      $manualsHasDepts = true;
     }
 
-    // Admin materials set as faculty-wide (dept=0, faculty matches HOC faculty).
+    $legacySharedVisibilityParts = [];
+    if ($hocDeptInt > 0) {
+      // Legacy admin materials explicitly tied to this HOC department.
+      $legacySharedVisibilityParts[] = "m.dept = $hocDeptInt";
+    }
+
+    // Legacy admin materials set as faculty-wide (dept=0, faculty matches HOC faculty).
     if ($deptsHasFacultyId && $manualsHasFaculty && $hocDeptInt > 0) {
       $userDeptMetaQ = mysqli_query($conn, "SELECT faculty_id FROM depts WHERE id = $hocDeptInt AND school_id = $hocSchoolInt LIMIT 1");
       if ($userDeptMetaQ && mysqli_num_rows($userDeptMetaQ) > 0) {
@@ -65,14 +72,22 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
         $hocFacultyId = isset($userDeptMeta['faculty_id']) ? (int)$userDeptMeta['faculty_id'] : 0;
       }
       if ($hocFacultyId > 0) {
-        $sharedVisibilityParts[] = "(m.dept = 0 AND m.faculty = $hocFacultyId)";
+        $legacySharedVisibilityParts[] = "(m.dept = 0 AND m.faculty = $hocFacultyId)";
       }
     }
 
-    if (!empty($sharedVisibilityParts)) {
-      $sharedVisibility = implode(' OR ', $sharedVisibilityParts);
-      $hocManualVisibilityWhere = "m.user_id = $user_id OR (m.user_id = 0 AND m.school_id = $hocSchoolInt AND ($sharedVisibility))";
+    if (!empty($legacySharedVisibilityParts)) {
+      $hocLegacySharedVisibilityWhere = implode(' OR ', $legacySharedVisibilityParts);
     }
+
+    if ($manualsHasDepts && $hocDeptInt > 0) {
+      $normalized_depts_expr = "REPLACE(REPLACE(REPLACE(REPLACE(m.depts, '[', ''), ']', ''), '\"', ''), ' ', '')";
+      $hocSharedVisibilityWhere = "(m.depts IS NOT NULL AND FIND_IN_SET($hocDeptInt, $normalized_depts_expr) > 0) OR (m.depts IS NULL AND ($hocLegacySharedVisibilityWhere))";
+    } else {
+      $hocSharedVisibilityWhere = $hocLegacySharedVisibilityWhere;
+    }
+
+    $hocManualVisibilityWhere = "m.user_id = $user_id OR (m.user_id = 0 AND m.school_id = $hocSchoolInt AND ($hocSharedVisibilityWhere))";
   } catch (Throwable $e) {
     error_log('[admin/index] hoc visibility fallback: ' . $e->getMessage());
   }
