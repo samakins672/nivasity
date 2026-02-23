@@ -9,6 +9,7 @@ $isCli = (PHP_SAPI === 'cli');
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../../model/PaymentGatewayFactory.php';
 require_once __DIR__ . '/../../config/fw.php';
+require_once __DIR__ . '/../../model/mail.php';
 
 // Initialize log file path
 $logFile = __DIR__ . '/verify-bulk-cron.log';
@@ -211,6 +212,20 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
         // Already processed - mark as confirmed
         if (!$dry_run) {
             mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$current_ref'");
+
+            // Re-trigger congratulatory email for already-processed refs to avoid missed receipts
+            $manual_ids = array();
+            $event_ids = array();
+            $cart_items_for_email = mysqli_query($conn, "SELECT * FROM cart WHERE ref_id = '$current_ref' AND user_id = $cart_user_id");
+            while ($cart_item = mysqli_fetch_assoc($cart_items_for_email)) {
+                if ($cart_item['type'] === 'manual') {
+                    $manual_ids[] = $cart_item['item_id'];
+                } elseif ($cart_item['type'] === 'event') {
+                    $event_ids[] = $cart_item['item_id'];
+                }
+            }
+
+            sendCongratulatoryEmail($conn, $cart_user_id, $current_ref, $manual_ids, $event_ids, 0);
         }
         $result['status'] = 'already_processed';
         $result['reason'] = 'already_processed';
@@ -221,6 +236,9 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
         if ($isCli) {
             echo "  -> Already processed\n";
             logMessage("SKIPPED for $current_ref: already_processed", $logFile);
+            if (!$dry_run) {
+                logMessage("EMAIL for $current_ref: congratulatory_email_triggered (already_processed)", $logFile);
+            }
         }
         continue;
     }
@@ -419,6 +437,24 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
         
         // Update cart status
         mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$current_ref'");
+
+        // Send congratulatory email with receipt after successful processing
+        $manual_ids = array();
+        $event_ids = array();
+        $cart_items_for_email = mysqli_query($conn, "SELECT * FROM cart WHERE ref_id = '$current_ref' AND user_id = $cart_user_id");
+        while ($cart_item = mysqli_fetch_assoc($cart_items_for_email)) {
+            if ($cart_item['type'] === 'manual') {
+                $manual_ids[] = $cart_item['item_id'];
+            } elseif ($cart_item['type'] === 'event') {
+                $event_ids[] = $cart_item['item_id'];
+            }
+        }
+
+        sendCongratulatoryEmail($conn, $cart_user_id, $current_ref, $manual_ids, $event_ids, $total_amount);
+
+        if ($isCli) {
+            logMessage("EMAIL for $current_ref: congratulatory_email_triggered", $logFile);
+        }
     }
     
     // Success
