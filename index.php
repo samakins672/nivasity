@@ -466,7 +466,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
   <script src="assets/js/main.js"></script>
   <script>
     const playStoreUrl = <?php echo json_encode($play_store_url); ?>;
-    const mobileAppPromptSeenKey = 'nivasity_mobile_app_prompt_seen_v1';
+    const mobileAppPromptSeenKey = 'nivasity_mobile_app_prompt_seen_v2';
 
     const urlParams = new URLSearchParams(window.location.search);
     // Get the logout parameter from the URL
@@ -538,20 +538,52 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         if (!titleEl || !bodyEl || !actionsEl) return;
 
         var modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+        var selectedDevice = '';
+
+        function submitComfortSurvey(deviceChoice, comfortLevel) {
+          if (!deviceChoice || !comfortLevel) return;
+          $.ajax({
+            type: 'POST',
+            url: 'model/mobile_experience_feedback.php',
+            dataType: 'json',
+            data: {
+              device_choice: deviceChoice,
+              comfort_level: comfortLevel,
+              source_page: 'store'
+            }
+          }).fail(function () {
+            console.warn('Unable to save mobile experience survey response.');
+          });
+        }
 
         function renderStep(step) {
           if (step === 'select') {
             titleEl.textContent = 'Nivasity Mobile App';
             bodyEl.textContent = 'Which mobile device you actively use?';
             actionsEl.innerHTML = ''
-              + '<button type="button" class="btn btn-primary" data-app-step="android">Android</button>'
-              + '<button type="button" class="btn btn-outline-primary" data-app-step="ios">iPhone</button>';
+              + '<button type="button" class="btn btn-primary" data-app-device="android">Android</button>'
+              + '<button type="button" class="btn btn-outline-primary" data-app-device="iphone">iPhone</button>';
             return;
           }
 
-          if (step === 'ios') {
+          if (step === 'survey') {
+            titleEl.textContent = 'Nivasity Quick Survey (Optional)';
+            bodyEl.textContent = 'How comfortable are you using Nivasity?';
+            actionsEl.innerHTML = ''
+              + '<div class="d-flex flex-column gap-2 w-100">'
+              + '<button type="button" class="btn btn-outline-primary w-100 text-start" data-app-comfort="love_it">Love it 🔥</button>'
+              + '<button type="button" class="btn btn-outline-primary w-100 text-start" data-app-comfort="its_cool">It\'s cool 🙂</button>'
+              + '<button type="button" class="btn btn-outline-primary w-100 text-start" data-app-comfort="its_okay">It\'s okay 😐</button>'
+              + '<button type="button" class="btn btn-outline-primary w-100 text-start" data-app-comfort="kinda_stressful">Kinda stressful 😕</button>'
+              + '<button type="button" class="btn btn-outline-primary w-100 text-start" data-app-comfort="not_good_experience">Not a good experience 😣</button>'
+              + '<button type="button" class="btn btn-light w-100 mt-1" data-app-action="skip-survey">Skip</button>'
+              + '</div>';
+            return;
+          }
+
+          if (step === 'iphone') {
             titleEl.textContent = 'Nivasity iOS App Coming Soon';
-            bodyEl.textContent = "We're excited to announce that our team is actively building the Nivasity iOS app and working to launch by March 2026 for a smoother student experience.";
+            bodyEl.textContent = "We're excited to announce that our team is actively building the Nivasity iOS app and working to launch by March 2026, to give all students a smoother experience.";
             actionsEl.innerHTML = '<button type="button" class="btn btn-primary" data-app-action="cancel">Cancel</button>';
             return;
           }
@@ -564,17 +596,26 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         }
 
         modalEl.addEventListener('click', function (e) {
-          var step = e.target.getAttribute('data-app-step');
-          if (step === 'ios') {
-            renderStep('ios');
+          var deviceChoice = e.target.getAttribute('data-app-device');
+          if (deviceChoice === 'android' || deviceChoice === 'iphone') {
+            selectedDevice = deviceChoice;
+            renderStep('survey');
             return;
           }
-          if (step === 'android') {
-            renderStep('android');
+
+          var comfort = e.target.getAttribute('data-app-comfort');
+          if (comfort) {
+            submitComfortSurvey(selectedDevice, comfort);
+            renderStep(selectedDevice || 'android');
             return;
           }
 
           var action = e.target.getAttribute('data-app-action');
+          if (action === 'skip-survey') {
+            renderStep(selectedDevice || 'android');
+            return;
+          }
+
           if (action === 'cancel' || action === 'install') {
             markMobileAppPromptSeen();
             modalInstance.hide();
