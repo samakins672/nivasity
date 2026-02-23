@@ -221,20 +221,15 @@ if (isset($_POST['setup'])) {
     $user = mysqli_fetch_array($user_);
     $status = 'verified';
     if ($user['role'] == 'hoc') {
-      $status = 'inreview';
+      $dept_q = mysqli_query($conn, "SELECT name FROM depts WHERE id = $dept AND school_id = $school_id LIMIT 1");
+      $dept_row = $dept_q ? mysqli_fetch_array($dept_q) : null;
+      $user_dept = ($dept_row && isset($dept_row['name'])) ? $dept_row['name'] : 'N/A';
 
-      $user_dept = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM depts WHERE id = $dept AND school_id = $school_id"))['name'];
-
-      $subject = "New HOC waiting to be verified";
-      $body = "<b>New HOC Information</b><br>Name: ".$user['first_name'].' '. $user['last_name']."<br>Department: $user_dept<br>Matric Number: $matric_no<br> Phone number: ".$user['phone']."<br> Email: ".$user['email'];
-
-      // Call the sendMail function and capture the status
-      $mailStatus = sendMail($subject, $body, 'support@nivasity.com');
-
-      mysqli_query($conn, "UPDATE users SET dept = '$dept', adm_year = '$adm_year', matric_no = '$matric_no', status = '$status' WHERE id = $user_id");
-    } else {
-      mysqli_query($conn, "UPDATE users SET dept = '$dept', adm_year = '$adm_year', matric_no = '$matric_no', status = '$status' WHERE id = $user_id");
+      $subject = "New HOC profile completed";
+      $body = "<b>New HOC Information</b><br>Name: " . $user['first_name'] . ' ' . $user['last_name'] . "<br>Department: $user_dept<br>Matric Number: $matric_no<br>Phone number: " . $user['phone'] . "<br>Email: " . $user['email'] . "<br>Status: verified";
+      sendMail($subject, $body, 'support@nivasity.com');
     }
+    mysqli_query($conn, "UPDATE users SET dept = '$dept', adm_year = '$adm_year', matric_no = '$matric_no', status = '$status' WHERE id = $user_id");
 
 
     if (mysqli_affected_rows($conn) >= 1) {
