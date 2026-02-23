@@ -4,14 +4,12 @@ include('model/config.php');
 include('model/page_config.php');
 include('model/system_alerts.php');
 include('model/payment_freeze.php');
-include_once('model/functions.php');
 
 // Fetch active system alerts
 $system_alerts = get_active_system_alerts($conn);
 
 // Check payment freeze status
 $payment_freeze_info = get_payment_freeze_info();
-$is_android_store_device = function_exists('isAndroidDevice') ? isAndroidDevice() : false;
 $play_store_url = 'https://play.google.com/store/apps/details?id=com.nivasity.app';
 
 // Simulate adding/removing the product to/from the cart
@@ -467,9 +465,8 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
   <script src="assets/js/script.js"></script>
   <script src="assets/js/main.js"></script>
   <script>
-    const isAndroidStoreDevice = <?php echo $is_android_store_device ? 'true' : 'false'; ?>;
-    const androidAppPromptStorageKey = 'nivasity_android_app_prompt_seen_at';
-    const androidAppPromptCooldownMs = 24 * 60 * 60 * 1000;
+    const playStoreUrl = <?php echo json_encode($play_store_url); ?>;
+    const mobileAppPromptSeenKey = 'nivasity_mobile_app_prompt_seen_v1';
 
     const urlParams = new URLSearchParams(window.location.search);
     // Get the logout parameter from the URL
@@ -512,24 +509,83 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
     $(document).ready(function () {
       $('.btn').attr('data-mdb-ripple-duration', '0ms');
 
-      function maybeShowAndroidAppPrompt() {
-        if (!isAndroidStoreDevice) return;
-        if (!window.localStorage) return;
-
-        var lastSeen = parseInt(localStorage.getItem(androidAppPromptStorageKey) || '0', 10);
-        var now = Date.now();
-        if (!Number.isNaN(lastSeen) && (now - lastSeen) < androidAppPromptCooldownMs) {
-          return;
+      function hasSeenMobileAppPrompt() {
+        try {
+          return window.localStorage && localStorage.getItem(mobileAppPromptSeenKey) === '1';
+        } catch (e) {
+          return false;
         }
-
-        var modalEl = document.getElementById('androidAppPromoModal');
-        if (!modalEl || !window.bootstrap || !bootstrap.Modal) return;
-
-        localStorage.setItem(androidAppPromptStorageKey, String(now));
-        bootstrap.Modal.getOrCreateInstance(modalEl).show();
       }
 
-      maybeShowAndroidAppPrompt();
+      function markMobileAppPromptSeen() {
+        try {
+          if (window.localStorage) {
+            localStorage.setItem(mobileAppPromptSeenKey, '1');
+          }
+        } catch (e) {
+          // ignore storage write errors
+        }
+      }
+
+      function initMobileAppPromptModal() {
+        var modalEl = document.getElementById('mobileAppPromoModal');
+        if (!modalEl || !window.bootstrap || !bootstrap.Modal) return;
+        if (hasSeenMobileAppPrompt()) return;
+
+        var titleEl = document.getElementById('mobileAppPromoTitle');
+        var bodyEl = document.getElementById('mobileAppPromoBody');
+        var actionsEl = document.getElementById('mobileAppPromoActions');
+        if (!titleEl || !bodyEl || !actionsEl) return;
+
+        var modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+        function renderStep(step) {
+          if (step === 'select') {
+            titleEl.textContent = 'Nivasity Mobile App';
+            bodyEl.textContent = 'Which mobile device you actively use?';
+            actionsEl.innerHTML = ''
+              + '<button type="button" class="btn btn-primary" data-app-step="android">Android</button>'
+              + '<button type="button" class="btn btn-outline-primary" data-app-step="ios">iPhone</button>';
+            return;
+          }
+
+          if (step === 'ios') {
+            titleEl.textContent = 'Nivasity iOS App Coming Soon';
+            bodyEl.textContent = "We're excited to announce that our team is actively building the Nivasity iOS app and working to launch by March 2026 for a smoother student experience.";
+            actionsEl.innerHTML = '<button type="button" class="btn btn-primary" data-app-action="cancel">Cancel</button>';
+            return;
+          }
+
+          titleEl.textContent = 'Nivasity Android App Is Live';
+          bodyEl.textContent = "We're happy to announce that our team has launched the Nivasity app on Google Play Store.";
+          actionsEl.innerHTML = ''
+            + '<button type="button" class="btn btn-light" data-app-action="cancel">Cancel</button>'
+            + '<a href="' + playStoreUrl + '" target="_blank" rel="noopener noreferrer" class="btn btn-primary" data-app-action="install">Install now</a>';
+        }
+
+        modalEl.addEventListener('click', function (e) {
+          var step = e.target.getAttribute('data-app-step');
+          if (step === 'ios') {
+            renderStep('ios');
+            return;
+          }
+          if (step === 'android') {
+            renderStep('android');
+            return;
+          }
+
+          var action = e.target.getAttribute('data-app-action');
+          if (action === 'cancel' || action === 'install') {
+            markMobileAppPromptSeen();
+            modalInstance.hide();
+          }
+        });
+
+        renderStep('select');
+        modalInstance.show();
+      }
+
+      initMobileAppPromptModal();
 
       // $('#sort-by').change(function () {
       //   var sortByValue = $(this).val();
@@ -1158,22 +1214,17 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
     </div>
   </div>
 
-  <!-- Android App Promo Modal -->
-  <div class="modal fade" id="androidAppPromoModal" tabindex="-1" aria-labelledby="androidAppPromoLabel" aria-hidden="true">
+  <!-- Mobile App Promo Modal -->
+  <div class="modal fade" id="mobileAppPromoModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="mobileAppPromoTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title fw-bold" id="androidAppPromoLabel">Download the Nivasity App</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <h5 class="modal-title fw-bold" id="mobileAppPromoTitle">Nivasity Mobile App</h5>
         </div>
         <div class="modal-body">
-          <p class="mb-0">You're on Android. Get the newly launched Nivasity mobile app on Google Play for a better experience.</p>
+          <p class="mb-0" id="mobileAppPromoBody"></p>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Not now</button>
-          <a href="<?php echo htmlspecialchars($play_store_url, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
-            Open Play Store
-          </a>
+        <div class="modal-footer" id="mobileAppPromoActions">
         </div>
       </div>
     </div>
