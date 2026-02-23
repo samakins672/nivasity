@@ -14,6 +14,29 @@ if (!function_exists('getallheaders')) {
     }
 }
 
+/**
+ * Detect whether the current request is from an Android device.
+ *
+ * @param string|null $userAgent Optional user agent override for testing.
+ * @return bool
+ */
+function isAndroidDevice($userAgent = null) {
+    if ($userAgent === null) {
+        $userAgent = isset($_SERVER['HTTP_USER_AGENT']) ? (string)$_SERVER['HTTP_USER_AGENT'] : '';
+    }
+
+    if (stripos($userAgent, 'android') !== false) {
+        return true;
+    }
+
+    // Support modern User-Agent Client Hints where available.
+    if (isset($_SERVER['HTTP_SEC_CH_UA_PLATFORM']) && stripos((string)$_SERVER['HTTP_SEC_CH_UA_PLATFORM'], 'android') !== false) {
+        return true;
+    }
+
+    return false;
+}
+
 function generateVerificationCode($length) {
     // Generate a random verification code of the specified length
     $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
