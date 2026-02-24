@@ -186,9 +186,6 @@ if (isset($_POST['nivas_ref'])) {
 
     mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, '$status', 'PAYSTACK')");
 
-    // Clear saved cart rows for this transaction
-    mysqli_query($conn, "DELETE FROM cart WHERE ref_id = '$tx_ref'");
-
     // Mark cart rows as confirmed
     mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$tx_ref'");
 
