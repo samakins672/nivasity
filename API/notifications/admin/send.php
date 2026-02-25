@@ -50,12 +50,53 @@ if (!in_array((int)$admin['role'], $allowed_roles)) {
 // Determine target users - only ONE targeting method allowed
 $user_ids = [];
 $targeting_methods_count = 0;
+$recipient_status_filter = "status IN ('verified', 'active')";
+
+// Normalize targeting inputs for compatibility with older/newer clients
+$parsePositiveInt = function ($value) {
+    if (is_int($value) && $value > 0) {
+        return $value;
+    }
+    if (is_string($value) && trim($value) !== '' && ctype_digit(trim($value))) {
+        $parsed = (int)trim($value);
+        return $parsed > 0 ? $parsed : null;
+    }
+    return null;
+};
+
+$target_school_id = null;
+if (array_key_exists('school_id', $input)) {
+    $target_school_id = $parsePositiveInt($input['school_id']);
+}
+if ($target_school_id === null && array_key_exists('school', $input)) {
+    $target_school_id = $parsePositiveInt($input['school']);
+}
+$has_school_target = $target_school_id !== null;
+
+$broadcast_mode = null; // 'all' | 'school' | null
+if (array_key_exists('broadcast', $input)) {
+    $broadcast_value = $input['broadcast'];
+
+    if ($broadcast_value === true || $broadcast_value === 1 || $broadcast_value === '1') {
+        $broadcast_mode = 'all';
+    } elseif (is_string($broadcast_value)) {
+        $broadcast_value = strtolower(trim($broadcast_value));
+        if ($broadcast_value === 'true' || $broadcast_value === 'all') {
+            $broadcast_mode = 'all';
+        } elseif ($broadcast_value === 'school') {
+            $broadcast_mode = 'school';
+        }
+    }
+}
+
+$has_broadcast_all = $broadcast_mode === 'all';
+$has_broadcast_school = $broadcast_mode === 'school';
 
 // Count how many targeting methods are provided
 if (isset($input['user_id']) && !empty($input['user_id'])) $targeting_methods_count++;
 if (isset($input['user_ids']) && is_array($input['user_ids']) && !empty($input['user_ids'])) $targeting_methods_count++;
-if (isset($input['school_id']) && !empty($input['school_id'])) $targeting_methods_count++;
-if (isset($input['broadcast']) && $input['broadcast'] === true) $targeting_methods_count++;
+if ($has_school_target || $has_broadcast_school) $targeting_methods_count++;
+if ($has_broadcast_all) $targeting_methods_count++;
 
 // Only allow ONE targeting method
 if ($targeting_methods_count === 0) {
@@ -66,25 +107,33 @@ if ($targeting_methods_count > 1) {
     sendApiError('Only one targeting method allowed (user_id, user_ids, school_id, or broadcast)', 400);
 }
 
+if ($has_broadcast_school && !$has_school_target) {
+    sendApiError('broadcast=\"school\" requires school_id (or school)', 400);
+}
+
+if ((array_key_exists('school_id', $input) || array_key_exists('school', $input)) && !$has_school_target) {
+    sendApiError('school_id (or school) must be a valid positive integer', 400);
+}
+
 if (isset($input['user_id']) && !empty($input['user_id'])) {
     // Single user notification
     $user_ids = [(int)$input['user_id']];
     error_log("Admin Send: Targeting single user_id: {$input['user_id']}");
 } elseif (isset($input['user_ids']) && is_array($input['user_ids'])) {
     // Multiple specific users
-    $user_ids = array_map('intval', $input['user_ids']);
+    $user_ids = array_values(array_unique(array_map('intval', $input['user_ids'])));
     error_log("Admin Send: Targeting user_ids array: " . json_encode($user_ids));
-} elseif (isset($input['school_id']) && !empty($input['school_id'])) {
+} elseif ($has_school_target || $has_broadcast_school) {
     // All users in a school
-    $school_id = (int)$input['school_id'];
-    $users_query = mysqli_query($conn, "SELECT id FROM users WHERE school = $school_id AND status = 'active'");
+    $school_id = (int)$target_school_id;
+    $users_query = mysqli_query($conn, "SELECT id FROM users WHERE school = $school_id AND $recipient_status_filter");
     while ($user = mysqli_fetch_assoc($users_query)) {
         $user_ids[] = (int)$user['id'];
     }
     error_log("Admin Send: Targeting school_id $school_id, found " . count($user_ids) . " users");
-} elseif (isset($input['broadcast']) && $input['broadcast'] === true) {
-    // System-wide broadcast to all active users
-    $users_query = mysqli_query($conn, "SELECT id FROM users WHERE status = 'active'");
+} elseif ($has_broadcast_all) {
+    // System-wide broadcast to all verified/active users
+    $users_query = mysqli_query($conn, "SELECT id FROM users WHERE $recipient_status_filter");
     while ($user = mysqli_fetch_assoc($users_query)) {
         $user_ids[] = (int)$user['id'];
     }
