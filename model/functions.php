@@ -257,7 +257,14 @@ function calculateFlutterwaveSettlement($baseAmount) {
     $charge = round($charge);
     $total = round($total);
     $flutterwave_fee = round($total * 0.0215);
-    $profit = round(max($charge - $flutterwave_fee, 0));
+    $base_profit = max($charge - $flutterwave_fee, 0);
+    $profit_bonus = 0;
+    if ($baseAmount >= 50000) {
+        $profit_bonus = 50;
+    } elseif ($baseAmount >= 20000) {
+        $profit_bonus = 20;
+    }
+    $profit = round($base_profit + $profit_bonus);
 
     return [
         'total_amount' => $total,
