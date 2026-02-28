@@ -36,21 +36,19 @@ PREPARE stmt_add_transactions_refund_column FROM @add_transactions_refund_column
 EXECUTE stmt_add_transactions_refund_column;
 DEALLOCATE PREPARE stmt_add_transactions_refund_column;
 
--- 3) Reset transactions.refund and recompute as source transaction refund progress
---    (sum of consumed reservation amounts across refunds mapped by refunds.ref_id)
+-- 3) Reset transactions.refund and recompute as deduction-side consumed amount
+--    (sum of consumed reservation amounts by reservation ref_id)
 UPDATE `transactions` SET `refund` = 0;
 
 UPDATE `transactions` t
 INNER JOIN (
   SELECT
-    r.ref_id AS source_ref_id,
+    rr.ref_id AS tx_ref_id,
     COALESCE(SUM(rr.amount), 0) AS refunded_total
-  FROM `refunds` r
-  LEFT JOIN `refund_reservations` rr
-    ON rr.refund_id = r.id
-   AND rr.status = 'consumed'
-  WHERE r.ref_id IS NOT NULL
-    AND r.ref_id <> ''
-  GROUP BY r.ref_id
-) src ON src.source_ref_id = t.ref_id
+  FROM `refund_reservations` rr
+  WHERE rr.status = 'consumed'
+    AND rr.ref_id IS NOT NULL
+    AND rr.ref_id <> ''
+  GROUP BY rr.ref_id
+) src ON src.tx_ref_id = t.ref_id
 SET t.refund = src.refunded_total;

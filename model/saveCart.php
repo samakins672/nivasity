@@ -77,7 +77,7 @@ if (!mysqli_query($conn, $query)) {
 }
 
 // Housekeeping of stale reservations.
-releaseExpiredReservations($conn, 30);
+releaseExpiredReservations($conn, 60);
 
 // Build seller totals from server-trusted item records.
 $seller_totals = [];

@@ -31,7 +31,7 @@ if (!function_exists('getSchoolSettlementSubaccount')) {
 }
 
 if (!function_exists('releaseExpiredReservations')) {
-    function releaseExpiredReservations($conn, $ttlMinutes = 30) {
+    function releaseExpiredReservations($conn, $ttlMinutes = 60) {
         $ttlMinutes = max(1, (int)$ttlMinutes);
         $refs = [];
 
@@ -143,7 +143,8 @@ if (!function_exists('reserveRefundForSchoolShare')) {
                         $splitSequence = $splitSeqRow && isset($splitSeqRow['next_split']) ? (int)$splitSeqRow['next_split'] : 1;
 
                         $newRemaining = $refundRemaining - $alloc;
-                        $newStatus = ($newRemaining <= 0) ? 'applied' : 'partially_applied';
+                        // Reservation alone must not mark a refund as applied.
+                        $newStatus = ($newRemaining >= $refundAmount) ? 'pending' : 'partially_applied';
 
                         $updSql = "UPDATE refunds SET remaining_amount = $newRemaining, status = '$newStatus', updated_at = NOW() WHERE id = $refundId";
                         if (!mysqli_query($conn, $updSql)) {
@@ -482,6 +483,21 @@ if (!function_exists('finalizeConsumedRefundsForTx')) {
                 syncSourceTransactionRefundProgress($conn, $sourceRefId);
             }
 
+            $refundAmount = isset($refundRow['amount']) ? (int)$refundRow['amount'] : 0;
+            $refundRemaining = isset($refundRow['remaining_amount']) ? (int)$refundRow['remaining_amount'] : 0;
+            if ($refundRemaining <= 0 && $reservedCount === 0 && $consumedTotal >= $refundAmount) {
+                $targetStatus = 'applied';
+            } elseif ($refundRemaining >= $refundAmount) {
+                $targetStatus = 'pending';
+            } else {
+                $targetStatus = 'partially_applied';
+            }
+
+            $updStatusSql = "UPDATE refunds SET status = '$targetStatus', updated_at = NOW() WHERE id = $refundId";
+            if (!mysqli_query($conn, $updStatusSql)) {
+                throw new Exception('Failed to update refund status during finalization: ' . mysqli_error($conn));
+            }
+
             removeRefundedMaterialsIfCompleted($conn, $refundRow, $consumedTotal, $reservedCount);
         }
     }
@@ -596,9 +612,7 @@ if (!function_exists('releaseReservationsForTx')) {
                 $currentRemaining = (int)$row['remaining_amount'];
 
                 $newRemaining = min($refundAmount, $currentRemaining + $reservedAmount);
-                if ($newRemaining <= 0) {
-                    $newStatus = 'applied';
-                } elseif ($newRemaining >= $refundAmount) {
+                if ($newRemaining >= $refundAmount) {
                     $newStatus = 'pending';
                 } else {
                     $newStatus = 'partially_applied';

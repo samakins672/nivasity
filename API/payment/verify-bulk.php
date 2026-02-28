@@ -137,7 +137,7 @@ $where_sql = implode(' AND ', $where_conditions);
 
 // Housekeeping for stale reserved rows.
 if (!$dry_run) {
-    releaseExpiredReservations($conn, 30);
+releaseExpiredReservations($conn, 60);
 }
 
 // Add limit if specified (CLI only)
@@ -302,7 +302,7 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
         // Release reservation when ref stays unresolved beyond TTL.
         if (!$dry_run && !empty($first_created_at)) {
             $createdTs = strtotime($first_created_at);
-            if ($createdTs !== false && (time() - $createdTs) > (30 * 60)) {
+            if ($createdTs !== false && (time() - $createdTs) > (60 * 60)) {
                 releaseReservationsForTx($conn, $current_ref, 'verification_timeout');
             }
         }
@@ -449,7 +449,7 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
                 try {
                     $refund = consumeReservationsCore($conn, $current_ref);
                     $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium)
-                                    VALUES ('$current_ref', $cart_user_id, $total_amount, $charge, $profit, 0, '$status', '$medium')";
+                                    VALUES ('$current_ref', $cart_user_id, $total_amount, $charge, $profit, $refund, '$status', '$medium')";
                     if (!mysqli_query($conn, $insertTxSql)) {
                         throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
                     }

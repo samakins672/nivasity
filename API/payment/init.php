@@ -197,7 +197,7 @@ if ($gatewayName === 'paystack') {
 }
 
 // Run housekeeping for stale reserved rows.
-releaseExpiredReservations($conn, 30);
+releaseExpiredReservations($conn, 60);
 
 // Build payout map by subaccount (aggregated across sellers).
 $subaccount_shares = [];
