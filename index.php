@@ -669,6 +669,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           var comfort = e.target.getAttribute('data-app-comfort');
           if (comfort) {
             selectedComfort = comfort;
+            markMobileAppPromptSeen();
             submitComfortSurvey(selectedDevice, comfort);
             renderStep(selectedDevice || 'android');
             return;
@@ -681,13 +682,11 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           }
 
           if (action === 'cancel' || action === 'install') {
-            markMobileAppPromptSeen();
             modalInstance.hide();
           }
         });
 
         renderStep('select');
-        markMobileAppPromptSeen();
         modalInstance.show();
       }
 
