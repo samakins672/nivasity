@@ -39,19 +39,19 @@ foreach ($gateways as $gatewayName) {
 }
 
 echo "\n=== Paystack Special Pricing Verification ===\n";
-echo "For amounts >= N2500, Paystack charge = (1.5% + N100) + static add-on (N20/N40/N50)\n\n";
+echo "For amounts >= N2400, Paystack charge = (1.5% + N100) + static add-on (N20/N40/N50)\n\n";
 
 try {
     $gateway = PaymentGatewayFactory::getGateway('paystack');
 
     // Edge cases around threshold + add-on bands
-    $edgeCases = [2499, 2500, 2501, 3000, 26000, 50000];
+    $edgeCases = [2399, 2400, 2499, 2500, 3000, 26000, 50000];
 
     foreach ($edgeCases as $amount) {
         $result = $gateway->calculateCharges($amount);
 
-        if ($amount < 2500) {
-            $expectedCharge = $amount * 0.015;
+        if ($amount < 2400) {
+            $expectedCharge = 100;
         } else {
             $staticAddOn = 20;
             if ($amount > 25000 && $amount < 50000) {

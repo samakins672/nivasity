@@ -8,8 +8,8 @@
 require_once __DIR__ . '/PaymentGateway.php';
 
 class PaystackGateway implements PaymentGateway {
-    // Paystack special pricing: N100 flat gateway addition starts at N2500.
-    const FLAT_FEE_THRESHOLD = 2500.0;
+    // Paystack special pricing: N100 flat gateway addition starts at N2400.
+    const FLAT_FEE_THRESHOLD = 2400.0;
     const FLAT_FEE_AMOUNT = 100.0;
     const PERCENTAGE_FEE = 0.015; // 1.5%
 
@@ -28,15 +28,15 @@ class PaystackGateway implements PaymentGateway {
      * Calculate transaction charges for Paystack.
      *
      * USER PRICING (what we charge):
-     * - Under N2500: 1.5% only
-     * - N2500 and above: (1.5% + N100) + static add-on
+     * - Under N2400: flat N100
+     * - N2400 and above: (1.5% + N100) + static add-on
      *   - static add-on N20 by default
      *   - static add-on N40 when subtotal > N25,000 and < N50,000
      *   - static add-on N50 when subtotal >= N50,000
      *
      * PAYSTACK GATEWAY FEE (what Paystack charges us):
-     * - Under N2500: 1.5%
-     * - N2500 and above: 1.5% + N100
+     * - Under N2400: 1.5%
+     * - N2400 and above: 1.5% + N100
      */
     public function calculateCharges($baseAmount) {
         $baseAmount = (float)$baseAmount;
@@ -54,12 +54,12 @@ class PaystackGateway implements PaymentGateway {
             $charge = 0.0;
             $gateway_fee = 0.0;
         } elseif ($baseAmount < self::FLAT_FEE_THRESHOLD) {
-            // For amounts below N2500: N100 flat addition.
+            // For amounts below N2400: flat N100.
             $charge = 100;
             $total = $baseAmount + $charge;
             $gateway_fee = round($total * self::PERCENTAGE_FEE, 2);
         } else {
-            // For N2500 and above: gateway fee + platform static add-on.
+            // For N2400 and above: gateway fee + platform static add-on.
             $gateway_fees = ($baseAmount * self::PERCENTAGE_FEE) + self::FLAT_FEE_AMOUNT;
             $charge = $gateway_fees + $static_add_on;
             $total = $baseAmount + $charge;
