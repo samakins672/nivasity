@@ -10,6 +10,7 @@ require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../../model/PaymentGatewayFactory.php';
 require_once __DIR__ . '/../../config/fw.php';
 require_once __DIR__ . '/../../model/mail.php';
+require_once __DIR__ . '/../../model/refund_engine.php';
 
 // Initialize log file path
 $logFile = __DIR__ . '/verify-bulk-cron.log';
@@ -134,6 +135,11 @@ if ($ref_id !== '') {
 
 $where_sql = implode(' AND ', $where_conditions);
 
+// Housekeeping for stale reserved rows.
+if (!$dry_run) {
+    releaseExpiredReservations($conn, 30);
+}
+
 // Add limit if specified (CLI only)
 $limit_sql = '';
 if ($isCli && $limit > 0) {
@@ -141,7 +147,11 @@ if ($isCli && $limit > 0) {
 }
 
 // Get unique ref_ids from cart table
-$query_sql = "SELECT DISTINCT ref_id, gateway, user_id FROM cart WHERE $where_sql ORDER BY created_at DESC" . $limit_sql;
+$query_sql = "SELECT ref_id, MAX(gateway) AS gateway, MAX(user_id) AS user_id, MIN(created_at) AS first_created_at
+              FROM cart
+              WHERE $where_sql
+              GROUP BY ref_id
+              ORDER BY first_created_at DESC" . $limit_sql;
 $cart_query = mysqli_query($conn, $query_sql);
 
 if (!$cart_query) {
@@ -176,6 +186,7 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
     $current_ref = $cart_row['ref_id'];
     $cart_gateway = $cart_row['gateway'] ?? 'FLUTTERWAVE';
     $cart_user_id = (int)$cart_row['user_id'];
+    $first_created_at = isset($cart_row['first_created_at']) ? $cart_row['first_created_at'] : null;
     
     $result = [
         'ref_id' => $current_ref,
@@ -287,6 +298,15 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
         $result['status'] = 'not_found';
         $result['reason'] = 'no_successful_payment_found';
         $result['message'] = isset($verificationResult['message']) ? $verificationResult['message'] : 'No successful payment found';
+
+        // Release reservation when ref stays unresolved beyond TTL.
+        if (!$dry_run && !empty($first_created_at)) {
+            $createdTs = strtotime($first_created_at);
+            if ($createdTs !== false && (time() - $createdTs) > (30 * 60)) {
+                releaseReservationsForTx($conn, $current_ref, 'verification_timeout');
+            }
+        }
+
         $failed_count++;
         $not_found_count++;
         $results[] = $result;
@@ -416,11 +436,38 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
     // Record transaction
     $medium = mysqli_real_escape_string($conn, strtoupper($cart_gateway));
     
+    $refund_applied = 0;
     if (!$dry_run) {
-        $tx_insert = mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status, medium) 
-                                          VALUES ('$current_ref', $cart_user_id, $total_amount, $charge, $profit, '$status', '$medium')");
+        try {
+            $refund_applied = withTxProcessingLock($conn, $current_ref, function() use ($conn, $current_ref, $cart_user_id, $total_amount, $charge, $profit, $status, $medium) {
+                $alreadyTx = mysqli_query($conn, "SELECT id FROM transactions WHERE ref_id = '$current_ref' LIMIT 1");
+                if ($alreadyTx && mysqli_num_rows($alreadyTx) > 0) {
+                    $tx = mysqli_fetch_assoc(mysqli_query($conn, "SELECT refund FROM transactions WHERE ref_id = '$current_ref' LIMIT 1"));
+                    return $tx && isset($tx['refund']) ? (int)$tx['refund'] : 0;
+                }
+                $refund = 0;
+                mysqli_begin_transaction($conn);
+                try {
+                    $refund = consumeReservationsCore($conn, $current_ref);
+                    $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium)
+                                    VALUES ('$current_ref', $cart_user_id, $total_amount, $charge, $profit, $refund, '$status', '$medium')";
+                    if (!mysqli_query($conn, $insertTxSql)) {
+                        throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
+                    }
+                    mysqli_commit($conn);
+                } catch (Throwable $e) {
+                    mysqli_rollback($conn);
+                    throw $e;
+                }
+                return (int)$refund;
+            });
+        } catch (Exception $e) {
+            $refund_applied = 0;
+        }
+
+        $tx_insert = mysqli_query($conn, "SELECT id FROM transactions WHERE ref_id = '$current_ref' LIMIT 1");
         
-        if (!$tx_insert) {
+        if (!$tx_insert || mysqli_num_rows($tx_insert) < 1) {
             $result['status'] = 'error';
             $result['reason'] = 'transaction_record_failed';
             $result['message'] = 'Failed to record transaction: ' . mysqli_error($conn);
@@ -462,6 +509,7 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
     $result['reason'] = 'verified';
     $result['message'] = $dry_run ? 'Payment verified (DRY RUN)' : 'Payment verified and processed';
     $result['amount'] = $total_amount;
+    $result['refund_applied'] = (int)$refund_applied;
     $result['items_processed'] = $items_processed;
     $verified_count++;
     $results[] = $result;

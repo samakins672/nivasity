@@ -63,6 +63,7 @@ while ($row = mysqli_fetch_assoc($result)) {
         'id' => $row['id'],
         'ref_id' => $row['ref_id'],
         'amount' => (float)$row['amount'],
+        'refund' => isset($row['refund']) ? (float)$row['refund'] : 0,
         'status' => $row['status'],
         'gateway_ref' => $row['gateway_ref'] ?? null,
         'items' => $items,

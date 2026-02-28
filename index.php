@@ -1035,28 +1035,26 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
         const myUniqueID = generateUniqueID();
 
-        // Create the subaccounts array from parsed session data
-        let subaccounts = [];
-        let sellerTotals = {};
+        // Build fallback split map from session (server will override with adjusted_subaccounts).
+        let fallbackSubaccounts = [];
+        let fallbackSellerTotals = {};
 
         $.each(parsedSessionData, function(key, item) {
             const price = parseFloat(item.price);
-            if (sellerTotals[item.seller]) {
-                sellerTotals[item.seller] += price;
+            if (fallbackSellerTotals[item.seller]) {
+                fallbackSellerTotals[item.seller] += price;
             } else {
-                sellerTotals[item.seller] = price;
+                fallbackSellerTotals[item.seller] = price;
             }
         });
 
-        for (const seller in sellerTotals) {
-            subaccounts.push({
+        for (const seller in fallbackSellerTotals) {
+            fallbackSubaccounts.push({
                 id: seller,
                 transaction_charge_type: "flat_subaccount",
-                transaction_charge: sellerTotals[seller]
+                transaction_charge: fallbackSellerTotals[seller]
             });
         }
-
-        console.log('Subaccounts:', subaccounts);
 
         // Get payment gateway keys first to determine active gateway
         $.ajax({
@@ -1086,11 +1084,12 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
             
             console.log('Active Gateway:', activeGateway);
 
-            // Now save cart with gateway information
+            // Save cart with gateway information and fetch adjusted payout shares.
             $.ajax({
               url: 'model/saveCart.php',
               type: 'POST',
               contentType: 'application/json',
+              dataType: 'json',
               data: JSON.stringify({
                 ref_id: myUniqueID,
                 user_id: "<?php echo $user_id; ?>",
@@ -1101,123 +1100,144 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                 }))
               }),
               success: function(response) {
-                if (response.success) {
-                  console.log("Cart saved with gateway:", activeGateway, response.message);
-                } else {
-                  console.error("Error saving cart:", response.message);
+                if (!response || !response.success) {
+                  console.error("Error saving cart:", response && response.message ? response.message : 'Unknown error');
+                  alert('Unable to prepare checkout. Please try again.');
+                  return;
                 }
+
+                console.log("Cart saved with gateway:", activeGateway, response.message);
+                console.log("Refund reservation:", {
+                  reserved: response.refund_reserved || 0,
+                  school_share_before: response.school_share_before || 0,
+                  school_share_after: response.school_share_after || 0
+                });
+
+                let adjustedSubaccounts = fallbackSubaccounts;
+                let paystackSellerTotals = $.extend({}, fallbackSellerTotals);
+
+                if (response.adjusted_subaccounts && Array.isArray(response.adjusted_subaccounts)) {
+                  if (activeGateway === 'flutterwave') {
+                    adjustedSubaccounts = response.adjusted_subaccounts;
+                  } else if (activeGateway === 'paystack') {
+                    paystackSellerTotals = {};
+                    $.each(response.adjusted_subaccounts, function(_, row) {
+                      if (row && row.id) {
+                        paystackSellerTotals[row.id] = parseFloat(row.total || 0);
+                      }
+                    });
+                  }
+                }
+
+                // Route to the appropriate payment gateway
+                if (activeGateway === 'flutterwave') {
+                  FlutterwaveCheckout({
+                    public_key: flw_pk,
+                    tx_ref: myUniqueID,
+                    amount: transfer_amount,
+                    currency: "NGN",
+                    subaccounts: adjustedSubaccounts,
+                    payment_options: "card, banktransfer, ussd",
+                    callback: function(payment) {
+                      console.log(payment);
+                      verifyTransactionOnBackend(payment.transaction_id, payment.tx_ref);
+                    },
+                    onclose: function(status) {
+                      if (!status) {
+                        console.log(status);
+                        $('#verifyTransaction').modal({
+                          backdrop: 'static',
+                          keyboard: false
+                        }).modal('show');
+                        
+                        $('.spinner-grow').hide();
+                        setTimeout(function() { $('.spinner-1').show(); }, 100);
+                        setTimeout(function() { $('.spinner-2').show(); }, 300);
+                        setTimeout(function() { $('.spinner-3').show(); }, 600);
+                      }
+                    },
+                    customer: {
+                        email: email,
+                        phone_number: phone,
+                        name: u_name,
+                    },
+                  });
+                } else if (activeGateway === 'paystack') {
+                  const amountKobo = Math.round(transfer_amount * 100);
+                  const sellerPayload = [];
+                  for (const seller in paystackSellerTotals) {
+                    const share = parseFloat(paystackSellerTotals[seller] || 0);
+                    if (share > 0) {
+                      sellerPayload.push({ id: seller, total: share });
+                    }
+                  }
+
+                  function launchPaystack(splitCode) {
+                    var options = {
+                      key: ps_pk,
+                      email: email,
+                      amount: amountKobo,
+                      ref: myUniqueID,
+                      callback: function(response) {
+                        console.log(response);
+                        verifyTransactionOnBackend(null, response.reference);
+                      },
+                      onClose: function() {
+                        console.log('Payment window closed');
+                        $('#verifyTransaction').modal({
+                          backdrop: 'static',
+                          keyboard: false
+                        }).modal('show');
+                      }
+                    };
+                    if (splitCode) {
+                      options.split_code = splitCode;
+                    } else if (sellerPayload.length > 0) {
+                      options.subaccount = sellerPayload[0].id;
+                    }
+                    var handler = PaystackPop.setup(options);
+                    handler.openIframe();
+                  }
+
+                  if (sellerPayload.length === 0) {
+                    launchPaystack(null);
+                  } else {
+                    $.ajax({
+                      url: 'model/create-ps-split.php',
+                      type: 'POST',
+                      contentType: 'application/json',
+                      dataType: 'json',
+                      data: JSON.stringify({
+                        sellers: sellerPayload,
+                        amount_kobo: amountKobo,
+                        bearer_type: 'account'
+                      }),
+                      success: function(res) {
+                        if (res && res.status === 'success' && res.split_code) {
+                          launchPaystack(res.split_code);
+                        } else {
+                          console.warn('Split creation failed, falling back to single subaccount', res);
+                          launchPaystack(null);
+                        }
+                      },
+                      error: function(err) {
+                        console.error('Split creation error', err);
+                        launchPaystack(null);
+                      }
+                    });
+                  }
+                } else if (activeGateway === 'interswitch') {
+                  console.log('Interswitch payment - server-side initialization required');
+                  window.location.href = 'model/handle-isw-init.php?ref=' + myUniqueID + '&amount=' + transfer_amount;
+                } else {
+                  alert('Unknown payment gateway: ' + activeGateway);
+                }
+              },
+              error: function(xhr) {
+                console.error("Error saving cart:", xhr);
+                alert('Unable to prepare checkout. Please try again.');
               }
             });
-            
-            // Route to the appropriate payment gateway
-            if (activeGateway === 'flutterwave') {
-              // Call FlutterwaveCheckout with the retrieved flw_pk and dynamically generated subaccounts
-              FlutterwaveCheckout({
-                public_key: flw_pk,
-                tx_ref: myUniqueID,
-                amount: transfer_amount,
-                currency: "NGN",
-                subaccounts: subaccounts,
-                payment_options: "card, banktransfer, ussd",
-                // redirect_url: "https://funaab.nivasity.com/model/handle-fw-payment.php",
-                callback: function(payment) {
-                  console.log(payment);
-                  // Send AJAX verification request to backend
-                  verifyTransactionOnBackend(payment.transaction_id, payment.tx_ref);
-                },
-                onclose: function(status) {
-                  if (!status) {
-                    console.log(status);
-
-                    // Show the modal with jQuery
-                    $('#verifyTransaction').modal({
-                      backdrop: 'static',
-                      keyboard: false
-                    }).modal('show');
-                    
-                    $('.spinner-grow').hide();
-                    
-                    // Show each spinner with a delay for a staggered effect
-                    setTimeout(function() { $('.spinner-1').show(); }, 100);
-                    setTimeout(function() { $('.spinner-2').show(); }, 300);
-                    setTimeout(function() { $('.spinner-3').show(); }, 600);
-                  }
-                },
-                customer: {
-                    email: email,
-                    phone_number: phone,
-                    name: u_name,
-                },
-              });
-            } else if (activeGateway === 'paystack') {
-              // Prepare Paystack split: request flat split_code before inline launch
-              const amountKobo = Math.round(transfer_amount * 100);
-              const sellerPayload = [];
-              for (const seller in sellerTotals) {
-                sellerPayload.push({ id: seller, total: sellerTotals[seller] });
-              }
-
-              function launchPaystack(splitCode) {
-                var options = {
-                  key: ps_pk,
-                  email: email,
-                  amount: amountKobo,
-                  ref: myUniqueID,
-                  callback: function(response) {
-                    console.log(response);
-                    verifyTransactionOnBackend(null, response.reference);
-                  },
-                  onClose: function() {
-                    console.log('Payment window closed');
-                    $('#verifyTransaction').modal({
-                      backdrop: 'static',
-                      keyboard: false
-                    }).modal('show');
-                  }
-                };
-                if (splitCode) {
-                  options.split_code = splitCode;
-                } else if (subaccounts.length > 0) {
-                  // Fallback to single subaccount if split creation fails
-                  options.subaccount = subaccounts[0].id;
-                }
-                var handler = PaystackPop.setup(options);
-                handler.openIframe();
-              }
-
-              $.ajax({
-                url: 'model/create-ps-split.php',
-                type: 'POST',
-                contentType: 'application/json',
-                dataType: 'json',
-                data: JSON.stringify({
-                  sellers: sellerPayload,
-                  amount_kobo: amountKobo,
-                  bearer_type: 'account'
-                }),
-                success: function(res) {
-                  if (res && res.status === 'success' && res.split_code) {
-                    launchPaystack(res.split_code);
-                  } else {
-                    console.warn('Split creation failed, falling back to single subaccount', res);
-                    launchPaystack(null);
-                  }
-                },
-                error: function(err) {
-                  console.error('Split creation error', err);
-                  launchPaystack(null);
-                }
-              });
-            } else if (activeGateway === 'interswitch') {
-              // Interswitch payment flow
-              // Note: Interswitch typically requires server-side initialization and redirect
-              console.log('Interswitch payment - server-side initialization required');
-              
-              // Save cart and redirect to Interswitch initialization endpoint
-              window.location.href = 'model/handle-isw-init.php?ref=' + myUniqueID + '&amount=' + transfer_amount;
-            } else {
-              alert('Unknown payment gateway: ' + activeGateway);
-            }
           }
         });
       });

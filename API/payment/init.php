@@ -4,6 +4,7 @@ require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/../../model/PaymentGatewayFactory.php';
 require_once __DIR__ . '/../../model/functions.php';
+require_once __DIR__ . '/../../model/refund_engine.php';
 require_once __DIR__ . '/../../model/payment_freeze.php';
 require_once __DIR__ . '/../../config/fw.php';
 
@@ -195,107 +196,138 @@ if ($gatewayName === 'paystack') {
     $payment_data['meta'] = $meta_data;
 }
 
-// Handle gateway-specific split payment configuration
-if ($gatewayName === 'paystack') {
-    // For Paystack: Create split payment using split API with caching
-    if (count($seller_totals) > 0) {
-        // Prepare seller data for split creation
-        $sellers_for_split = [];
-        foreach ($seller_totals as $seller_id => $seller_data) {
-            // Get seller's Paystack subaccount from settlement_accounts table
-            $ps_subaccount = getSettlementSubaccount($conn, $seller_id, $seller_data['school_id'], 'paystack');
-            
-            if (!empty($ps_subaccount)) {
-                $sellers_for_split[] = [
-                    'subaccount' => $ps_subaccount,
-                    'share' => round($seller_data['total'] * 100) // Convert to kobo
-                ];
-            }
+// Run housekeeping for stale reserved rows.
+releaseExpiredReservations($conn, 30);
+
+// Build payout map by subaccount (aggregated across sellers).
+$subaccount_shares = [];
+foreach ($seller_totals as $seller_id => $seller_data) {
+    $seller_subaccount = getSettlementSubaccount($conn, $seller_id, $seller_data['school_id'], $gatewayName);
+    if (!empty($seller_subaccount)) {
+        if (!isset($subaccount_shares[$seller_subaccount])) {
+            $subaccount_shares[$seller_subaccount] = 0;
         }
-        
-        if (!empty($sellers_for_split)) {
-            // Sort by subaccount for consistent cache key
-            usort($sellers_for_split, function($a, $b) { 
-                return strcmp($a['subaccount'], $b['subaccount']); 
-            });
-            
-            // Build cache key from sorted sellers
-            $cache_key = md5(json_encode($sellers_for_split));
-            $cacheFile = __DIR__ . '/../../model/paystack_split_cache.json';
-            $cache = [];
-            
-            // Check cache
-            if (file_exists($cacheFile)) {
-                $cache = json_decode(file_get_contents($cacheFile), true) ?: [];
+        $subaccount_shares[$seller_subaccount] += (int)round((float)$seller_data['total']);
+    }
+}
+
+$school_subaccount_code = getSchoolSettlementSubaccount($conn, $school_id, $gatewayName);
+$school_share_before = 0;
+if (!empty($school_subaccount_code) && isset($subaccount_shares[$school_subaccount_code])) {
+    $school_share_before = (int)round((float)$subaccount_shares[$school_subaccount_code]);
+}
+
+$refund_reserved = 0;
+if ($school_share_before > 0) {
+    $refund_reserved = reserveRefundForSchoolShare(
+        $conn,
+        $tx_ref,
+        $school_id,
+        $user_id,
+        strtoupper($gatewayName),
+        $school_share_before,
+        'api'
+    );
+}
+$school_share_after = max(0, $school_share_before - $refund_reserved);
+
+if (!empty($school_subaccount_code) && isset($subaccount_shares[$school_subaccount_code])) {
+    $subaccount_shares[$school_subaccount_code] = $school_share_after;
+    if ($subaccount_shares[$school_subaccount_code] <= 0) {
+        unset($subaccount_shares[$school_subaccount_code]);
+    }
+}
+
+// Handle gateway-specific split payment configuration.
+if ($gatewayName === 'paystack') {
+    $sellers_for_split = [];
+    foreach ($subaccount_shares as $sub_code => $share_naira) {
+        $share_naira = (int)round((float)$share_naira);
+        if ($share_naira <= 0) { continue; }
+        $sellers_for_split[] = [
+            'subaccount' => $sub_code,
+            'share' => $share_naira * 100 // Convert to kobo
+        ];
+    }
+
+    if (!empty($sellers_for_split)) {
+        // Sort by subaccount for consistent cache key
+        usort($sellers_for_split, function($a, $b) {
+            return strcmp($a['subaccount'], $b['subaccount']);
+        });
+
+        // Build cache key from sorted sellers
+        $cache_key = md5(json_encode($sellers_for_split));
+        $cacheFile = __DIR__ . '/../../model/paystack_split_cache.json';
+        $cache = [];
+
+        // Check cache
+        if (file_exists($cacheFile)) {
+            $cache = json_decode(file_get_contents($cacheFile), true) ?: [];
+        }
+
+        if (isset($cache[$cache_key]) && !empty($cache[$cache_key]['split_code'])) {
+            // Use cached split code
+            $payment_data['split_code'] = $cache[$cache_key]['split_code'];
+        } else {
+            // Create new Paystack split
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL => 'https://api.paystack.co/split',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CUSTOMREQUEST => 'POST',
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'Authorization: Bearer ' . PAYSTACK_SECRET_KEY
+                ],
+                CURLOPT_POSTFIELDS => json_encode([
+                    'name' => 'Nivasity Split ' . substr($cache_key, 0, 8),
+                    'type' => 'flat',
+                    'currency' => 'NGN',
+                    'subaccounts' => $sellers_for_split,
+                    'bearer_type' => 'account'
+                ]),
+            ]);
+
+            $response = curl_exec($curl);
+            $error = curl_error($curl);
+            curl_close($curl);
+
+            if (!$error) {
+                $split_response = json_decode($response, true);
+                if (isset($split_response['status']) && $split_response['status'] === true &&
+                    isset($split_response['data']['split_code'])) {
+                    $split_code = $split_response['data']['split_code'];
+                    $payment_data['split_code'] = $split_code;
+
+                    // Cache the split code
+                    $cache[$cache_key] = [
+                        'split_code' => $split_code,
+                        'created_at' => time()
+                    ];
+                    @file_put_contents($cacheFile, json_encode($cache));
+                }
             }
-            
-            if (isset($cache[$cache_key]) && !empty($cache[$cache_key]['split_code'])) {
-                // Use cached split code
-                $payment_data['split_code'] = $cache[$cache_key]['split_code'];
-            } else {
-                // Create new Paystack split
-                $curl = curl_init();
-                curl_setopt_array($curl, [
-                    CURLOPT_URL => 'https://api.paystack.co/split',
-                    CURLOPT_RETURNTRANSFER => true,
-                    CURLOPT_CUSTOMREQUEST => 'POST',
-                    CURLOPT_HTTPHEADER => [
-                        'Content-Type: application/json',
-                        'Authorization: Bearer ' . PAYSTACK_SECRET_KEY
-                    ],
-                    CURLOPT_POSTFIELDS => json_encode([
-                        'name' => 'Nivasity Split ' . substr($cache_key, 0, 8),
-                        'type' => 'flat',
-                        'currency' => 'NGN',
-                        'subaccounts' => $sellers_for_split,
-                        'bearer_type' => 'account'
-                    ]),
-                ]);
-                
-                $response = curl_exec($curl);
-                $error = curl_error($curl);
-                curl_close($curl);
-                
-                if (!$error) {
-                    $split_response = json_decode($response, true);
-                    if (isset($split_response['status']) && $split_response['status'] === true && 
-                        isset($split_response['data']['split_code'])) {
-                        $split_code = $split_response['data']['split_code'];
-                        $payment_data['split_code'] = $split_code;
-                        
-                        // Cache the split code
-                        $cache[$cache_key] = [
-                            'split_code' => $split_code, 
-                            'created_at' => time()
-                        ];
-                        @file_put_contents($cacheFile, json_encode($cache));
-                    }
-                }
-                
-                // Fallback: if split creation fails, use first subaccount
-                if (!isset($payment_data['split_code']) && count($sellers_for_split) > 0) {
-                    $payment_data['subaccount'] = $sellers_for_split[0]['subaccount'];
-                    $payment_data['transaction_charge'] = $sellers_for_split[0]['share'] / 100; // Convert back to naira
-                }
+
+            // Fallback: if split creation fails, use first subaccount
+            if (!isset($payment_data['split_code']) && count($sellers_for_split) > 0) {
+                $payment_data['subaccount'] = $sellers_for_split[0]['subaccount'];
+                $payment_data['transaction_charge'] = $sellers_for_split[0]['share'] / 100; // Convert back to naira
             }
         }
     }
 } elseif ($gatewayName === 'flutterwave') {
-    // For Flutterwave: Use subaccounts array
     $subaccounts = [];
-    foreach ($seller_totals as $seller_id => $seller_data) {
-        // Get seller's Flutterwave subaccount from settlement_accounts table
-        $flw_subaccount = getSettlementSubaccount($conn, $seller_id, $seller_data['school_id'], 'flutterwave');
-        
-        if (!empty($flw_subaccount)) {
-            $subaccounts[] = [
-                'id' => $flw_subaccount,
-                'transaction_charge_type' => 'flat_subaccount',
-                'transaction_charge' => $seller_data['total']
-            ];
-        }
+    foreach ($subaccount_shares as $sub_code => $share_naira) {
+        $share_naira = (int)round((float)$share_naira);
+        if ($share_naira <= 0) { continue; }
+        $subaccounts[] = [
+            'id' => $sub_code,
+            'transaction_charge_type' => 'flat_subaccount',
+            'transaction_charge' => $share_naira
+        ];
     }
-    
+
     if (!empty($subaccounts)) {
         $payment_data['subaccounts'] = $subaccounts;
     }
@@ -305,6 +337,7 @@ if ($gatewayName === 'paystack') {
 $init_result = $gateway->initializePayment($payment_data);
 
 if (!$init_result['status']) {
+    releaseReservationsForTx($conn, $tx_ref, 'init_failed');
     sendApiError('Failed to initialize payment: ' . ($init_result['message'] ?? 'Unknown error'), 500);
 }
 
@@ -319,6 +352,9 @@ $response_data = [
     'subtotal' => $subtotal,
     'charge' => $charge,
     'total_amount' => $total_amount,
+    'refund_reserved' => (int)$refund_reserved,
+    'school_share_before' => (int)$school_share_before,
+    'school_share_after' => (int)$school_share_after,
     'items' => $cart_items
 ];
 
