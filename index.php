@@ -467,6 +467,9 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
   <script>
     const playStoreUrl = <?php echo json_encode($play_store_url); ?>;
     const mobileAppPromptSeenKey = 'nivasity_mobile_app_prompt_seen_v2';
+    const mobileAppPromptLegacySeenKeys = ['nivasity_mobile_app_prompt_seen_v1', 'nivasity_mobile_app_prompt_seen'];
+    const mobileAppPromptVisitCountKey = 'nivasity_mobile_app_prompt_store_visit_count_v1';
+    const mobileAppPromptMinVisits = 2;
 
     const urlParams = new URLSearchParams(window.location.search);
     // Get the logout parameter from the URL
@@ -511,7 +514,19 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
       function hasSeenMobileAppPrompt() {
         try {
-          return window.localStorage && localStorage.getItem(mobileAppPromptSeenKey) === '1';
+          if (!window.localStorage) return false;
+          if (localStorage.getItem(mobileAppPromptSeenKey) === '1') {
+            return true;
+          }
+
+          for (var i = 0; i < mobileAppPromptLegacySeenKeys.length; i++) {
+            if (localStorage.getItem(mobileAppPromptLegacySeenKeys[i]) === '1') {
+              localStorage.setItem(mobileAppPromptSeenKey, '1');
+              return true;
+            }
+          }
+
+          return false;
         } catch (e) {
           return false;
         }
@@ -527,10 +542,30 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         }
       }
 
+      function registerMobileAppPromptVisit() {
+        try {
+          if (!window.localStorage) return 0;
+
+          var rawCount = localStorage.getItem(mobileAppPromptVisitCountKey);
+          var currentCount = parseInt(rawCount, 10);
+          if (isNaN(currentCount) || currentCount < 0) {
+            currentCount = 0;
+          }
+
+          var nextCount = currentCount + 1;
+          localStorage.setItem(mobileAppPromptVisitCountKey, String(nextCount));
+          return nextCount;
+        } catch (e) {
+          return 0;
+        }
+      }
+
       function initMobileAppPromptModal() {
         var modalEl = document.getElementById('mobileAppPromoModal');
         if (!modalEl || !window.bootstrap || !bootstrap.Modal) return;
+        if (!isMobileDevice()) return;
         if (hasSeenMobileAppPrompt()) return;
+        if (registerMobileAppPromptVisit() < mobileAppPromptMinVisits) return;
 
         var titleEl = document.getElementById('mobileAppPromoTitle');
         var bodyEl = document.getElementById('mobileAppPromoBody');
@@ -653,6 +688,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         });
 
         renderStep('select');
+        markMobileAppPromptSeen();
         modalInstance.show();
       }
 
