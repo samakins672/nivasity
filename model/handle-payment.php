@@ -181,7 +181,7 @@ if (isset($_GET['transaction_id']) || isset($_GET['reference']) || isset($_GET['
         mysqli_begin_transaction($conn);
         try {
             $refund_applied = consumeReservationsCore($conn, $tx_ref);
-            $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, $refund_applied, '$status', '$medium')";
+            $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, 0, '$status', '$medium')";
             if (!mysqli_query($conn, $insertTxSql)) {
                 throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
             }

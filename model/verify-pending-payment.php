@@ -216,7 +216,7 @@ try {
     mysqli_begin_transaction($conn);
     try {
         $refund_applied = consumeReservationsCore($conn, $ref_id_esc);
-        $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium) VALUES ('$ref_id_esc', $user_id, $total_amount, $charge, $profit, $refund_applied, '$status', '$medium')";
+        $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium) VALUES ('$ref_id_esc', $user_id, $total_amount, $charge, $profit, 0, '$status', '$medium')";
         if (!mysqli_query($conn, $insertTxSql)) {
             throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
         }

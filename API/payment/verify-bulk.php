@@ -449,7 +449,7 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
                 try {
                     $refund = consumeReservationsCore($conn, $current_ref);
                     $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium)
-                                    VALUES ('$current_ref', $cart_user_id, $total_amount, $charge, $profit, $refund, '$status', '$medium')";
+                                    VALUES ('$current_ref', $cart_user_id, $total_amount, $charge, $profit, 0, '$status', '$medium')";
                     if (!mysqli_query($conn, $insertTxSql)) {
                         throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
                     }
