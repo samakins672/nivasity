@@ -2,14 +2,13 @@
 /**
  * Paystack Payment Gateway Implementation
  *
- * Implements the payment gateway interface for Paystack with special pricing:
- * - For amounts >= ₦2500: add flat 120 fee + 1.5% fee
+ * Implements the payment gateway interface for Paystack with special pricing.
  */
 
 require_once __DIR__ . '/PaymentGateway.php';
 
 class PaystackGateway implements PaymentGateway {
-    // Paystack special pricing: flat fee starts at N2500
+    // Paystack special pricing: N100 flat gateway addition starts at N2500.
     const FLAT_FEE_THRESHOLD = 2500.0;
     const FLAT_FEE_AMOUNT = 100.0;
     const PERCENTAGE_FEE = 0.015; // 1.5%
@@ -26,35 +25,43 @@ class PaystackGateway implements PaymentGateway {
     }
 
     /**
-     * Calculate transaction charges for Paystack
-     * 
+     * Calculate transaction charges for Paystack.
+     *
      * USER PRICING (what we charge):
-     * - Under ₦2500: Charge static ₦100
-     * - ₦2500 and above: Charge ₦20 + gateway fees
-     * 
+     * - Under N2500: 1.5% only
+     * - N2500 and above: (1.5% + N100) + static add-on
+     *   - static add-on N20 by default
+     *   - static add-on N40 when subtotal > N25,000 and < N50,000
+     *   - static add-on N50 when subtotal >= N50,000
+     *
      * PAYSTACK GATEWAY FEE (what Paystack charges us):
-     * - Under ₦2500: 1.5% (₦100 fee waived)
-     * - ₦2500 and above: 1.5% + ₦100
+     * - Under N2500: 1.5%
+     * - N2500 and above: 1.5% + N100
      */
     public function calculateCharges($baseAmount) {
         $baseAmount = (float)$baseAmount;
         $charge = 0.0;
         $gateway_fee = 0.0;
-        
+        $static_add_on = 20.0;
+
+        if ($baseAmount > 25000 && $baseAmount < 50000) {
+            $static_add_on = 40.0;
+        } elseif ($baseAmount >= 50000) {
+            $static_add_on = 50.0;
+        }
+
         if ($baseAmount <= 0) {
             $charge = 0.0;
             $gateway_fee = 0.0;
         } elseif ($baseAmount < self::FLAT_FEE_THRESHOLD) {
-            // For amounts under ₦2500: charge static ₦100 to user
-            $charge = 100.0;
-            // Paystack gateway fee: 1.5% only (₦100 waived for under ₦2500)
-            $total = $baseAmount + $charge;
+            // For amounts below N2500: no N100 flat addition.
+            $charge = $baseAmount * self::PERCENTAGE_FEE;
+            $total = $baseAmount + 100;
             $gateway_fee = round($total * self::PERCENTAGE_FEE, 2);
         } else {
-            // For amounts ₦2500 and above: charge ₦20 + gateway fees
-            $charge = ($baseAmount * self::PERCENTAGE_FEE) + self::FLAT_FEE_AMOUNT;
-            $charge = 20.0 + $gateway_fees;
-            // Paystack gateway fee is the actual 1.5% + ₦100
+            // For N2500 and above: gateway fee + platform static add-on.
+            $gateway_fees = ($baseAmount * self::PERCENTAGE_FEE) + self::FLAT_FEE_AMOUNT;
+            $charge = $gateway_fees + $static_add_on;
             $total = $baseAmount + $charge;
             $gateway_fee = round(($total * self::PERCENTAGE_FEE) + self::FLAT_FEE_AMOUNT, 2);
         }
@@ -63,14 +70,7 @@ class PaystackGateway implements PaymentGateway {
         $charge = round($charge);
         $total = round($baseAmount + $charge);
         $gateway_fee = round($gateway_fee);
-        $base_profit = max($charge - $gateway_fee, 0);
-        $profit_bonus = 0;
-        if ($baseAmount >= 50000) {
-            $profit_bonus = 50;
-        } elseif ($baseAmount >= 20000) {
-            $profit_bonus = 40;
-        }
-        $profit = round($base_profit + $profit_bonus);
+        $profit = round(max($charge - $gateway_fee, 0));
 
         return [
             'total_amount' => $total,
