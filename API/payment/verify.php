@@ -114,12 +114,13 @@ try {
     $calc = calculateGatewayCharges($amount, $gateway_slug);
     $charge = $calc['charge'];
     $profit = $calc['profit'];
+    $total_amount = isset($calc['total_amount']) ? (float)$calc['total_amount'] : ((float)$amount + (float)$charge);
     $date = date('Y-m-d H:i:s');
     $refund_applied = 0;
     mysqli_begin_transaction($conn);
     try {
         $refund_applied = consumeReservationsCore($conn, $tx_ref);
-        $insertTxSql = "INSERT INTO transactions (user_id, ref_id, amount, charge, profit, refund, status, medium, created_at) VALUES ($user_id, '$tx_ref', $amount, $charge, $profit, 0, 'successful', '$gateway_medium', '$date')";
+        $insertTxSql = "INSERT INTO transactions (user_id, ref_id, amount, charge, profit, refund, status, medium, created_at) VALUES ($user_id, '$tx_ref', $total_amount, $charge, $profit, 0, 'successful', '$gateway_medium', '$date')";
         if (!mysqli_query($conn, $insertTxSql)) {
             throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
         }
@@ -173,19 +174,19 @@ try {
     }
 
     // Send congratulatory email
-    sendCongratulatoryEmail($conn, $user_id, $tx_ref, $manual_ids, $event_ids, $amount);
+    sendCongratulatoryEmail($conn, $user_id, $tx_ref, $manual_ids, $event_ids, $total_amount);
 
     // Send push notification for successful payment
     notifyUser(
         $conn,
         $user_id,
         'Payment Successful',
-        "Your payment of â‚¦" . number_format($amount, 2) . " has been confirmed.",
+        "Your payment of â‚¦" . number_format($total_amount, 2) . " has been confirmed.",
         'payment',
         [
             'action' => 'order_receipt',
             'tx_ref' => $tx_ref,
-            'amount' => $amount,
+            'amount' => $total_amount,
             'status' => 'success'
         ]
     );
@@ -200,7 +201,7 @@ try {
     return [
         'already_processed' => false,
         'tx_ref' => $tx_ref,
-        'amount' => (float)$amount,
+        'amount' => (float)$total_amount,
         'processed_at' => $date,
         'refund_applied' => (int)$refund_applied
     ];
