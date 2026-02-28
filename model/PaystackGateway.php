@@ -55,7 +55,8 @@ class PaystackGateway implements PaymentGateway {
             $gateway_fee = 0.0;
         } elseif ($baseAmount < self::FLAT_FEE_THRESHOLD) {
             // For amounts below N2500: N100 flat addition.
-            $total = $baseAmount + 100;
+            $charge = 100;
+            $total = $baseAmount + $charge;
             $gateway_fee = round($total * self::PERCENTAGE_FEE, 2);
         } else {
             // For N2500 and above: gateway fee + platform static add-on.
