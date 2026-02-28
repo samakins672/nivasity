@@ -41,7 +41,7 @@ foreach ($gateways as $gatewayName) {
 }
 
 echo "\n=== Paystack Special Pricing Verification ===\n";
-echo "For amounts > ₦2500, Paystack should add ₦100 flat fee + 1.5%\n\n";
+echo "For amounts >= N2500, Paystack should add N100 flat fee + 1.5%\n\n";
 
 try {
     $gateway = PaymentGatewayFactory::getGateway('paystack');
@@ -52,9 +52,7 @@ try {
     foreach ($edgeCases as $amount) {
         $result = $gateway->calculateCharges($amount);
         
-        $expectedCharge = $amount <= 2500 
-            ? ($amount * 0.015) 
-            : (($amount * 0.015) + 100);
+        $expectedCharge = $amount < 2500 ? ($amount * 0.015) : (($amount * 0.015) + 100);
         
         $matches = abs($result['charge'] - $expectedCharge) < 0.01;
         $status = $matches ? '✓ PASS' : '✗ FAIL';

@@ -1,30 +1,30 @@
 <?php
 /**
  * Paystack Payment Gateway Implementation
- * 
+ *
  * Implements the payment gateway interface for Paystack with special pricing:
- * - For amounts > ₦2500: add flat ₦100 fee + 1.5% fee
+ * - For amounts >= ₦2500: add flat 120 fee + 1.5% fee
  */
 
 require_once __DIR__ . '/PaymentGateway.php';
 
 class PaystackGateway implements PaymentGateway {
-    // Paystack special pricing: Flat fee for amounts > ₦2500
+    // Paystack special pricing: flat fee starts at N2500
     const FLAT_FEE_THRESHOLD = 2500.0;
     const FLAT_FEE_AMOUNT = 100.0;
     const PERCENTAGE_FEE = 0.015; // 1.5%
-    
+
     private $publicKey;
     private $secretKey;
     private $logFile;
-    
+
     public function __construct($config) {
         $this->publicKey = $config['public_key'] ?? '';
         $this->secretKey = $config['secret_key'] ?? '';
         // Centralized error log path
         $this->logFile = __DIR__ . '/../error.log';
     }
-    
+
     /**
      * Calculate transaction charges for Paystack
      * 
@@ -52,14 +52,13 @@ class PaystackGateway implements PaymentGateway {
             $gateway_fee = round($total * self::PERCENTAGE_FEE, 2);
         } else {
             // For amounts ₦2500 and above: charge ₦20 + gateway fees
-            // Gateway fees = 1.5% + ₦100
-            $gateway_fees = ($baseAmount * self::PERCENTAGE_FEE) + self::FLAT_FEE_AMOUNT;
+            $charge = ($baseAmount * self::PERCENTAGE_FEE) + self::FLAT_FEE_AMOUNT;
             $charge = 20.0 + $gateway_fees;
             // Paystack gateway fee is the actual 1.5% + ₦100
             $total = $baseAmount + $charge;
             $gateway_fee = round(($total * self::PERCENTAGE_FEE) + self::FLAT_FEE_AMOUNT, 2);
         }
-        
+
         // Round to whole numbers for consistency
         $charge = round($charge);
         $total = round($baseAmount + $charge);
@@ -72,7 +71,7 @@ class PaystackGateway implements PaymentGateway {
             $profit_bonus = 40;
         }
         $profit = round($base_profit + $profit_bonus);
-        
+
         return [
             'total_amount' => $total,
             'charge' => $charge,
@@ -80,40 +79,40 @@ class PaystackGateway implements PaymentGateway {
             'gateway_fee' => $gateway_fee,
         ];
     }
-    
+
     /**
      * Initialize payment with Paystack
      */
     public function initializePayment($params) {
         $curl = curl_init();
-        
+
         $postData = [
             'amount' => $params['amount'] * 100, // Paystack expects amount in kobo
             'email' => $params['email'],
             'reference' => $params['reference'],
             'callback_url' => $params['callback_url'] ?? '',
         ];
-        
+
         // Add subaccount if provided
         if (isset($params['split_code'])) {
             $postData['split_code'] = $params['split_code'];
         }
-        
+
         // Add subaccount if provided
         if (isset($params['subaccount'])) {
             $postData['subaccount'] = $params['subaccount'];
         }
-        
+
         // Add transaction charge if provided
         if (isset($params['transaction_charge'])) {
             $postData['transaction_charge'] = $params['transaction_charge'];
         }
-        
+
         // Add metadata if provided (Paystack uses "metadata")
         if (isset($params['metadata'])) {
             $postData['metadata'] = $params['metadata'];
         }
-        
+
         curl_setopt_array($curl, array(
             CURLOPT_URL => 'https://api.paystack.co/transaction/initialize',
             CURLOPT_RETURNTRANSFER => true,
@@ -129,26 +128,26 @@ class PaystackGateway implements PaymentGateway {
                 'Authorization: Bearer ' . $this->secretKey
             ),
         ));
-        
+
         $response = curl_exec($curl);
         $error = curl_error($curl);
         curl_close($curl);
-        
+
         if ($error) {
             $this->logError("InitializePayment cURL error: {$error}");
             return ['status' => false, 'message' => 'Connection error: ' . $error];
         }
-        
+
         $data = json_decode($response, true);
         return $data;
     }
-    
+
     /**
      * Verify a Paystack transaction
      */
     public function verifyTransaction($reference) {
         $curl = curl_init();
-        
+
         curl_setopt_array($curl, array(
             CURLOPT_URL => 'https://api.paystack.co/transaction/verify/' . urlencode($reference),
             CURLOPT_RETURNTRANSFER => true,
@@ -163,34 +162,34 @@ class PaystackGateway implements PaymentGateway {
                 'Authorization: Bearer ' . $this->secretKey
             ),
         ));
-        
+
         $response = curl_exec($curl);
         $error = curl_error($curl);
         curl_close($curl);
-        
+
         if ($error) {
             $this->logError("VerifyTransaction cURL error for ref {$reference}: {$error}");
             return ['status' => false, 'message' => 'Connection error: ' . $error];
         }
-        
+
         $data = json_decode($response, true);
-        
-        if (isset($data['status']) && $data['status'] === true && 
+
+        if (isset($data['status']) && $data['status'] === true &&
             isset($data['data']['status']) && $data['data']['status'] === 'success') {
             return [
                 'status' => true,
                 'data' => $data['data']
             ];
         }
-        
+
         $this->logError("VerifyTransaction failed for ref {$reference}: " . $response);
-        
+
         return [
             'status' => false,
             'message' => 'Transaction verification failed: ' . (is_string($response) ? $response : json_encode($response))
         ];
     }
-    
+
     /**
      * Verify Paystack webhook signature
      */
@@ -202,19 +201,19 @@ class PaystackGateway implements PaymentGateway {
                 break;
             }
         }
-        
+
         if (empty($signature)) {
             return false;
         }
-        
+
         $computedSignature = hash_hmac('sha512', $payload, $this->secretKey);
         return hash_equals($signature, $computedSignature);
     }
-    
+
     public function getGatewayName() {
         return 'paystack';
     }
-    
+
     public function getPublicKey() {
         return $this->publicKey;
     }

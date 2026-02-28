@@ -147,40 +147,11 @@ if (isset($_POST['nivas_ref'])) {
       }
     }
 
-    // Calculate charges using existing Paystack structure
-    if ($total_amount == 0) {
-      $charge = 0;
-    } elseif ($total_amount <= 4500) {
-      // Flat fee for transactions up to ₦4,500
-      $charge = 100;
-    } else {
-      // Preserve the previous calculation for amounts above ₦4,500
-      if ($total_amount < 2500) {
-        $charge = 65;
-      } else {
-        // Add 1.5% to the transferAmount
-        $charge += ($total_amount * 0.015);
-
-        // Adjust the charge accordingly
-        if ($total_amount < 2500) {
-          $charge += 120;
-        } elseif ($total_amount >= 2500 && $total_amount < 5000) {
-          $charge += 125;
-        } elseif ($total_amount >= 5000 && $total_amount < 10000) {
-          $charge += 130;
-        } else {
-          $charge += 135;
-        }
-      }
-    }
-
-    // Add the charge to the total
-    $total_amount += $charge;
-
-    // Payment gateway fee (2% of the final amount)
-    $gateway_fee = round($total_amount * 0.02, 2);
-    // Profit is the remaining charge after gateway fee
-    $profit = round(max($charge - $gateway_fee, 0), 2);
+    // Calculate charges using shared gateway pricing logic.
+    $calc = calculateGatewayCharges($total_amount, 'paystack');
+    $charge = $calc['charge'] ?? 0;
+    $profit = $calc['profit'] ?? 0;
+    $total_amount = $calc['total_amount'] ?? ($total_amount + $charge);
 
     sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $total_amount);
 
