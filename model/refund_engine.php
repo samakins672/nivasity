@@ -81,6 +81,38 @@ if (!function_exists('withRefundInitLock')) {
     }
 }
 
+if (!function_exists('withRefundSchoolLock')) {
+    function withRefundSchoolLock($conn, $schoolId, callable $callback, $timeoutSeconds = 10) {
+        $schoolId = (int)$schoolId;
+        if ($schoolId <= 0) {
+            throw new Exception('Invalid school id for refund reservation lock');
+        }
+
+        $lockName = 'nivasity_refund_school_' . $schoolId;
+        $timeoutSeconds = max(1, (int)$timeoutSeconds);
+
+        $lockNameSafe = mysqli_real_escape_string($conn, $lockName);
+        $lockSql = "SELECT GET_LOCK('$lockNameSafe', $timeoutSeconds) AS got_lock";
+        $lockRs = mysqli_query($conn, $lockSql);
+        if (!$lockRs) {
+            throw new Exception('Unable to acquire school refund lock: ' . mysqli_error($conn));
+        }
+
+        $lockRow = mysqli_fetch_assoc($lockRs);
+        $gotLock = isset($lockRow['got_lock']) ? (int)$lockRow['got_lock'] : 0;
+        if ($gotLock !== 1) {
+            throw new Exception('Could not obtain school-level refund lock');
+        }
+
+        try {
+            return $callback();
+        } finally {
+            $unlockSql = "SELECT RELEASE_LOCK('$lockNameSafe')";
+            mysqli_query($conn, $unlockSql);
+        }
+    }
+}
+
 if (!function_exists('reserveRefundForSchoolShare')) {
     function reserveRefundForSchoolShare($conn, $refId, $schoolId, $payerUserId, $gateway, $schoolShare, $channel) {
         $refIdSafe = mysqli_real_escape_string($conn, (string)$refId);
@@ -95,7 +127,8 @@ if (!function_exists('reserveRefundForSchoolShare')) {
         }
 
         try {
-            return withRefundInitLock($conn, $refId, function() use ($conn, $refId, $refIdSafe, $schoolId, $payerUserId, $gatewaySafe, $channelSafe, $remainingNeed) {
+            return withRefundSchoolLock($conn, $schoolId, function() use ($conn, $refId, $refIdSafe, $schoolId, $payerUserId, $gatewaySafe, $channelSafe, $remainingNeed) {
+                return withRefundInitLock($conn, $refId, function() use ($conn, $refId, $refIdSafe, $schoolId, $payerUserId, $gatewaySafe, $channelSafe, $remainingNeed) {
                 mysqli_begin_transaction($conn);
                 try {
                     // Support incremental top-up for same ref_id until school_share target is reached.
@@ -134,6 +167,23 @@ if (!function_exists('reserveRefundForSchoolShare')) {
                             continue;
                         }
 
+                        // Atomic decrement prevents stale-read/lost-update over-reservation.
+                        $updSql = "UPDATE refunds
+                                   SET remaining_amount = remaining_amount - $alloc,
+                                       status = CASE
+                                           WHEN (remaining_amount - $alloc) >= amount THEN 'pending'
+                                           ELSE 'partially_applied'
+                                       END,
+                                       updated_at = NOW()
+                                   WHERE id = $refundId AND remaining_amount >= $alloc";
+                        if (!mysqli_query($conn, $updSql)) {
+                            throw new Exception('Failed to update refund balance: ' . mysqli_error($conn));
+                        }
+                        if ((int)mysqli_affected_rows($conn) !== 1) {
+                            // Row changed concurrently or balance is no longer sufficient.
+                            continue;
+                        }
+
                         $splitSeqSql = "SELECT COALESCE(MAX(split_sequence), 0) + 1 AS next_split FROM refund_reservations WHERE refund_id = $refundId FOR UPDATE";
                         $splitSeqRs = mysqli_query($conn, $splitSeqSql);
                         if (!$splitSeqRs) {
@@ -141,15 +191,6 @@ if (!function_exists('reserveRefundForSchoolShare')) {
                         }
                         $splitSeqRow = mysqli_fetch_assoc($splitSeqRs);
                         $splitSequence = $splitSeqRow && isset($splitSeqRow['next_split']) ? (int)$splitSeqRow['next_split'] : 1;
-
-                        $newRemaining = $refundRemaining - $alloc;
-                        // Reservation alone must not mark a refund as applied.
-                        $newStatus = ($newRemaining >= $refundAmount) ? 'pending' : 'partially_applied';
-
-                        $updSql = "UPDATE refunds SET remaining_amount = $newRemaining, status = '$newStatus', updated_at = NOW() WHERE id = $refundId";
-                        if (!mysqli_query($conn, $updSql)) {
-                            throw new Exception('Failed to update refund balance: ' . mysqli_error($conn));
-                        }
 
                         $insSql = "INSERT INTO refund_reservations (refund_id, ref_id, split_sequence, school_id, payer_user_id, gateway, amount, channel, status, reserved_at) VALUES ($refundId, '$refIdSafe', $splitSequence, $schoolId, $payerUserId, '$gatewaySafe', $alloc, '$channelSafe', 'reserved', NOW())";
                         if (!mysqli_query($conn, $insSql)) {
@@ -177,6 +218,7 @@ if (!function_exists('reserveRefundForSchoolShare')) {
                     mysqli_rollback($conn);
                     throw $e;
                 }
+            });
             });
         } catch (Throwable $e) {
             refundEngineLog('reserveRefundForSchoolShare failed', [
@@ -362,17 +404,32 @@ if (!function_exists('syncSourceTransactionRefundProgress')) {
             return 0;
         }
 
-        $sumSql = "SELECT COALESCE(SUM(rr.amount), 0) AS total_consumed
-                   FROM refunds r
-                   LEFT JOIN refund_reservations rr ON rr.refund_id = r.id AND rr.status = 'consumed'
-                   WHERE r.ref_id = '$sourceRefSafe'
-                   FOR UPDATE";
-        $sumRs = mysqli_query($conn, $sumSql);
-        if (!$sumRs) {
-            throw new Exception('Failed to compute source refund progress: ' . mysqli_error($conn));
+        $refundSql = "SELECT id, amount FROM refunds WHERE ref_id = '$sourceRefSafe' FOR UPDATE";
+        $refundRs = mysqli_query($conn, $refundSql);
+        if (!$refundRs) {
+            throw new Exception('Failed to fetch source refunds for progress sync: ' . mysqli_error($conn));
         }
-        $sumRow = mysqli_fetch_assoc($sumRs);
-        $totalConsumed = $sumRow && isset($sumRow['total_consumed']) ? (int)$sumRow['total_consumed'] : 0;
+
+        $totalConsumed = 0;
+        while ($refundRow = mysqli_fetch_assoc($refundRs)) {
+            $refundId = (int)$refundRow['id'];
+            $refundAmount = (int)$refundRow['amount'];
+            if ($refundId <= 0 || $refundAmount <= 0) {
+                continue;
+            }
+
+            $consumedSql = "SELECT COALESCE(SUM(amount), 0) AS total_consumed
+                            FROM refund_reservations
+                            WHERE refund_id = $refundId AND status = 'consumed'
+                            FOR UPDATE";
+            $consumedRs = mysqli_query($conn, $consumedSql);
+            if (!$consumedRs) {
+                throw new Exception('Failed to compute consumed total for source refund progress: ' . mysqli_error($conn));
+            }
+            $consumedRow = mysqli_fetch_assoc($consumedRs);
+            $consumedAmount = $consumedRow && isset($consumedRow['total_consumed']) ? (int)$consumedRow['total_consumed'] : 0;
+            $totalConsumed += min($refundAmount, max(0, $consumedAmount));
+        }
 
         $updTxSql = "UPDATE transactions SET refund = $totalConsumed WHERE ref_id = '$sourceRefSafe'";
         if (!mysqli_query($conn, $updTxSql)) {
@@ -384,10 +441,10 @@ if (!function_exists('syncSourceTransactionRefundProgress')) {
 }
 
 if (!function_exists('removeRefundedMaterialsIfCompleted')) {
-    function removeRefundedMaterialsIfCompleted($conn, $refundRow, $consumedTotal, $reservedCount) {
+    function removeRefundedMaterialsIfCompleted($conn, $refundRow, $consumedTotal, $reservedCount, $remainingAmountOverride = null) {
         $refundId = (int)$refundRow['id'];
         $refundAmount = (int)$refundRow['amount'];
-        $remainingAmount = (int)$refundRow['remaining_amount'];
+        $remainingAmount = ($remainingAmountOverride === null) ? (int)$refundRow['remaining_amount'] : (int)$remainingAmountOverride;
         $sourceRefId = isset($refundRow['ref_id']) ? (string)$refundRow['ref_id'] : '';
         $studentId = isset($refundRow['student_id']) ? (int)$refundRow['student_id'] : 0;
         $materialsJson = isset($refundRow['materials']) ? $refundRow['materials'] : null;
@@ -413,17 +470,152 @@ if (!function_exists('removeRefundedMaterialsIfCompleted')) {
         if (!mysqli_query($conn, $deleteSql)) {
             throw new Exception('Failed to remove refunded materials: ' . mysqli_error($conn));
         }
+        $deletedRows = (int)mysqli_affected_rows($conn);
+
+        // Fallback for legacy rows where buyer may not match the refund student_id.
+        if ($studentId > 0 && $deletedRows === 0) {
+            $fallbackDeleteSql = "DELETE FROM manuals_bought WHERE ref_id = '$sourceRefSafe' AND manual_id IN ($manualIdsCsv)";
+            if (!mysqli_query($conn, $fallbackDeleteSql)) {
+                throw new Exception('Failed to remove refunded materials with fallback delete: ' . mysqli_error($conn));
+            }
+            $deletedRows = (int)mysqli_affected_rows($conn);
+            if ($deletedRows > 0) {
+                refundEngineLog('Fallback delete removed refunded materials without buyer filter', [
+                    'refund_id' => $refundId,
+                    'source_ref_id' => $sourceRefId,
+                    'student_id' => $studentId,
+                    'materials' => $materialIds
+                ]);
+            }
+        }
 
         refundEngineLog('Removed refunded materials from source transaction', [
             'refund_id' => $refundId,
             'source_ref_id' => $sourceRefId,
             'student_id' => $studentId,
-            'materials' => $materialIds
+            'materials' => $materialIds,
+            'deleted_rows' => $deletedRows
         ]);
     }
 }
 
 if (!function_exists('finalizeConsumedRefundsForTx')) {
+    if (!function_exists('releaseOverConsumedReservationsForRefund')) {
+        function releaseOverConsumedReservationsForRefund($conn, $refundId, $refundAmount, $reason = 'overly') {
+            $refundId = (int)$refundId;
+            $refundAmount = (int)$refundAmount;
+            $reasonSafe = mysqli_real_escape_string($conn, (string)$reason);
+            if ($refundId <= 0 || $refundAmount <= 0) {
+                return 0;
+            }
+
+            $sumConsumedSql = "SELECT COALESCE(SUM(amount), 0) AS total_consumed
+                               FROM refund_reservations
+                               WHERE refund_id = $refundId AND status = 'consumed'
+                               FOR UPDATE";
+            $sumConsumedRs = mysqli_query($conn, $sumConsumedSql);
+            if (!$sumConsumedRs) {
+                throw new Exception('Failed to compute over-consumed totals: ' . mysqli_error($conn));
+            }
+            $sumConsumedRow = mysqli_fetch_assoc($sumConsumedRs);
+            $consumedTotal = $sumConsumedRow && isset($sumConsumedRow['total_consumed']) ? (int)$sumConsumedRow['total_consumed'] : 0;
+
+            $excess = $consumedTotal - $refundAmount;
+            if ($excess <= 0) {
+                return 0;
+            }
+
+            $releasedTotal = 0;
+            $rowsSql = "SELECT id, ref_id, split_sequence, school_id, payer_user_id, gateway, amount, channel, reserved_at, consumed_at
+                        FROM refund_reservations
+                        WHERE refund_id = $refundId AND status = 'consumed'
+                        ORDER BY consumed_at DESC, id DESC
+                        FOR UPDATE";
+            $rowsRs = mysqli_query($conn, $rowsSql);
+            if (!$rowsRs) {
+                throw new Exception('Failed to fetch consumed reservation rows for correction: ' . mysqli_error($conn));
+            }
+
+            while ($excess > 0 && ($row = mysqli_fetch_assoc($rowsRs))) {
+                $reservationId = (int)$row['id'];
+                $rowAmount = (int)$row['amount'];
+                if ($reservationId <= 0 || $rowAmount <= 0) {
+                    continue;
+                }
+
+                if ($rowAmount <= $excess) {
+                    $updSql = "UPDATE refund_reservations
+                               SET status = 'released',
+                                   released_at = NOW(),
+                                   release_reason = '$reasonSafe'
+                               WHERE id = $reservationId AND status = 'consumed'";
+                    if (!mysqli_query($conn, $updSql)) {
+                        throw new Exception('Failed to release over-consumed reservation row: ' . mysqli_error($conn));
+                    }
+                    if ((int)mysqli_affected_rows($conn) === 1) {
+                        $releasedTotal += $rowAmount;
+                        $excess -= $rowAmount;
+                    }
+                    continue;
+                }
+
+                // Partial correction: keep part consumed, split out excess as released.
+                $partialRelease = $excess;
+                $remainingConsumed = $rowAmount - $partialRelease;
+
+                $updPartialSql = "UPDATE refund_reservations
+                                  SET amount = $remainingConsumed
+                                  WHERE id = $reservationId AND status = 'consumed'";
+                if (!mysqli_query($conn, $updPartialSql)) {
+                    throw new Exception('Failed to partially correct over-consumed reservation row: ' . mysqli_error($conn));
+                }
+                if ((int)mysqli_affected_rows($conn) !== 1) {
+                    throw new Exception('Failed to lock consumed row for partial correction');
+                }
+
+                $splitSeqSql = "SELECT COALESCE(MAX(split_sequence), 0) + 1 AS next_split
+                                FROM refund_reservations
+                                WHERE refund_id = $refundId
+                                FOR UPDATE";
+                $splitSeqRs = mysqli_query($conn, $splitSeqSql);
+                if (!$splitSeqRs) {
+                    throw new Exception('Failed to compute split sequence during over-consume correction: ' . mysqli_error($conn));
+                }
+                $splitSeqRow = mysqli_fetch_assoc($splitSeqRs);
+                $nextSplit = $splitSeqRow && isset($splitSeqRow['next_split']) ? (int)$splitSeqRow['next_split'] : 1;
+
+                $refIdSafe = mysqli_real_escape_string($conn, (string)$row['ref_id']);
+                $gatewaySafe = mysqli_real_escape_string($conn, (string)$row['gateway']);
+                $channelSafe = mysqli_real_escape_string($conn, (string)$row['channel']);
+                $schoolId = (int)$row['school_id'];
+                $payerUserId = (int)$row['payer_user_id'];
+                $reservedAt = !empty($row['reserved_at']) ? "'" . mysqli_real_escape_string($conn, (string)$row['reserved_at']) . "'" : "NOW()";
+                $consumedAt = !empty($row['consumed_at']) ? "'" . mysqli_real_escape_string($conn, (string)$row['consumed_at']) . "'" : "NOW()";
+
+                $insSql = "INSERT INTO refund_reservations
+                           (refund_id, ref_id, split_sequence, school_id, payer_user_id, gateway, amount, channel, status, reserved_at, consumed_at, released_at, release_reason)
+                           VALUES
+                           ($refundId, '$refIdSafe', $nextSplit, $schoolId, $payerUserId, '$gatewaySafe', $partialRelease, '$channelSafe', 'released', $reservedAt, $consumedAt, NOW(), '$reasonSafe')";
+                if (!mysqli_query($conn, $insSql)) {
+                    throw new Exception('Failed to insert released split row during over-consume correction: ' . mysqli_error($conn));
+                }
+
+                $releasedTotal += $partialRelease;
+                $excess = 0;
+            }
+
+            if ($releasedTotal > 0) {
+                refundEngineLog('Released over-consumed reservations', [
+                    'refund_id' => $refundId,
+                    'released' => $releasedTotal,
+                    'reason' => $reason
+                ]);
+            }
+
+            return $releasedTotal;
+        }
+    }
+
     function finalizeConsumedRefundsForTx($conn, $refId) {
         $refIdSafe = mysqli_real_escape_string($conn, (string)$refId);
         if ($refIdSafe === '') {
@@ -455,6 +647,11 @@ if (!function_exists('finalizeConsumedRefundsForTx')) {
             if (!$refundRow) {
                 continue;
             }
+            $refundAmount = isset($refundRow['amount']) ? (int)$refundRow['amount'] : 0;
+            if ($refundAmount > 0) {
+                // Guardrail: if a refund was over-consumed historically, release newest excess rows.
+                releaseOverConsumedReservationsForRefund($conn, $refundId, $refundAmount, 'overly');
+            }
 
             $consumedSql = "SELECT COALESCE(SUM(amount), 0) AS total_consumed
                             FROM refund_reservations
@@ -467,7 +664,7 @@ if (!function_exists('finalizeConsumedRefundsForTx')) {
             $consumedRow = mysqli_fetch_assoc($consumedRs);
             $consumedTotal = $consumedRow && isset($consumedRow['total_consumed']) ? (int)$consumedRow['total_consumed'] : 0;
 
-            $reservedSql = "SELECT COUNT(1) AS active_reserved
+            $reservedSql = "SELECT COUNT(1) AS active_reserved, COALESCE(SUM(amount), 0) AS reserved_total
                             FROM refund_reservations
                             WHERE refund_id = $refundId AND status = 'reserved'
                             FOR UPDATE";
@@ -477,28 +674,30 @@ if (!function_exists('finalizeConsumedRefundsForTx')) {
             }
             $reservedRow = mysqli_fetch_assoc($reservedRs);
             $reservedCount = $reservedRow && isset($reservedRow['active_reserved']) ? (int)$reservedRow['active_reserved'] : 0;
+            $reservedTotal = $reservedRow && isset($reservedRow['reserved_total']) ? (int)$reservedRow['reserved_total'] : 0;
 
-            $sourceRefId = isset($refundRow['ref_id']) ? (string)$refundRow['ref_id'] : '';
-            if ($sourceRefId !== '') {
-                syncSourceTransactionRefundProgress($conn, $sourceRefId);
-            }
+            $effectiveConsumed = min(max(0, $consumedTotal), max(0, $refundAmount));
+            $expectedRemaining = max(0, $refundAmount - $consumedTotal - $reservedTotal);
 
-            $refundAmount = isset($refundRow['amount']) ? (int)$refundRow['amount'] : 0;
-            $refundRemaining = isset($refundRow['remaining_amount']) ? (int)$refundRow['remaining_amount'] : 0;
-            if ($refundRemaining <= 0 && $reservedCount === 0 && $consumedTotal >= $refundAmount) {
+            if ($expectedRemaining <= 0 && $reservedCount === 0 && $effectiveConsumed >= $refundAmount) {
                 $targetStatus = 'applied';
-            } elseif ($refundRemaining >= $refundAmount) {
+            } elseif ($expectedRemaining >= $refundAmount) {
                 $targetStatus = 'pending';
             } else {
                 $targetStatus = 'partially_applied';
             }
 
-            $updStatusSql = "UPDATE refunds SET status = '$targetStatus', updated_at = NOW() WHERE id = $refundId";
+            $updStatusSql = "UPDATE refunds SET remaining_amount = $expectedRemaining, status = '$targetStatus', updated_at = NOW() WHERE id = $refundId";
             if (!mysqli_query($conn, $updStatusSql)) {
                 throw new Exception('Failed to update refund status during finalization: ' . mysqli_error($conn));
             }
 
-            removeRefundedMaterialsIfCompleted($conn, $refundRow, $consumedTotal, $reservedCount);
+            removeRefundedMaterialsIfCompleted($conn, $refundRow, $effectiveConsumed, $reservedCount, $expectedRemaining);
+
+            $sourceRefId = isset($refundRow['ref_id']) ? (string)$refundRow['ref_id'] : '';
+            if ($sourceRefId !== '') {
+                syncSourceTransactionRefundProgress($conn, $sourceRefId);
+            }
         }
     }
 }
@@ -546,8 +745,23 @@ if (!function_exists('consumeReservations')) {
                 throw new Exception('Failed to consume reservations: ' . mysqli_error($conn));
             }
             finalizeConsumedRefundsForTx($conn, $refIdSafe);
-            refundEngineLog('Consumed refund reservations', ['ref_id' => $refId, 'amount' => $reservedTotal]);
-            return $reservedTotal;
+            $netConsumedSql = "SELECT COALESCE(SUM(amount), 0) AS total_consumed
+                               FROM refund_reservations
+                               WHERE ref_id = '$refIdSafe' AND status = 'consumed'
+                               FOR UPDATE";
+            $netConsumedRs = mysqli_query($conn, $netConsumedSql);
+            if (!$netConsumedRs) {
+                throw new Exception('Failed to fetch net consumed totals after finalization: ' . mysqli_error($conn));
+            }
+            $netConsumedRow = mysqli_fetch_assoc($netConsumedRs);
+            $netConsumed = $netConsumedRow && isset($netConsumedRow['total_consumed']) ? (int)$netConsumedRow['total_consumed'] : 0;
+
+            refundEngineLog('Consumed refund reservations', [
+                'ref_id' => $refId,
+                'gross_amount' => $reservedTotal,
+                'net_amount' => $netConsumed
+            ]);
+            return $netConsumed;
         }
 
         $consumedTotal = 0;
@@ -558,6 +772,20 @@ if (!function_exists('consumeReservations')) {
         }
         if ($sumConsumedRow = mysqli_fetch_assoc($sumConsumedRs)) {
             $consumedTotal = (int)$sumConsumedRow['total_consumed'];
+        }
+
+        if ($consumedTotal > 0) {
+            finalizeConsumedRefundsForTx($conn, $refIdSafe);
+            $netConsumedSql = "SELECT COALESCE(SUM(amount), 0) AS total_consumed
+                               FROM refund_reservations
+                               WHERE ref_id = '$refIdSafe' AND status = 'consumed'
+                               FOR UPDATE";
+            $netConsumedRs = mysqli_query($conn, $netConsumedSql);
+            if (!$netConsumedRs) {
+                throw new Exception('Failed to refresh consumed totals after finalization: ' . mysqli_error($conn));
+            }
+            $netConsumedRow = mysqli_fetch_assoc($netConsumedRs);
+            $consumedTotal = $netConsumedRow && isset($netConsumedRow['total_consumed']) ? (int)$netConsumedRow['total_consumed'] : 0;
         }
 
         return $consumedTotal;

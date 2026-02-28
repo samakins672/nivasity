@@ -69,6 +69,7 @@ if (isset($_GET['transaction_id']) || isset($_GET['reference']) || isset($_GET['
     $verifyResult = $gateway->verifyTransaction($verifyParam);
 
     if (!$verifyResult['status']) {
+        releaseReservationsForTx($conn, $tx_ref_esc, 'verification_failed');
         if (!isset($_GET['callback'])) {
             header('Location: /?payment=unsuccessful');
         } else {
