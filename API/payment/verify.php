@@ -69,12 +69,13 @@ try {
     $processed_query = mysqli_query($conn, "SELECT * FROM transactions WHERE ref_id = '$tx_ref' LIMIT 1");
     if ($processed_query && mysqli_num_rows($processed_query) > 0) {
         $transaction = mysqli_fetch_assoc($processed_query);
+        $refundApplied = getConsumedReservationTotalForTx($conn, $tx_ref);
         return [
             'already_processed' => true,
             'tx_ref' => $tx_ref,
             'amount' => (float)$transaction['amount'],
             'processed_at' => $transaction['created_at'],
-            'refund_applied' => isset($transaction['refund']) ? (int)$transaction['refund'] : 0
+            'refund_applied' => (int)$refundApplied
         ];
     }
 
@@ -118,7 +119,7 @@ try {
     mysqli_begin_transaction($conn);
     try {
         $refund_applied = consumeReservationsCore($conn, $tx_ref);
-        $insertTxSql = "INSERT INTO transactions (user_id, ref_id, amount, charge, profit, refund, status, medium, created_at) VALUES ($user_id, '$tx_ref', $amount, $charge, $profit, $refund_applied, 'successful', '$gateway_medium', '$date')";
+        $insertTxSql = "INSERT INTO transactions (user_id, ref_id, amount, charge, profit, refund, status, medium, created_at) VALUES ($user_id, '$tx_ref', $amount, $charge, $profit, 0, 'successful', '$gateway_medium', '$date')";
         if (!mysqli_query($conn, $insertTxSql)) {
             throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
         }

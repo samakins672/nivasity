@@ -85,11 +85,12 @@ try {
             }
         }
 
-        $tx_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT amount, refund FROM transactions WHERE ref_id = '$ref_id_esc' LIMIT 1"));
+        $tx_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT amount FROM transactions WHERE ref_id = '$ref_id_esc' LIMIT 1"));
+        $refundApplied = getConsumedReservationTotalForTx($conn, $ref_id_esc);
         return [
             'status' => 'success',
             'message' => 'Already processed',
-            'refund_applied' => $tx_row && isset($tx_row['refund']) ? (int)$tx_row['refund'] : 0
+            'refund_applied' => (int)$refundApplied
         ];
     }
 
@@ -215,7 +216,7 @@ try {
     mysqli_begin_transaction($conn);
     try {
         $refund_applied = consumeReservationsCore($conn, $ref_id_esc);
-        $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium) VALUES ('$ref_id_esc', $user_id, $total_amount, $charge, $profit, $refund_applied, '$status', '$medium')";
+        $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium) VALUES ('$ref_id_esc', $user_id, $total_amount, $charge, $profit, 0, '$status', '$medium')";
         if (!mysqli_query($conn, $insertTxSql)) {
             throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
         }

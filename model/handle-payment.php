@@ -95,13 +95,14 @@ if (isset($_GET['transaction_id']) || isset($_GET['reference']) || isset($_GET['
             $_SESSION["nivas_cart$user_id"] = array();
             $_SESSION["nivas_cart_event$user_id"] = array();
 
-            $tx_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT amount, refund FROM transactions WHERE ref_id = '$tx_ref_esc' LIMIT 1"));
+            $tx_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT amount FROM transactions WHERE ref_id = '$tx_ref_esc' LIMIT 1"));
+            $refundApplied = getConsumedReservationTotalForTx($conn, $tx_ref_esc);
             return [
                 'status' => 'success',
                 'message' => 'Already processed',
                 'already_processed' => true,
                 'total_amount' => $tx_row ? (float)$tx_row['amount'] : 0,
-                'refund_applied' => $tx_row && isset($tx_row['refund']) ? (int)$tx_row['refund'] : 0
+                'refund_applied' => (int)$refundApplied
             ];
         }
 
@@ -180,7 +181,7 @@ if (isset($_GET['transaction_id']) || isset($_GET['reference']) || isset($_GET['
         mysqli_begin_transaction($conn);
         try {
             $refund_applied = consumeReservationsCore($conn, $tx_ref);
-            $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, $refund_applied, '$status', '$medium')";
+            $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, 0, '$status', '$medium')";
             if (!mysqli_query($conn, $insertTxSql)) {
                 throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
             }

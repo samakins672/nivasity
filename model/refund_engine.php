@@ -188,6 +188,325 @@ if (!function_exists('reserveRefundForSchoolShare')) {
     }
 }
 
+if (!function_exists('createMaterialRefund')) {
+    function createMaterialRefund($conn, $sourceRefId, $schoolId, $studentId, $materialIds, $reason = null) {
+        $sourceRefSafe = mysqli_real_escape_string($conn, (string)$sourceRefId);
+        $requestedSchoolId = (int)$schoolId;
+        $requestedStudentId = (int)$studentId;
+        $reasonSafe = mysqli_real_escape_string($conn, (string)$reason);
+
+        $cleanMaterialIds = [];
+        if (is_array($materialIds)) {
+            foreach ($materialIds as $materialId) {
+                $materialId = (int)$materialId;
+                if ($materialId > 0) {
+                    $cleanMaterialIds[$materialId] = true;
+                }
+            }
+        }
+        $cleanMaterialIds = array_keys($cleanMaterialIds);
+
+        if ($sourceRefSafe === '' || empty($cleanMaterialIds)) {
+            return ['status' => false, 'message' => 'Invalid source reference or materials'];
+        }
+
+        mysqli_begin_transaction($conn);
+        try {
+            $txSql = "SELECT id, status FROM transactions WHERE ref_id = '$sourceRefSafe' LIMIT 1 FOR UPDATE";
+            $txRs = mysqli_query($conn, $txSql);
+            if (!$txRs) {
+                throw new Exception('Failed to fetch source transaction: ' . mysqli_error($conn));
+            }
+            $txRow = mysqli_fetch_assoc($txRs);
+            if (!$txRow || (string)$txRow['status'] !== 'successful') {
+                throw new Exception('Source transaction is not successful');
+            }
+
+            $idsCsv = implode(',', array_map('intval', $cleanMaterialIds));
+            $manualSql = "SELECT manual_id, price, buyer, school_id
+                          FROM manuals_bought
+                          WHERE ref_id = '$sourceRefSafe'
+                            AND manual_id IN ($idsCsv)";
+            if ($requestedStudentId > 0) {
+                $manualSql .= " AND buyer = $requestedStudentId";
+            }
+            $manualSql .= " FOR UPDATE";
+
+            $manualRs = mysqli_query($conn, $manualSql);
+            if (!$manualRs) {
+                throw new Exception('Failed to fetch source materials: ' . mysqli_error($conn));
+            }
+
+            $materialPriceMap = [];
+            $resolvedSchoolId = 0;
+            $resolvedStudentId = $requestedStudentId;
+            while ($manualRow = mysqli_fetch_assoc($manualRs)) {
+                $manualId = (int)$manualRow['manual_id'];
+                if (!isset($materialPriceMap[$manualId])) {
+                    $materialPriceMap[$manualId] = (int)$manualRow['price'];
+                }
+                if ($resolvedSchoolId <= 0) {
+                    $resolvedSchoolId = (int)$manualRow['school_id'];
+                }
+                if ($resolvedStudentId <= 0) {
+                    $resolvedStudentId = (int)$manualRow['buyer'];
+                }
+            }
+
+            if (count($materialPriceMap) !== count($cleanMaterialIds)) {
+                throw new Exception('Some materials are not valid for this source transaction');
+            }
+
+            if ($requestedSchoolId > 0 && $resolvedSchoolId > 0 && $requestedSchoolId !== $resolvedSchoolId) {
+                throw new Exception('School mismatch for source transaction materials');
+            }
+            if ($resolvedSchoolId <= 0) {
+                $resolvedSchoolId = $requestedSchoolId;
+            }
+            if ($resolvedSchoolId <= 0) {
+                throw new Exception('Unable to resolve school for source transaction');
+            }
+
+            $existingRefundsSql = "SELECT id, materials
+                                   FROM refunds
+                                   WHERE ref_id = '$sourceRefSafe'
+                                     AND status IN ('pending', 'partially_applied', 'applied')
+                                   FOR UPDATE";
+            $existingRefundsRs = mysqli_query($conn, $existingRefundsSql);
+            if (!$existingRefundsRs) {
+                throw new Exception('Failed to validate existing refunds: ' . mysqli_error($conn));
+            }
+            while ($existingRefund = mysqli_fetch_assoc($existingRefundsRs)) {
+                $existingMaterialIds = parseRefundMaterialIds($existingRefund['materials'] ?? null);
+                if (!empty(array_intersect($cleanMaterialIds, $existingMaterialIds))) {
+                    throw new Exception('One or more selected materials already have an active/completed refund');
+                }
+            }
+
+            $refundAmount = 0;
+            foreach ($cleanMaterialIds as $materialId) {
+                $refundAmount += (int)$materialPriceMap[$materialId];
+            }
+            if ($refundAmount <= 0) {
+                throw new Exception('Computed refund amount is invalid');
+            }
+
+            $materialsJson = mysqli_real_escape_string($conn, json_encode(array_values($cleanMaterialIds)));
+            $insertRefundSql = "INSERT INTO refunds (school_id, student_id, ref_id, materials, amount, remaining_amount, status, reason, created_at, updated_at)
+                                VALUES ($resolvedSchoolId, " . (int)$resolvedStudentId . ", '$sourceRefSafe', '$materialsJson', $refundAmount, $refundAmount, 'pending', '$reasonSafe', NOW(), NOW())";
+            if (!mysqli_query($conn, $insertRefundSql)) {
+                throw new Exception('Failed to create refund: ' . mysqli_error($conn));
+            }
+
+            $refundId = (int)mysqli_insert_id($conn);
+            mysqli_commit($conn);
+
+            refundEngineLog('Created material-level refund', [
+                'refund_id' => $refundId,
+                'source_ref_id' => $sourceRefId,
+                'school_id' => $resolvedSchoolId,
+                'student_id' => (int)$resolvedStudentId,
+                'materials' => $cleanMaterialIds,
+                'amount' => $refundAmount
+            ]);
+
+            return [
+                'status' => true,
+                'refund_id' => $refundId,
+                'amount' => $refundAmount,
+                'school_id' => $resolvedSchoolId,
+                'student_id' => (int)$resolvedStudentId,
+                'materials' => array_values($cleanMaterialIds)
+            ];
+        } catch (Throwable $e) {
+            mysqli_rollback($conn);
+            refundEngineLog('createMaterialRefund failed', [
+                'source_ref_id' => $sourceRefId,
+                'school_id' => $schoolId,
+                'student_id' => $studentId,
+                'error' => $e->getMessage()
+            ]);
+            return ['status' => false, 'message' => $e->getMessage()];
+        }
+    }
+}
+
+if (!function_exists('parseRefundMaterialIds')) {
+    function parseRefundMaterialIds($materialsJson) {
+        if ($materialsJson === null || $materialsJson === '') {
+            return [];
+        }
+
+        $decoded = json_decode((string)$materialsJson, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $materialIds = [];
+        foreach ($decoded as $id) {
+            $id = (int)$id;
+            if ($id > 0) {
+                $materialIds[$id] = true;
+            }
+        }
+
+        return array_keys($materialIds);
+    }
+}
+
+if (!function_exists('syncSourceTransactionRefundProgress')) {
+    function syncSourceTransactionRefundProgress($conn, $sourceRefId) {
+        $sourceRefSafe = mysqli_real_escape_string($conn, (string)$sourceRefId);
+        if ($sourceRefSafe === '') {
+            return 0;
+        }
+
+        $sumSql = "SELECT COALESCE(SUM(rr.amount), 0) AS total_consumed
+                   FROM refunds r
+                   LEFT JOIN refund_reservations rr ON rr.refund_id = r.id AND rr.status = 'consumed'
+                   WHERE r.ref_id = '$sourceRefSafe'
+                   FOR UPDATE";
+        $sumRs = mysqli_query($conn, $sumSql);
+        if (!$sumRs) {
+            throw new Exception('Failed to compute source refund progress: ' . mysqli_error($conn));
+        }
+        $sumRow = mysqli_fetch_assoc($sumRs);
+        $totalConsumed = $sumRow && isset($sumRow['total_consumed']) ? (int)$sumRow['total_consumed'] : 0;
+
+        $updTxSql = "UPDATE transactions SET refund = $totalConsumed WHERE ref_id = '$sourceRefSafe'";
+        if (!mysqli_query($conn, $updTxSql)) {
+            throw new Exception('Failed to update source transaction refund progress: ' . mysqli_error($conn));
+        }
+
+        return $totalConsumed;
+    }
+}
+
+if (!function_exists('removeRefundedMaterialsIfCompleted')) {
+    function removeRefundedMaterialsIfCompleted($conn, $refundRow, $consumedTotal, $reservedCount) {
+        $refundId = (int)$refundRow['id'];
+        $refundAmount = (int)$refundRow['amount'];
+        $remainingAmount = (int)$refundRow['remaining_amount'];
+        $sourceRefId = isset($refundRow['ref_id']) ? (string)$refundRow['ref_id'] : '';
+        $studentId = isset($refundRow['student_id']) ? (int)$refundRow['student_id'] : 0;
+        $materialsJson = isset($refundRow['materials']) ? $refundRow['materials'] : null;
+
+        $isComplete = ($remainingAmount <= 0) && ($reservedCount === 0) && ($consumedTotal >= $refundAmount);
+        if (!$isComplete || $sourceRefId === '') {
+            return;
+        }
+
+        $materialIds = parseRefundMaterialIds($materialsJson);
+        if (empty($materialIds)) {
+            return;
+        }
+
+        $sourceRefSafe = mysqli_real_escape_string($conn, $sourceRefId);
+        $manualIdsCsv = implode(',', array_map('intval', $materialIds));
+
+        $deleteSql = "DELETE FROM manuals_bought WHERE ref_id = '$sourceRefSafe' AND manual_id IN ($manualIdsCsv)";
+        if ($studentId > 0) {
+            $deleteSql .= " AND buyer = $studentId";
+        }
+
+        if (!mysqli_query($conn, $deleteSql)) {
+            throw new Exception('Failed to remove refunded materials: ' . mysqli_error($conn));
+        }
+
+        refundEngineLog('Removed refunded materials from source transaction', [
+            'refund_id' => $refundId,
+            'source_ref_id' => $sourceRefId,
+            'student_id' => $studentId,
+            'materials' => $materialIds
+        ]);
+    }
+}
+
+if (!function_exists('finalizeConsumedRefundsForTx')) {
+    function finalizeConsumedRefundsForTx($conn, $refId) {
+        $refIdSafe = mysqli_real_escape_string($conn, (string)$refId);
+        if ($refIdSafe === '') {
+            return;
+        }
+
+        $refundIdsSql = "SELECT DISTINCT refund_id FROM refund_reservations WHERE ref_id = '$refIdSafe' AND status = 'consumed' FOR UPDATE";
+        $refundIdsRs = mysqli_query($conn, $refundIdsSql);
+        if (!$refundIdsRs) {
+            throw new Exception('Failed to fetch consumed refund ids: ' . mysqli_error($conn));
+        }
+
+        while ($refundIdRow = mysqli_fetch_assoc($refundIdsRs)) {
+            $refundId = (int)$refundIdRow['refund_id'];
+            if ($refundId <= 0) {
+                continue;
+            }
+
+            $refundSql = "SELECT *
+                          FROM refunds
+                          WHERE id = $refundId
+                          LIMIT 1
+                          FOR UPDATE";
+            $refundRs = mysqli_query($conn, $refundSql);
+            if (!$refundRs) {
+                throw new Exception('Failed to fetch refund row for finalization: ' . mysqli_error($conn));
+            }
+            $refundRow = mysqli_fetch_assoc($refundRs);
+            if (!$refundRow) {
+                continue;
+            }
+
+            $consumedSql = "SELECT COALESCE(SUM(amount), 0) AS total_consumed
+                            FROM refund_reservations
+                            WHERE refund_id = $refundId AND status = 'consumed'
+                            FOR UPDATE";
+            $consumedRs = mysqli_query($conn, $consumedSql);
+            if (!$consumedRs) {
+                throw new Exception('Failed to fetch consumed total for refund: ' . mysqli_error($conn));
+            }
+            $consumedRow = mysqli_fetch_assoc($consumedRs);
+            $consumedTotal = $consumedRow && isset($consumedRow['total_consumed']) ? (int)$consumedRow['total_consumed'] : 0;
+
+            $reservedSql = "SELECT COUNT(1) AS active_reserved
+                            FROM refund_reservations
+                            WHERE refund_id = $refundId AND status = 'reserved'
+                            FOR UPDATE";
+            $reservedRs = mysqli_query($conn, $reservedSql);
+            if (!$reservedRs) {
+                throw new Exception('Failed to fetch reserved count for refund: ' . mysqli_error($conn));
+            }
+            $reservedRow = mysqli_fetch_assoc($reservedRs);
+            $reservedCount = $reservedRow && isset($reservedRow['active_reserved']) ? (int)$reservedRow['active_reserved'] : 0;
+
+            $sourceRefId = isset($refundRow['ref_id']) ? (string)$refundRow['ref_id'] : '';
+            if ($sourceRefId !== '') {
+                syncSourceTransactionRefundProgress($conn, $sourceRefId);
+            }
+
+            removeRefundedMaterialsIfCompleted($conn, $refundRow, $consumedTotal, $reservedCount);
+        }
+    }
+}
+
+if (!function_exists('getConsumedReservationTotalForTx')) {
+    function getConsumedReservationTotalForTx($conn, $refId) {
+        $refIdSafe = mysqli_real_escape_string($conn, (string)$refId);
+        if ($refIdSafe === '') {
+            return 0;
+        }
+
+        $sql = "SELECT COALESCE(SUM(amount), 0) AS total_consumed
+                FROM refund_reservations
+                WHERE ref_id = '$refIdSafe' AND status = 'consumed'";
+        $rs = mysqli_query($conn, $sql);
+        if (!$rs) {
+            return 0;
+        }
+
+        $row = mysqli_fetch_assoc($rs);
+        return $row && isset($row['total_consumed']) ? (int)$row['total_consumed'] : 0;
+    }
+}
+
 if (!function_exists('consumeReservations')) {
     function consumeReservationsCore($conn, $refId) {
         $refIdSafe = mysqli_real_escape_string($conn, (string)$refId);
@@ -210,6 +529,7 @@ if (!function_exists('consumeReservations')) {
             if (!mysqli_query($conn, $updSql)) {
                 throw new Exception('Failed to consume reservations: ' . mysqli_error($conn));
             }
+            finalizeConsumedRefundsForTx($conn, $refIdSafe);
             refundEngineLog('Consumed refund reservations', ['ref_id' => $refId, 'amount' => $reservedTotal]);
             return $reservedTotal;
         }
