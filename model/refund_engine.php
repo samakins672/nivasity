@@ -232,6 +232,216 @@ if (!function_exists('reserveRefundForSchoolShare')) {
 }
 
 if (!function_exists('createMaterialRefund')) {
+    if (!function_exists('reallocateOverlyReleasedToRefundCore')) {
+        function reallocateOverlyReleasedToRefundCore($conn, $targetRefundId, $maxAmount = null, $reallocatedReason = 'overly_reallocated') {
+            $targetRefundId = (int)$targetRefundId;
+            $reallocatedReasonSafe = mysqli_real_escape_string($conn, (string)$reallocatedReason);
+            $requestedAmount = ($maxAmount === null) ? null : max(0, (int)$maxAmount);
+
+            if ($targetRefundId <= 0) {
+                return 0;
+            }
+
+            $targetSql = "SELECT id, school_id, amount
+                          FROM refunds
+                          WHERE id = $targetRefundId
+                          LIMIT 1
+                          FOR UPDATE";
+            $targetRs = mysqli_query($conn, $targetSql);
+            if (!$targetRs) {
+                throw new Exception('Failed to fetch target refund for overly reallocation: ' . mysqli_error($conn));
+            }
+            $targetRow = mysqli_fetch_assoc($targetRs);
+            if (!$targetRow) {
+                return 0;
+            }
+
+            $targetSchoolId = (int)$targetRow['school_id'];
+            $targetAmount = (int)$targetRow['amount'];
+            if ($targetSchoolId <= 0 || $targetAmount <= 0) {
+                return 0;
+            }
+
+            $targetTotalsSql = "SELECT
+                                    COALESCE(SUM(CASE WHEN status = 'consumed' THEN amount ELSE 0 END), 0) AS consumed_total,
+                                    COALESCE(SUM(CASE WHEN status = 'reserved' THEN amount ELSE 0 END), 0) AS reserved_total
+                                FROM refund_reservations
+                                WHERE refund_id = $targetRefundId
+                                FOR UPDATE";
+            $targetTotalsRs = mysqli_query($conn, $targetTotalsSql);
+            if (!$targetTotalsRs) {
+                throw new Exception('Failed to compute target refund totals for overly reallocation: ' . mysqli_error($conn));
+            }
+            $targetTotalsRow = mysqli_fetch_assoc($targetTotalsRs);
+            $targetConsumed = $targetTotalsRow && isset($targetTotalsRow['consumed_total']) ? (int)$targetTotalsRow['consumed_total'] : 0;
+            $targetReserved = $targetTotalsRow && isset($targetTotalsRow['reserved_total']) ? (int)$targetTotalsRow['reserved_total'] : 0;
+
+            $targetRemaining = max(0, $targetAmount - $targetConsumed - $targetReserved);
+            if ($targetRemaining <= 0) {
+                return 0;
+            }
+
+            $remainingNeed = ($requestedAmount === null) ? $targetRemaining : min($targetRemaining, $requestedAmount);
+            if ($remainingNeed <= 0) {
+                return 0;
+            }
+
+            $overlySql = "SELECT
+                              rr.id AS reservation_id,
+                              rr.refund_id AS source_refund_id,
+                              rr.ref_id,
+                              rr.school_id,
+                              rr.payer_user_id,
+                              rr.gateway,
+                              rr.amount,
+                              rr.channel,
+                              rr.reserved_at,
+                              rr.consumed_at
+                          FROM refund_reservations rr
+                          INNER JOIN refunds sr ON sr.id = rr.refund_id
+                          WHERE rr.status = 'released'
+                            AND rr.release_reason = 'overly'
+                            AND sr.school_id = $targetSchoolId
+                          ORDER BY rr.released_at ASC, rr.id ASC
+                          FOR UPDATE";
+            $overlyRs = mysqli_query($conn, $overlySql);
+            if (!$overlyRs) {
+                throw new Exception('Failed to fetch overly released reservations for reallocation: ' . mysqli_error($conn));
+            }
+
+            $reallocatedTotal = 0;
+            $usedRefs = [];
+
+            while ($remainingNeed > 0 && ($overlyRow = mysqli_fetch_assoc($overlyRs))) {
+                $sourceReservationId = (int)$overlyRow['reservation_id'];
+                $sourceRefundId = (int)$overlyRow['source_refund_id'];
+                $sourceRefId = isset($overlyRow['ref_id']) ? (string)$overlyRow['ref_id'] : '';
+                $sourceAmount = isset($overlyRow['amount']) ? (int)$overlyRow['amount'] : 0;
+                $sourcePayerUserId = isset($overlyRow['payer_user_id']) ? (int)$overlyRow['payer_user_id'] : 0;
+                $sourceSchoolId = isset($overlyRow['school_id']) ? (int)$overlyRow['school_id'] : $targetSchoolId;
+                $sourceGatewaySafe = mysqli_real_escape_string($conn, strtoupper((string)($overlyRow['gateway'] ?? '')));
+                $sourceChannelSafe = mysqli_real_escape_string($conn, strtolower((string)($overlyRow['channel'] ?? 'web')));
+
+                if ($sourceReservationId <= 0 || $sourceRefundId <= 0 || $sourceAmount <= 0 || $sourceRefId === '') {
+                    continue;
+                }
+
+                $moveAmount = min($sourceAmount, $remainingNeed);
+                if ($moveAmount <= 0) {
+                    continue;
+                }
+
+                if ($moveAmount >= $sourceAmount) {
+                    $markSql = "UPDATE refund_reservations
+                                SET release_reason = '$reallocatedReasonSafe'
+                                WHERE id = $sourceReservationId
+                                  AND status = 'released'
+                                  AND release_reason = 'overly'";
+                    if (!mysqli_query($conn, $markSql)) {
+                        throw new Exception('Failed to mark overly row as reallocated: ' . mysqli_error($conn));
+                    }
+                    if ((int)mysqli_affected_rows($conn) !== 1) {
+                        continue;
+                    }
+                } else {
+                    // Keep leftover on original row as 'overly', create an audit split for reallocated part.
+                    $leftover = $sourceAmount - $moveAmount;
+                    $updLeftoverSql = "UPDATE refund_reservations
+                                       SET amount = $leftover
+                                       WHERE id = $sourceReservationId
+                                         AND status = 'released'
+                                         AND release_reason = 'overly'";
+                    if (!mysqli_query($conn, $updLeftoverSql)) {
+                        throw new Exception('Failed to reduce overly row amount during reallocation: ' . mysqli_error($conn));
+                    }
+                    if ((int)mysqli_affected_rows($conn) !== 1) {
+                        continue;
+                    }
+
+                    $sourceSplitSql = "SELECT COALESCE(MAX(split_sequence), 0) + 1 AS next_split
+                                       FROM refund_reservations
+                                       WHERE refund_id = $sourceRefundId
+                                       FOR UPDATE";
+                    $sourceSplitRs = mysqli_query($conn, $sourceSplitSql);
+                    if (!$sourceSplitRs) {
+                        throw new Exception('Failed to compute source split sequence for overly reallocation: ' . mysqli_error($conn));
+                    }
+                    $sourceSplitRow = mysqli_fetch_assoc($sourceSplitRs);
+                    $sourceNextSplit = $sourceSplitRow && isset($sourceSplitRow['next_split']) ? (int)$sourceSplitRow['next_split'] : 1;
+
+                    $sourceRefIdSafe = mysqli_real_escape_string($conn, $sourceRefId);
+                    $sourceReservedAtValue = !empty($overlyRow['reserved_at']) ? "'" . mysqli_real_escape_string($conn, (string)$overlyRow['reserved_at']) . "'" : "NOW()";
+                    $sourceConsumedAtValue = !empty($overlyRow['consumed_at']) ? "'" . mysqli_real_escape_string($conn, (string)$overlyRow['consumed_at']) . "'" : "NULL";
+
+                    $insSourceAuditSql = "INSERT INTO refund_reservations
+                                          (refund_id, ref_id, split_sequence, school_id, payer_user_id, gateway, amount, channel, status, reserved_at, consumed_at, released_at, release_reason)
+                                          VALUES
+                                          ($sourceRefundId, '$sourceRefIdSafe', $sourceNextSplit, $sourceSchoolId, $sourcePayerUserId, '$sourceGatewaySafe', $moveAmount, '$sourceChannelSafe', 'released', $sourceReservedAtValue, $sourceConsumedAtValue, NOW(), '$reallocatedReasonSafe')";
+                    if (!mysqli_query($conn, $insSourceAuditSql)) {
+                        throw new Exception('Failed to insert source reallocation audit row: ' . mysqli_error($conn));
+                    }
+                }
+
+                $targetSplitSql = "SELECT COALESCE(MAX(split_sequence), 0) + 1 AS next_split
+                                   FROM refund_reservations
+                                   WHERE refund_id = $targetRefundId
+                                   FOR UPDATE";
+                $targetSplitRs = mysqli_query($conn, $targetSplitSql);
+                if (!$targetSplitRs) {
+                    throw new Exception('Failed to compute target split sequence for overly reallocation: ' . mysqli_error($conn));
+                }
+                $targetSplitRow = mysqli_fetch_assoc($targetSplitRs);
+                $targetSplitSequence = $targetSplitRow && isset($targetSplitRow['next_split']) ? (int)$targetSplitRow['next_split'] : 1;
+
+                // Requested behavior: preserve source ref_id, create a consumed row immediately.
+                $targetRefIdSafe = mysqli_real_escape_string($conn, $sourceRefId);
+                $insTargetSql = "INSERT INTO refund_reservations
+                                 (refund_id, ref_id, split_sequence, school_id, payer_user_id, gateway, amount, channel, status, reserved_at, consumed_at)
+                                 VALUES
+                                 ($targetRefundId, '$targetRefIdSafe', $targetSplitSequence, $targetSchoolId, $sourcePayerUserId, '$sourceGatewaySafe', $moveAmount, '$sourceChannelSafe', 'consumed', NOW(), NOW())";
+                if (!mysqli_query($conn, $insTargetSql)) {
+                    throw new Exception('Failed to create consumed target reservation from overly reallocation: ' . mysqli_error($conn));
+                }
+
+                $usedRefs[$sourceRefId] = true;
+                $reallocatedTotal += $moveAmount;
+                $remainingNeed -= $moveAmount;
+            }
+
+            if ($reallocatedTotal > 0) {
+                foreach (array_keys($usedRefs) as $usedRefId) {
+                    finalizeConsumedRefundsForTx($conn, $usedRefId);
+                }
+
+                refundEngineLog('Reallocated overly released reservations to target refund', [
+                    'target_refund_id' => $targetRefundId,
+                    'reallocated' => $reallocatedTotal,
+                    'reason' => $reallocatedReason
+                ]);
+            }
+
+            return $reallocatedTotal;
+        }
+    }
+
+    if (!function_exists('reallocateOverlyReleasedToRefund')) {
+        function reallocateOverlyReleasedToRefund($conn, $targetRefundId, $maxAmount = null, $reallocatedReason = 'overly_reallocated') {
+            mysqli_begin_transaction($conn);
+            try {
+                $reallocated = reallocateOverlyReleasedToRefundCore($conn, $targetRefundId, $maxAmount, $reallocatedReason);
+                mysqli_commit($conn);
+                return $reallocated;
+            } catch (Throwable $e) {
+                mysqli_rollback($conn);
+                refundEngineLog('reallocateOverlyReleasedToRefund failed', [
+                    'target_refund_id' => (int)$targetRefundId,
+                    'error' => $e->getMessage()
+                ]);
+                return 0;
+            }
+        }
+    }
+
     function createMaterialRefund($conn, $sourceRefId, $schoolId, $studentId, $materialIds, $reason = null) {
         $sourceRefSafe = mysqli_real_escape_string($conn, (string)$sourceRefId);
         $requestedSchoolId = (int)$schoolId;
@@ -342,6 +552,7 @@ if (!function_exists('createMaterialRefund')) {
             }
 
             $refundId = (int)mysqli_insert_id($conn);
+            $reallocatedOverly = reallocateOverlyReleasedToRefundCore($conn, $refundId, null, 'overly_reallocated');
             mysqli_commit($conn);
 
             refundEngineLog('Created material-level refund', [
@@ -350,7 +561,8 @@ if (!function_exists('createMaterialRefund')) {
                 'school_id' => $resolvedSchoolId,
                 'student_id' => (int)$resolvedStudentId,
                 'materials' => $cleanMaterialIds,
-                'amount' => $refundAmount
+                'amount' => $refundAmount,
+                'overly_reallocated' => (int)$reallocatedOverly
             ]);
 
             return [
@@ -359,7 +571,8 @@ if (!function_exists('createMaterialRefund')) {
                 'amount' => $refundAmount,
                 'school_id' => $resolvedSchoolId,
                 'student_id' => (int)$resolvedStudentId,
-                'materials' => array_values($cleanMaterialIds)
+                'materials' => array_values($cleanMaterialIds),
+                'overly_reallocated' => (int)$reallocatedOverly
             ];
         } catch (Throwable $e) {
             mysqli_rollback($conn);
