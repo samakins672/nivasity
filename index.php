@@ -563,7 +563,6 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       function initMobileAppPromptModal() {
         var modalEl = document.getElementById('mobileAppPromoModal');
         if (!modalEl || !window.bootstrap || !bootstrap.Modal) return;
-        if (!isMobileDevice()) return;
         if (hasSeenMobileAppPrompt()) return;
         if (registerMobileAppPromptVisit() < mobileAppPromptMinVisits) return;
 
