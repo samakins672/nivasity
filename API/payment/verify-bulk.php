@@ -42,7 +42,6 @@ $dry_run = false; // Optional dry run mode for CLI
 
 if ($isCli) {
     // CLI mode - parse command line arguments
-    logMessage("Starting CLI bulk verification", $logFile);
     
     // Check for arguments
     if ($argc > 1) {
@@ -79,8 +78,6 @@ if ($isCli) {
     if ($date_from) $date_from = mysqli_real_escape_string($conn, $date_from);
     if ($date_to) $date_to = mysqli_real_escape_string($conn, $date_to);
     if ($ref_id) $ref_id = mysqli_real_escape_string($conn, $ref_id);
-    
-    logMessage("CLI params - user_id: $user_id, date_from: $date_from, date_to: $date_to, ref_id: $ref_id, limit: $limit, dry_run: " . ($dry_run ? 'yes' : 'no'), $logFile);
     
 } else {
     // Web mode - parse HTTP request
@@ -157,7 +154,17 @@ $cart_query = mysqli_query($conn, $query_sql);
 if (!$cart_query) {
     $error_msg = 'Database query error: ' . mysqli_error($conn);
     if ($isCli) {
-        logMessage("ERROR: $error_msg", $logFile);
+        $failed_summary = [
+            'total_refs_checked' => 0,
+            'verified' => 0,
+            'already_processed' => 0,
+            'failed' => 1,
+            'failed_not_found' => 0,
+            'failed_errors' => 1,
+            'dry_run' => $dry_run ? 1 : 0,
+            'error' => $error_msg
+        ];
+        logMessage('SUMMARY ' . json_encode($failed_summary, JSON_UNESCAPED_SLASHES), $logFile);
         echo "ERROR: $error_msg\n";
         exit(1);
     } else {
@@ -246,10 +253,6 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
         
         if ($isCli) {
             echo "  -> Already processed\n";
-            logMessage("SKIPPED for $current_ref: already_processed", $logFile);
-            if (!$dry_run) {
-                logMessage("EMAIL for $current_ref: congratulatory_email_triggered (already_processed)", $logFile);
-            }
         }
         continue;
     }
@@ -269,7 +272,6 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
         
         if ($isCli) {
             echo "  -> ERROR: Gateway configuration error\n";
-            logMessage("FAILED for $current_ref: gateway_configuration_error - " . $e->getMessage(), $logFile);
         }
         continue;
     }
@@ -288,7 +290,6 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
         
         if ($isCli) {
             echo "  -> ERROR: Verification failed: " . $e->getMessage() . "\n";
-            logMessage("FAILED for $current_ref: verification_exception - " . $e->getMessage(), $logFile);
         }
         continue;
     }
@@ -313,7 +314,6 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
         
         if ($isCli) {
             echo "  -> No successful payment found\n";
-            logMessage("FAILED for $current_ref: no_successful_payment_found - " . $result['message'], $logFile);
         }
         continue;
     }
@@ -330,7 +330,6 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
         
         if ($isCli) {
             echo "  -> ERROR: Cart data not found\n";
-            logMessage("FAILED for $current_ref: cart_not_found", $logFile);
         }
         continue;
     }
@@ -347,7 +346,6 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
         
         if ($isCli) {
             echo "  -> ERROR: User not found\n";
-            logMessage("FAILED for $current_ref: user_not_found", $logFile);
         }
         continue;
     }
@@ -422,7 +420,6 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
         
         if ($isCli) {
             echo "  -> ERROR: No items could be processed\n";
-            logMessage("FAILED for $current_ref: no_items_processed", $logFile);
         }
         continue;
     }
@@ -476,7 +473,6 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
             
             if ($isCli) {
                 echo "  -> ERROR: Failed to record transaction\n";
-                logMessage("FAILED for $current_ref: transaction_record_failed - " . mysqli_error($conn), $logFile);
             }
             continue;
         }
@@ -497,10 +493,6 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
         }
 
         sendCongratulatoryEmail($conn, $cart_user_id, $current_ref, $manual_ids, $event_ids, $total_amount);
-
-        if ($isCli) {
-            logMessage("EMAIL for $current_ref: congratulatory_email_triggered", $logFile);
-        }
     }
     
     // Success
@@ -515,7 +507,6 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
     
     if ($isCli) {
         echo "  -> SUCCESS: Verified $items_processed item(s), Amount: $total_amount" . ($dry_run ? " (DRY RUN)" : "") . "\n";
-        logMessage("SUCCESS for $current_ref: Verified $items_processed items, amount $total_amount", $logFile);
     }
 }
 
@@ -541,10 +532,16 @@ if ($isCli) {
     echo "    - No successful payment found: {$summary['failed_not_found']}\n";
     echo "    - Processing/config errors: {$summary['failed_errors']}\n";
     
-    logMessage(
-        "Bulk verification completed - Total: {$summary['total_refs_checked']}, Verified: {$summary['verified']}, Already: {$summary['already_processed']}, Failed: {$summary['failed']} (No successful payment: {$summary['failed_not_found']}, Errors: {$summary['failed_errors']})",
-        $logFile
-    );
+    $compact_summary = [
+        'total_refs_checked' => $summary['total_refs_checked'],
+        'verified' => $summary['verified'],
+        'already_processed' => $summary['already_processed'],
+        'failed' => $summary['failed'],
+        'failed_not_found' => $summary['failed_not_found'],
+        'failed_errors' => $summary['failed_errors'],
+        'dry_run' => $dry_run ? 1 : 0
+    ];
+    logMessage('SUMMARY ' . json_encode($compact_summary, JSON_UNESCAPED_SLASHES), $logFile);
     
     // Exit with appropriate code
     if ($summary['failed'] > 0 && $summary['verified'] === 0) {
