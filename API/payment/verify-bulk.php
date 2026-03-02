@@ -84,7 +84,7 @@ if ($isCli) {
     $is_get = ($_SERVER['REQUEST_METHOD'] === 'GET');
     
     if ($is_get) {
-        // GET request - global check with no params (last 24 hours, excluding past 5 minutes)
+        // GET request - global check with no params (last 24 hours, excluding past 2 minutes)
         $user_id = 0;
         $date_from = '';
         $date_to = '';
@@ -118,9 +118,9 @@ if ($ref_id !== '') {
         $where_conditions[] = "created_at >= '$date_from 00:00:00'";
         $where_conditions[] = "created_at <= '$date_to 23:59:59'";
     } elseif ($date_from === '' && $date_to === '') {
-        // No dates provided - check within last 24 hours but exclude last 5 minutes
+        // No dates provided - check within last 24 hours but exclude last 2 minutes
         $where_conditions[] = "created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)";
-        $where_conditions[] = "created_at <= DATE_SUB(NOW(), INTERVAL 5 MINUTE)";
+        $where_conditions[] = "created_at <= DATE_SUB(NOW(), INTERVAL 2 MINUTE)";
     } elseif ($date_from !== '') {
         // Only from date provided
         $where_conditions[] = "created_at >= '$date_from 00:00:00'";
