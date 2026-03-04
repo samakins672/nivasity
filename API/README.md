@@ -1077,7 +1077,12 @@ This allows the payment gateway to redirect back to your mobile app after the us
     "status": "success",
     "tx_ref": "NIVAS_1234567890_123_abc",
     "amount": 4500,
-    "processed_at": "2024-02-01 14:30:00"
+    "refund_applied": 0,
+    "processed_at": "2024-02-01 14:30:00",
+    "date_formatted": "1st February, 2024",
+    "payer_name": "John Doe",
+    "matric_no": "190101001",
+    "payer_name_with_matric": "John Doe (Matric No.: 190101001)"
   }
 }
 ```
@@ -1104,6 +1109,7 @@ This allows the payment gateway to redirect back to your mobile app after the us
         "id": 234,
         "ref_id": "NIVAS_1234567890_123_abc",
         "amount": 4500,
+        "refund": 0,
         "status": "successful",
         "gateway_ref": "FLW_REF_123456",
         "items": [
@@ -1115,7 +1121,11 @@ This allows the payment gateway to redirect back to your mobile app after the us
             "price": 1500
           }
         ],
-        "created_at": "2024-02-01 14:30:00"
+        "created_at": "2024-02-01 14:30:00",
+        "date_formatted": "1st February, 2024",
+        "payer_name": "John Doe",
+        "matric_no": "190101001",
+        "payer_name_with_matric": "John Doe (Matric No.: 190101001)"
       }
     ],
     "pagination": {
@@ -1288,6 +1298,25 @@ This allows the payment gateway to redirect back to your mobile app after the us
 
 **Query Parameters:**
 - `tx_ref` (required): Transaction reference
+
+**Response (Success, when no `redirect_url` is provided):**
+```json
+{
+  "status": "success",
+  "message": "Payment verified and processed successfully",
+  "data": {
+    "status": "success",
+    "tx_ref": "NIVAS_1234567890_123_abc",
+    "amount": 4500,
+    "refund_applied": 0,
+    "processed_at": "2024-02-01 14:30:00",
+    "date_formatted": "1st February, 2024",
+    "payer_name": "John Doe",
+    "matric_no": "190101001",
+    "payer_name_with_matric": "John Doe (Matric No.: 190101001)"
+  }
+}
+```
 
 #### Bulk Verify Pending Payments
 **Endpoint:** `GET /payment/verify-bulk.php`

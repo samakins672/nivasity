@@ -67,19 +67,26 @@ function buildReceiptHtmlFromRef($conn, $user_id, $tx_ref, $filterType = null, $
     $user = $user_q ? mysqli_fetch_array($user_q) : null;
     $firstName = $user && isset($user['first_name']) ? $user['first_name'] : '';
     $lastName  = $user && isset($user['last_name']) ? $user['last_name'] : '';
+    $matricNo = $user && isset($user['matric_no']) ? trim((string)$user['matric_no']) : '';
     $payerName = trim(($firstName ?: '') . ' ' . ($lastName ?: ''));
     if ($payerName === '') { $payerName = 'Customer'; }
+    if ($matricNo === '') { $matricNo = 'N/A'; }
 
     // Resolve total amount: by default from transactions; when filtering a single item, compute from item price only
     $total_amount = 0.0;
     $tx_safe = mysqli_real_escape_string($conn, $tx_ref);
     $filtered = ($filterType !== null && $filterId !== null);
+    $receiptDate = '';
+    $tx_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT amount, created_at FROM transactions WHERE ref_id = '$tx_safe' AND user_id = " . (int)$user_id . " LIMIT 1"));
+    if ($tx_row && !empty($tx_row['created_at'])) {
+        $receiptDate = (string)$tx_row['created_at'];
+    }
     if (!$filtered) {
-        $tx_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT amount FROM transactions WHERE ref_id = '$tx_safe' AND user_id = " . (int)$user_id . " LIMIT 1"));
         if ($tx_row && isset($tx_row['amount'])) {
             $total_amount = (float)$tx_row['amount'];
         }
     }
+    $receiptDateFormatted = date('jS F, Y', ($receiptDate && strtotime($receiptDate) !== false) ? strtotime($receiptDate) : time());
 
     // Collect items from persisted purchases (manuals_bought, event_tickets)
     $items = [];
@@ -169,11 +176,12 @@ function buildReceiptHtmlFromRef($conn, $user_id, $tx_ref, $filterType = null, $
     $currency = '&#8358;';
     $message = '';
     $message .= '<h2 style="margin:0;color:#7a3b73">Payment Receipt</h2>';
-    $message .= '<p style="margin:6px 0 18px">Hello ' . htmlspecialchars($firstName ?: $payerName) . ',<br>Thank you for your purchase!</p>';
+    $message .= '<p style="margin:6px 0 18px">Thank you for your purchase!</p>';
 
     $message .= '<div style="background:#f9f4ff;border:1px solid #e8d7f0;border-radius:6px;padding:12px;margin-bottom:16px">'
-              . '<div style="margin:4px 0"><strong>Payer Name:</strong> ' . htmlspecialchars($payerName) . '</div>'
+              . '<div style="margin:4px 0"><strong>Payer Name:</strong> ' . htmlspecialchars($payerName) . ' &nbsp; <strong>Matric No.:</strong> ' . htmlspecialchars($matricNo) . '</div>'
               . '<div style="margin:4px 0"><strong>Reference:</strong> #' . htmlspecialchars($tx_ref) . '</div>'
+              . '<div style="margin:4px 0"><strong>Date:</strong> ' . htmlspecialchars($receiptDateFormatted) . '</div>'
               . '<div style="margin:4px 0"><strong>Total Amount:</strong> ' . $currency . ' ' . number_format((float)$total_amount, 2) . '</div>'
               . '</div>';
 

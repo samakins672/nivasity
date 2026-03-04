@@ -213,6 +213,19 @@ try {
 $amount = $processResult['amount'];
 $date = $processResult['processed_at'];
 $refund_applied = (int)$processResult['refund_applied'];
+$first_name = isset($user['first_name']) ? trim((string)$user['first_name']) : '';
+$last_name = isset($user['last_name']) ? trim((string)$user['last_name']) : '';
+$payer_name = trim($first_name . ' ' . $last_name);
+if ($payer_name === '') {
+    $payer_name = 'Customer';
+}
+$matric_no = isset($user['matric_no']) ? trim((string)$user['matric_no']) : '';
+if ($matric_no === '') {
+    $matric_no = 'N/A';
+}
+$date_ts = strtotime((string)$date);
+$date_formatted = $date_ts ? date('jS F, Y', $date_ts) : date('jS F, Y');
+$payer_name_with_matric = $payer_name . ' (Matric No.: ' . $matric_no . ')';
 
 // If redirect_url is provided, redirect to it with success parameters
 if ($redirect_url) {
@@ -233,6 +246,10 @@ sendApiSuccess($processResult['already_processed'] ? 'Payment already processed'
     'tx_ref' => $tx_ref,
     'amount' => (float)$amount,
     'refund_applied' => (int)$refund_applied,
-    'processed_at' => $date
+    'processed_at' => $date,
+    'date_formatted' => $date_formatted,
+    'payer_name' => $payer_name,
+    'matric_no' => $matric_no,
+    'payer_name_with_matric' => $payer_name_with_matric
 ]);
 ?>

@@ -13,6 +13,17 @@ $user = authenticateApiRequest($conn);
 requireStudentRole($user);
 
 $user_id = $user['id'];
+$first_name = isset($user['first_name']) ? trim((string)$user['first_name']) : '';
+$last_name = isset($user['last_name']) ? trim((string)$user['last_name']) : '';
+$payer_name = trim($first_name . ' ' . $last_name);
+if ($payer_name === '') {
+    $payer_name = 'Customer';
+}
+$matric_no = isset($user['matric_no']) ? trim((string)$user['matric_no']) : '';
+if ($matric_no === '') {
+    $matric_no = 'N/A';
+}
+$payer_name_with_matric = $payer_name . ' (Matric No.: ' . $matric_no . ')';
 
 // Get query parameters
 $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
@@ -38,6 +49,9 @@ $transactions = [];
 
 while ($row = mysqli_fetch_assoc($result)) {
     $tx_ref = $row['ref_id'];
+    $created_at = isset($row['created_at']) ? $row['created_at'] : '';
+    $created_at_ts = strtotime((string)$created_at);
+    $date_formatted = $created_at_ts ? date('jS F, Y', $created_at_ts) : date('jS F, Y');
     
     // Get items for this transaction (manuals only)
     $items = [];
@@ -67,7 +81,11 @@ while ($row = mysqli_fetch_assoc($result)) {
         'status' => $row['status'],
         'gateway_ref' => $row['gateway_ref'] ?? null,
         'items' => $items,
-        'created_at' => $row['created_at']
+        'created_at' => $created_at,
+        'date_formatted' => $date_formatted,
+        'payer_name' => $payer_name,
+        'matric_no' => $matric_no,
+        'payer_name_with_matric' => $payer_name_with_matric
     ];
 }
 
