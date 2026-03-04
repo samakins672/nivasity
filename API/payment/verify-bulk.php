@@ -208,23 +208,12 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
     }
     
     // Check if already processed (duplicate protection)
-    $dupe = false;
-    $check_tx = mysqli_query($conn, "SELECT 1 FROM transactions WHERE ref_id = '$current_ref' LIMIT 1");
-    if ($check_tx && mysqli_num_rows($check_tx) > 0) {
-        $dupe = true;
-    }
-    if (!$dupe) {
-        $check_mb = mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE ref_id = '$current_ref' LIMIT 1");
-        if ($check_mb && mysqli_num_rows($check_mb) > 0) {
-            $dupe = true;
-        }
-    }
-    if (!$dupe) {
-        $check_et = mysqli_query($conn, "SELECT 1 FROM event_tickets WHERE ref_id = '$current_ref' LIMIT 1");
-        if ($check_et && mysqli_num_rows($check_et) > 0) {
-            $dupe = true;
-        }
-    }
+    $mb_count_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM manuals_bought WHERE ref_id = '$current_ref' AND buyer = $cart_user_id"));
+    $et_count_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM event_tickets WHERE ref_id = '$current_ref' AND buyer = $cart_user_id"));
+    $delivery_count = (int)($mb_count_row['c'] ?? 0) + (int)($et_count_row['c'] ?? 0);
+    $cart_count_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM cart WHERE ref_id = '$current_ref' AND user_id = $cart_user_id"));
+    $cart_count = (int)($cart_count_row['c'] ?? 0);
+    $dupe = ($delivery_count > 0) && ($cart_count <= 0 || $delivery_count >= $cart_count);
     
     if ($dupe) {
         // Already processed - mark as confirmed
@@ -437,8 +426,10 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
     if (!$dry_run) {
         try {
             $refund_applied = withTxProcessingLock($conn, $current_ref, function() use ($conn, $current_ref, $cart_user_id, $total_amount, $charge, $profit, $status, $medium) {
-                $alreadyTx = mysqli_query($conn, "SELECT id FROM transactions WHERE ref_id = '$current_ref' LIMIT 1");
+                $alreadyTx = mysqli_query($conn, "SELECT id FROM transactions WHERE ref_id = '$current_ref' ORDER BY id DESC LIMIT 1");
                 if ($alreadyTx && mysqli_num_rows($alreadyTx) > 0) {
+                    $updTxSql = "UPDATE transactions SET amount = $total_amount, charge = $charge, profit = $profit, status = '$status', medium = '$medium' WHERE ref_id = '$current_ref'";
+                    mysqli_query($conn, $updTxSql);
                     return (int)getConsumedReservationTotalForTx($conn, $current_ref);
                 }
                 $refund = 0;
@@ -446,7 +437,7 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
                 try {
                     $refund = consumeReservationsCore($conn, $current_ref);
                     $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium)
-                                    VALUES ('$current_ref', $cart_user_id, $total_amount, $charge, $profit, 0, '$status', '$medium')";
+                                    VALUES ('$current_ref', $cart_user_id, $total_amount, $charge, $profit, $refund, '$status', '$medium')";
                     if (!mysqli_query($conn, $insertTxSql)) {
                         throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
                     }

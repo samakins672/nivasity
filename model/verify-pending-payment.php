@@ -51,17 +51,15 @@ if ($action !== 'verify') {
 $result = null;
 try {
     $result = withTxProcessingLock($conn, $ref_id_esc, function() use ($conn, $ref_id, $ref_id_esc, $user_id, $school_id) {
-    // Duplicate protection before verify
-    $dupe = false;
-    if (mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM transactions WHERE ref_id = '$ref_id_esc' LIMIT 1")) > 0) {
-        $dupe = true;
-    }
-    if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE ref_id = '$ref_id_esc' LIMIT 1")) > 0) {
-        $dupe = true;
-    }
-    if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM event_tickets WHERE ref_id = '$ref_id_esc' LIMIT 1")) > 0) {
-        $dupe = true;
-    }
+    $processed_query = mysqli_query($conn, "SELECT id, amount FROM transactions WHERE ref_id = '$ref_id_esc' ORDER BY id DESC LIMIT 1");
+    $tx_exists = $processed_query && mysqli_num_rows($processed_query) > 0;
+    $tx_row = $tx_exists ? mysqli_fetch_assoc($processed_query) : null;
+    $manual_count_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM manuals_bought WHERE ref_id = '$ref_id_esc' AND buyer = $user_id"));
+    $event_count_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM event_tickets WHERE ref_id = '$ref_id_esc' AND buyer = $user_id"));
+    $delivery_count = (int)($manual_count_row['c'] ?? 0) + (int)($event_count_row['c'] ?? 0);
+    $cart_count_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM cart WHERE ref_id = '$ref_id_esc' AND user_id = $user_id"));
+    $cart_count = (int)($cart_count_row['c'] ?? 0);
+    $dupe = ($delivery_count > 0) && ($cart_count <= 0 || $delivery_count >= $cart_count);
 
     if ($dupe) {
         // Mark confirmed and cleanup session
@@ -85,11 +83,11 @@ try {
             }
         }
 
-        $tx_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT amount FROM transactions WHERE ref_id = '$ref_id_esc' LIMIT 1"));
         $refundApplied = getConsumedReservationTotalForTx($conn, $ref_id_esc);
         return [
             'status' => 'success',
             'message' => 'Already processed',
+            'amount' => $tx_row && isset($tx_row['amount']) ? (float)$tx_row['amount'] : 0,
             'refund_applied' => (int)$refundApplied
         ];
     }
@@ -157,6 +155,7 @@ try {
     $manual_ids = [];
     $event_ids = [];
     $sum_amount = 0.0;
+    $items_processed = 0;
     $status = 'successful';
 
     // Process each cart item
@@ -180,6 +179,7 @@ try {
                         return ['status' => 'error', 'message' => 'Failed to add manual to purchases'];
                     }
                 }
+                $items_processed++;
             } else {
                 return ['status' => 'error', 'message' => 'Manual not found for purchase'];
             }
@@ -199,10 +199,15 @@ try {
                         return ['status' => 'error', 'message' => 'Failed to add event ticket'];
                     }
                 }
+                $items_processed++;
             } else {
                 return ['status' => 'error', 'message' => 'Event not found for purchase'];
             }
         }
+    }
+
+    if ($items_processed < 1 || $sum_amount <= 0) {
+        return ['status' => 'error', 'message' => 'No cart items were fulfilled; transaction not recorded'];
     }
 
     // Calculate charges and consume refunds
@@ -216,9 +221,18 @@ try {
     mysqli_begin_transaction($conn);
     try {
         $refund_applied = consumeReservationsCore($conn, $ref_id_esc);
-        $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium) VALUES ('$ref_id_esc', $user_id, $total_amount, $charge, $profit, 0, '$status', '$medium')";
-        if (!mysqli_query($conn, $insertTxSql)) {
-            throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
+        if ($tx_exists) {
+            $updateTxSql = "UPDATE transactions
+                            SET user_id = $user_id, amount = $total_amount, charge = $charge, profit = $profit, refund = $refund_applied, status = '$status', medium = '$medium'
+                            WHERE ref_id = '$ref_id_esc'";
+            if (!mysqli_query($conn, $updateTxSql)) {
+                throw new Exception('Failed to repair transaction: ' . mysqli_error($conn));
+            }
+        } else {
+            $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium) VALUES ('$ref_id_esc', $user_id, $total_amount, $charge, $profit, $refund_applied, '$status', '$medium')";
+            if (!mysqli_query($conn, $insertTxSql)) {
+                throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
+            }
         }
         mysqli_commit($conn);
     } catch (Throwable $e) {
