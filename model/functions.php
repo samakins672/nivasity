@@ -179,7 +179,8 @@ function buildReceiptHtmlFromRef($conn, $user_id, $tx_ref, $filterType = null, $
     $message .= '<p style="margin:6px 0 18px">Thank you for your purchase!</p>';
 
     $message .= '<div style="background:#f9f4ff;border:1px solid #e8d7f0;border-radius:6px;padding:12px;margin-bottom:16px">'
-              . '<div style="margin:4px 0"><strong>Payer Name:</strong> ' . htmlspecialchars($payerName) . ' &nbsp; <strong>Matric No.:</strong> ' . htmlspecialchars($matricNo) . '</div>'
+              . '<div style="margin:4px 0"><strong>Payer Name:</strong> ' . htmlspecialchars($payerName) . '</div>'
+              . '<div style="margin:4px 0"><strong>Matric No.:</strong> ' . htmlspecialchars($matricNo) . '</div>'
               . '<div style="margin:4px 0"><strong>Reference:</strong> #' . htmlspecialchars($tx_ref) . '</div>'
               . '<div style="margin:4px 0"><strong>Date:</strong> ' . htmlspecialchars($receiptDateFormatted) . '</div>'
               . '<div style="margin:4px 0"><strong>Total Amount:</strong> ' . $currency . ' ' . number_format((float)$total_amount, 2) . '</div>'

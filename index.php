@@ -21,15 +21,6 @@ if (!isset($_SESSION["nivas_cart_event$user_id"])) {
 }
 $total_cart_items = count($_SESSION["nivas_cart$user_id"]) + count($_SESSION["nivas_cart_event$user_id"]);
 $total_cart_price = 0;
-$store_level_filter = isset($_GET['store_level']) ? trim((string) $_GET['store_level']) : '';
-if (!preg_match('/^[0-9A-Za-z _-]*$/', $store_level_filter)) {
-  $store_level_filter = '';
-}
-$store_level_filter_sql = '';
-if ($store_level_filter !== '' && strtolower($store_level_filter) !== 'all') {
-  $store_level_filter_sql = mysqli_real_escape_string($conn, $store_level_filter);
-}
-$manual_level_where = $store_level_filter_sql !== '' ? " AND m.level = '$store_level_filter_sql'" : '';
 $store_level_options = [];
 
 $user_dept_int = (int) $user_dept;
@@ -83,8 +74,8 @@ try {
 }
 
 try {
-  $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(m.id) FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int$manual_level_where"))[0];
-  $manual_query = mysqli_query($conn, "SELECT * FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int$manual_level_where ORDER BY m.id DESC");
+  $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(m.id) FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int"))[0];
+  $manual_query = mysqli_query($conn, "SELECT * FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int ORDER BY m.id DESC");
 
   $level_query = mysqli_query($conn, "SELECT DISTINCT m.level FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int AND m.level IS NOT NULL AND TRIM(m.level) <> '' ORDER BY m.level ASC");
   if ($level_query) {
@@ -98,9 +89,8 @@ try {
   }
 } catch (Throwable $e) {
   error_log('[index] manual query failed, falling back: ' . $e->getMessage());
-  $fallback_level_where = $store_level_filter_sql !== '' ? " AND level = '$store_level_filter_sql'" : '';
-  $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int$fallback_level_where"))[0];
-  $manual_query = mysqli_query($conn, "SELECT * FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int$fallback_level_where ORDER BY id DESC");
+  $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int"))[0];
+  $manual_query = mysqli_query($conn, "SELECT * FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int ORDER BY id DESC");
 }
 
 $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' ORDER BY `id` DESC");
@@ -169,7 +159,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                         <select class="form-control w-100" name="store-level-filter" id="store-level-filter">
                           <option value="">All Levels</option>
                           <?php foreach ($store_level_options as $level_option): ?>
-                            <option value="<?php echo htmlspecialchars($level_option); ?>" <?php echo ($store_level_filter === $level_option) ? 'selected' : ''; ?>>
+                            <option value="<?php echo htmlspecialchars($level_option); ?>">
                               <?php echo htmlspecialchars($level_option); ?>
                             </option>
                           <?php endforeach; ?>
@@ -222,7 +212,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                               $button_class = $is_in_cart ? 'btn-primary' : 'btn-outline-primary';
 
                               ?>
-                                  <div class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card sortable-card">
+                                  <div class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card sortable-card" data-level="<?php echo htmlspecialchars(strtolower(trim((string)($manual['level'] ?? '')))); ?>">
                                     <div class="card card-rounded shadow-sm h-100">
                                       <div class="card-body d-flex flex-column h-100">
                                         <h4 class="card-title"><?php echo $manual['title'] ?> <span class="text-secondary">- <?php echo $manual['course_code'] ?></span></h4>
@@ -718,17 +708,42 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       initMobileAppPromptModal();
 
       $(document).on('change', '#store-level-filter', function () {
-        var level = $(this).val();
-        var url = new URL(window.location.href);
+        applyStoreLevelFilter();
+      });
 
-        if (level) {
-          url.searchParams.set('store_level', level);
-        } else {
-          url.searchParams.delete('store_level');
+      function applyStoreLevelFilter() {
+        var selectedLevel = ($('#store-level-filter').val() || '').toString().trim().toLowerCase();
+        var $cards = $('#store .sortables .sortable-card');
+        var visibleCount = 0;
+
+        $cards.each(function () {
+          var cardLevel = ($(this).attr('data-level') || '').toString().trim().toLowerCase();
+          var shouldShow = !selectedLevel || selectedLevel === cardLevel;
+          $(this).toggle(shouldShow);
+          if (shouldShow) {
+            visibleCount++;
+          }
+        });
+
+        var $empty = $('#store-level-empty-state');
+        if (!$empty.length) {
+          $('#store .sortables').append(
+            '<div class="col-12" id="store-level-empty-state" style="display:none;">'
+              + '<div class="card card-rounded shadow-sm">'
+                + '<div class="card-body">'
+                  + '<h5 class="card-title text-center">No material available for this level.</h5>'
+                  + '<p class="card-text text-center">Try another level.</p>'
+                + '</div>'
+              + '</div>'
+            + '</div>'
+          );
+          $empty = $('#store-level-empty-state');
         }
 
-        window.location.href = url.toString();
-      });
+        $empty.toggle(visibleCount === 0);
+      }
+
+      applyStoreLevelFilter();
 
       $('.go-to-cart-button').on('click', function () {
           $('#cart-tab').tab('show');
