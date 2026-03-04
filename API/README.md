@@ -675,6 +675,7 @@ These endpoints provide institutional data needed for registration and profile s
   - `recommended` - Sort by latest due date (soonest deadlines first) **[DEFAULT]**
   - `low-high` - Sort by price (lowest to highest)
   - `high-low` - Sort by price (highest to lowest)
+- `level` (optional): Filter by exact level value (e.g., `100`, `200`, `300`)
 - `page` (optional, default: 1): Page number
 - `limit` (optional, default: 20, max: 100): Items per page
 
@@ -730,8 +731,11 @@ GET /materials/list.php?sort=low-high
 # Get materials sorted by price (high to low)
 GET /materials/list.php?sort=high-low
 
-# Search and sort
-GET /materials/list.php?search=algorithm&sort=low-high
+# Filter materials by level
+GET /materials/list.php?level=300
+
+# Search and filter by level
+GET /materials/list.php?search=algorithm&level=300
 ```
 
 #### 13. Get Material Details

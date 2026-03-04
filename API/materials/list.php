@@ -19,6 +19,7 @@ $user_dept = $user['dept'] ?? null;
 // Get query parameters
 $search = isset($_GET['search']) ? sanitizeInput($conn, $_GET['search']) : '';
 $sort = isset($_GET['sort']) ? strtolower($_GET['sort']) : 'recommended';
+$level = isset($_GET['level']) ? trim((string)$_GET['level']) : '';
 $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
 $limit = isset($_GET['limit']) ? min(100, max(1, (int)$_GET['limit'])) : 20;
 $offset = ($page - 1) * $limit;
@@ -60,6 +61,13 @@ if ($user_dept_safe) {
 
 if (!empty($search)) {
     $where_conditions[] = "(m.title LIKE '%$search%' OR m.course_code LIKE '%$search%')";
+}
+if ($level !== '' && strtolower($level) !== 'all') {
+    if (!preg_match('/^[0-9A-Za-z _-]+$/', $level)) {
+        sendApiError('Invalid level format', 400);
+    }
+    $level_safe = sanitizeInput($conn, $level);
+    $where_conditions[] = "m.level = '$level_safe'";
 }
 
 $where_clause = implode(' AND ', $where_conditions);

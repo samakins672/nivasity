@@ -21,6 +21,16 @@ if (!isset($_SESSION["nivas_cart_event$user_id"])) {
 }
 $total_cart_items = count($_SESSION["nivas_cart$user_id"]) + count($_SESSION["nivas_cart_event$user_id"]);
 $total_cart_price = 0;
+$store_level_filter = isset($_GET['store_level']) ? trim((string) $_GET['store_level']) : '';
+if (!preg_match('/^[0-9A-Za-z _-]*$/', $store_level_filter)) {
+  $store_level_filter = '';
+}
+$store_level_filter_sql = '';
+if ($store_level_filter !== '' && strtolower($store_level_filter) !== 'all') {
+  $store_level_filter_sql = mysqli_real_escape_string($conn, $store_level_filter);
+}
+$manual_level_where = $store_level_filter_sql !== '' ? " AND m.level = '$store_level_filter_sql'" : '';
+$store_level_options = [];
 
 $user_dept_int = (int) $user_dept;
 $school_id_int = (int) $school_id;
@@ -73,12 +83,24 @@ try {
 }
 
 try {
-  $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(m.id) FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int"))[0];
-  $manual_query = mysqli_query($conn, "SELECT * FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int ORDER BY m.id DESC");
+  $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(m.id) FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int$manual_level_where"))[0];
+  $manual_query = mysqli_query($conn, "SELECT * FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int$manual_level_where ORDER BY m.id DESC");
+
+  $level_query = mysqli_query($conn, "SELECT DISTINCT m.level FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int AND m.level IS NOT NULL AND TRIM(m.level) <> '' ORDER BY m.level ASC");
+  if ($level_query) {
+    while ($level_row = mysqli_fetch_assoc($level_query)) {
+      $level_value = trim((string) ($level_row['level'] ?? ''));
+      if ($level_value !== '') {
+        $store_level_options[] = $level_value;
+      }
+    }
+    $store_level_options = array_values(array_unique($store_level_options));
+  }
 } catch (Throwable $e) {
   error_log('[index] manual query failed, falling back: ' . $e->getMessage());
-  $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int"))[0];
-  $manual_query = mysqli_query($conn, "SELECT * FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int ORDER BY id DESC");
+  $fallback_level_where = $store_level_filter_sql !== '' ? " AND level = '$store_level_filter_sql'" : '';
+  $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int$fallback_level_where"))[0];
+  $manual_query = mysqli_query($conn, "SELECT * FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int$fallback_level_where ORDER BY id DESC");
 }
 
 $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' ORDER BY `id` DESC");
@@ -143,11 +165,14 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                   <div class="tab-pane fade show active" id="store" role="tabpanel" aria-labelledby="store">
                     <div class="row">
                       <div class="col-5 col-md-3 offset-md-9 form-group me-2">
-                        <p class="text-muted">Sort By:</p>
-                        <select class="form-control w-100" name="sort-by" id="sort-by">
-                          <option value="1">Due Date</option>
-                          <option value="2">Price: Low to High</option>
-                          <option value="3">Price: High to Low</option>
+                        <p class="text-muted">Level:</p>
+                        <select class="form-control w-100" name="store-level-filter" id="store-level-filter">
+                          <option value="">All Levels</option>
+                          <?php foreach ($store_level_options as $level_option): ?>
+                            <option value="<?php echo htmlspecialchars($level_option); ?>" <?php echo ($store_level_filter === $level_option) ? 'selected' : ''; ?>>
+                              <?php echo htmlspecialchars($level_option); ?>
+                            </option>
+                          <?php endforeach; ?>
                         </select>
                       </div>
                     </div>
@@ -692,10 +717,18 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
       initMobileAppPromptModal();
 
-      // $('#sort-by').change(function () {
-      //   var sortByValue = $(this).val();
-      //   sortCards(sortByValue);
-      // });
+      $(document).on('change', '#store-level-filter', function () {
+        var level = $(this).val();
+        var url = new URL(window.location.href);
+
+        if (level) {
+          url.searchParams.set('store_level', level);
+        } else {
+          url.searchParams.delete('store_level');
+        }
+
+        window.location.href = url.toString();
+      });
 
       $('.go-to-cart-button').on('click', function () {
           $('#cart-tab').tab('show');
@@ -757,45 +790,6 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       });
 
       reloadCartTable()
-
-      function sortCards(sortBy) {
-        var $container = $('.sortables');
-        var $cards = $container.children('.sortable-card');
-
-        // Fade out the cards before sorting
-        $cards.fadeOut(400, function () {
-
-          $cards.sort(function (a, b) {
-            var aValue, bValue;
-
-            // Extract values based on the selected option
-            switch (sortBy) {
-              case '1': // Latest product (Assuming the due date is in the format 'Sun, Dec 4')
-                aValue = new Date($(a).find('.due_date').text()).getTime();
-                bValue = new Date($(b).find('.due_date').text()).getTime();
-                break;
-              case '2': // Lowest price
-                aValue = parseFloat($(a).find('.price').text().replace('₦ ', ''));
-                bValue = parseFloat($(b).find('.price').text().replace('₦ ', ''));
-                break;
-              case '3': // Highest price
-                aValue = parseFloat($(b).find('.price').text().replace('₦ ', ''));
-                bValue = parseFloat($(a).find('.price').text().replace('₦ ', ''));
-                break;
-              default:
-                break;
-            }
-
-            // Compare the values
-            return aValue - bValue;
-          });
-
-          $container.html($cards);
-
-          // Fade in the cards after sorting
-          $cards.fadeIn(400);
-        });
-      }
 
       // Add to Cart button click event
       $(document).on('click', '.remove-cart', function (e) {
@@ -1376,3 +1370,4 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 </body>
 
 </html>
+
