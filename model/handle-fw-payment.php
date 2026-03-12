@@ -4,6 +4,7 @@ require_once 'config.php';
 require_once __DIR__ . '/../config/fw.php';
 include('mail.php');
 include('functions.php');
+require_once 'refund_engine.php';
 $curl = curl_init();
 
 $user_id = $_SESSION['nivas_userId'];
@@ -50,6 +51,7 @@ if (isset($_GET['transaction_id'])) {
     if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE ref_id = '$safe_ref' LIMIT 1")) > 0) { $dupe = true; }
     if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM event_tickets WHERE ref_id = '$safe_ref' LIMIT 1")) > 0) { $dupe = true; }
     if ($dupe) {
+      consumeReservationsForSettledTx($conn, $tx_ref);
       mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$safe_ref'");
       $_SESSION["nivas_cart$user_id"] = array();
       $_SESSION["nivas_cart_event$user_id"] = array();
@@ -155,9 +157,33 @@ if (isset($_GET['transaction_id'])) {
       $total_amount = $calc['total_amount'];
     }
 
-    sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $total_amount);
+    try {
+      mysqli_begin_transaction($conn);
+      $refund_applied = consumeReservationsCore($conn, $tx_ref);
+      $existingTx = mysqli_query($conn, "SELECT id FROM transactions WHERE ref_id = '$tx_ref' ORDER BY id DESC LIMIT 1");
+      if ($existingTx && mysqli_num_rows($existingTx) > 0) {
+        $updateTxSql = "UPDATE transactions
+                        SET user_id = $user_id, amount = $total_amount, charge = $charge, profit = $profit, refund = $refund_applied, status = '$status', medium = 'FLUTTERWAVE'
+                        WHERE ref_id = '$tx_ref'";
+        if (!mysqli_query($conn, $updateTxSql)) {
+          throw new Exception('Failed to repair transaction: ' . mysqli_error($conn));
+        }
+      } else {
+        $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, $refund_applied, '$status', 'FLUTTERWAVE')";
+        if (!mysqli_query($conn, $insertTxSql)) {
+          throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
+        }
+      }
+      mysqli_commit($conn);
+    } catch (Throwable $e) {
+      mysqli_rollback($conn);
+      if (!isset($_GET['callback'])) {
+        header('Location: /?payment=unsuccessful');
+      }
+      exit;
+    }
 
-    mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, '$status', 'FLUTTERWAVE')");
+    sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $total_amount);
     
     mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$tx_ref'");
     

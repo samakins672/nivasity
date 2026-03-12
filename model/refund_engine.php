@@ -935,6 +935,33 @@ if (!function_exists('getConsumedReservationTotalForTx')) {
     }
 }
 
+if (!function_exists('consumeReservationsForSettledTx')) {
+    function consumeReservationsForSettledTx($conn, $refId) {
+        $refIdSafe = mysqli_real_escape_string($conn, (string)$refId);
+        if ($refIdSafe === '') {
+            return 0;
+        }
+
+        mysqli_begin_transaction($conn);
+        try {
+            $refundApplied = consumeReservationsCore($conn, $refIdSafe);
+            $syncSql = "UPDATE transactions SET refund = $refundApplied WHERE ref_id = '$refIdSafe'";
+            if (!mysqli_query($conn, $syncSql)) {
+                throw new Exception('Failed to sync transaction refund amount: ' . mysqli_error($conn));
+            }
+            mysqli_commit($conn);
+            return (int)$refundApplied;
+        } catch (Throwable $e) {
+            mysqli_rollback($conn);
+            refundEngineLog('consumeReservationsForSettledTx failed', [
+                'ref_id' => $refId,
+                'error' => $e->getMessage()
+            ]);
+            return (int)getConsumedReservationTotalForTx($conn, $refIdSafe);
+        }
+    }
+}
+
 if (!function_exists('consumeReservations')) {
     function consumeReservationsCore($conn, $refId) {
         $refIdSafe = mysqli_real_escape_string($conn, (string)$refId);

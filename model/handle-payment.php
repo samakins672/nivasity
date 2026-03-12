@@ -126,7 +126,7 @@ if (isset($_GET['transaction_id']) || isset($_GET['reference']) || isset($_GET['
             $_SESSION["nivas_cart$user_id"] = array();
             $_SESSION["nivas_cart_event$user_id"] = array();
 
-            $refundApplied = getConsumedReservationTotalForTx($conn, $tx_ref_esc);
+            $refundApplied = consumeReservationsForSettledTx($conn, $tx_ref);
             return [
                 'status' => 'success',
                 'message' => 'Already processed',

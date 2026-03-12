@@ -78,7 +78,7 @@ try {
     $cart_count = (int)($cart_count_row['c'] ?? 0);
 
     if (($delivery_count > 0) && ($cart_count <= 0 || $delivery_count >= $cart_count)) {
-        $refundApplied = getConsumedReservationTotalForTx($conn, $tx_ref);
+        $refundApplied = consumeReservationsForSettledTx($conn, $tx_ref);
         return [
             'already_processed' => true,
             'tx_ref' => $tx_ref,

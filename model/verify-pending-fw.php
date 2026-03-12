@@ -4,6 +4,7 @@ require_once 'config.php';
 require_once __DIR__ . '/../config/fw.php';
 include('functions.php');
 include('mail.php');
+require_once 'refund_engine.php';
 
 header('Content-Type: application/json');
 
@@ -42,6 +43,7 @@ if (mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM transactions WHERE ref_id
 if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE ref_id = '$ref_id_esc' LIMIT 1")) > 0) { $dupe = true; }
 if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM event_tickets WHERE ref_id = '$ref_id_esc' LIMIT 1")) > 0) { $dupe = true; }
 if ($dupe) {
+    consumeReservationsForSettledTx($conn, $ref_id);
     // Mark confirmed
     mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$ref_id_esc'");
 
@@ -147,7 +149,29 @@ $total_amount = (float)$calc['total_amount'];
 $charge = (float)$calc['charge'];
 $profit = (float)$calc['profit'];
 
-mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status, medium) VALUES ('$ref_id_esc', $user_id, $total_amount, $charge, $profit, '$status', 'FLUTTERWAVE')");
+try {
+    mysqli_begin_transaction($conn);
+    $refund_applied = consumeReservationsCore($conn, $ref_id);
+    $existingTx = mysqli_query($conn, "SELECT id FROM transactions WHERE ref_id = '$ref_id_esc' ORDER BY id DESC LIMIT 1");
+    if ($existingTx && mysqli_num_rows($existingTx) > 0) {
+        $updateTxSql = "UPDATE transactions
+                        SET user_id = $user_id, amount = $total_amount, charge = $charge, profit = $profit, refund = $refund_applied, status = '$status', medium = 'FLUTTERWAVE'
+                        WHERE ref_id = '$ref_id_esc'";
+        if (!mysqli_query($conn, $updateTxSql)) {
+            throw new Exception('Failed to repair transaction: ' . mysqli_error($conn));
+        }
+    } else {
+        $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium) VALUES ('$ref_id_esc', $user_id, $total_amount, $charge, $profit, $refund_applied, '$status', 'FLUTTERWAVE')";
+        if (!mysqli_query($conn, $insertTxSql)) {
+            throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
+        }
+    }
+    mysqli_commit($conn);
+} catch (Throwable $e) {
+    mysqli_rollback($conn);
+    echo json_encode(['status' => 'error', 'message' => 'Failed to record transaction']);
+    exit;
+}
 
 // Send email and cleanup
 sendCongratulatoryEmail($conn, $user_id, $ref_id, $manual_ids, $event_ids, $total_amount);

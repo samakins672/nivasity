@@ -83,7 +83,7 @@ try {
             }
         }
 
-        $refundApplied = getConsumedReservationTotalForTx($conn, $ref_id_esc);
+        $refundApplied = consumeReservationsForSettledTx($conn, $ref_id);
         return [
             'status' => 'success',
             'message' => 'Already processed',
@@ -220,7 +220,7 @@ try {
     $refund_applied = 0;
     mysqli_begin_transaction($conn);
     try {
-        $refund_applied = consumeReservationsCore($conn, $ref_id_esc);
+        $refund_applied = consumeReservationsCore($conn, $ref_id);
         if ($tx_exists) {
             $updateTxSql = "UPDATE transactions
                             SET user_id = $user_id, amount = $total_amount, charge = $charge, profit = $profit, refund = $refund_applied, status = '$status', medium = '$medium'

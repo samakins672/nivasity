@@ -219,6 +219,7 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
         // Already processed - mark as confirmed
         if (!$dry_run) {
             mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$current_ref'");
+            $result['refund_applied'] = (int)consumeReservationsForSettledTx($conn, $current_ref);
 
             // Re-trigger congratulatory email for already-processed refs to avoid missed receipts
             $manual_ids = array();
@@ -428,9 +429,10 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
             $refund_applied = withTxProcessingLock($conn, $current_ref, function() use ($conn, $current_ref, $cart_user_id, $total_amount, $charge, $profit, $status, $medium) {
                 $alreadyTx = mysqli_query($conn, "SELECT id FROM transactions WHERE ref_id = '$current_ref' ORDER BY id DESC LIMIT 1");
                 if ($alreadyTx && mysqli_num_rows($alreadyTx) > 0) {
-                    $updTxSql = "UPDATE transactions SET amount = $total_amount, charge = $charge, profit = $profit, status = '$status', medium = '$medium' WHERE ref_id = '$current_ref'";
+                    $refund = consumeReservationsForSettledTx($conn, $current_ref);
+                    $updTxSql = "UPDATE transactions SET amount = $total_amount, charge = $charge, profit = $profit, refund = $refund, status = '$status', medium = '$medium' WHERE ref_id = '$current_ref'";
                     mysqli_query($conn, $updTxSql);
-                    return (int)getConsumedReservationTotalForTx($conn, $current_ref);
+                    return (int)$refund;
                 }
                 $refund = 0;
                 mysqli_begin_transaction($conn);

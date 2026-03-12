@@ -15,6 +15,7 @@ require_once 'PaymentGatewayFactory.php';
 include('mail.php');
 include('functions.php');
 require_once __DIR__ . '/notifications.php';
+require_once __DIR__ . '/refund_engine.php';
 
 // Parse incoming webhook
 $raw = file_get_contents('php://input');
@@ -108,6 +109,7 @@ foreach ($cartItems as $refId) {
     if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM event_tickets WHERE ref_id = '$safe_ref' LIMIT 1")) > 0) { $dupe = true; }
     
     if ($dupe) {
+        consumeReservationsForSettledTx($conn, $tx_ref);
         mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$safe_ref'");
         sendMail('Paystack Webhook: Duplicate', 'Duplicate delivery for ref ' . $tx_ref, 'webhook@nivasity.com');
         continue;
@@ -178,8 +180,30 @@ foreach ($cartItems as $refId) {
     $charge = $calc['charge'];
     $profit = $calc['profit'];
     $total_amount = $calc['total_amount'];
-    
-    mysqli_query($conn, "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, 'successful', 'PAYSTACK')");
+
+    try {
+        mysqli_begin_transaction($conn);
+        $refund_applied = consumeReservationsCore($conn, $tx_ref);
+        $existingTx = mysqli_query($conn, "SELECT id FROM transactions WHERE ref_id = '$tx_ref' ORDER BY id DESC LIMIT 1");
+        if ($existingTx && mysqli_num_rows($existingTx) > 0) {
+            $updateTxSql = "UPDATE transactions
+                            SET user_id = $user_id, amount = $total_amount, charge = $charge, profit = $profit, refund = $refund_applied, status = 'successful', medium = 'PAYSTACK'
+                            WHERE ref_id = '$tx_ref'";
+            if (!mysqli_query($conn, $updateTxSql)) {
+                throw new Exception('Failed to repair transaction: ' . mysqli_error($conn));
+            }
+        } else {
+            $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, $refund_applied, 'successful', 'PAYSTACK')";
+            if (!mysqli_query($conn, $insertTxSql)) {
+                throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
+            }
+        }
+        mysqli_commit($conn);
+    } catch (Throwable $e) {
+        mysqli_rollback($conn);
+        sendMail('Paystack Webhook: Transaction Error', $e->getMessage() . ' Ref: ' . $tx_ref, 'webhook@nivasity.com');
+        continue;
+    }
     
     sendCongratulatoryEmail($conn, $user_id, $tx_ref, $manual_ids, $event_ids, $total_amount);
     
