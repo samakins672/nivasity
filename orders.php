@@ -16,6 +16,13 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
   <title>Orders - Nivasity</title>
 
   <?php include('partials/_head.php') ?>
+  <style>
+    @media (max-width: 767.98px) {
+      .order-mobile-hidden {
+        display: none;
+      }
+    }
+  </style>
   </head>
 </head>
 
@@ -47,11 +54,11 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
                             <table id="order_table" class="table table-striped table-hover select-table datatable-opt">
                               <thead>
                                 <tr>
-                                  <th>Trans. ID</th>
+                                  <th class="order-mobile-hidden">Trans. ID</th>
                                   <th>Name</th>
                                   <th>Price</th>
                                   <th>Date Bought</th>
-                                  <th>Status</th>
+                                  <th class="order-mobile-hidden">Status</th>
                                   <th>Actions</th>
                                 </tr>
                               </thead>
@@ -71,7 +78,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
                                 $event_price = $event_price > 0 ? "₦ $event_price" : 'FREE';
                                 ?>
                               <tr>
-                                <td>
+                                <td class="order-mobile-hidden">
                                   #<?php echo $manual['ref_id'] ?>
                                 </td>
                                 <td>
@@ -89,7 +96,7 @@ $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = 
                                   <h6><?php echo $created_date ?></h6>
                                   <p class="fw-bold"><?php echo $created_time ?></p>
                                 </td>
-                                <td>
+                                <td class="order-mobile-hidden">
                                   <div class="badge <?php echo ($status == 'successful') ? 'bg-success' : 'bg-danger'; ?>"><?php echo $status; ?></div>
                                 </td>
                                 <td>
