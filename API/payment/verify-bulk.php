@@ -179,6 +179,8 @@ $failed_count = 0;
 $already_processed_count = 0;
 $not_found_count = 0;
 $error_count = 0;
+$reserved_refunds_checked = 0;
+$reserved_refunds_reconciled = 0;
 
 if ($isCli) {
     echo "Found $total_refs pending cart reference(s) to verify\n";
@@ -503,6 +505,78 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
     }
 }
 
+// Second pass: reconcile successful transactions that still have reserved refund rows.
+$reserved_where_conditions = ["rr.status = 'reserved'", "t.status = 'successful'"];
+if ($ref_id !== '') {
+    $reserved_where_conditions[] = "rr.ref_id = '$ref_id'";
+} else {
+    if ($user_id > 0) {
+        $reserved_where_conditions[] = "t.user_id = $user_id";
+    }
+
+    if ($date_from !== '' && $date_to !== '') {
+        $reserved_where_conditions[] = "t.created_at >= '$date_from 00:00:00'";
+        $reserved_where_conditions[] = "t.created_at <= '$date_to 23:59:59'";
+    } elseif ($date_from === '' && $date_to === '') {
+        $reserved_where_conditions[] = "t.created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)";
+        $reserved_where_conditions[] = "t.created_at <= DATE_SUB(NOW(), INTERVAL 2 MINUTE)";
+    } elseif ($date_from !== '') {
+        $reserved_where_conditions[] = "t.created_at >= '$date_from 00:00:00'";
+    } elseif ($date_to !== '') {
+        $reserved_where_conditions[] = "t.created_at <= '$date_to 23:59:59'";
+    }
+}
+
+$reserved_where_sql = implode(' AND ', $reserved_where_conditions);
+$reserved_query_sql = "SELECT rr.ref_id,
+                              MAX(t.user_id) AS user_id,
+                              MAX(t.refund) AS transaction_refund,
+                              COALESCE(SUM(rr.amount), 0) AS reserved_amount
+                       FROM refund_reservations rr
+                       INNER JOIN transactions t ON t.ref_id = rr.ref_id
+                       WHERE $reserved_where_sql
+                       GROUP BY rr.ref_id
+                       ORDER BY MAX(t.created_at) DESC" . $limit_sql;
+$reserved_query = mysqli_query($conn, $reserved_query_sql);
+
+if ($reserved_query) {
+    while ($reserved_row = mysqli_fetch_assoc($reserved_query)) {
+        $current_ref = $reserved_row['ref_id'];
+        $reserved_refunds_checked++;
+
+        $result = [
+            'ref_id' => $current_ref,
+            'user_id' => (int)($reserved_row['user_id'] ?? 0),
+            'status' => 'reserved_refund_pending',
+            'message' => '',
+            'reserved_amount' => (int)($reserved_row['reserved_amount'] ?? 0),
+            'refund_before' => (int)($reserved_row['transaction_refund'] ?? 0)
+        ];
+
+        if ($isCli) {
+            echo "Reconciling reserved refund for successful ref_id: $current_ref...\n";
+        }
+
+        $refund_applied = (int)$result['refund_before'];
+        if (!$dry_run) {
+            $refund_applied = (int)consumeReservationsForSettledTx($conn, $current_ref);
+        }
+
+        $result['status'] = 'reserved_refund_reconciled';
+        $result['reason'] = 'reserved_refund_reconciled';
+        $result['message'] = $dry_run
+            ? 'Reserved refund detected for successful transaction (DRY RUN)'
+            : 'Reserved refund reconciled for successful transaction';
+        $result['refund_applied'] = $refund_applied;
+        $results[] = $result;
+        $reserved_refunds_reconciled++;
+
+        if ($isCli) {
+            echo "  -> SUCCESS: Reserved refund reconciled, refund total: $refund_applied" . ($dry_run ? " (DRY RUN)" : "") . "\n";
+        }
+    }
+}
+
 // Prepare summary
 $summary = [
     'total_refs_checked' => $total_refs,
@@ -510,7 +584,9 @@ $summary = [
     'already_processed' => $already_processed_count,
     'failed' => $failed_count,
     'failed_not_found' => $not_found_count,
-    'failed_errors' => $error_count
+    'failed_errors' => $error_count,
+    'reserved_refunds_checked' => $reserved_refunds_checked,
+    'reserved_refunds_reconciled' => $reserved_refunds_reconciled
 ];
 
 // Output based on execution mode
@@ -524,6 +600,8 @@ if ($isCli) {
     echo "  Failed: {$summary['failed']}\n";
     echo "    - No successful payment found: {$summary['failed_not_found']}\n";
     echo "    - Processing/config errors: {$summary['failed_errors']}\n";
+    echo "  Reserved refunds checked: {$summary['reserved_refunds_checked']}\n";
+    echo "  Reserved refunds reconciled: {$summary['reserved_refunds_reconciled']}\n";
     
     $compact_summary = [
         'total_refs_checked' => $summary['total_refs_checked'],
@@ -532,6 +610,8 @@ if ($isCli) {
         'failed' => $summary['failed'],
         'failed_not_found' => $summary['failed_not_found'],
         'failed_errors' => $summary['failed_errors'],
+        'reserved_refunds_checked' => $summary['reserved_refunds_checked'],
+        'reserved_refunds_reconciled' => $summary['reserved_refunds_reconciled'],
         'dry_run' => $dry_run ? 1 : 0
     ];
     logMessage('SUMMARY ' . json_encode($compact_summary, JSON_UNESCAPED_SLASHES), $logFile);
