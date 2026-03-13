@@ -51,7 +51,7 @@ function get_system_alert_visuals($alert) {
   if ($color === 'green') {
     return [
       'color' => 'green',
-      'class' => 'alert-success system-alert-success',
+      'class' => 'system-alert-success',
       'icon' => 'bi bi-check-circle-fill'
     ];
   }
@@ -59,14 +59,14 @@ function get_system_alert_visuals($alert) {
   if ($color === 'info') {
     return [
       'color' => 'info',
-      'class' => 'alert-info system-alert-info',
+      'class' => 'system-alert-info',
       'icon' => 'bi bi-info-circle-fill'
     ];
   }
 
   return [
     'color' => 'red',
-    'class' => 'alert-info system-alert-red',
+    'class' => 'system-alert-red',
     'icon' => 'bi bi-exclamation-triangle-fill'
   ];
 }
