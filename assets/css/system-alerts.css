@@ -13,15 +13,15 @@
 }
 
 .system-alerts-container .system-alert-red {
-  background-color: #d1ecf1;
-  border-color: #bee5eb;
-  color: #0c5460;
+  background-color: #f1d1d1;
+  border-color: #ebbebe;
+  color: #60190c;
 }
 
 .system-alerts-container .system-alert-success {
-  background-color: #d1e7dd;
+  background-color: #e7fff4;
   border-color: #badbcc;
-  color: #0f5132;
+  color: #057b44;
 }
 
 .system-alerts-container .carousel {

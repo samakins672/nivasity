@@ -36,7 +36,13 @@ function get_active_system_alerts($conn) {
 }
 
 function normalize_system_alert_color($value) {
-  return strtolower((string) $value) === 'green' ? 'green' : 'red';
+  $color = strtolower((string) $value);
+
+  if ($color === 'green' || $color === 'info') {
+    return $color;
+  }
+
+  return 'red';
 }
 
 function get_system_alert_visuals($alert) {
@@ -47,6 +53,14 @@ function get_system_alert_visuals($alert) {
       'color' => 'green',
       'class' => 'alert-success system-alert-success',
       'icon' => 'bi bi-check-circle-fill'
+    ];
+  }
+
+  if ($color === 'info') {
+    return [
+      'color' => 'info',
+      'class' => 'alert-info system-alert-info',
+      'icon' => 'bi bi-info-circle-fill'
     ];
   }
 
