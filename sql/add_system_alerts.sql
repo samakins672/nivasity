@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS `system_alerts` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `title` varchar(255) NOT NULL,
   `message` text NOT NULL,
+  `alert_color` enum('red','green') NOT NULL DEFAULT 'red',
   `expiry_date` datetime NOT NULL,
   `active` tinyint(1) NOT NULL DEFAULT 1,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
@@ -13,7 +14,10 @@ CREATE TABLE IF NOT EXISTS `system_alerts` (
   KEY `expiry_date` (`expiry_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+ALTER TABLE `system_alerts`
+  ADD COLUMN IF NOT EXISTS `alert_color` enum('red','green') NOT NULL DEFAULT 'red' AFTER `message`;
+
 -- Example alerts (optional - remove if not needed)
--- INSERT INTO `system_alerts` (`title`, `message`, `expiry_date`, `active`) VALUES
--- ('New Features', 'Welcome to Nivasity! Check out our new features.', DATE_ADD(NOW(), INTERVAL 7 DAY), 1),
--- ('Maintenance Notice', 'System maintenance scheduled for next week.', DATE_ADD(NOW(), INTERVAL 14 DAY), 1);
+-- INSERT INTO `system_alerts` (`title`, `message`, `alert_color`, `expiry_date`, `active`) VALUES
+-- ('Maintenance Notice', 'System maintenance scheduled for next week.', 'red', DATE_ADD(NOW(), INTERVAL 14 DAY), 1),
+-- ('Payouts Restored', 'Vendor payouts are now running normally again.', 'green', DATE_ADD(NOW(), INTERVAL 7 DAY), 1);

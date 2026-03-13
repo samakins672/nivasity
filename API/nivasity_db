@@ -458,6 +458,7 @@ CREATE TABLE `system_alerts` (
   `id` int(11) NOT NULL,
   `title` varchar(255) DEFAULT NULL,
   `message` text NOT NULL,
+  `alert_color` enum('red','green') NOT NULL DEFAULT 'red',
   `expiry_date` datetime NOT NULL,
   `active` tinyint(1) NOT NULL DEFAULT 1,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()

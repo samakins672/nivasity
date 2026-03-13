@@ -13,7 +13,7 @@ function get_active_system_alerts($conn) {
   $alerts = [];
   $current_time = date('Y-m-d H:i:s');
   
-  $query = "SELECT id, title, message, expiry_date, created_at 
+  $query = "SELECT id, title, message, expiry_date, created_at, alert_color
             FROM system_alerts 
             WHERE active = 1 
             AND expiry_date > ? 
@@ -35,6 +35,28 @@ function get_active_system_alerts($conn) {
   return $alerts;
 }
 
+function normalize_system_alert_color($value) {
+  return strtolower((string) $value) === 'green' ? 'green' : 'red';
+}
+
+function get_system_alert_visuals($alert) {
+  $color = normalize_system_alert_color($alert['alert_color'] ?? 'red');
+
+  if ($color === 'green') {
+    return [
+      'color' => 'green',
+      'class' => 'alert-success system-alert-success',
+      'icon' => 'bi bi-check-circle-fill'
+    ];
+  }
+
+  return [
+    'color' => 'red',
+    'class' => 'alert-info system-alert-red',
+    'icon' => 'bi bi-exclamation-triangle-fill'
+  ];
+}
+
 /**
  * Render system alerts as a carousel or single alert
  * @param array $alerts Array of alert objects
@@ -53,8 +75,9 @@ function render_system_alerts($alerts) {
   <div class="system-alerts-container mb-3">
     <?php if ($count === 1): ?>
       <!-- Single alert -->
-      <div class="alert alert-info alert-dismissible fade show" role="alert">
-        <i class="bi bi-info-circle me-2"></i>
+      <?php $visuals = get_system_alert_visuals($alerts[0]); ?>
+      <div class="alert <?php echo $visuals['class']; ?> alert-dismissible fade show" role="alert" data-alert-color="<?php echo htmlspecialchars($visuals['color']); ?>">
+        <i class="<?php echo htmlspecialchars($visuals['icon']); ?> me-2"></i>
         <?php if (!empty($alerts[0]['title'])): ?>
           <strong><?php echo htmlspecialchars($alerts[0]['title']); ?>:</strong> 
         <?php endif; ?>
@@ -73,9 +96,10 @@ function render_system_alerts($alerts) {
         </div>
         <div class="carousel-inner">
           <?php foreach ($alerts as $index => $alert): ?>
+            <?php $visuals = get_system_alert_visuals($alert); ?>
             <div class="carousel-item <?php echo $index === 0 ? 'active' : ''; ?>">
-              <div class="alert alert-info alert-dismissible fade show mb-0" role="alert">
-                <i class="bi bi-info-circle me-2"></i>
+              <div class="alert <?php echo $visuals['class']; ?> alert-dismissible fade show mb-0" role="alert" data-alert-color="<?php echo htmlspecialchars($visuals['color']); ?>">
+                <i class="<?php echo htmlspecialchars($visuals['icon']); ?> me-2"></i>
                 <?php if (!empty($alert['title'])): ?>
                   <strong><?php echo htmlspecialchars($alert['title']); ?>:</strong> 
                 <?php endif; ?>

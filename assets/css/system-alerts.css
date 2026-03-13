@@ -12,10 +12,16 @@
   padding: 1rem 1.5rem;
 }
 
-.system-alerts-container .alert-info {
+.system-alerts-container .system-alert-red {
   background-color: #d1ecf1;
   border-color: #bee5eb;
   color: #0c5460;
+}
+
+.system-alerts-container .system-alert-success {
+  background-color: #d1e7dd;
+  border-color: #badbcc;
+  color: #0f5132;
 }
 
 .system-alerts-container .carousel {
