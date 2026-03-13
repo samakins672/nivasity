@@ -105,6 +105,7 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
   <!-- Plugin css for this page -->
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap4.min.css">
   <link rel="stylesheet" href="../assets/vendors/select2/select2.min.css">
+  <link rel="stylesheet" href="../assets/vendors/select2-bootstrap-theme/select2-bootstrap.min.css">
   <!-- End plugin css for this page -->
   <!-- inject:css -->
   <link rel="stylesheet" href="../assets/css/dashboard/style.css">
@@ -118,6 +119,34 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
       border-color: var(--bs-primary, #FF9100);
       box-shadow: 0 0 0 0.25rem rgba(255, 145, 0, 0.25);
       outline: 0;
+    }
+
+    .academic-select-wrap {
+      margin-bottom: 1.5rem;
+    }
+
+    .select2-container--bootstrap {
+      width: 100% !important;
+    }
+
+    .select2-container--bootstrap .select2-selection--single {
+      min-height: calc(3rem + 2px);
+      padding: 0.85rem 1rem;
+      border: 1px solid #c9cdd4;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .select2-container--bootstrap .select2-selection__rendered {
+      color: #212529;
+      line-height: 1.5 !important;
+      padding-left: 0 !important;
+    }
+
+    .select2-container--bootstrap .select2-selection__arrow {
+      height: 100% !important;
+      right: 0.9rem !important;
     }
   </style>
 
@@ -421,7 +450,7 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
                                       <label class="form-label" for="new_matric_no">Matric Number</label>
                                     </div>
                                   </div>
-                                  <div class="col-md-6">
+                                  <div class="col-md-6 academic-select-wrap">
                                     <label class="form-label" for="new_adm_year">Admission Year</label>
                                     <select id="new_adm_year" name="adm_year" class="form-control form-control-lg w-100 academic-select" required>
                                       <option value="" disabled <?php echo empty($user_adm_year) ? 'selected' : ''; ?>>Select admission year</option>
@@ -443,7 +472,7 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
                                     </select>
                                   </div>
 
-                                  <div class="col-md-6">
+                                  <div class="col-md-6 academic-select-wrap">
                                     <label class="form-label" for="new_department">Department</label>
                                     <select id="new_department" name="dept" class="form-control form-control-lg w-100 academic-select" required>
                                       <option value="" disabled <?php echo empty($user_dept) ? 'selected' : ''; ?>>Select department</option>
@@ -742,7 +771,8 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
     $(document).ready(function () {
       $('.btn').attr('data-mdb-ripple-duration', '0');
       $('.academic-select').select2({
-        width: '100%'
+        width: '100%',
+        theme: 'bootstrap'
       });
       
       $('#upload').on('change', function (event) {

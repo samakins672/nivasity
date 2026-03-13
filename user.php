@@ -32,6 +32,36 @@ if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !
   
   <?php include('partials/_head.php') ?>
   <link rel="stylesheet" href="assets/vendors/select2/select2.min.css">
+  <link rel="stylesheet" href="assets/vendors/select2-bootstrap-theme/select2-bootstrap.min.css">
+  <style>
+    .academic-select-wrap {
+      margin-bottom: 1.5rem;
+    }
+
+    .select2-container--bootstrap {
+      width: 100% !important;
+    }
+
+    .select2-container--bootstrap .select2-selection--single {
+      min-height: calc(3rem + 2px);
+      padding: 0.85rem 1rem;
+      border: 1px solid #c9cdd4;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .select2-container--bootstrap .select2-selection__rendered {
+      color: #212529;
+      line-height: 1.5 !important;
+      padding-left: 0 !important;
+    }
+
+    .select2-container--bootstrap .select2-selection__arrow {
+      height: 100% !important;
+      right: 0.9rem !important;
+    }
+  </style>
 </head>
 
 <body>
@@ -265,7 +295,7 @@ if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !
                                   </div>
                                 </div>
 
-                                <div class="col-md-6">
+                                <div class="col-md-6 academic-select-wrap">
                                   <label class="form-label" for="new_adm_year">Admission Year</label>
                                   <select id="new_adm_year" name="adm_year" class="form-control form-control-lg w-100 academic-select" required>
                                     <option value="" disabled <?php echo empty($user_adm_year) ? 'selected' : ''; ?>>Select admission year</option>
@@ -287,7 +317,7 @@ if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !
                                   </select>
                                 </div>
 
-                                <div class="col-md-6">
+                                <div class="col-md-6 academic-select-wrap">
                                   <label class="form-label" for="new_department">Department</label>
                                   <select id="new_department" name="dept" class="form-control form-control-lg w-100 academic-select" required>
                                     <option value="" disabled <?php echo empty($user_dept) ? 'selected' : ''; ?>>Select department</option>
@@ -449,7 +479,8 @@ if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !
     $(document).ready(function () {
       $('.btn').attr('data-mdb-ripple-duration', '0');
       $('.academic-select').select2({
-        width: '100%'
+        width: '100%',
+        theme: 'bootstrap'
       });
       
       $('#upload').on('change', function (event) {
