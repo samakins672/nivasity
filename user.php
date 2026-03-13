@@ -653,6 +653,7 @@ if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !
                   location.reload();
                 }, 2000);
               } else if (data.status == 'duplicate') {
+                $('#alertBanner').html('Error!');
                 $('#alertBanner').removeClass('alert-success');
                 $('#alertBanner').removeClass('alert-info');
                 $('#alertBanner').addClass('alert-danger');

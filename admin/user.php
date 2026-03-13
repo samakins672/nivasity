@@ -1057,6 +1057,7 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
 
               location.reload();
             } else if (data.status == 'duplicate') {
+              $('#alertBanner').html('Error!');
               $('#alertBanner').removeClass('alert-success');
               $('#alertBanner').removeClass('alert-info');
               $('#alertBanner').addClass('alert-danger');
