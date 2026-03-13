@@ -24,6 +24,12 @@
   color: #057b44;
 }
 
+.system-alerts-container .system-alert-info {
+  background-color: #d1ecf1;
+  border-color: #bee5eb;
+  color: #0c5460;
+}
+
 .system-alerts-container .carousel {
   position: relative;
 }
