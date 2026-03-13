@@ -3,6 +3,23 @@ session_start();
 include('model/config.php');
 include('model/page_config.php');
 
+$academic_school_name = '';
+$academic_departments = [];
+
+if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !== 'visitor') {
+  $school_query = mysqli_query($conn, "SELECT name FROM schools WHERE id = $school_id LIMIT 1");
+  if ($school_query && mysqli_num_rows($school_query) === 1) {
+    $academic_school_name = mysqli_fetch_assoc($school_query)['name'];
+  }
+
+  $departments_query = mysqli_query($conn, "SELECT id, name FROM depts WHERE school_id = $school_id AND status = 'active' ORDER BY name ASC");
+  if ($departments_query) {
+    while ($department = mysqli_fetch_assoc($departments_query)) {
+      $academic_departments[] = $department;
+    }
+  }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -14,6 +31,7 @@ include('model/page_config.php');
   <title>My Profile - Nivasity</title>
   
   <?php include('partials/_head.php') ?>
+  <link rel="stylesheet" href="assets/vendors/select2/select2.min.css">
 </head>
 
 <body>
@@ -228,47 +246,62 @@ include('model/page_config.php');
                             <h4 class="fw-bold">Academic Information</4>
                           </div>
                           <div class="card-body">
-                            <div class="row">
-                              <?php
-                              $school = mysqli_fetch_array(mysqli_query($conn, "SELECT name FROM schools WHERE id = $school_id"))[0];
-                              $user_dept_name = mysqli_fetch_array(mysqli_query($conn, "SELECT name FROM depts WHERE id = $user_dept AND school_id = $school_id"))[0];
+                            <form id="academic-info-form">
+                              <input type="hidden" name="update_academic_info" value="1" />
+                              <div class="row">
+                                <div class="col-md-6">
+                                  <div class="form-outline mb-4">
+                                    <input type="text" id="new_institution"
+                                      class="form-control form-control-lg w-100"
+                                      value="<?php echo htmlspecialchars($academic_school_name) ?>" readonly />
+                                    <label class="form-label" for="new_institution">Institution Name</label>
+                                  </div>
+                                </div>
+                                <div class="col-md-6">
+                                  <div class="form-outline mb-4">
+                                    <input type="text" id="new_matric_no" name="matric_no"
+                                      class="form-control form-control-lg w-100" maxlength="25" value="<?php echo htmlspecialchars($user_matric_no) ?>" required />
+                                    <label class="form-label" for="new_matric_no">Matric Number</label>
+                                  </div>
+                                </div>
 
-                              ?>
-                              <div class="col-md-6">
-                                <div class="form-outline mb-4">
-                                  <input type="text" id="new_institution"
-                                    class="form-control form-control-lg w-100"
-                                    value="<?php echo $school ?>" />
-                                  <label class="form-label" for="institution">Institution Name</label>
+                                <div class="col-md-6">
+                                  <label class="form-label" for="new_adm_year">Admission Year</label>
+                                  <select id="new_adm_year" name="adm_year" class="form-control form-control-lg w-100 academic-select" required>
+                                    <option value="" disabled <?php echo empty($user_adm_year) ? 'selected' : ''; ?>>Select admission year</option>
+                                    <?php
+                                    $admission_year_options = [];
+                                    for ($year = ((int) date('Y')) + 1; $year >= 2019; $year--) {
+                                      $value = ($year - 1) . '/' . $year;
+                                      $admission_year_options[] = $value;
+                                    }
+                                    if (!empty($user_adm_year) && !in_array($user_adm_year, $admission_year_options, true)) {
+                                      array_unshift($admission_year_options, $user_adm_year);
+                                    }
+                                    foreach ($admission_year_options as $admission_year_option):
+                                    ?>
+                                      <option value="<?php echo htmlspecialchars($admission_year_option); ?>" <?php echo $user_adm_year === $admission_year_option ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($admission_year_option); ?>
+                                      </option>
+                                    <?php endforeach; ?>
+                                  </select>
                                 </div>
-                              </div>
-                              <div class="col-md-6">
-                                <div class="form-outline mb-4">
-                                  <input type="text" id="new_adm_year"
-                                    class="form-control form-control-lg w-100" value="<?php echo $user_adm_year ?>" />
-                                  <label class="form-label" for="adm_year">Admission Year</label>
-                                </div>
-                              </div>
 
-                              <div class="col-md-6">
-                                <div class="form-outline mb-4">
-                                  <input type="text" id="new_department"
-                                    class="form-control form-control-lg w-100" value="<?php echo $user_dept_name ?>" />
-                                  <label class="form-label" for="department">Department</label>
+                                <div class="col-md-6">
+                                  <label class="form-label" for="new_department">Department</label>
+                                  <select id="new_department" name="dept" class="form-control form-control-lg w-100 academic-select" required>
+                                    <option value="" disabled <?php echo empty($user_dept) ? 'selected' : ''; ?>>Select department</option>
+                                    <?php foreach ($academic_departments as $department): ?>
+                                      <option value="<?php echo (int) $department['id']; ?>" <?php echo ((int) $user_dept === (int) $department['id']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($department['name']); ?>
+                                      </option>
+                                    <?php endforeach; ?>
+                                  </select>
                                 </div>
                               </div>
-                              <div class="col-md-6">
-                                <div class="form-outline mb-4">
-                                  <input type="text" id="new_matric_no"
-                                    class="form-control form-control-lg w-100" value="<?php echo $user_matric_no ?>" />
-                                  <label class="form-label" for="matric_no">Matric Number</label>
-                                </div>
-                              </div>
-                            </div>
-                            <!-- Save button -->
-                            <button id="req-academic-change" type="submit" data-bs-toggle="modal" data-bs-target="#reqAcctChange"
-                              class="btn btn-primary fw-bold btn-lg btn-block mt-2">Request Change</button>
-
+                              <button id="academic_info_submit" type="submit"
+                                class="btn btn-primary fw-bold btn-lg btn-block mt-2">Save Changes</button>
+                            </form>
                           </div>
                         </div>
                       </div>
@@ -277,47 +310,24 @@ include('model/page_config.php');
                   <?php endif; ?>
                 </div>
                 
-                                                
-                <!-- Request Academic Info Change Modal -->
-                <div class="modal fade" id="reqAcctChange" tabindex="-1" role="dialog" aria-labelledby="reqAcctChangeLabel"
+                <div class="modal fade" id="matricDuplicateModal" tabindex="-1" aria-labelledby="matricDuplicateLabel"
                   aria-hidden="true">
                   <div class="modal-dialog" role="document">
                     <div class="modal-content">
                       <div class="modal-header">
-                        <h5 class="modal-title fw-bold" id="reqAcctChangeLabel">Request Academic Info Change</h5>
+                        <h5 class="modal-title fw-bold" id="matricDuplicateLabel">Matric Number Already In Use</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </button>
                       </div>
-                      <form id="academic_info-form" enctype="multipart/form-data">
-                        <input type="hidden" name="new_institution" value="">
-                        <input type="hidden" name="new_adm_year" value="">
-                        <input type="hidden" name="new_department" value="">
-                        <input type="hidden" name="new_matric_no" value="">
-                        <div class="modal-body">
-                          <div class="wysi-editor mb-4">
-                            <label class="form-label" for="message">Why are you making this change?.</label>
-                            <textarea class="form-control w-100 px-3 py-2" id="message" name="message"
-                              required></textarea>
-                          </div>
-
-                          <div>
-                            <label for="attachment" class="form-label">Upload proof(s) - (<span
-                                class="attach_ment">no file selected</span>)</label>
-                            <div>
-                              <input type="file" id="attachment" name="attachment" class="form-control"
-                                accept=".pdf,.jpeg,.jpg,.png" style="display: none" required>
-                              <label for="attachment"
-                                class="btn btn-lg btn-secondary text-light">
-                                <i class="mdi mdi-upload-outline"></i> Upload
-                              </label>
-                            </div>
-                          </div>
-                        </div>
-                        <div class="modal-footer">
-                          <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Close</button>
-                          <button id="academic_info_submit" type="submit" class="btn btn-lg btn-primary">Submit</button>
-                        </div>
-                      </form>
+                      <div class="modal-body">
+                        <p id="matricDuplicateMessage" class="mb-0">
+                          Another verified user already has this matric number. Update it before saving, or chat with Bella if the matric number belongs to you.
+                        </p>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Close</button>
+                        <a id="bellaMatricHelpLink" href="https://wa.me/2347052645530" target="_blank" rel="noopener"
+                          class="btn btn-lg btn-success">Chat with Bella</a>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -406,6 +416,7 @@ include('model/page_config.php');
   <!-- Plugin js for this page -->
   <script src="assets/vendors/chart.js/Chart.min.js"></script>
   <script src="assets/vendors/bootstrap-datepicker/bootstrap-datepicker.min.js"></script>
+  <script src="assets/vendors/select2/select2.min.js"></script>
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.1/mdb.min.js"></script>
   <script src="assets/vendors/progressbar.js/progressbar.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
@@ -437,6 +448,9 @@ include('model/page_config.php');
     
     $(document).ready(function () {
       $('.btn').attr('data-mdb-ripple-duration', '0');
+      $('.academic-select').select2({
+        width: '100%'
+      });
       
       $('#upload').on('change', function (event) {
         const file = event.target.files[0]; // Get the uploaded file
@@ -451,13 +465,6 @@ include('model/page_config.php');
         }
       });
       
-      // Trigger file upload when the icon/button is clicked
-      $('#attachment').change(function () {
-        // Get the number of files selected and display the count
-        var numFiles = $(this)[0].files.length;
-        $('.attach_ment').text(numFiles + (numFiles === 1 ? ' file' : ' files') + ' selected');
-      });
-
       // toggle password visibility
       $('.toogle-password').on('click', function () {
         $(this).toggleClass('fa-eye-slash').toggleClass('fa-eye'); // toggle our classes for the eye icon
@@ -556,37 +563,28 @@ include('model/page_config.php');
         });
       });
 
-      // Handle click event of View/Edit button
-      $('#req-academic-change').on('click', function () {
-        // Get the manual details from the data- attributes
-        var new_institution = $('#new_institution').val();
-        var new_adm_year = $('#new_adm_year').val();
-        var new_department = $('#new_department').val();
-        var new_matric_no = $('#new_matric_no').val();
-
-        // Set the values in the edit manual modal
-        $('#academic_info-form input[name="new_institution"]').val(new_institution);
-        $('#academic_info-form input[name="new_adm_year"]').val(new_adm_year);
-        $('#academic_info-form input[name="new_department"]').val(new_department);
-        $('#academic_info-form input[name="new_matric_no"]').val(new_matric_no);
-      });
     });
 
-    // Use AJAX to submit the academic_info form
-      $('#academic_info-form').submit(function (event) {
+    // Use AJAX to submit the academic info form
+      $('#academic-info-form').submit(function (event) {
         event.preventDefault(); // Prevent the default form submission
 
         var button = $('#academic_info_submit');
         var originalText = button.html();
+        var duplicateModalElement = document.getElementById('matricDuplicateModal');
+        var duplicateModal = duplicateModalElement ? new bootstrap.Modal(duplicateModalElement) : null;
+        var matricNumber = $.trim($('#new_matric_no').val());
+
+        $('#new_matric_no').val(matricNumber);
 
         button.html(originalText + '  <div class="spinner-border text-white" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
         button.prop('disabled', true);
 
-        var formData = new FormData($('#academic_info-form')[0]);
+        var formData = new FormData($('#academic-info-form')[0]);
 
         $.ajax({
             type: 'POST',
-            url: 'model/academicInfo.php',
+            url: 'model/user.php',
             data: formData,
             contentType: false,
             processData: false,
@@ -601,6 +599,20 @@ include('model/page_config.php');
                 setTimeout(function () {
                   location.reload();
                 }, 2000);
+              } else if (data.status == 'duplicate') {
+                $('#alertBanner').removeClass('alert-success');
+                $('#alertBanner').removeClass('alert-info');
+                $('#alertBanner').addClass('alert-danger');
+
+                var bellaBaseLink = data.bella_link || (window.NIVASITY_ENV && window.NIVASITY_ENV.supportWhatsAppLink) || 'https://wa.me/2347052645530';
+                var bellaMessage = 'Hello Bella, another verified account already has my matric number (' + matricNumber + ') on Nivasity. Please help me update it if it belongs to me.';
+
+                $('#matricDuplicateMessage').text(data.message);
+                $('#bellaMatricHelpLink').attr('href', bellaBaseLink + '?text=' + encodeURIComponent(bellaMessage));
+
+                if (duplicateModal) {
+                  duplicateModal.show();
+                }
               } else {
                 $('#alertBanner').removeClass('alert-success');
                 $('#alertBanner').removeClass('alert-info');

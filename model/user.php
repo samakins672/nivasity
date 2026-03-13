@@ -4,6 +4,7 @@ include('mail.php');
 include('functions.php');
 require_once __DIR__ . '/../config/fw.php';
 $statusRes = $messageRes = $roleRes = 'failed';
+$responseData = null;
 
 if (isset($_POST['signup'])) {
   $email = mysqli_real_escape_string($conn, $_POST['email']);
@@ -179,6 +180,79 @@ if (isset($_POST['edit_profile'])) {
   } else {
     $statusRes = "error";
     $messageRes = "Internal Server Error. Please try again later!";
+  }
+}
+
+if (isset($_POST['update_academic_info'])) {
+  session_start();
+  $user_id = isset($_SESSION['nivas_userId']) ? (int)$_SESSION['nivas_userId'] : 0;
+  $school_id = isset($_SESSION['nivas_userSch']) ? (int)$_SESSION['nivas_userSch'] : 0;
+  $role = isset($_SESSION['nivas_userRole']) ? $_SESSION['nivas_userRole'] : '';
+
+  if ($user_id <= 0 || $school_id <= 0) {
+    $statusRes = "error";
+    $messageRes = "Your session has expired. Please sign in again.";
+  } elseif ($role === 'org_admin' || $role === 'visitor') {
+    $statusRes = "failed";
+    $messageRes = "This account cannot update academic information here.";
+  } else {
+    $adm_year = trim((string)($_POST['adm_year'] ?? ''));
+    $dept = isset($_POST['dept']) ? (int)$_POST['dept'] : 0;
+    $matric_no = trim((string)($_POST['matric_no'] ?? ''));
+
+    if ($adm_year === '' || $dept <= 0 || $matric_no === '') {
+      $statusRes = "failed";
+      $messageRes = "Admission year, department and matric number are required.";
+    } elseif (!preg_match('/^\d{4}\/\d{4}$/', $adm_year)) {
+      $statusRes = "failed";
+      $messageRes = "Please select a valid admission year.";
+    } else {
+      $dept_query = mysqli_query($conn, "SELECT id FROM depts WHERE id = $dept AND school_id = $school_id AND status = 'active' LIMIT 1");
+
+      if (!$dept_query || mysqli_num_rows($dept_query) !== 1) {
+        $statusRes = "failed";
+        $messageRes = "Please select a valid department for your school.";
+      } else {
+        $normalized_matric = mysqli_real_escape_string($conn, strtolower($matric_no));
+        $duplicate_query = mysqli_query(
+          $conn,
+          "SELECT id
+           FROM users
+           WHERE id != $user_id
+             AND school = $school_id
+             AND status = 'verified'
+             AND LOWER(TRIM(matric_no)) = '$normalized_matric'
+           LIMIT 1"
+        );
+
+        if (!$duplicate_query) {
+          $statusRes = "error";
+          $messageRes = "Internal Server Error. Please try again later!";
+        } elseif (mysqli_num_rows($duplicate_query) > 0) {
+          $statusRes = "duplicate";
+          $messageRes = "Another verified user already has this matric number. If it belongs to you, chat with Bella for help. Otherwise, update the matric number before saving.";
+          $responseData = array(
+            "role" => "$roleRes",
+            "status" => "$statusRes",
+            "message" => "$messageRes",
+            "bella_link" => nivasity_get_support_whatsapp_link()
+          );
+        } else {
+          $adm_year_safe = mysqli_real_escape_string($conn, $adm_year);
+          $matric_no_safe = mysqli_real_escape_string($conn, $matric_no);
+          mysqli_query($conn, "UPDATE users SET dept = '$dept', adm_year = '$adm_year_safe', matric_no = '$matric_no_safe' WHERE id = $user_id");
+
+          if (mysqli_errno($conn) === 0) {
+            $_SESSION['nivas_userDept'] = $dept;
+            $statusRes = "success";
+            $messageRes = "Academic information updated successfully.";
+          } else {
+            $statusRes = "error";
+            $messageRes = "Internal Server Error. Please try again later!";
+          }
+        }
+      }
+    }
   }
 }
 
@@ -420,11 +494,13 @@ if (isset($_POST['logout'])) {
   }
 }
 
-$responseData = array(
-  "role" => "$roleRes",
-  "status" => "$statusRes",
-  "message" => "$messageRes"
-);
+if (!is_array($responseData)) {
+  $responseData = array(
+    "role" => "$roleRes",
+    "status" => "$statusRes",
+    "message" => "$messageRes"
+  );
+}
 
 // Set the appropriate headers for JSON response
 header('Content-Type: application/json');

@@ -61,6 +61,39 @@ function isCodeUnique($code, $conn, $db_table) {
     return $count == 0; // If count is 0, the code is unique
 }
 
+function nivasity_get_support_whatsapp_link() {
+    global $conn;
+    static $resolvedLink = null;
+
+    if ($resolvedLink !== null) {
+        return $resolvedLink;
+    }
+
+    $fallbackNumber = '2347052645530';
+    if (isset($conn) && $conn) {
+        $query = "SELECT whatsapp
+                  FROM support_contacts
+                  WHERE status = 'active'
+                  ORDER BY id DESC
+                  LIMIT 1";
+        $result = mysqli_query($conn, $query);
+
+        if ($result) {
+            $contact = mysqli_fetch_assoc($result);
+            $dbNumber = $contact['whatsapp'] ?? '';
+            $sanitizedNumber = preg_replace('/\D+/', '', (string) $dbNumber);
+
+            if ($sanitizedNumber !== '') {
+                $resolvedLink = 'https://wa.me/' . $sanitizedNumber;
+                return $resolvedLink;
+            }
+        }
+    }
+
+    $resolvedLink = 'https://wa.me/' . $fallbackNumber;
+    return $resolvedLink;
+}
+
 function buildReceiptHtmlFromRef($conn, $user_id, $tx_ref, $filterType = null, $filterId = null) {
     // Fetch user details
     $user_q = mysqli_query($conn, "SELECT * FROM users WHERE id = " . (int)$user_id);

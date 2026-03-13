@@ -5,42 +5,7 @@
 </footer>
 
 <?php
-if (!function_exists('nivasity_get_support_whatsapp_link')) {
-  function nivasity_get_support_whatsapp_link() {
-    global $conn;
-    static $resolvedLink = null;
-
-    if ($resolvedLink !== null) {
-      return $resolvedLink;
-    }
-
-    $fallbackNumber = '2347052645530';
-    if (isset($conn) && $conn) {
-      $query = "SELECT whatsapp
-                FROM support_contacts
-                WHERE status = 'active'
-                ORDER BY id DESC
-                LIMIT 1";
-
-      $result = mysqli_query($conn, $query);
-
-      if ($result) {
-        $contact = mysqli_fetch_assoc($result);
-        $dbNumber = $contact['whatsapp'] ?? '';
-        $sanitizedNumber = preg_replace('/\D+/', '', (string) $dbNumber);
-
-        if ($sanitizedNumber !== '') {
-          $resolvedLink = 'https://wa.me/' . $sanitizedNumber;
-          return $resolvedLink;
-        }
-      }
-    }
-
-    $resolvedLink = 'https://wa.me/' . $fallbackNumber;
-    return $resolvedLink;
-  }
-}
-
+require_once __DIR__ . '/../model/functions.php';
 $whatsAppLink = nivasity_get_support_whatsapp_link();
 ?>
 
@@ -62,6 +27,9 @@ $whatsAppLink = nivasity_get_support_whatsapp_link();
 ?>
 <script>
   window.NIVASITY_ENV = window.NIVASITY_ENV || {};
+  window.NIVASITY_ENV = Object.assign({}, window.NIVASITY_ENV, {
+    supportWhatsAppLink: <?php echo json_encode($whatsAppLink); ?>
+  });
   window.NIVASITY_ENV.tawk = Object.assign({}, window.NIVASITY_ENV.tawk, {
     enabled: <?php echo (defined('TAWK_ENABLED') && TAWK_ENABLED) ? 'true' : 'false'; ?>
   });

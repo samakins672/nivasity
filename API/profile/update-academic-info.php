@@ -34,6 +34,29 @@ if ($dept_id && $dept_id !== $user['dept']) {
     }
 }
 
+$normalized_matric = strtolower(trim((string) $matric_no));
+if ($normalized_matric !== '') {
+    $normalized_matric_sql = mysqli_real_escape_string($conn, $normalized_matric);
+    $duplicate_check = mysqli_query(
+        $conn,
+        "SELECT id
+         FROM users
+         WHERE id != $user_id
+           AND school = {$user['school']}
+           AND status = 'verified'
+           AND LOWER(TRIM(matric_no)) = '$normalized_matric_sql'
+         LIMIT 1"
+    );
+
+    if (!$duplicate_check) {
+        sendApiError('Internal Server Error. Please try again later!', 500);
+    }
+
+    if (mysqli_num_rows($duplicate_check) > 0) {
+        sendApiError('Another verified user already has this matric number. Update it before saving.', 409);
+    }
+}
+
 // Update academic information
 $dept_sql = $dept_id ? $dept_id : "NULL";
 mysqli_query($conn, "UPDATE users SET dept = $dept_sql, matric_no = '$matric_no', adm_year = '$adm_year' WHERE id = $user_id");
