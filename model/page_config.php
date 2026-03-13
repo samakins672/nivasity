@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/fw.php';
+require_once __DIR__ . '/mobile_experience_prompt.php';
 $url = substr($_SERVER["SCRIPT_NAME"], strrpos($_SERVER["SCRIPT_NAME"], "/") + 1);
 
 $__stagingGate = defined('STAGING_GATE') && STAGING_GATE === true;
@@ -14,6 +15,12 @@ if (!isset($_SESSION['nivas_userId'])) {
 if (isset($_SESSION['nivas_userId'])) {
   $user_id = $_SESSION['nivas_userId'];
   $school_id = $_SESSION['nivas_userSch'];
+  $mobile_experience_prompt_state = [
+    'captured' => false,
+    'visit_count' => 0,
+    'min_visits' => 5,
+    'should_show' => false,
+  ];
   
   $user_ = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = $user_id"));
   
@@ -54,6 +61,8 @@ if (isset($_SESSION['nivas_userId'])) {
     header("Location: https://nivasity.com$redirected_path");
     exit();
   }
+
+  $mobile_experience_prompt_state = mobile_experience_prompt_get_state($conn, (int) $user_id, 5, true);
 }
 
 $date = date('Y-m-d');

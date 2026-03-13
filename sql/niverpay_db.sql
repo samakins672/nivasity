@@ -303,7 +303,8 @@ CREATE TABLE `users` (
   `status` varchar(20) DEFAULT 'unverified',
   `adm_year` varchar(255) DEFAULT NULL,
   `profile_pic` varchar(255) DEFAULT 'user.jpg',
-  `last_login` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `last_login` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `mobile_experience_prompt_visits` int(11) NOT NULL DEFAULT 0
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------

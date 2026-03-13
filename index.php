@@ -11,6 +11,8 @@ $system_alerts = get_active_system_alerts($conn);
 // Check payment freeze status
 $payment_freeze_info = get_payment_freeze_info();
 $play_store_url = 'https://play.google.com/store/apps/details?id=com.nivasity.app';
+$mobile_prompt_captured = !empty($mobile_experience_prompt_state['captured']);
+$mobile_prompt_should_show = !empty($mobile_experience_prompt_state['should_show']);
 
 // Simulate adding/removing the product to/from the cart
 if (!isset($_SESSION["nivas_cart$user_id"])) {
@@ -481,10 +483,8 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
   <script src="assets/js/main.js"></script>
   <script>
     const playStoreUrl = <?php echo json_encode($play_store_url); ?>;
-    const mobileAppPromptSeenKey = 'nivasity_mobile_app_prompt_seen_v2';
-    const mobileAppPromptLegacySeenKeys = ['nivasity_mobile_app_prompt_seen_v1', 'nivasity_mobile_app_prompt_seen'];
-    const mobileAppPromptVisitCountKey = 'nivasity_mobile_app_prompt_store_visit_count_v1';
-    const mobileAppPromptMinVisits = 2;
+    const mobileAppPromptCaptured = <?php echo $mobile_prompt_captured ? 'true' : 'false'; ?>;
+    const mobileAppPromptShouldShow = <?php echo $mobile_prompt_should_show ? 'true' : 'false'; ?>;
 
     const urlParams = new URLSearchParams(window.location.search);
     // Get the logout parameter from the URL
@@ -527,59 +527,11 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
     $(document).ready(function () {
       $('.btn').attr('data-mdb-ripple-duration', '0ms');
 
-      function hasSeenMobileAppPrompt() {
-        try {
-          if (!window.localStorage) return false;
-          if (localStorage.getItem(mobileAppPromptSeenKey) === '1') {
-            return true;
-          }
-
-          for (var i = 0; i < mobileAppPromptLegacySeenKeys.length; i++) {
-            if (localStorage.getItem(mobileAppPromptLegacySeenKeys[i]) === '1') {
-              localStorage.setItem(mobileAppPromptSeenKey, '1');
-              return true;
-            }
-          }
-
-          return false;
-        } catch (e) {
-          return false;
-        }
-      }
-
-      function markMobileAppPromptSeen() {
-        try {
-          if (window.localStorage) {
-            localStorage.setItem(mobileAppPromptSeenKey, '1');
-          }
-        } catch (e) {
-          // ignore storage write errors
-        }
-      }
-
-      function registerMobileAppPromptVisit() {
-        try {
-          if (!window.localStorage) return 0;
-
-          var rawCount = localStorage.getItem(mobileAppPromptVisitCountKey);
-          var currentCount = parseInt(rawCount, 10);
-          if (isNaN(currentCount) || currentCount < 0) {
-            currentCount = 0;
-          }
-
-          var nextCount = currentCount + 1;
-          localStorage.setItem(mobileAppPromptVisitCountKey, String(nextCount));
-          return nextCount;
-        } catch (e) {
-          return 0;
-        }
-      }
-
       function initMobileAppPromptModal() {
         var modalEl = document.getElementById('mobileAppPromoModal');
         if (!modalEl || !window.bootstrap || !bootstrap.Modal) return;
-        if (hasSeenMobileAppPrompt()) return;
-        if (registerMobileAppPromptVisit() < mobileAppPromptMinVisits) return;
+        if (mobileAppPromptCaptured) return;
+        if (!mobileAppPromptShouldShow) return;
 
         var titleEl = document.getElementById('mobileAppPromoTitle');
         var bodyEl = document.getElementById('mobileAppPromoBody');
@@ -684,7 +636,6 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           var comfort = e.target.getAttribute('data-app-comfort');
           if (comfort) {
             selectedComfort = comfort;
-            markMobileAppPromptSeen();
             submitComfortSurvey(selectedDevice, comfort);
             renderStep(selectedDevice || 'android');
             return;

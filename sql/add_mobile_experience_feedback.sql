@@ -15,3 +15,5 @@ CREATE TABLE IF NOT EXISTS `mobile_experience_feedback` (
   KEY `idx_mef_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+ALTER TABLE `users`
+  ADD COLUMN IF NOT EXISTS `mobile_experience_prompt_visits` INT(11) NOT NULL DEFAULT 0 AFTER `last_login`;
