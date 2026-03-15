@@ -4,6 +4,7 @@ require_once 'config.php';
 require_once 'payment_freeze.php';
 require_once 'functions.php';
 require_once 'refund_engine.php';
+require_once 'payment_manifest.php';
 
 header('Content-Type: application/json');
 
@@ -50,16 +51,31 @@ if (!$result || mysqli_num_rows($result) === 0) {
 $user_row = mysqli_fetch_assoc($result);
 $school_id = isset($user_row['school']) ? (int)$user_row['school'] : 0;
 
-// Prepare the query to insert data into the cart table
-$query = "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway) VALUES ";
-$values = [];
+// Build and persist a signed manifest from server-trusted records.
+$manifestResult = paymentManifestBuildFromRequestedItems(
+    $conn,
+    $user_id,
+    $school_id,
+    $gateway_slug,
+    $items,
+    $ref_id
+);
 
-foreach ($items as $item) {
-    $item_id = isset($item['item_id']) ? (int)$item['item_id'] : 0;
-    $type = isset($item['type']) ? mysqli_real_escape_string($conn, (string)$item['type']) : '';
-    if ($item_id <= 0 || ($type !== 'manual' && $type !== 'event')) {
-        continue;
-    }
+if (!$manifestResult['status']) {
+    echo json_encode(['success' => false, 'message' => $manifestResult['message'] ?? 'Unable to create payment manifest']);
+    exit;
+}
+
+$manifest = $manifestResult['manifest'];
+if (!paymentManifestPersist($conn, $manifest)) {
+    echo json_encode(['success' => false, 'message' => 'Failed to store payment manifest']);
+    exit;
+}
+
+$values = [];
+foreach ($manifest['items'] as $item) {
+    $item_id = (int)$item['item_id'];
+    $type = mysqli_real_escape_string($conn, (string)$item['type']);
     $gateway_value = $gateway ? "'$gateway'" : "NULL";
     $values[] = "('$ref_id', $user_id, $item_id, '$type', 'pending', $gateway_value)";
 }
@@ -69,8 +85,9 @@ if (empty($values)) {
     exit;
 }
 
-$query .= implode(", ", $values);
+mysqli_query($conn, "DELETE FROM cart WHERE ref_id = '$ref_id' AND user_id = $user_id AND status = 'pending'");
 
+$query = "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway) VALUES " . implode(", ", $values);
 if (!mysqli_query($conn, $query)) {
     echo json_encode(['success' => false, 'message' => 'Internal Server Error while adding cart items. Please try again later!']);
     exit;
@@ -79,36 +96,15 @@ if (!mysqli_query($conn, $query)) {
 // Housekeeping of stale reservations.
 releaseExpiredReservations($conn, 60);
 
-// Build seller totals from server-trusted item records.
+// Build seller totals from the signed manifest.
 $seller_totals = [];
-foreach ($items as $item) {
-    $item_id = isset($item['item_id']) ? (int)$item['item_id'] : 0;
-    $type = isset($item['type']) ? (string)$item['type'] : '';
-    if ($item_id <= 0) { continue; }
-
-    if ($type === 'manual') {
-        $manual_q = mysqli_query($conn, "SELECT price, user_id FROM manuals WHERE id = $item_id AND school_id = $school_id LIMIT 1");
-        if ($manual_q && mysqli_num_rows($manual_q) > 0) {
-            $manual = mysqli_fetch_assoc($manual_q);
-            $seller_id = (int)$manual['user_id'];
-            $price = (int)round((float)$manual['price']);
-            if (!isset($seller_totals[$seller_id])) {
-                $seller_totals[$seller_id] = 0;
-            }
-            $seller_totals[$seller_id] += $price;
-        }
-    } elseif ($type === 'event') {
-        $event_q = mysqli_query($conn, "SELECT price, user_id FROM events WHERE id = $item_id LIMIT 1");
-        if ($event_q && mysqli_num_rows($event_q) > 0) {
-            $event = mysqli_fetch_assoc($event_q);
-            $seller_id = (int)$event['user_id'];
-            $price = (int)round((float)$event['price']);
-            if (!isset($seller_totals[$seller_id])) {
-                $seller_totals[$seller_id] = 0;
-            }
-            $seller_totals[$seller_id] += $price;
-        }
+foreach ($manifest['items'] as $item) {
+    $seller_id = (int)$item['seller_id'];
+    $price = (int)$item['price'];
+    if (!isset($seller_totals[$seller_id])) {
+        $seller_totals[$seller_id] = 0;
     }
+    $seller_totals[$seller_id] += $price;
 }
 
 $subaccount_shares = [];
@@ -175,6 +171,8 @@ echo json_encode([
     'success' => true,
     'message' => 'Cart saved successfully',
     'gateway' => $gateway_slug,
+    'manifest_hash' => $manifest['manifest_hash'],
+    'payment_manifest' => paymentManifestGatewayPayload($manifest),
     'refund_reserved' => (int)$refund_reserved,
     'school_share_before' => (int)$school_share_before,
     'school_share_after' => (int)$school_share_after,

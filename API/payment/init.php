@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../model/PaymentGatewayFactory.php';
 require_once __DIR__ . '/../../model/functions.php';
 require_once __DIR__ . '/../../model/refund_engine.php';
 require_once __DIR__ . '/../../model/payment_freeze.php';
+require_once __DIR__ . '/../../model/payment_manifest.php';
 require_once __DIR__ . '/../../config/fw.php';
 
 // Only accept POST requests
@@ -56,88 +57,6 @@ if (empty($cart) && empty($cart_events)) {
     sendApiError('Cart is empty', 400);
 }
 
-// Calculate total amount and collect seller information
-$subtotal = 0;
-$cart_items = [];
-$seller_totals = [];
-
-// Process manuals
-if (!empty($cart)) {
-    $cart_ids = array_map('intval', $cart);
-    $ids_string = implode(',', $cart_ids);
-    
-    $manuals_query = mysqli_query($conn, "SELECT m.* 
-                                          FROM manuals m 
-                                          WHERE m.id IN ($ids_string) AND m.school_id = $school_id AND m.status = 'open'");
-    
-    while ($manual = mysqli_fetch_assoc($manuals_query)) {
-        $price = (float)$manual['price'];
-        $seller_id = $manual['user_id'];
-        $subtotal += $price;
-        
-        // Track seller totals for split payment
-        if (!isset($seller_totals[$seller_id])) {
-            $seller_totals[$seller_id] = [
-                'total' => 0,
-                'seller_id' => $seller_id,
-                'school_id' => $school_id
-            ];
-        }
-        $seller_totals[$seller_id]['total'] += $price;
-        
-        $cart_items[] = [
-            'type' => 'manual',
-            'id' => $manual['id'],
-            'title' => $manual['title'],
-            'price' => $price,
-            'seller_id' => $seller_id
-        ];
-    }
-}
-
-// Process events
-if (!empty($cart_events)) {
-    $event_ids = array_map('intval', $cart_events);
-    $event_ids_string = implode(',', $event_ids);
-    
-    $events_query = mysqli_query($conn, "SELECT e.* 
-                                         FROM events e 
-                                         WHERE e.id IN ($event_ids_string) AND e.status = 'open'");
-    
-    while ($event = mysqli_fetch_assoc($events_query)) {
-        $price = (float)$event['price'];
-        $seller_id = $event['user_id'];
-        $subtotal += $price;
-        
-        // Track seller totals for split payment
-        if (!isset($seller_totals[$seller_id])) {
-            $seller_totals[$seller_id] = [
-                'total' => 0,
-                'seller_id' => $seller_id,
-                'school_id' => $school_id
-            ];
-        }
-        $seller_totals[$seller_id]['total'] += $price;
-        
-        $cart_items[] = [
-            'type' => 'event',
-            'id' => $event['id'],
-            'title' => $event['title'],
-            'price' => $price,
-            'seller_id' => $seller_id
-        ];
-    }
-}
-
-if ($subtotal <= 0) {
-    sendApiError('Invalid cart amount', 400);
-}
-
-// Calculate charges using active gateway
-$charges_result = calculateGatewayCharges($subtotal);
-$charge = $charges_result['charge'] ?? 0;
-$total_amount = $charges_result['total_amount'] ?? ($subtotal + $charge);
-
 // Generate transaction reference
 $tx_ref = 'nivas_'. $user_id . '_' . time();
 
@@ -149,15 +68,64 @@ try {
     sendApiError('Payment gateway configuration error: ' . $e->getMessage(), 500);
 }
 
+// Build and persist a signed manifest from server-trusted records.
+$requested_items = [];
+foreach ($cart as $manual_id) {
+    $requested_items[] = ['item_id' => (int)$manual_id, 'type' => 'manual'];
+}
+foreach ($cart_events as $event_id) {
+    $requested_items[] = ['item_id' => (int)$event_id, 'type' => 'event'];
+}
+
+$manifestResult = paymentManifestBuildFromRequestedItems(
+    $conn,
+    $user_id,
+    $school_id,
+    $gatewayName,
+    $requested_items,
+    $tx_ref
+);
+
+if (!$manifestResult['status']) {
+    sendApiError($manifestResult['message'] ?? 'Unable to create payment manifest', 400);
+}
+
+$manifest = $manifestResult['manifest'];
+if (!paymentManifestPersist($conn, $manifest)) {
+    sendApiError('Failed to store payment manifest', 500);
+}
+
+$subtotal = (float)$manifest['subtotal'];
+$charge = (float)$manifest['charge'];
+$total_amount = (float)$manifest['total_amount'];
+$cart_items = [];
+$seller_totals = [];
+foreach ($manifest['items'] as $item) {
+    $seller_id = (int)$item['seller_id'];
+    $price = (float)$item['price'];
+    if (!isset($seller_totals[$seller_id])) {
+        $seller_totals[$seller_id] = [
+            'total' => 0,
+            'seller_id' => $seller_id,
+            'school_id' => $school_id
+        ];
+    }
+    $seller_totals[$seller_id]['total'] += $price;
+    $cart_items[] = [
+        'type' => $item['type'],
+        'id' => (int)$item['item_id'],
+        'price' => $price,
+        'seller_id' => $seller_id
+    ];
+}
+
 // Save cart to database with gateway information
 $date = date('Y-m-d H:i:s');
 $gateway_upper = strtoupper($gatewayName);
-foreach ($cart as $manual_id) {
-    mysqli_query($conn, "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway, created_at) VALUES ('$tx_ref', $user_id, $manual_id, 'manual', 'pending', '$gateway_upper', '$date')");
-}
-
-foreach ($cart_events as $event_id) {
-    mysqli_query($conn, "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway, created_at) VALUES ('$tx_ref', $user_id, $event_id, 'event', 'pending', '$gateway_upper', '$date')");
+foreach ($manifest['items'] as $item) {
+    $item_id = (int)$item['item_id'];
+    $type = mysqli_real_escape_string($conn, (string)$item['type']);
+    mysqli_query($conn, "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway, created_at) VALUES ('$tx_ref', $user_id, $item_id, '$type', 'pending', '$gateway_upper', '$date')");
 }
 
 // Always use API callback endpoint as callback (unauthenticated, some gateways don't support deep links)
@@ -170,7 +138,8 @@ error_log("Payment Init: callback_url for tx_ref $tx_ref (user $user_id): " . $c
 // Note: Paystack uses "metadata", Flutterwave uses "meta"
 $meta_data = [
     'user_id' => $user_id,
-    'school_id' => $school_id
+    'school_id' => $school_id,
+    'payment_manifest' => paymentManifestGatewayPayload($manifest)
 ];
 
 if ($redirect_url) {
@@ -349,6 +318,7 @@ $response_data = [
         ?? $init_result['data']['payment_url']
         ?? null,
     'gateway' => $gatewayName,
+    'manifest_hash' => $manifest['manifest_hash'],
     'subtotal' => $subtotal,
     'charge' => $charge,
     'total_amount' => $total_amount,

@@ -28,6 +28,7 @@ define('FLW_VERIF_HASH', 'your_webhook_verification_hash');
 // Paystack Keys
 define('PAYSTACK_PUBLIC_KEY', 'pk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
 define('PAYSTACK_SECRET_KEY', 'sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+define('PAYMENT_MANIFEST_SECRET', 'replace_with_a_random_long_secret');
 
 // ============================================================================
 // STAGING ACCESS CONTROL

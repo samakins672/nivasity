@@ -1072,6 +1072,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                   school_share_before: response.school_share_before || 0,
                   school_share_after: response.school_share_after || 0
                 });
+                var paymentManifest = response.payment_manifest || null;
 
                 let adjustedSubaccounts = fallbackSubaccounts;
                 let paystackSellerTotals = $.extend({}, fallbackSellerTotals);
@@ -1096,6 +1097,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                     tx_ref: myUniqueID,
                     amount: transfer_amount,
                     currency: "NGN",
+                    meta: paymentManifest ? { payment_manifest: paymentManifest } : undefined,
                     subaccounts: adjustedSubaccounts,
                     payment_options: "card, banktransfer, ussd",
                     callback: function(payment) {
@@ -1134,11 +1136,12 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
                   function launchPaystack(splitCode) {
                     var options = {
-                      key: ps_pk,
-                      email: email,
-                      amount: amountKobo,
-                      ref: myUniqueID,
-                      callback: function(response) {
+                    key: ps_pk,
+                    email: email,
+                    amount: amountKobo,
+                    ref: myUniqueID,
+                    metadata: paymentManifest ? { payment_manifest: paymentManifest } : undefined,
+                    callback: function(response) {
                         console.log(response);
                         verifyTransactionOnBackend(null, response.reference);
                       },
