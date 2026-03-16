@@ -95,10 +95,7 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
   <title>My Profile - Nivasity</title>
   <!-- plugins:css -->
-  <link rel="stylesheet" href="../assets/vendors/feather/feather.css">
   <link rel="stylesheet" href="../assets/vendors/mdi/css/materialdesignicons.min.css">
-  <link rel="stylesheet" href="../assets/vendors/ti-icons/css/themify-icons.css">
-  <link rel="stylesheet" href="../assets/vendors/typicons/typicons.css">
   <link rel="stylesheet" href="../assets/vendors/simple-line-icons/css/simple-line-icons.css">
   <link rel="stylesheet" href="../assets/vendors/css/vendor.bundle.base.css">
   <!-- endinject -->
@@ -108,7 +105,7 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
   <link rel="stylesheet" href="../assets/vendors/select2-bootstrap-theme/select2-bootstrap.min.css">
   <!-- End plugin css for this page -->
   <!-- inject:css -->
-  <link rel="stylesheet" href="../assets/css/dashboard/style.css">
+  <link rel="stylesheet" href="../assets/css/dashboard/style.min.css">
   <!-- endinject -->
   <style>
     .manual-faculty-select {
@@ -758,11 +755,8 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
   <script src="../assets/vendors/js/vendor.bundle.base.js"></script>
   <!-- endinject -->
   <!-- Plugin js for this page -->
-  <script src="../assets/vendors/chart.js/Chart.min.js"></script>
-  <script src="../assets/vendors/bootstrap-datepicker/bootstrap-datepicker.min.js"></script>
   <script src="../assets/vendors/select2/select2.min.js"></script>
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.1/mdb.min.js"></script>
-  <script src="../assets/vendors/progressbar.js/progressbar.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
   <!-- End plugin js for this page -->
@@ -774,7 +768,6 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
   <script src="../assets/js/js/data-table.js"></script>
   <!-- endinject -->
   <!-- Custom js for this page-->
-  <script src="../assets/js/js/dashboard.js"></script>
   <script src="../assets/js/script.js"></script>
   <script>   
     // Fetch data from the JSON file

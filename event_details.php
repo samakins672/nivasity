@@ -77,7 +77,7 @@ if ($event_query && mysqli_num_rows($event_query) > 0) {
     rel="stylesheet">
 
   <!-- Vendor CSS Files -->
-  <link href="assets/css/mdb.css" rel="stylesheet" />
+  <link href="assets/css/mdb.min.css" rel="stylesheet" />
   <link href="assets/vendors/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
   <link href="assets/vendors/aos/aos.css" rel="stylesheet">
   <link href="assets/vendors/glightbox/css/glightbox.min.css" rel="stylesheet">

@@ -19,10 +19,7 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
   <title>Support - Nivasity</title>
   <!-- plugins:css -->
-  <link rel="stylesheet" href="../assets/vendors/feather/feather.css">
   <link rel="stylesheet" href="../assets/vendors/mdi/css/materialdesignicons.min.css">
-  <link rel="stylesheet" href="../assets/vendors/ti-icons/css/themify-icons.css">
-  <link rel="stylesheet" href="../assets/vendors/typicons/typicons.css">
   <link rel="stylesheet" href="../assets/vendors/simple-line-icons/css/simple-line-icons.css">
   <link rel="stylesheet" href="../assets/vendors/css/vendor.bundle.base.css">
   <!-- endinject -->
@@ -30,7 +27,7 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap4.min.css">
   <!-- End plugin css for this page -->
   <!-- inject:css -->
-  <link rel="stylesheet" href="../assets/css/dashboard/style.css">
+  <link rel="stylesheet" href="../assets/css/dashboard/style.min.css">
   <!-- endinject -->
 
   <!-- Google Sign-In API library -->
@@ -288,10 +285,7 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
   <script src="../assets/vendors/js/vendor.bundle.base.js"></script>
   <!-- endinject -->
   <!-- Plugin js for this page -->
-  <script src="../assets/vendors/chart.js/Chart.min.js"></script>
-  <script src="../assets/vendors/bootstrap-datepicker/bootstrap-datepicker.min.js"></script>
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.1/mdb.min.js"></script>
-  <script src="../assets/vendors/progressbar.js/progressbar.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
   <!-- End plugin js for this page -->
@@ -303,7 +297,6 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
   <script src="../assets/js/js/data-table.js"></script>
   <!-- endinject -->
   <!-- Custom js for this page-->
-  <script src="../assets/js/js/dashboard.js"></script>
   <script src="../assets/js/script.js"></script>
   <script>
     $(document).ready(function () {

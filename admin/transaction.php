@@ -29,10 +29,7 @@ $transaction_query = mysqli_query($conn, "SELECT * FROM $item_table2 WHERE selle
   <title>Transactions - Nivasity</title>
 
   <!-- plugins:css -->
-  <link rel="stylesheet" href="../assets/vendors/feather/feather.css">
   <link rel="stylesheet" href="../assets/vendors/mdi/css/materialdesignicons.min.css">
-  <link rel="stylesheet" href="../assets/vendors/ti-icons/css/themify-icons.css">
-  <link rel="stylesheet" href="../assets/vendors/typicons/typicons.css">
   <link rel="stylesheet" href="../assets/vendors/simple-line-icons/css/simple-line-icons.css">
   <link rel="stylesheet" href="../assets/vendors/css/vendor.bundle.base.css">
   <!-- endinject -->
@@ -40,7 +37,7 @@ $transaction_query = mysqli_query($conn, "SELECT * FROM $item_table2 WHERE selle
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap4.min.css">
   <!-- End plugin css for this page -->
   <!-- inject:css -->
-  <link rel="stylesheet" href="../assets/css/dashboard/style.css">
+  <link rel="stylesheet" href="../assets/css/dashboard/style.min.css">
   <!-- endinject -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
 
@@ -185,10 +182,7 @@ $transaction_query = mysqli_query($conn, "SELECT * FROM $item_table2 WHERE selle
   <script src="../assets/vendors/js/vendor.bundle.base.js"></script>
   <!-- endinject -->
   <!-- Plugin js for this page -->
-  <script src="../assets/vendors/chart.js/Chart.min.js"></script>
-  <script src="../assets/vendors/bootstrap-datepicker/bootstrap-datepicker.min.js"></script>
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.1/mdb.min.js"></script>
-  <script src="../assets/vendors/progressbar.js/progressbar.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
   <!-- End plugin js for this page -->
@@ -201,7 +195,6 @@ $transaction_query = mysqli_query($conn, "SELECT * FROM $item_table2 WHERE selle
   <!-- endinject -->
   <!-- Custom js for this page-->
   <script src="../assets/js/script.js"></script>
-  <script src="../assets/js/js/dashboard.js"></script>
   <script>
     $(document).ready(function () {
       $('.btn').attr('data-mdb-ripple-duration', '0');

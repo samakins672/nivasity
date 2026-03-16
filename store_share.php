@@ -14,7 +14,7 @@ $manual_id = isset($_GET['manual_id']) ? intval($_GET['manual_id']) : 0;
   <!-- Vendor CSS -->
   <link href="assets/vendors/mdi/css/materialdesignicons.min.css" rel="stylesheet">
   <link href="assets/vendors/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
-  <link href="assets/css/mdb.css" rel="stylesheet" />
+  <link href="assets/css/mdb.min.css" rel="stylesheet" />
   <link href="assets/css/main.css" rel="stylesheet">
 </head>
 <body>

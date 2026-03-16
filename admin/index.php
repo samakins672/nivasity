@@ -222,10 +222,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
   <meta name="twitter:image" content="https://funaab.nivasity.com/assets/images/nivasity-main.png">
 
   <!-- plugins:css -->
-  <link rel="stylesheet" href="../assets/vendors/feather/feather.css">
   <link rel="stylesheet" href="../assets/vendors/mdi/css/materialdesignicons.min.css">
-  <link rel="stylesheet" href="../assets/vendors/ti-icons/css/themify-icons.css">
-  <link rel="stylesheet" href="../assets/vendors/typicons/typicons.css">
   <link rel="stylesheet" href="../assets/vendors/simple-line-icons/css/simple-line-icons.css">
   <link rel="stylesheet" href="../assets/vendors/css/vendor.bundle.base.css">
   <!-- endinject -->
@@ -233,7 +230,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap4.min.css">
   <!-- End plugin css for this page -->
   <!-- inject:css -->
-  <link rel="stylesheet" href="../assets/css/dashboard/style.css">
+  <link rel="stylesheet" href="../assets/css/dashboard/style.min.css">
   <link rel="stylesheet" href="../assets/css/system-alerts.css">
   <!-- endinject -->
   <style>
@@ -1271,9 +1268,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
   <!-- endinject -->
   <!-- Plugin js for this page -->
   <script src="../assets/vendors/chart.js/Chart.min.js"></script>
-  <script src="../assets/vendors/bootstrap-datepicker/bootstrap-datepicker.min.js"></script>
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.1/mdb.min.js"></script>
-  <script src="../assets/vendors/progressbar.js/progressbar.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
   <!-- End plugin js for this page -->

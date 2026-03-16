@@ -463,10 +463,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
   <script src="assets/vendors/js/vendor.bundle.base.js"></script>
   <!-- endinject -->
   <!-- Plugin js for this page -->
-  <script src="assets/vendors/chart.js/Chart.min.js"></script>
-  <script src="assets/vendors/bootstrap-datepicker/bootstrap-datepicker.min.js"></script>
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.1/mdb.min.js"></script>
-  <script src="assets/vendors/progressbar.js/progressbar.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
   <!-- End plugin js for this page -->
@@ -478,7 +475,6 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
   <script src="assets/js/js/data-table.js"></script>
   <!-- endinject -->
   <!-- Custom js for this page-->
-  <script src="assets/js/js/dashboard.js"></script>
   <script src="assets/js/script.js"></script>
   <script src="assets/js/main.js"></script>
   <script>

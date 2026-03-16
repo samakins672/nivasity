@@ -121,7 +121,7 @@ function formatDateTimeReadable($dt) {
   <meta name="twitter:image" content="https://funaab.nivasity.com/assets/images/nivasity-main.png">
 
   <!-- Styles -->
-  <link href="assets/css/mdb.css" rel="stylesheet" />
+  <link href="assets/css/mdb.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="assets/vendors/mdi/css/materialdesignicons.min.css">
   <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
   <link href="assets/css/style.css" rel="stylesheet">

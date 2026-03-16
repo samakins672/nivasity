@@ -22,9 +22,7 @@
   <meta name="twitter:image" content="https://funaab.nivasity.com/assets/images/nivasity-main.png">
 
   <!-- MDB -->
-  <link href="assets/css/mdb.css" rel="stylesheet" />
-  <!-- Select2 -->
-  <link href="assets/vendors/select2/select2.min.css" rel="stylesheet" />
+  <link href="assets/css/mdb.min.css" rel="stylesheet" />
   <!-- Font Awesome -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
   <!-- Google Fonts -->
@@ -47,6 +45,11 @@
   
 
   <style>
+    body.auth-shell {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #fff7f2 0%, #fce7d7 45%, #f4d7be 100%);
+    }
+
     .divider:after,
     .divider:before {
       content: "";
@@ -57,7 +60,7 @@
   </style>
 </head>
 
-<body class="bg-image">
+<body class="auth-shell">
   <div class="container vh-100">
     <!-- Bootstrap alert container -->
     <div id="alertBanner"
@@ -132,10 +135,8 @@
   <!-- Spinner End -->
 
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.1/mdb.min.js"></script>
-  <script src="assets/vendors/select2/select2.min.js"></script>
 
   <!-- main js -->
   <script src="assets/js/script.js"></script>
