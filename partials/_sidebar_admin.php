@@ -59,6 +59,14 @@
         <span class="menu-title">Home</span>
       </a>
     </li>
+    <?php if ($_SESSION['nivas_userRole'] == 'hoc'): ?>
+    <li class="nav-item <?php echo ($url == 'granted_exports.php') ? 'active' : ''; ?>">
+      <a class="nav-link" href="granted_exports.php">
+        <i class="mdi mdi-file-check-outline menu-icon"></i>
+        <span class="menu-title">Granted Exports</span>
+      </a>
+    </li>
+    <?php endif; ?>
     <li class="nav-item">
       <a class="nav-link" href="transaction.php">
         <i class="mdi mdi-receipt menu-icon"></i>
