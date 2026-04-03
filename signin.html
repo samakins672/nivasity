@@ -55,6 +55,15 @@
       height: 1px;
       background: #eee;
     }
+
+    .school-tenant-name {
+      color: #111111;
+      text-align: center;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      margin-bottom: 1.25rem;
+    }
   </style>
 
 </head>
@@ -78,6 +87,7 @@
           <div class="w-50 mb-3 mx-auto">
             <img src="assets/images/nivasity-main.png" class="img-fluid" alt="Phone image">
           </div>
+          <div id="schoolTenantName" class="school-tenant-name d-none"></div>
 
           <ul class="nav nav-pills nav-justified mb-3" id="ex1" role="tablist">
             <li class="nav-item" role="presentation">
@@ -315,6 +325,69 @@
       return payloadObject;
     }
 
+    function normalizeSchoolHost(value) {
+      return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/^https?:\/\//, '')
+        .replace(/^www\./, '')
+        .replace(/\/.*$/, '')
+        .replace(/:\d+$/, '');
+    }
+
+    function resolveSchoolDisplayName(schools, host) {
+      const normalizedHost = normalizeSchoolHost(host);
+      const subdomain = normalizedHost.split('.')[0] || '';
+
+      if (normalizedHost === 'stage.nivasity.com' || normalizedHost === 'staging.nivasity.com') {
+        const stageSchool = schools.find(function (school) {
+          return Number(school.id) === 1;
+        });
+
+        return stageSchool ? stageSchool.name : '';
+      }
+
+      const domainMatch = schools.find(function (school) {
+        return normalizeSchoolHost(school.domain) === normalizedHost;
+      });
+
+      if (domainMatch) {
+        return domainMatch.name;
+      }
+
+      const codeMatch = schools.find(function (school) {
+        return String(school.code || '').trim().toLowerCase() === subdomain;
+      });
+
+      return codeMatch ? codeMatch.name : '';
+    }
+
+    function loadSchoolTenantName() {
+      const schoolNameNode = $('#schoolTenantName');
+      const currentHost = window.location.hostname;
+
+      $.ajax({
+        type: 'GET',
+        url: 'API/reference/schools.php',
+        data: { limit: 200 },
+        success: function (response) {
+          const schools = response && response.data && Array.isArray(response.data.schools)
+            ? response.data.schools
+            : [];
+          const schoolName = resolveSchoolDisplayName(schools, currentHost);
+
+          if (schoolName) {
+            schoolNameNode.text(schoolName).removeClass('d-none');
+          } else {
+            schoolNameNode.addClass('d-none').text('');
+          }
+        },
+        error: function () {
+          schoolNameNode.addClass('d-none').text('');
+        }
+      });
+    }
+
     // Example usage of handleCredentialResponse
     function handleCredentialResponse(response) {
       // Assuming response.credential contains a JWT
@@ -359,6 +432,8 @@
     }
 
     $(document).ready(function () {
+      loadSchoolTenantName();
+
       $('[data-toggle="tooltip"]').tooltip();
 
       $(".form-check-input").click(function () {
