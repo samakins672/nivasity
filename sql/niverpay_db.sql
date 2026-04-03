@@ -221,6 +221,7 @@ CREATE TABLE `schools` (
   `id` int(11) NOT NULL,
   `name` text NOT NULL,
   `code` varchar(200) NOT NULL,
+  `domain` varchar(255) DEFAULT NULL,
   `status` varchar(15) NOT NULL DEFAULT 'active',
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

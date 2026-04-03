@@ -18,13 +18,15 @@ $offset = ($page - 1) * $limit;
 // Build query - only active schools
 $where_conditions = ["status = 'active'"];
 $where_clause = implode(' AND ', $where_conditions);
+$has_domain_column = function_exists('nivasity_db_has_column') ? nivasity_db_has_column($conn, 'schools', 'domain') : false;
 
 // Count total active schools
 $count_query = mysqli_query($conn, "SELECT COUNT(*) as total FROM schools WHERE $where_clause");
 $total = mysqli_fetch_array($count_query)['total'];
 
 // Fetch active schools
-$query = "SELECT id, name, code, created_at 
+$select_columns = $has_domain_column ? 'id, name, code, domain, created_at' : 'id, name, code, created_at';
+$query = "SELECT $select_columns 
           FROM schools 
           WHERE $where_clause 
           ORDER BY name ASC 
@@ -39,12 +41,18 @@ if (!$result) {
 $schools = [];
 
 while ($row = mysqli_fetch_assoc($result)) {
-    $schools[] = [
+    $school_data = [
         'id' => (int)$row['id'],
         'name' => $row['name'],
         'code' => $row['code'],
         'created_at' => $row['created_at']
     ];
+
+    if ($has_domain_column) {
+        $school_data['domain'] = $row['domain'];
+    }
+
+    $schools[] = $school_data;
 }
 
 sendApiSuccess('Schools retrieved successfully', [

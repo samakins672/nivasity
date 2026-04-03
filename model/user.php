@@ -22,6 +22,13 @@ if (isset($_POST['signup'])) {
     $gender = mysqli_real_escape_string($conn, $_POST['gender']);
     $role = mysqli_real_escape_string($conn, $_POST['role']);
     $school = nivasity_school_id();
+
+    if ($school <= 0) {
+      $statusRes = "failed";
+      $messageRes = "We could not resolve your school from this domain. Please use your school's Nivasity link.";
+      return;
+    }
+
     mysqli_query($conn, "INSERT INTO users (first_name, last_name, email, phone, password, role, school, gender)"
         . " VALUES ('$first_name', '$last_name', '$email', '$phone', '$password', '$role', $school, '$gender')");
     $user_id = mysqli_insert_id($conn);

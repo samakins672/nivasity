@@ -1,37 +1,9 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/tenant.php';
 
-if (!defined('APP_SCHOOL_ID')) {
-  define('APP_SCHOOL_ID', 1);
-}
-
-if (!defined('APP_DOMAIN')) {
-  define('APP_DOMAIN', 'https://funaab.nivasity.com');
-}
-
-if (!function_exists('nivasity_app_domain')) {
-  function nivasity_app_domain() {
-    return rtrim(APP_DOMAIN, '/');
-  }
-}
-
-if (!function_exists('nivasity_app_url')) {
-  function nivasity_app_url($path = '') {
-    $baseUrl = nivasity_app_domain();
-    $normalizedPath = ltrim((string) $path, '/');
-
-    if ($normalizedPath === '') {
-      return $baseUrl;
-    }
-
-    return $baseUrl . '/' . $normalizedPath;
-  }
-}
-
-if (!function_exists('nivasity_school_id')) {
-  function nivasity_school_id() {
-    return (int) APP_SCHOOL_ID;
-  }
+if (isset($conn)) {
+  nivasity_resolve_tenant_from_request($conn);
 }
 
 require_once __DIR__ . '/../config/fw.php';
@@ -91,7 +63,7 @@ if (isset($_SESSION['nivas_userId'])) {
     $is_admin_role = True;
   }
 
-  if ((int) $school_id !== nivasity_school_id()) {
+  if (nivasity_school_id() > 0 && (int) $school_id !== nivasity_school_id()) {
     session_unset();
     session_destroy();
     header('Location: ' . nivasity_app_url('signin.html?logout=1&wrong_school=1'));
