@@ -88,12 +88,13 @@ if ($user['status'] === 'unverified') {
     $subject = "Verify Your Account on NIVASITY";
     $first_name = htmlspecialchars($user['first_name'], ENT_QUOTES, 'UTF-8');
     $verificationLinkEscaped = htmlspecialchars($verificationLink, ENT_QUOTES, 'UTF-8');
+    $verificationUrl = htmlspecialchars(nivasity_app_url($verificationLink), ENT_QUOTES, 'UTF-8');
     $body = "Hello $first_name,
 <br><br>
 We noticed you tried to log in with an unverified account. We've sent you a new verification link to complete your registration.
 <br><br>
-Click on the following link to verify your account: <a href='https://funaab.nivasity.com/$verificationLinkEscaped'>Verify Account</a>
-<br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationLinkEscaped
+Click on the following link to verify your account: <a href='$verificationUrl'>Verify Account</a>
+<br>If you are unable to click on the link, please copy and paste the following URL into your browser: $verificationUrl
 <br><br>
 Thank you for choosing Nivasity. We look forward to serving you!
 <br><br>

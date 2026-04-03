@@ -125,7 +125,7 @@ if ($action === 'download' && $format === 'pdf') {
   if (class_exists('Dompdf\\Dompdf')) {
     $filenamePdf = 'receipt-' . preg_replace('/[^A-Za-z0-9_\-]/', '', $ref) . '.pdf';
 
-    $logoUrl = 'https://funaab.nivasity.com/assets/images/nivasity-main.png';
+    $logoUrl = nivasity_asset_url('assets/images/nivasity-main.png');
     $html = '<!doctype html><html><head><meta charset="utf-8">'
           . '<style>'
           . '*{box-sizing:border-box;} body{font-family: DejaVu Sans, Arial, Helvetica, sans-serif; color:#333; background:#fff; margin:0;}'

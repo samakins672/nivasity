@@ -10,16 +10,18 @@
 
   <!-- Open Graph Meta Tags -->
   <meta property="og:title" content="Nivasity - Empowering Students and Educators">
-  <meta property="og:description" content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
-  <meta property="og:image" content="https://funaab.nivasity.com/assets/images/nivasity-main.png">
-  <meta property="og:url" content="https://funaab.nivasity.com">
+  <meta property="og:description"
+    content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
+  <meta property="og:image" content="/assets/images/nivasity-main.png">
+  <meta property="og:url" content="/">
   <meta property="og:type" content="website">
 
   <!-- Twitter Meta Tags -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Nivasity - Empowering Students and Educators">
-  <meta name="twitter:description" content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
-  <meta name="twitter:image" content="https://funaab.nivasity.com/assets/images/nivasity-main.png">
+  <meta name="twitter:description"
+    content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
+  <meta name="twitter:image" content="/assets/images/nivasity-main.png">
 
   <!-- MDB -->
   <link href="assets/css/mdb.min.css" rel="stylesheet" />
@@ -79,8 +81,7 @@
             <input type="hidden" name="setup">
             <input type="hidden" id="user_id" name="user_id">
             <input type="hidden" id="school_id" name="school_id">
-            <h4 class="text-secondary text-center mb-4">Let's get started <span
-                class="text-primary first_name"></span>
+            <h4 class="text-secondary text-center mb-4">Let's get started <span class="text-primary first_name"></span>
             </h4>
 
             <div class="row mb-3">
@@ -108,7 +109,7 @@
             </div>
 
             <div class="form-outline mb-3">
-              <input type="text" name="matric_no" id="matric_no" class="form-control form-control-lg" required/>
+              <input type="text" name="matric_no" id="matric_no" class="form-control form-control-lg" required />
               <label class="form-label" for="matric_no">Matric/JAMB Reg. Number</label>
             </div>
 
@@ -150,7 +151,7 @@
       $.ajax({
         type: 'POST',
         url: 'model/verify.php',
-        data: {verify: verify},
+        data: { verify: verify },
         success: function (data) {
           if (data.status == 'success') {
             // Get the select element
@@ -176,12 +177,12 @@
             // }
 
           } else {
-            window.location.href = 'https://funaab.nivasity.com';
+            window.location.href = '/';
           }
         }
       });
     } else {
-      window.location.href = 'https://funaab.nivasity.com';
+      window.location.href = '/';
     }
 
     $(document).ready(function () {

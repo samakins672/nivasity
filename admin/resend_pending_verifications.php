@@ -95,10 +95,11 @@ while ($pendingUser = mysqli_fetch_assoc($pendingUsersQuery)) {
 
   $subject = 'Verify Your Account on NIVASITY';
   $firstName = $pendingUser['first_name'];
+  $verificationUrl = nivasity_app_url($verificationPath);
   $body = "Hello $firstName,<br><br>"
     . "We're sending you a new verification link so you can finish setting up your Nivasity account.<br><br>"
-    . "Click on the following link to verify your account: <a href='https://funaab.nivasity.com/$verificationPath'>Verify Account</a><br>"
-    . "If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationPath<br><br>"
+    . "Click on the following link to verify your account: <a href='$verificationUrl'>Verify Account</a><br>"
+    . "If you are unable to click on the link, please copy and paste the following URL into your browser: $verificationUrl<br><br>"
     . "Thank you for choosing Nivasity. We look forward to serving you!<br><br>"
     . 'Best regards,<br><b>Nivasity Team</b>';
 

@@ -1,8 +1,9 @@
+<?php $profileImageUrl = nivasity_asset_url('assets/images/users/' . $user_image); ?>
 <nav class="sidebar sidebar-offcanvas border-start border-2 border-secondary" id="sidebar">
   <ul class="nav">
     <li class="nav-item d-md-none d-block">
       <div class="dropdown-header text-center">
-        <img class="img-sm img-fluid rounded rounded-7" src="https://funaab.nivasity.com/assets/images/users/<?php echo $user_image?>" alt="Profile image">
+        <img class="img-sm img-fluid rounded rounded-7" src="<?php echo htmlspecialchars($profileImageUrl, ENT_QUOTES, 'UTF-8'); ?>" alt="Profile image">
         <span class="mb-1 mt-1 fw-bold d-block">
           <?php echo $user_name?><br>
           <?php if ($_SESSION['nivas_userRole'] == 'hoc'): ?>

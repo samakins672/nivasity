@@ -1,4 +1,5 @@
 <?php
+require_once '../../config/db.php';
 require('../../config/mail.php');
 
 //Import PHPMailer classes into the global namespace
@@ -8,6 +9,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 function sendBulkMail($subject, $body, $recipients, $replyToEmail)
 {
   $body = str_replace('\r\n', '<br>', $body);
+    $logoUrl = htmlspecialchars(nivasity_asset_url('assets/images/nivasity-main.png'), ENT_QUOTES, 'UTF-8');
 
   // HTML Email Template
   $body_ = '
@@ -91,7 +93,7 @@ function sendBulkMail($subject, $body, $recipients, $replyToEmail)
   <body>
       <div class="container">
           <div class="header">
-              <img src="https://funaab.nivasity.com/assets/images/nivasity-main.png" alt="Nivasty">
+              <img src="' . $logoUrl . '" alt="Nivasty">
           </div>
           <div class="content">
               ' . $body . '

@@ -65,12 +65,13 @@ if ($user['role'] === 'org_admin') {
 
 $subject = "Verify Your Account on NIVASITY";
 $first_name = $user['first_name'];
+$verificationUrl = nivasity_app_url($verificationLink);
 $body = "Hello $first_name,
 <br><br>
 We're sending you a new verification link so you can finish setting up your Nivasity account.
 <br><br>
-Click on the following link to verify your account: <a href='https://funaab.nivasity.com/$verificationLink'>Verify Account</a>
-<br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationLink
+Click on the following link to verify your account: <a href='$verificationUrl'>Verify Account</a>
+<br>If you are unable to click on the link, please copy and paste the following URL into your browser: $verificationUrl
 <br><br>
 Thank you for choosing Nivasity. We look forward to serving you!
 <br><br>

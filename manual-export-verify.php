@@ -110,15 +110,15 @@ function formatDateTimeReadable($dt) {
   <!-- Open Graph Meta Tags -->
   <meta property="og:title" content="Manual Export Verification - Nivasity">
   <meta property="og:description" content="Verify manual export summaries using the code printed on the PDF.">
-  <meta property="og:image" content="https://funaab.nivasity.com/assets/images/nivasity-main.png">
-  <meta property="og:url" content="https://funaab.nivasity.com/manual-export-verify.php">
+  <meta property="og:image" content="<?php echo htmlspecialchars(nivasity_asset_url('assets/images/nivasity-main.png'), ENT_QUOTES, 'UTF-8'); ?>">
+  <meta property="og:url" content="<?php echo htmlspecialchars(nivasity_app_url('manual-export-verify.php'), ENT_QUOTES, 'UTF-8'); ?>">
   <meta property="og:type" content="website">
 
   <!-- Twitter Meta Tags -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Manual Export Verification - Nivasity">
   <meta name="twitter:description" content="Verify manual export summaries using the code printed on the PDF.">
-  <meta name="twitter:image" content="https://funaab.nivasity.com/assets/images/nivasity-main.png">
+  <meta name="twitter:image" content="<?php echo htmlspecialchars(nivasity_asset_url('assets/images/nivasity-main.png'), ENT_QUOTES, 'UTF-8'); ?>">
 
   <!-- Styles -->
   <link href="assets/css/mdb.min.css" rel="stylesheet" />

@@ -90,8 +90,9 @@ if ($user_id && isset($_POST['support_id'])) {
     $supportSubject = "Important: New Support Request - Ticket #$uniqueCode";
     $e_message = str_replace('\r\n', '<br>', $message);
 
+    $attachmentUrl = $storedFilePath ? nivasity_app_url($storedFilePath) : '';
     $attachmentInfo = $storedFilePath
-      ? "<br><br>File attached: <a href='https://funaab.nivasity.com/{$storedFilePath}'>https://funaab.nivasity.com/{$storedFilePath}</a>"
+      ? "<br><br>File attached: <a href='$attachmentUrl'>$attachmentUrl</a>"
       : '';
 
     $supportMessage = "User: $first_name (User id: $user_id)<br>Email: <a href='mailto:$userEmail'>$userEmail</a><br>Message: <br>$e_message{$attachmentInfo}";

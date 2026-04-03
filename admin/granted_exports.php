@@ -250,7 +250,7 @@ if (isset($_GET['download'])) {
   }
 
   $rows = loadGrantedExportRows($conn, $auditRow, (int)$user_dept);
-  $verificationUrl = 'https://funaab.nivasity.com/manual-export-verify.php?code=' . urlencode($auditRow['code']);
+  $verificationUrl = nivasity_app_url('manual-export-verify.php?code=' . urlencode($auditRow['code']));
   ?>
   <!DOCTYPE html>
   <html lang="en">

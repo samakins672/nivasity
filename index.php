@@ -737,9 +737,9 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         var shareText = 'Check out '+title+' on nivasity and order now!';
 
         if (type == 'product') {
-          var shareUrl = "https://funaab.nivasity.com/store_share.php?manual_id="+product_id;
+          var shareUrl = <?php echo json_encode(nivasity_app_url('store_share.php')); ?>+"?manual_id="+product_id;
         } else {
-          var shareUrl = "https://funaab.nivasity.com/event_details.php?event_id="+product_id;
+          var shareUrl = <?php echo json_encode(nivasity_app_url('event_details.php')); ?>+"?event_id="+product_id;
         }
 
         // Mobile uses native share; desktop copies link

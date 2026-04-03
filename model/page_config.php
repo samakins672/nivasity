@@ -43,22 +43,23 @@ if (isset($_SESSION['nivas_userId'])) {
     if (strtolower($user_email) !== strtolower(STAGING_ALLOWED_EMAIL)) {
       session_unset();
       session_destroy();
-      header("Location: https://funaab.nivasity.com/signin.html?logout=1&not_allowed=1");
+      header('Location: ' . nivasity_app_url('signin.html?logout=1&not_allowed=1'));
       exit();
     }
   }
   
   if ($_SESSION['nivas_userRole'] == 'org_admin' || $_SESSION['nivas_userRole'] == 'visitor') {
-    header("Location: https://funaab.nivasity.com/signin.html?logout=1&not_allowed=1");
+    header('Location: ' . nivasity_app_url('signin.html?logout=1&not_allowed=1'));
     exit();
   }
   if ($_SESSION['nivas_userRole'] !== 'student' && $_SESSION['nivas_userRole'] !== 'visitor') {
     $is_admin_role = True;
   }
 
-  if ($school_id != 1) {
-    $redirected_path = $_SERVER['REQUEST_URI'];
-    header("Location: https://nivasity.com$redirected_path");
+  if ((int) $school_id !== nivasity_school_id()) {
+    session_unset();
+    session_destroy();
+    header('Location: ' . nivasity_app_url('signin.html?logout=1&wrong_school=1'));
     exit();
   }
 

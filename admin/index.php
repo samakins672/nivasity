@@ -211,15 +211,15 @@ if (mysqli_num_rows($settlement_query) == 0) {
   <!-- Open Graph Meta Tags -->
   <meta property="og:title" content="Dashboard - Nivasity">
   <meta property="og:description" content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
-  <meta property="og:image" content="https://funaab.nivasity.com/assets/images/nivasity-main.png">
-  <meta property="og:url" content="https://funaab.nivasity.com">
+  <meta property="og:image" content="<?php echo htmlspecialchars(nivasity_asset_url('assets/images/nivasity-main.png'), ENT_QUOTES, 'UTF-8'); ?>">
+  <meta property="og:url" content="<?php echo htmlspecialchars(nivasity_app_url(), ENT_QUOTES, 'UTF-8'); ?>">
   <meta property="og:type" content="website">
 
   <!-- Twitter Meta Tags -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Dashboard - Nivasity">
   <meta name="twitter:description" content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
-  <meta name="twitter:image" content="https://funaab.nivasity.com/assets/images/nivasity-main.png">
+  <meta name="twitter:image" content="<?php echo htmlspecialchars(nivasity_asset_url('assets/images/nivasity-main.png'), ENT_QUOTES, 'UTF-8'); ?>">
 
   <!-- plugins:css -->
   <link rel="stylesheet" href="../assets/vendors/mdi/css/materialdesignicons.min.css">
@@ -1547,8 +1547,8 @@ if (mysqli_num_rows($settlement_query) == 0) {
         var title = button.data('title');
         var shareText = 'Check out '+title+' on nivasity and order now!';
         var shareUrl = (type == 'product')
-          ? ("https://funaab.nivasity.com/store_share.php?manual_id="+product_id)
-          : ("https://funaab.nivasity.com/event_details.php?event_id="+product_id);
+          ? (<?php echo json_encode(nivasity_app_url('store_share.php')); ?>+"?manual_id="+product_id)
+          : (<?php echo json_encode(nivasity_app_url('event_details.php')); ?>+"?event_id="+product_id);
 
         if (isMobileDevice() && navigator.share) {
           navigator.share({
@@ -1776,7 +1776,7 @@ if (mysqli_num_rows($settlement_query) == 0) {
               var totalAmount = Number(response.total_amount || 0);
               var totalAmountFormatted = totalAmount.toLocaleString('en-NG');
               var studentsCount = Number(response.students_count || 0);
-              var verificationUrl = "https://funaab.nivasity.com/manual-export-verify.php?code=" + encodeURIComponent(response.code);
+              var verificationUrl = <?php echo json_encode(nivasity_app_url('manual-export-verify.php')); ?> + "?code=" + encodeURIComponent(response.code);
 
               var metaHtml = "<div style='margin: 10px 0 20px; font-size: 13px; line-height: 1.5;'>"
                 + "<p><strong>Verification Code:</strong> " + response.code + "</p>"

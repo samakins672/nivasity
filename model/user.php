@@ -21,7 +21,7 @@ if (isset($_POST['signup'])) {
     $phone = mysqli_real_escape_string($conn, $_POST['phone']);
     $gender = mysqli_real_escape_string($conn, $_POST['gender']);
     $role = mysqli_real_escape_string($conn, $_POST['role']);
-    $school = 1;
+    $school = nivasity_school_id();
     mysqli_query($conn, "INSERT INTO users (first_name, last_name, email, phone, password, role, school, gender)"
         . " VALUES ('$first_name', '$last_name', '$email', '$phone', '$password', '$role', $school, '$gender')");
     $user_id = mysqli_insert_id($conn);
@@ -50,12 +50,13 @@ if (isset($_POST['signup'])) {
       }
 
       $subject = "Verify Your Account on NIVASITY";
+      $verificationUrl = nivasity_app_url($verificationCode);
       $body = "Hello $first_name,
       <br><br>
       Welcome to Nivasity! We're excited to have you on board. To ensure the security of your account and to provide you with the best experience, we kindly ask you to verify your email address.
       <br><br>
-      Click on the following link to verify your account: <a href='https://funaab.nivasity.com/$verificationCode'>Verify Account</a>
-      <br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationCode
+      Click on the following link to verify your account: <a href='$verificationUrl'>Verify Account</a>
+      <br>If you are unable to click on the link, please copy and paste the following URL into your browser: $verificationUrl
       <br><br>
       Thank you for choosing Nivasity. We look forward to serving you!
       <br><br>
@@ -122,14 +123,15 @@ if (isset($_POST['resend_verification'])) {
             $verificationCode = "setup.html?verify=$verificationCode";
           }
 
-          $subject = "Verify Your Account on NIVASITY";
+            $subject = "Verify Your Account on NIVASITY";
           $first_name = $user['first_name'];
+            $verificationUrl = nivasity_app_url($verificationCode);
           $body = "Hello $first_name,
       <br><br>
       We're sending you a new verification link so you can finish setting up your Nivasity account.
       <br><br>
-      Click on the following link to verify your account: <a href='https://funaab.nivasity.com/$verificationCode'>Verify Account</a>
-      <br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationCode
+          Click on the following link to verify your account: <a href='$verificationUrl'>Verify Account</a>
+          <br>If you are unable to click on the link, please copy and paste the following URL into your browser: $verificationUrl
       <br><br>
       Thank you for choosing Nivasity. We look forward to serving you!
       <br><br>
@@ -412,12 +414,13 @@ if (isset($_POST['login'])) {
           // Escape user data for safe inclusion in HTML email
           $first_name = htmlspecialchars($user['first_name'], ENT_QUOTES, 'UTF-8');
           $verificationLinkEscaped = htmlspecialchars($verificationLink, ENT_QUOTES, 'UTF-8');
+          $verificationUrl = htmlspecialchars(nivasity_app_url($verificationLink), ENT_QUOTES, 'UTF-8');
           $body = "Hello $first_name,
 <br><br>
 We noticed you tried to log in with an unverified account. We're sending you a verification link to complete your registration.
 <br><br>
-Click on the following link to verify your account: <a href='https://funaab.nivasity.com/$verificationLinkEscaped'>Verify Account</a>
-<br>If you are unable to click on the link, please copy and paste the following URL into your browser: https://funaab.nivasity.com/$verificationLinkEscaped
+Click on the following link to verify your account: <a href='$verificationUrl'>Verify Account</a>
+<br>If you are unable to click on the link, please copy and paste the following URL into your browser: $verificationUrl
 <br><br>
 Thank you for choosing Nivasity. We look forward to serving you!
 <br><br>

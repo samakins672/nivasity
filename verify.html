@@ -10,16 +10,18 @@
 
   <!-- Open Graph Meta Tags -->
   <meta property="og:title" content="Nivasity - Empowering Students and Educators">
-  <meta property="og:description" content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
-  <meta property="og:image" content="https://funaab.nivasity.com/assets/images/nivasity-main.png">
-  <meta property="og:url" content="https://funaab.nivasity.com">
+  <meta property="og:description"
+    content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
+  <meta property="og:image" content="/assets/images/nivasity-main.png">
+  <meta property="og:url" content="/">
   <meta property="og:type" content="website">
 
   <!-- Twitter Meta Tags -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Nivasity - Empowering Students and Educators">
-  <meta name="twitter:description" content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
-  <meta name="twitter:image" content="https://funaab.nivasity.com/assets/images/nivasity-main.png">
+  <meta name="twitter:description"
+    content="Nivasity is a platform dedicated to enhancing the educational experience, connecting students, educators, and event organizers in a seamless and innovative way.">
+  <meta name="twitter:image" content="/assets/images/nivasity-main.png">
 
   <!-- MDB -->
   <link href="assets/css/mdb.min.css" rel="stylesheet" />
@@ -74,16 +76,19 @@
           <div class="w-75 w-md-50 mb-4 mx-auto">
             <img src="assets/images/nivasity-main.png" class="img-fluid" alt="Phone image">
           </div>
-          
+
           <div class="d-flex flex-column justify-content-center">
             <span class="spinner-border spinner-border-md text-dark mt-5 mb-3 mx-auto" role="status"
               aria-hidden="true"></span>
-            <span class="success_icon text-center"><span class="mdi mdi-check-all text-success fw-bold fs-1 mt-5 mb-3"></span></span>
-            <span class="error_icon text-center"><span class="mdi mdi-alert-circle text-danger fs-1 mt-5 mb-3"></span></span>
+            <span class="success_icon text-center"><span
+                class="mdi mdi-check-all text-success fw-bold fs-1 mt-5 mb-3"></span></span>
+            <span class="error_icon text-center"><span
+                class="mdi mdi-alert-circle text-danger fs-1 mt-5 mb-3"></span></span>
             <h5 class="fw-bold text-dark text-center">Verifying . . .</h5>
-  
+
             <p class="error_icon text-center">
-              <a class="fw-bold" href="signin.html"><span class="mdi mdi-keyboard-backspace"></span> Go to Signin Page</a>
+              <a class="fw-bold" href="signin.html"><span class="mdi mdi-keyboard-backspace"></span> Go to Signin
+                Page</a>
             </p>
           </div>
         </div>
@@ -113,12 +118,12 @@
       $.ajax({
         type: 'POST',
         url: 'model/verify_visitor.php',
-        data: {verify: verify},
+        data: { verify: verify },
         success: function (data) {
           if (data.status == 'success') {
             $('.spinner-border').hide();
             $('.success_icon').show();
-          $('h5').html(`Yay 🎉<br> Your Account has been verified successfully!<br>
+            $('h5').html(`Yay 🎉<br> Your Account has been verified successfully!<br>
                         <small class="text-success pt-2">Redirecting in few seconds...<br>
                           <div class="spinner-grow text-primary spinner-1 mt-3" role="status">
                             <span class="visually-hidden">Loading...</span>
@@ -131,13 +136,13 @@
                           </div>
                         </small>`);
 
-          $('.spinner-grow').hide();
-          
-          // Show each spinner with a delay for a staggered effect
-          setTimeout(function() { $('.spinner-1').show(); }, 100);
-          setTimeout(function() { $('.spinner-2').show(); }, 300);
-          setTimeout(function() { $('.spinner-3').show(); }, 600);
-            
+            $('.spinner-grow').hide();
+
+            // Show each spinner with a delay for a staggered effect
+            setTimeout(function () { $('.spinner-1').show(); }, 100);
+            setTimeout(function () { $('.spinner-2').show(); }, 300);
+            setTimeout(function () { $('.spinner-3').show(); }, 600);
+
             // Wait 3 seconds and redirect to the sign-in page
             setTimeout(function () {
               window.location.href = '/signin.html';
@@ -146,7 +151,7 @@
             $('.spinner-border').hide();
             $('.error_icon').show();
             $('h5').html('<small class="text-danger">This link is wrong or has expired!</small>');
-            
+
             showToast('bg-danger', 'An error occurred.');
           }
         },
