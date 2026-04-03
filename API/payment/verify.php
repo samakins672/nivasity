@@ -65,7 +65,7 @@ if (isset($verifyResult['data']['metadata']['redirect_url'])) {
 $processResult = null;
 try {
     $processResult = withTxProcessingLock($conn, $tx_ref, function() use ($conn, $tx_ref, $user_id, $user, $gateway_slug) {
-    // Consider a ref already processed only when delivery rows exist.
+    // Treat refs with a successful transaction and confirmed cart rows as already processed.
     $processed_query = mysqli_query($conn, "SELECT id, amount, created_at FROM transactions WHERE ref_id = '$tx_ref' ORDER BY id DESC LIMIT 1");
     $tx_exists = $processed_query && mysqli_num_rows($processed_query) > 0;
     $transaction = $tx_exists ? mysqli_fetch_assoc($processed_query) : null;
@@ -74,8 +74,11 @@ try {
     $delivery_count = (int)($manual_count_row['c'] ?? 0) + (int)($event_count_row['c'] ?? 0);
     $cart_count_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM cart WHERE ref_id = '$tx_ref' AND user_id = $user_id"));
     $cart_count = (int)($cart_count_row['c'] ?? 0);
+    $confirmed_cart_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM cart WHERE ref_id = '$tx_ref' AND user_id = $user_id AND status = 'confirmed'"));
+    $confirmed_cart_count = (int)($confirmed_cart_row['c'] ?? 0);
+    $is_already_processed = $tx_exists && (($delivery_count > 0 && ($cart_count <= 0 || $delivery_count >= $cart_count)) || $confirmed_cart_count > 0);
 
-    if (($delivery_count > 0) && ($cart_count <= 0 || $delivery_count >= $cart_count)) {
+    if ($is_already_processed) {
         $refundApplied = consumeReservationsForSettledTx($conn, $tx_ref);
         return [
             'already_processed' => true,

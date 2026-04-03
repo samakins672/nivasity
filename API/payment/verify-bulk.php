@@ -99,12 +99,13 @@ if ($isCli) {
 }
 
 // Build WHERE conditions
-$where_conditions = ["status = 'pending'"];
+$where_conditions = [];
 
 // If ref_id is passed, only check that specific reference
 if ($ref_id !== '') {
     $where_conditions[] = "ref_id = '$ref_id'";
 } else {
+    $where_conditions[] = "status = 'pending'";
     // If no ref_id, apply other filters
     
     // User filter
@@ -215,9 +216,14 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
     $delivery_count = (int)($mb_count_row['c'] ?? 0) + (int)($et_count_row['c'] ?? 0);
     $cart_count_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM cart WHERE ref_id = '$current_ref' AND user_id = $cart_user_id"));
     $cart_count = (int)($cart_count_row['c'] ?? 0);
+    $confirmed_cart_count_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM cart WHERE ref_id = '$current_ref' AND user_id = $cart_user_id AND status = 'confirmed'"));
+    $confirmed_cart_count = (int)($confirmed_cart_count_row['c'] ?? 0);
+    $processed_tx_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT id, amount, created_at, status FROM transactions WHERE ref_id = '$current_ref' ORDER BY id DESC LIMIT 1"));
+    $has_processed_transaction = !empty($processed_tx_row) && isset($processed_tx_row['id']) && (int)$processed_tx_row['id'] > 0;
     $dupe = ($delivery_count > 0) && ($cart_count <= 0 || $delivery_count >= $cart_count);
+    $already_processed = $has_processed_transaction && ($dupe || $confirmed_cart_count > 0);
     
-    if ($dupe) {
+    if ($already_processed) {
         // Already processed - mark as confirmed
         if (!$dry_run) {
             mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$current_ref'");
@@ -240,6 +246,10 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
         $result['status'] = 'already_processed';
         $result['reason'] = 'already_processed';
         $result['message'] = 'Already processed';
+        if ($has_processed_transaction) {
+            $result['amount'] = isset($processed_tx_row['amount']) ? (float)$processed_tx_row['amount'] : 0;
+            $result['processed_at'] = !empty($processed_tx_row['created_at']) ? $processed_tx_row['created_at'] : null;
+        }
         $already_processed_count++;
         $results[] = $result;
         
