@@ -77,6 +77,22 @@
       An error occurred during the AJAX request.
     </div>
 
+    <div class="modal fade" id="wrongSchoolModal" tabindex="-1" aria-labelledby="wrongSchoolModalLabel"
+      aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+          <div class="modal-header pb-2">
+            <h5 class="modal-title fw-bold" id="wrongSchoolModalLabel">Wrong School Link</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body pt-2">
+            Please this domain is not your school's domain, kindly ask your school management for the right link, thanks
+            💛
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="row mx-0">
       <div class="d-none d-md-block col-md-7 p-0"
         style="background-image: url('assets/images/bk-1.jpg'); background-size: cover; background-position: center; background-repeat: no-repeat;">
@@ -302,8 +318,20 @@
       }, 5000);
     }
 
+    function showWrongSchoolModal() {
+      const modalElement = document.getElementById('wrongSchoolModal');
+
+      if (!modalElement || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+        showAlertBanner('warning', "Please this domain is not your school's domain, kindly ask your school management for the right link, thanks 💛");
+        return;
+      }
+
+      const wrongSchoolModal = new bootstrap.Modal(modalElement);
+      wrongSchoolModal.show();
+    }
+
     if (wrong_school === '1') {
-      showAlertBanner('warning', "Please this domain is not your school's domain, kindly ask your school management for the right link, thanks 💛");
+      showWrongSchoolModal();
     }
 
     // Check if the verify parameter is present
