@@ -269,10 +269,42 @@
     // Get the logout parameter from the URL
     const logout = urlParams.get('logout');
     const not_allowed = urlParams.get('not_allowed');
+    const wrong_school = urlParams.get('wrong_school');
     let data = {
       logout: 'logout',
       not_allowed: not_allowed ? not_allowed : ''
     };
+
+    function showAlertBanner(status, message) {
+      $('#alertBanner').html(message);
+
+      if (status === 'success') {
+        $('#alertBanner').removeClass('alert-info');
+        $('#alertBanner').removeClass('alert-danger');
+        $('#alertBanner').removeClass('alert-warning');
+        $('#alertBanner').addClass('alert-success');
+      } else if (status === 'warning') {
+        $('#alertBanner').removeClass('alert-danger');
+        $('#alertBanner').removeClass('alert-success');
+        $('#alertBanner').removeClass('alert-info');
+        $('#alertBanner').addClass('alert-warning');
+      } else {
+        $('#alertBanner').removeClass('alert-warning');
+        $('#alertBanner').removeClass('alert-success');
+        $('#alertBanner').removeClass('alert-info');
+        $('#alertBanner').addClass('alert-danger');
+      }
+
+      $('#alertBanner').stop(true, true).fadeIn();
+
+      setTimeout(function () {
+        $('#alertBanner').fadeOut();
+      }, 5000);
+    }
+
+    if (wrong_school === '1') {
+      showAlertBanner('warning', "Please this domain is not your school's domain, kindly ask your school management for the right link, thanks 💛");
+    }
 
     // Check if the verify parameter is present
     if (logout) {
@@ -282,31 +314,7 @@
         data: data,
         success: function (data) {
           if (data.status) {
-            $('#alertBanner').html(data.message);
-
-            if (data.status == 'success') {
-              $('#alertBanner').removeClass('alert-info');
-              $('#alertBanner').removeClass('alert-danger');
-              $('#alertBanner').removeClass('alert-warning');
-              $('#alertBanner').addClass('alert-success');
-            } else if (data.status == 'warning') {
-              $('#alertBanner').removeClass('alert-danger');
-              $('#alertBanner').removeClass('alert-success');
-              $('#alertBanner').removeClass('alert-info');
-              $('#alertBanner').addClass('alert-warning');
-            } else {
-              $('#alertBanner').removeClass('alert-warning');
-              $('#alertBanner').removeClass('alert-success');
-              $('#alertBanner').removeClass('alert-info');
-              $('#alertBanner').addClass('alert-danger');
-            }
-
-            // Automatically show and hide the alert after 5 seconds
-            $('#alertBanner').fadeIn();
-
-            setTimeout(function () {
-              $('#alertBanner').fadeOut();
-            }, 5000);
+            showAlertBanner(data.status, data.message);
           }
         }
       });
