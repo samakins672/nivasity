@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../model/PaymentGatewayFactory.php';
 require_once __DIR__ . '/../../model/functions.php';
 require_once __DIR__ . '/../../model/refund_engine.php';
 require_once __DIR__ . '/../../model/payment_freeze.php';
+require_once __DIR__ . '/../../model/internal_wallet_service.php';
 require_once __DIR__ . '/../../config/fw.php';
 
 // Only accept POST requests
@@ -32,6 +33,8 @@ $school_id = $user['school'];
 // Get optional redirect URL from request body
 $input = json_decode(file_get_contents('php://input'), true);
 $redirect_url = isset($input['redirect_url']) ? trim($input['redirect_url']) : null;
+$payment_channel = isset($input['payment_channel']) ? strtolower(trim((string)$input['payment_channel'])) : 'gateway';
+$payment_channel = $payment_channel === 'wallet' ? 'wallet' : 'gateway';
 
 // Log redirect URL if provided
 if ($redirect_url) {
@@ -110,31 +113,65 @@ if ($subtotal <= 0) {
     sendApiError('Invalid cart amount', 400);
 }
 
-// Calculate charges using active gateway
-$charges_result = calculateGatewayCharges($subtotal);
-$charge = $charges_result['charge'] ?? 0;
-$total_amount = $charges_result['total_amount'] ?? ($subtotal + $charge);
+if ($payment_channel === 'wallet') {
+    $charge = 0;
+    $total_amount = $subtotal;
+} else {
+    $charges_result = calculateGatewayCharges($subtotal);
+    $charge = $charges_result['charge'] ?? 0;
+    $total_amount = $charges_result['total_amount'] ?? ($subtotal + $charge);
+}
 
 // Generate transaction reference
 $tx_ref = 'nivas_'. $user_id . '_' . time();
 
-// Get active payment gateway (need this before saving to cart)
-try {
-    $gateway = PaymentGatewayFactory::getActiveGateway();
-    $gatewayName = $gateway->getGatewayName();
-} catch (Exception $e) {
-    sendApiError('Payment gateway configuration error: ' . $e->getMessage(), 500);
+if ($payment_channel === 'wallet') {
+    $gatewayName = 'NIVASITY';
+} else {
+    try {
+        $gateway = PaymentGatewayFactory::getActiveGateway();
+        $gatewayName = $gateway->getGatewayName();
+    } catch (Exception $e) {
+        sendApiError('Payment gateway configuration error: ' . $e->getMessage(), 500);
+    }
 }
 
 // Save cart to database with gateway information
 $date = date('Y-m-d H:i:s');
 $gateway_upper = strtoupper($gatewayName);
 foreach ($cart as $manual_id) {
-    mysqli_query($conn, "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway, payment_channel, created_at) VALUES ('$tx_ref', $user_id, $manual_id, 'manual', 'pending', '$gateway_upper', 'gateway', '$date')");
+    mysqli_query($conn, "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway, payment_channel, created_at) VALUES ('$tx_ref', $user_id, $manual_id, 'manual', 'pending', '$gateway_upper', '$payment_channel', '$date')");
 }
 
 foreach ($cart_events as $event_id) {
-    mysqli_query($conn, "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway, payment_channel, created_at) VALUES ('$tx_ref', $user_id, $event_id, 'event', 'pending', '$gateway_upper', 'gateway', '$date')");
+    mysqli_query($conn, "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway, payment_channel, created_at) VALUES ('$tx_ref', $user_id, $event_id, 'event', 'pending', '$gateway_upper', '$payment_channel', '$date')");
+}
+
+if ($payment_channel === 'wallet') {
+    try {
+        nivasitySyncWalletFundingFromPaystack($conn, (int)$user_id, 'api_wallet_checkout');
+    } catch (Throwable $e) {
+        error_log('[NIVASITY_WALLET_API_SYNC] ' . $e->getMessage());
+    }
+
+    try {
+        $walletResult = nivasityProcessWalletCheckout($conn, $tx_ref, (int)$user_id, 'api');
+        $_SESSION[$cart_key] = [];
+        $_SESSION[$cart_event_key] = [];
+        sendApiSuccess('Wallet payment completed successfully', [
+            'tx_ref' => $tx_ref,
+            'gateway' => 'nivasity',
+            'payment_channel' => 'wallet',
+            'subtotal' => $subtotal,
+            'charge' => 0,
+            'total_amount' => $walletResult['total_amount'] ?? $subtotal,
+            'refund_applied' => (int)($walletResult['refund_applied'] ?? 0),
+            'wallet_balance_after' => (int)($walletResult['wallet_balance_after'] ?? 0),
+            'items' => $cart_items,
+        ]);
+    } catch (Throwable $e) {
+        sendApiError($e->getMessage(), 422);
+    }
 }
 
 // Always use API callback endpoint as callback (unauthenticated, some gateways don't support deep links)

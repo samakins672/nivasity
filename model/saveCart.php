@@ -32,6 +32,8 @@ $ref_id = isset($data['ref_id']) ? mysqli_real_escape_string($conn, (string)$dat
 $user_id = isset($data['user_id']) ? (int)$data['user_id'] : 0;
 $items = isset($data['items']) && is_array($data['items']) ? $data['items'] : [];
 $gateway = isset($data['gateway']) ? mysqli_real_escape_string($conn, strtoupper((string)$data['gateway'])) : 'FLUTTERWAVE';
+$payment_channel = isset($data['payment_channel']) ? strtolower(trim((string)$data['payment_channel'])) : 'gateway';
+$payment_channel = $payment_channel === 'wallet' ? 'wallet' : 'gateway';
 $gateway_slug = strtolower($gateway);
 
 if ($ref_id === '' || $user_id <= 0 || empty($items)) {
@@ -61,7 +63,7 @@ foreach ($items as $item) {
         continue;
     }
     $gateway_value = $gateway ? "'$gateway'" : "NULL";
-    $values[] = "('$ref_id', $user_id, $item_id, '$type', 'pending', $gateway_value, 'gateway')";
+    $values[] = "('$ref_id', $user_id, $item_id, '$type', 'pending', $gateway_value, '$payment_channel')";
 }
 
 if (empty($values)) {

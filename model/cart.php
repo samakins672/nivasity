@@ -2,6 +2,7 @@
 session_start();
 include('config.php');
 require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/internal_wallet_service.php';
 
 $user_id = $_SESSION['nivas_userId'];
 $school_id = $_SESSION['nivas_userSch'];
@@ -172,6 +173,9 @@ if (isset($_POST['reload_cart'])) {
     // Handling fee based on existing charge structure
     $transferAmount = $total_cart_price;
     $charge = 0;
+    $wallet = nivasityGetUserWallet($conn, (int)$user_id);
+    $walletBalance = (int)($wallet['balance'] ?? 0);
+    $canPayWithWallet = $wallet !== null && $walletBalance >= (int)round((float)$total_cart_price);
     if ($transferAmount > 0) {
         // Use active gateway pricing (Paystack/Flutterwave/Interswitch) for accuracy
         $gatewayCharges = calculateGatewayCharges($transferAmount);
@@ -207,10 +211,30 @@ if (isset($_POST['reload_cart'])) {
                         <h5 class="fw-bold">Total Due</h5>
                         <h5 class="fw-bold">₦ ' . number_format($transferAmount) . '</h5>
                     </div>';
+    if ($wallet !== null) {
+        echo '
+                    <div class="d-flex justify-content-between mt-0 mb-3 fw-bold text-info">
+                        <p>Nivasity Wallet</p>
+                        <h5>₦ ' . number_format($walletBalance) . '</h5>
+                    </div>
+                    <div class="d-flex justify-content-between mt-0 mb-3 fw-bold text-secondary">
+                        <p>Wallet Checkout Due</p>
+                        <h5>₦ ' . number_format($total_cart_price) . '</h5>
+                    </div>';
+    }
     if ($total_cart_price > 0) {
         $sessionData = htmlspecialchars(json_encode($_SESSION['cart_sellers']), ENT_QUOTES, 'UTF-8');
         echo '
-                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 checkout-cart" data-session_data="'.$sessionData.'" data-charge="'.$charge.'" data-transfer_amount="'.$transferAmount.'" data-mdb-ripple-duration="0ms" >CHECKOUT</button>';
+                    <button class="btn fw-bold btn-primary w-100 mb-2 btn-block py-3 checkout-cart" data-session_data="'.$sessionData.'" data-charge="'.$charge.'" data-transfer_amount="'.$transferAmount.'" data-mdb-ripple-duration="0ms" >CHECKOUT</button>';
+        if ($wallet !== null) {
+            if ($canPayWithWallet) {
+                echo '
+                    <button class="btn fw-bold btn-outline-info w-100 mb-0 btn-block py-3 wallet-cart-checkout" data-session_data="'.$sessionData.'" data-wallet_amount="'.$total_cart_price.'" data-mdb-ripple-duration="0ms" >PAY WITH NIVASITY WALLET</button>';
+            } else {
+                echo '
+                    <button class="btn fw-bold btn-outline-secondary w-100 mb-0 btn-block py-3" disabled>INSUFFICIENT WALLET BALANCE</button>';
+            }
+        }
     } else if ($total_cart_price == 0 && $total_cart_event > 0) {
         echo '
                     <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 free-cart-checkout" data-mdb-ripple-duration="0ms" >CHECKOUT</button>';

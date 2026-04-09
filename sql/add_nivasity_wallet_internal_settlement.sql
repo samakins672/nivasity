@@ -127,16 +127,45 @@ CREATE TABLE IF NOT EXISTS `settlement_batches` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
   `school_id` INT(11) NOT NULL,
   `scheduled_for` DATE NOT NULL,
+  `batch_reference` VARCHAR(100) DEFAULT NULL,
   `status` ENUM('pending','processing','completed','failed') NOT NULL DEFAULT 'pending',
   `total_amount` INT(11) NOT NULL DEFAULT 0,
   `total_records` INT(11) NOT NULL DEFAULT 0,
   `transfer_provider` VARCHAR(50) DEFAULT NULL,
+  `provider_reference` VARCHAR(100) DEFAULT NULL,
+  `provider_response` LONGTEXT DEFAULT NULL,
+  `started_at` DATETIME DEFAULT NULL,
+  `completed_at` DATETIME DEFAULT NULL,
+  `failed_at` DATETIME DEFAULT NULL,
+  `last_error` TEXT DEFAULT NULL,
   `notes` TEXT DEFAULT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_settlement_batch_reference` (`batch_reference`),
   KEY `idx_settlement_batches_school_date` (`school_id`, `scheduled_for`),
   KEY `idx_settlement_batches_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `settlement_batch_items` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `settlement_batch_id` INT(11) NOT NULL,
+  `school_payable_ledger_id` INT(11) NOT NULL,
+  `source_ref_id` VARCHAR(100) NOT NULL,
+  `allocated_amount` INT(11) NOT NULL DEFAULT 0,
+  `status` ENUM('pending','settled','failed') NOT NULL DEFAULT 'pending',
+  `notes` TEXT DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_settlement_batch_items_batch` (`settlement_batch_id`),
+  KEY `idx_settlement_batch_items_ledger` (`school_payable_ledger_id`),
+  CONSTRAINT `fk_settlement_batch_items_batch`
+    FOREIGN KEY (`settlement_batch_id`) REFERENCES `settlement_batches` (`id`)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_settlement_batch_items_ledger`
+    FOREIGN KEY (`school_payable_ledger_id`) REFERENCES `school_payable_ledger` (`id`)
+    ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 SET @has_cart_payment_channel := (

@@ -1120,6 +1120,91 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         });
       });
 
+      $('#cart').on('click', '.wallet-cart-checkout', function() {
+        var triggerElement = this;
+
+        <?php if ($payment_freeze_info): ?>
+          $('#paymentFreezeMessage').text(<?php echo json_encode($payment_freeze_info['message'] ?? 'Payments are currently paused.'); ?>);
+          var walletFreezeModalElement = document.getElementById('paymentFreezeModal');
+          var walletFreezeModal = new bootstrap.Modal(walletFreezeModalElement);
+          walletFreezeModalElement.addEventListener('hidden.bs.modal', function handleHidden() {
+            triggerElement.focus();
+            walletFreezeModalElement.removeEventListener('hidden.bs.modal', handleHidden);
+          });
+          walletFreezeModal.show();
+          return;
+        <?php endif; ?>
+
+        var sessionData = $(this).data('session_data');
+        var parsedSessionData;
+        if (typeof sessionData === 'string') {
+          try {
+            parsedSessionData = JSON.parse(sessionData);
+          } catch (error) {
+            console.error('Error parsing wallet checkout session data:', error);
+            return;
+          }
+        } else {
+          parsedSessionData = sessionData;
+        }
+
+        if (typeof parsedSessionData === 'object' && !Array.isArray(parsedSessionData)) {
+          parsedSessionData = Object.values(parsedSessionData);
+        }
+
+        function generateUniqueID() {
+          const currentDate = new Date();
+          return `nivas_<?php echo $user_id ?>_${currentDate.getTime()}`;
+        }
+
+        const walletRef = generateUniqueID();
+
+        $.ajax({
+          url: 'model/saveCart.php',
+          type: 'POST',
+          contentType: 'application/json',
+          dataType: 'json',
+          data: JSON.stringify({
+            ref_id: walletRef,
+            user_id: "<?php echo $user_id; ?>",
+            gateway: 'NIVASITY',
+            payment_channel: 'wallet',
+            items: parsedSessionData.map(item => ({
+              item_id: item.product_id,
+              type: item.type
+            }))
+          }),
+          success: function(response) {
+            if (!response || !response.success) {
+              alert(response && response.message ? response.message : 'Unable to prepare wallet checkout.');
+              return;
+            }
+
+            $.ajax({
+              url: 'model/wallet-checkout.php',
+              type: 'POST',
+              dataType: 'json',
+              data: { ref_id: walletRef },
+              success: function(walletResponse) {
+                if (walletResponse.status === 'success') {
+                  location.reload();
+                  return;
+                }
+                alert(walletResponse.message || 'Wallet checkout failed.');
+              },
+              error: function(xhr) {
+                console.error('Wallet checkout error', xhr);
+                alert('Wallet checkout failed. Please try again.');
+              }
+            });
+          },
+          error: function(xhr) {
+            console.error('Wallet saveCart error', xhr);
+            alert('Unable to prepare wallet checkout. Please try again.');
+          }
+        });
+      });
+
       // free checkout button click event
       $('#cart').on('click', '.free-cart-checkout', function() {
         var triggerElement = this; // Store reference to the button that opened the modal

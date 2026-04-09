@@ -1334,6 +1334,28 @@ This allows the payment gateway to redirect back to your mobile app after the us
 - `POST /payment/verify-bulk.php` is also supported for filtered checks
 - Supports CLI execution for cron jobs
 
+#### Process School Settlements
+**Endpoint:** `GET /payment/process-settlements.php`
+**Endpoint:** `POST /payment/process-settlements.php`
+
+**Description:** Runs the school settlement sweep for internal payable balances.
+
+**Authentication:** Not required by default. If `NIVASITY_SETTLEMENT_CRON_TOKEN` is configured, pass `token` with the request.
+
+**Notes:**
+- Runs only on Friday unless `force=1` is supplied
+- Settles at most `₦8,000,000` per school on each trigger
+- Any unpaid remainder stays pending for the next trigger
+- Supports CLI execution for cron jobs
+
+**Optional Parameters:**
+- `school_id`: Limit settlement to one school
+- `limit`: Limit how many schools are scanned in one run
+- `dry_run`: Preview allocations without creating transfers
+- `force`: Allow execution outside Friday for testing or recovery
+- `scheduled_for`: Override the settlement date using `YYYY-MM-DD`
+- `token`: Optional cron token for protected HTTP runs
+
 #### Notifications: List Inbox
 **Endpoint:** `GET /notifications/list.php`
 

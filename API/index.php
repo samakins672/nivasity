@@ -31,7 +31,8 @@ $response = [
         'payment' => [
             'POST /payment/init.php' => 'Initialize payment',
             'GET /payment/verify.php' => 'Verify payment',
-            'GET /payment/transactions.php' => 'Get transaction history'
+            'GET /payment/transactions.php' => 'Get transaction history',
+            'GET /payment/process-settlements.php' => 'Run Friday school settlement sweep (cron/manual trigger)'
         ],
         'wallet' => [
             'POST /wallet/create.php' => 'Create wallet on explicit user request',

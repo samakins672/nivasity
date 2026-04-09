@@ -16,6 +16,8 @@ if (!function_exists('refundEngineLog')) {
     }
 }
 
+require_once __DIR__ . '/internal_wallet_service.php';
+
 if (!function_exists('getSchoolSettlementSubaccount')) {
     function getSchoolSettlementSubaccount($conn, $schoolId, $gatewayName) {
         $schoolId = (int)$schoolId;
@@ -553,6 +555,55 @@ if (!function_exists('createMaterialRefund')) {
 
             $refundId = (int)mysqli_insert_id($conn);
             $reallocatedOverly = reallocateOverlyReleasedToRefundCore($conn, $refundId, null, 'overly_reallocated');
+
+            $refundMode = 'settlement_offset';
+            $sourceTxSql = "SELECT payment_channel FROM transactions WHERE ref_id = '$sourceRefSafe' LIMIT 1 FOR UPDATE";
+            $sourceTxRs = mysqli_query($conn, $sourceTxSql);
+            if (!$sourceTxRs) {
+                throw new Exception('Failed to inspect source transaction payment channel: ' . mysqli_error($conn));
+            }
+            $sourceTxRow = mysqli_fetch_assoc($sourceTxRs);
+            $paymentChannel = strtolower(trim((string)($sourceTxRow['payment_channel'] ?? 'gateway')));
+
+            if ($paymentChannel === 'wallet') {
+                $walletRefund = nivasityCreditWalletRefund($conn, [
+                    'user_id' => (int)$resolvedStudentId,
+                    'refund_id' => $refundId,
+                    'source_ref_id' => $sourceRefId,
+                    'amount' => $refundAmount,
+                    'description' => 'Refund for wallet purchase',
+                    'metadata' => [
+                        'reason' => $reason,
+                        'materials' => array_values($cleanMaterialIds),
+                    ],
+                ]);
+
+                if (($walletRefund['status'] ?? '') === 'credited') {
+                    $splitSeqSql = "SELECT COALESCE(MAX(split_sequence), 0) + 1 AS next_split FROM refund_reservations WHERE refund_id = $refundId FOR UPDATE";
+                    $splitSeqRs = mysqli_query($conn, $splitSeqSql);
+                    if (!$splitSeqRs) {
+                        throw new Exception('Failed to compute wallet refund split sequence: ' . mysqli_error($conn));
+                    }
+                    $splitSeqRow = mysqli_fetch_assoc($splitSeqRs);
+                    $splitSequence = $splitSeqRow && isset($splitSeqRow['next_split']) ? (int)$splitSeqRow['next_split'] : 1;
+                    $gatewaySafe = mysqli_real_escape_string($conn, 'NIVASITY');
+                    $channelSafe = mysqli_real_escape_string($conn, 'wallet_refund');
+
+                    $insertReservationSql = "INSERT INTO refund_reservations (refund_id, ref_id, split_sequence, school_id, payer_user_id, gateway, amount, channel, status, reserved_at, consumed_at)
+                                             VALUES ($refundId, '$sourceRefSafe', $splitSequence, $resolvedSchoolId, " . (int)$resolvedStudentId . ", '$gatewaySafe', $refundAmount, '$channelSafe', 'consumed', NOW(), NOW())";
+                    if (!mysqli_query($conn, $insertReservationSql)) {
+                        throw new Exception('Failed to record wallet refund consumption: ' . mysqli_error($conn));
+                    }
+
+                    finalizeConsumedRefundsForTx($conn, $sourceRefId);
+                    nivasityAdjustSchoolPayableForRefund($conn, $sourceRefId, $refundAmount, [
+                        'refund_id' => $refundId,
+                        'reason' => $reason,
+                    ]);
+                    $refundMode = 'wallet_credit';
+                }
+            }
+
             mysqli_commit($conn);
 
             refundEngineLog('Created material-level refund', [
@@ -562,7 +613,8 @@ if (!function_exists('createMaterialRefund')) {
                 'student_id' => (int)$resolvedStudentId,
                 'materials' => $cleanMaterialIds,
                 'amount' => $refundAmount,
-                'overly_reallocated' => (int)$reallocatedOverly
+                'overly_reallocated' => (int)$reallocatedOverly,
+                'refund_mode' => $refundMode
             ]);
 
             return [
@@ -572,7 +624,8 @@ if (!function_exists('createMaterialRefund')) {
                 'school_id' => $resolvedSchoolId,
                 'student_id' => (int)$resolvedStudentId,
                 'materials' => array_values($cleanMaterialIds),
-                'overly_reallocated' => (int)$reallocatedOverly
+                'overly_reallocated' => (int)$reallocatedOverly,
+                'refund_mode' => $refundMode
             ];
         } catch (Throwable $e) {
             mysqli_rollback($conn);

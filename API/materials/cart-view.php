@@ -4,6 +4,7 @@ require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/../../model/functions.php';
 require_once __DIR__ . '/../../model/PaymentGatewayFactory.php';
+require_once __DIR__ . '/../../model/internal_wallet_service.php';
 
 // Only accept GET requests
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
@@ -134,12 +135,20 @@ if (!empty($cart_ids)) {
 $charges_result = calculateGatewayCharges($subtotal);
 $charge = $charges_result['charge'] ?? 0;
 $total_amount = $charges_result['total_amount'] ?? ($subtotal + $charge);
+$wallet = nivasityGetUserWallet($conn, (int)$user_id);
+$wallet_balance = (int)($wallet['balance'] ?? 0);
 
 sendApiSuccess('Cart retrieved successfully', [
     'items' => $cart_items,
     'subtotal' => $subtotal,
     'charge' => $charge,
     'total_amount' => $total_amount,
-    'total_items' => count($cart_items)
+    'total_items' => count($cart_items),
+    'wallet' => [
+        'has_wallet' => $wallet !== null,
+        'balance' => $wallet_balance,
+        'wallet_total_amount' => $subtotal,
+        'can_pay_with_wallet' => $wallet !== null && $wallet_balance >= (int)round((float)$subtotal),
+    ]
 ]);
 ?>
