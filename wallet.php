@@ -132,19 +132,36 @@ function walletEntryBadgeClass($entryType) {
     }
 
     .wallet-pin-flow {
+      position: relative;
       overflow: hidden;
     }
 
     .wallet-pin-track {
-      width: 200%;
-      display: flex;
-      transition: transform 0.3s ease;
+      position: relative;
+      min-height: 20rem;
     }
 
     .wallet-pin-step {
-      width: 50%;
-      flex: 0 0 50%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
       padding: 0 0.15rem;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(12%);
+      transition: transform 0.3s ease, opacity 0.25s ease;
+    }
+
+    .wallet-pin-step.is-active {
+      position: relative;
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(0);
+    }
+
+    .wallet-pin-step.is-exit-left {
+      transform: translateX(-12%);
     }
 
     .wallet-pin-resend-btn {
@@ -392,7 +409,7 @@ function walletEntryBadgeClass($entryType) {
               <div class="alert alert-danger d-none" id="walletPinError"></div>
               <div class="wallet-pin-flow">
                 <div class="wallet-pin-track" id="walletPinFlowTrack">
-                  <div class="wallet-pin-step">
+                  <div class="wallet-pin-step is-active" id="walletPinCodeStep">
                     <p class="text-muted text-center" id="walletPinModalIntro">Enter the verification code from your email to continue.</p>
                     <div class="mb-3 wallet-pin-field">
                       <label for="wallet-pin-code" class="form-label fw-bold">Email Code</label>
@@ -406,7 +423,7 @@ function walletEntryBadgeClass($entryType) {
                       <button type="button" class="btn btn-outline-primary fw-bold" id="verify-wallet-pin-code-btn">Verify Code</button>
                     </div>
                 </div>
-                  <div class="wallet-pin-step">
+                  <div class="wallet-pin-step" id="walletPinSetStep">
                     <p class="text-muted text-center" id="walletPinPinIntro">Code confirmed. Set your 4-digit Wallet PIN.</p>
                     <div class="mb-3 wallet-pin-field">
                       <label for="wallet-pin-value" class="form-label fw-bold">New 4-digit PIN</label>
@@ -458,7 +475,8 @@ function walletEntryBadgeClass($entryType) {
 
       function setWalletPinStep(step) {
         walletPinStep = step === 'pin' ? 'pin' : 'code';
-        $('#walletPinFlowTrack').css('transform', walletPinStep === 'pin' ? 'translateX(-50%)' : 'translateX(0)');
+        $('#walletPinCodeStep').toggleClass('is-active', walletPinStep === 'code').toggleClass('is-exit-left', walletPinStep === 'pin');
+        $('#walletPinSetStep').toggleClass('is-active', walletPinStep === 'pin').toggleClass('is-exit-left', false);
         $('#wallet-pin-back-btn, #save-wallet-pin-btn').toggleClass('d-none', walletPinStep !== 'pin');
         if (walletPinStep === 'pin') {
           $('#wallet-pin-value').trigger('focus');
