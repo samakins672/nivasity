@@ -8,6 +8,7 @@ if (isset($conn)) {
 
 require_once __DIR__ . '/../config/fw.php';
 require_once __DIR__ . '/mobile_experience_prompt.php';
+require_once __DIR__ . '/internal_wallet_service.php';
 $url = substr($_SERVER["SCRIPT_NAME"], strrpos($_SERVER["SCRIPT_NAME"], "/") + 1);
 
 $__stagingGate = defined('STAGING_GATE') && STAGING_GATE === true;
@@ -71,6 +72,20 @@ if (isset($_SESSION['nivas_userId'])) {
   }
 
   $mobile_experience_prompt_state = mobile_experience_prompt_get_state($conn, (int) $user_id, 5, true);
+
+  try {
+    $walletSyncKey = 'nivas_wallet_last_sync_' . (int)$user_id;
+    $lastWalletSyncAt = isset($_SESSION[$walletSyncKey]) ? (int)$_SESSION[$walletSyncKey] : 0;
+    if (time() - $lastWalletSyncAt >= 60) {
+      $wallet = nivasityGetUserWallet($conn, (int)$user_id);
+      if ($wallet) {
+        nivasitySyncWalletFundingFromPaystack($conn, (int)$user_id, 'page_visit');
+      }
+      $_SESSION[$walletSyncKey] = time();
+    }
+  } catch (Throwable $e) {
+    error_log('[NIVASITY_WALLET_PAGE_SYNC] ' . $e->getMessage());
+  }
 }
 
 $date = date('Y-m-d');

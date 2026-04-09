@@ -16,6 +16,7 @@ include('mail.php');
 include('functions.php');
 require_once __DIR__ . '/notifications.php';
 require_once __DIR__ . '/refund_engine.php';
+require_once __DIR__ . '/internal_wallet_service.php';
 
 // Parse incoming webhook
 $raw = file_get_contents('php://input');
@@ -64,6 +65,8 @@ if (is_array($payload) && isset($payload['data'])) {
     }
 }
 
+$webhookIntent = nivasityDeterminePaystackWebhookIntent($conn, $payload);
+
 // Respond immediately to prevent retries
 http_response_code(200);
 echo json_encode(['status' => 'ok', 'message' => 'Webhook received']);
@@ -76,6 +79,28 @@ if (function_exists('fastcgi_finish_request')) {
         ob_end_flush();
     }
     flush();
+}
+
+if ($webhookIntent === 'wallet_funding') {
+    $wallet = nivasityResolveWalletFromPaystackPayload($conn, $payload['data'] ?? []);
+    if ($wallet) {
+        try {
+            $fundingResult = nivasityApplyWalletFundingTransaction($conn, $wallet, $payload['data'], 'webhook', $event_type);
+            sendMail(
+                'Paystack Webhook: Wallet Funding',
+                'Wallet funding ' . ($fundingResult['status'] ?? 'processed') . ' for user ' . (int)$wallet['user_id'] . ' ref ' . ($payload['data']['reference'] ?? ''),
+                'webhook@nivasity.com'
+            );
+        } catch (Throwable $e) {
+            sendMail('Paystack Webhook: Wallet Funding Error', $e->getMessage(), 'webhook@nivasity.com');
+        }
+    }
+    exit;
+}
+
+if ($webhookIntent === 'unknown') {
+    sendMail('Paystack Webhook: Unknown charge.success', 'Unable to classify webhook payload for ref ' . $tx_ref, 'webhook@nivasity.com');
+    exit;
 }
 
 // Retrieve cart items for this reference
@@ -187,17 +212,32 @@ foreach ($cartItems as $refId) {
         $existingTx = mysqli_query($conn, "SELECT id FROM transactions WHERE ref_id = '$tx_ref' ORDER BY id DESC LIMIT 1");
         if ($existingTx && mysqli_num_rows($existingTx) > 0) {
             $updateTxSql = "UPDATE transactions
-                            SET user_id = $user_id, amount = $total_amount, charge = $charge, profit = $profit, refund = $refund_applied, status = 'successful', medium = 'PAYSTACK'
+                            SET user_id = $user_id, amount = $total_amount, charge = $charge, profit = $profit, refund = $refund_applied, status = 'successful', medium = 'PAYSTACK', payment_channel = 'gateway', transaction_context = 'purchase'
                             WHERE ref_id = '$tx_ref'";
             if (!mysqli_query($conn, $updateTxSql)) {
                 throw new Exception('Failed to repair transaction: ' . mysqli_error($conn));
             }
         } else {
-            $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, $refund_applied, 'successful', 'PAYSTACK')";
+            $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium, payment_channel, transaction_context) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, $refund_applied, 'successful', 'PAYSTACK', 'gateway', 'purchase')";
             if (!mysqli_query($conn, $insertTxSql)) {
                 throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
             }
         }
+        nivasityRecordSchoolPayable($conn, [
+            'school_id' => $school,
+            'source_ref_id' => $tx_ref,
+            'payer_user_id' => $user_id,
+            'source_medium' => 'PAYSTACK',
+            'source_channel' => 'webhook',
+            'item_subtotal' => $total_amount - $charge,
+            'collected_total' => $total_amount,
+            'charge_amount' => $charge,
+            'refund_amount' => $refund_applied,
+            'metadata' => [
+                'handler' => 'model/handle-ps-webhook.php',
+                'already_repaired_tx' => $existingTx && mysqli_num_rows($existingTx) > 0,
+            ],
+        ]);
         mysqli_commit($conn);
     } catch (Throwable $e) {
         mysqli_rollback($conn);

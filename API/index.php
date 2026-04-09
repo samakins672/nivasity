@@ -35,7 +35,8 @@ $response = [
         ],
         'wallet' => [
             'POST /wallet/create.php' => 'Create wallet on explicit user request',
-            'GET /wallet/summary.php' => 'Get wallet summary without auto-provisioning'
+            'GET /wallet/summary.php' => 'Get wallet summary without auto-provisioning',
+            'POST /wallet/refresh-credits.php' => 'Refresh missed DVA wallet credits from Paystack'
         ],
         'support' => [
             'POST /support/create-ticket.php' => 'Create support ticket',

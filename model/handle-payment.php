@@ -263,13 +263,13 @@ if (isset($_GET['transaction_id']) || isset($_GET['reference']) || isset($_GET['
             $refund_applied = consumeReservationsCore($conn, $tx_ref);
             if ($tx_exists) {
                 $updateTxSql = "UPDATE transactions
-                                SET user_id = $user_id, amount = $total_amount, charge = $charge, profit = $profit, refund = $refund_applied, status = '$status', medium = '$medium'
+                                SET user_id = $user_id, amount = $total_amount, charge = $charge, profit = $profit, refund = $refund_applied, status = '$status', medium = '$medium', payment_channel = 'gateway', transaction_context = 'purchase'
                                 WHERE ref_id = '$tx_ref_esc'";
                 if (!mysqli_query($conn, $updateTxSql)) {
                     throw new Exception('Failed to repair transaction: ' . mysqli_error($conn));
                 }
             } else {
-                $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium) VALUES ('$tx_ref_esc', $user_id, $total_amount, $charge, $profit, $refund_applied, '$status', '$medium')";
+                $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium, payment_channel, transaction_context) VALUES ('$tx_ref_esc', $user_id, $total_amount, $charge, $profit, $refund_applied, '$status', '$medium', 'gateway', 'purchase')";
                 if (!mysqli_query($conn, $insertTxSql)) {
                     throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
                 }

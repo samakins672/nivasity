@@ -14,6 +14,7 @@ include('functions.php');
 include('mail.php');
 require_once __DIR__ . '/notifications.php';
 require_once __DIR__ . '/refund_engine.php';
+require_once __DIR__ . '/internal_wallet_service.php';
 
 header('Content-Type: application/json');
 
@@ -223,17 +224,32 @@ try {
         $refund_applied = consumeReservationsCore($conn, $ref_id);
         if ($tx_exists) {
             $updateTxSql = "UPDATE transactions
-                            SET user_id = $user_id, amount = $total_amount, charge = $charge, profit = $profit, refund = $refund_applied, status = '$status', medium = '$medium'
+                            SET user_id = $user_id, amount = $total_amount, charge = $charge, profit = $profit, refund = $refund_applied, status = '$status', medium = '$medium', payment_channel = 'gateway', transaction_context = 'purchase'
                             WHERE ref_id = '$ref_id_esc'";
             if (!mysqli_query($conn, $updateTxSql)) {
                 throw new Exception('Failed to repair transaction: ' . mysqli_error($conn));
             }
         } else {
-            $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium) VALUES ('$ref_id_esc', $user_id, $total_amount, $charge, $profit, $refund_applied, '$status', '$medium')";
+            $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium, payment_channel, transaction_context) VALUES ('$ref_id_esc', $user_id, $total_amount, $charge, $profit, $refund_applied, '$status', '$medium', 'gateway', 'purchase')";
             if (!mysqli_query($conn, $insertTxSql)) {
                 throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
             }
         }
+        nivasityRecordSchoolPayable($conn, [
+            'school_id' => $school_id,
+            'source_ref_id' => $ref_id,
+            'payer_user_id' => $user_id,
+            'source_medium' => $medium,
+            'source_channel' => 'web',
+            'item_subtotal' => $sum_amount,
+            'collected_total' => $total_amount,
+            'charge_amount' => $charge,
+            'refund_amount' => $refund_applied,
+            'metadata' => [
+                'handler' => 'model/verify-pending-payment.php',
+                'already_repaired_tx' => $tx_exists,
+            ],
+        ]);
         mysqli_commit($conn);
     } catch (Throwable $e) {
         mysqli_rollback($conn);

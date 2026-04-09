@@ -51,7 +51,7 @@ $user_row = mysqli_fetch_assoc($result);
 $school_id = isset($user_row['school']) ? (int)$user_row['school'] : 0;
 
 // Prepare the query to insert data into the cart table
-$query = "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway) VALUES ";
+$query = "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway, payment_channel) VALUES ";
 $values = [];
 
 foreach ($items as $item) {
@@ -61,7 +61,7 @@ foreach ($items as $item) {
         continue;
     }
     $gateway_value = $gateway ? "'$gateway'" : "NULL";
-    $values[] = "('$ref_id', $user_id, $item_id, '$type', 'pending', $gateway_value)";
+    $values[] = "('$ref_id', $user_id, $item_id, '$type', 'pending', $gateway_value, 'gateway')";
 }
 
 if (empty($values)) {

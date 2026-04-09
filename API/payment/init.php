@@ -130,11 +130,11 @@ try {
 $date = date('Y-m-d H:i:s');
 $gateway_upper = strtoupper($gatewayName);
 foreach ($cart as $manual_id) {
-    mysqli_query($conn, "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway, created_at) VALUES ('$tx_ref', $user_id, $manual_id, 'manual', 'pending', '$gateway_upper', '$date')");
+    mysqli_query($conn, "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway, payment_channel, created_at) VALUES ('$tx_ref', $user_id, $manual_id, 'manual', 'pending', '$gateway_upper', 'gateway', '$date')");
 }
 
 foreach ($cart_events as $event_id) {
-    mysqli_query($conn, "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway, created_at) VALUES ('$tx_ref', $user_id, $event_id, 'event', 'pending', '$gateway_upper', '$date')");
+    mysqli_query($conn, "INSERT INTO cart (ref_id, user_id, item_id, type, status, gateway, payment_channel, created_at) VALUES ('$tx_ref', $user_id, $event_id, 'event', 'pending', '$gateway_upper', 'gateway', '$date')");
 }
 
 // Always use API callback endpoint as callback (unauthenticated, some gateways don't support deep links)

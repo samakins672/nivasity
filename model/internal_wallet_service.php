@@ -252,3 +252,310 @@ if (!function_exists('nivasityCreateWalletOnRequest')) {
         ];
     }
 }
+
+if (!function_exists('nivasityNormalizePaystackAmount')) {
+    function nivasityNormalizePaystackAmount($amount) {
+        $amount = (float)$amount;
+        if ($amount <= 0) {
+            return 0;
+        }
+
+        return (int)round($amount / 100);
+    }
+}
+
+if (!function_exists('nivasityResolveWalletFromPaystackPayload')) {
+    function nivasityResolveWalletFromPaystackPayload($conn, $data) {
+        $candidates = [];
+
+        $accountNumberCandidates = [
+            $data['dedicated_account']['account_number'] ?? null,
+            $data['authorization']['receiver_bank_account_number'] ?? null,
+            $data['customer']['dedicated_account']['account_number'] ?? null,
+        ];
+
+        foreach ($accountNumberCandidates as $accountNumber) {
+            $accountNumber = trim((string)$accountNumber);
+            if ($accountNumber !== '') {
+                $safe = mysqli_real_escape_string($conn, $accountNumber);
+                $candidates[] = "va.account_number = '$safe'";
+            }
+        }
+
+        $providerAccountCandidates = [
+            $data['dedicated_account']['id'] ?? null,
+            $data['customer']['dedicated_account']['id'] ?? null,
+        ];
+
+        foreach ($providerAccountCandidates as $providerAccountId) {
+            $providerAccountId = trim((string)$providerAccountId);
+            if ($providerAccountId !== '') {
+                $safe = mysqli_real_escape_string($conn, $providerAccountId);
+                $candidates[] = "va.provider_account_id = '$safe'";
+            }
+        }
+
+        $customerCode = trim((string)($data['customer']['customer_code'] ?? ''));
+        if ($customerCode !== '') {
+            $safe = mysqli_real_escape_string($conn, $customerCode);
+            $candidates[] = "va.provider_customer_code = '$safe'";
+        }
+
+        $email = trim((string)($data['customer']['email'] ?? ''));
+        if ($email !== '') {
+            $safeEmail = mysqli_real_escape_string($conn, $email);
+            $candidates[] = "u.email = '$safeEmail'";
+        }
+
+        if (empty($candidates)) {
+            return null;
+        }
+
+        $where = implode(' OR ', array_unique($candidates));
+        $sql = "SELECT w.*, va.provider, va.provider_account_id, va.provider_customer_code, va.account_name, va.account_number, va.bank_name, va.bank_slug, u.email
+                FROM user_wallets w
+                LEFT JOIN wallet_virtual_accounts va ON va.wallet_id = w.id
+                LEFT JOIN users u ON u.id = w.user_id
+                WHERE $where
+                LIMIT 1";
+        $rs = mysqli_query($conn, $sql);
+        if ($rs && mysqli_num_rows($rs) > 0) {
+            return mysqli_fetch_assoc($rs);
+        }
+
+        return null;
+    }
+}
+
+if (!function_exists('nivasityApplyWalletFundingTransaction')) {
+    function nivasityApplyWalletFundingTransaction($conn, $wallet, $data, $source = 'webhook', $providerEvent = null) {
+        $walletId = (int)($wallet['id'] ?? 0);
+        $userId = (int)($wallet['user_id'] ?? 0);
+        if ($walletId <= 0 || $userId <= 0) {
+            throw new Exception('Invalid wallet supplied for funding application');
+        }
+
+        $providerReference = trim((string)($data['reference'] ?? $data['transaction_reference'] ?? $data['id'] ?? ''));
+        if ($providerReference === '') {
+            throw new Exception('Unable to resolve provider reference for wallet funding');
+        }
+
+        $providerTransactionId = trim((string)($data['id'] ?? ''));
+        $providerAccountId = trim((string)($data['dedicated_account']['id'] ?? $wallet['provider_account_id'] ?? ''));
+        $accountNumber = trim((string)($data['dedicated_account']['account_number'] ?? $data['authorization']['receiver_bank_account_number'] ?? $wallet['account_number'] ?? ''));
+        $amount = nivasityNormalizePaystackAmount($data['amount'] ?? 0);
+        $description = trim((string)($data['narration'] ?? $data['gateway_response'] ?? 'Wallet funding via Paystack DVA'));
+        $source = strtolower(trim((string)$source));
+        $source = $source !== '' ? $source : 'webhook';
+        $providerEvent = trim((string)$providerEvent);
+        $rawPayload = json_encode($data);
+
+        if ($amount <= 0) {
+            throw new Exception('Wallet funding amount must be greater than zero');
+        }
+
+        $providerReferenceSafe = mysqli_real_escape_string($conn, $providerReference);
+        $existingSql = "SELECT * FROM wallet_funding_transactions WHERE provider_reference = '$providerReferenceSafe' LIMIT 1";
+        $existingRs = mysqli_query($conn, $existingSql);
+        if ($existingRs && mysqli_num_rows($existingRs) > 0) {
+            $existingRow = mysqli_fetch_assoc($existingRs);
+            return [
+                'status' => 'exists',
+                'amount' => (int)($existingRow['amount'] ?? 0),
+                'funding' => $existingRow,
+            ];
+        }
+
+        $providerEventSafe = mysqli_real_escape_string($conn, $providerEvent);
+        $providerTransactionIdSafe = mysqli_real_escape_string($conn, $providerTransactionId);
+        $providerAccountIdSafe = mysqli_real_escape_string($conn, $providerAccountId);
+        $accountNumberSafe = mysqli_real_escape_string($conn, $accountNumber);
+        $descriptionSafe = mysqli_real_escape_string($conn, $description);
+        $sourceSafe = mysqli_real_escape_string($conn, $source);
+        $rawPayloadSafe = mysqli_real_escape_string($conn, (string)$rawPayload);
+
+        mysqli_begin_transaction($conn);
+        try {
+            $walletLockSql = "SELECT balance FROM user_wallets WHERE id = $walletId LIMIT 1 FOR UPDATE";
+            $walletLockRs = mysqli_query($conn, $walletLockSql);
+            if (!$walletLockRs || mysqli_num_rows($walletLockRs) < 1) {
+                throw new Exception('Unable to lock wallet balance for funding');
+            }
+            $walletRow = mysqli_fetch_assoc($walletLockRs);
+            $balanceBefore = (int)($walletRow['balance'] ?? 0);
+            $balanceAfter = $balanceBefore + $amount;
+
+            $insertFundingSql = "INSERT INTO wallet_funding_transactions (
+                    wallet_id, user_id, provider, provider_reference, provider_event,
+                    provider_transaction_id, provider_account_id, account_number, amount,
+                    status, source, description, raw_payload, posted_at
+                ) VALUES (
+                    $walletId, $userId, 'paystack', '$providerReferenceSafe', '$providerEventSafe',
+                    '$providerTransactionIdSafe', '$providerAccountIdSafe', '$accountNumberSafe', $amount,
+                    'posted', '$sourceSafe', '$descriptionSafe', '$rawPayloadSafe', NOW()
+                )";
+            if (!mysqli_query($conn, $insertFundingSql)) {
+                throw new Exception('Failed to insert wallet funding transaction: ' . mysqli_error($conn));
+            }
+
+            $ledgerReference = mysqli_real_escape_string($conn, 'wallet_funding:' . $providerReference);
+            $insertLedgerSql = "INSERT INTO wallet_ledger_entries (
+                    wallet_id, entry_type, amount, balance_before, balance_after, status,
+                    reference, provider_reference, description, metadata
+                ) VALUES (
+                    $walletId, 'credit', $amount, $balanceBefore, $balanceAfter, 'posted',
+                    '$ledgerReference', '$providerReferenceSafe', '$descriptionSafe', '$rawPayloadSafe'
+                )";
+            if (!mysqli_query($conn, $insertLedgerSql)) {
+                throw new Exception('Failed to insert wallet ledger entry: ' . mysqli_error($conn));
+            }
+
+            $updateWalletSql = "UPDATE user_wallets SET balance = $balanceAfter, updated_at = NOW() WHERE id = $walletId";
+            if (!mysqli_query($conn, $updateWalletSql)) {
+                throw new Exception('Failed to update wallet balance: ' . mysqli_error($conn));
+            }
+
+            $existingTxSql = "SELECT id FROM transactions WHERE ref_id = '$providerReferenceSafe' LIMIT 1 FOR UPDATE";
+            $existingTxRs = mysqli_query($conn, $existingTxSql);
+            if (!$existingTxRs) {
+                throw new Exception('Failed to inspect existing transaction row: ' . mysqli_error($conn));
+            }
+            if (mysqli_num_rows($existingTxRs) > 0) {
+                $updateTxSql = "UPDATE transactions
+                                SET user_id = $userId,
+                                    amount = $amount,
+                                    charge = 0,
+                                    profit = 0,
+                                    refund = 0,
+                                    status = 'successful',
+                                    medium = 'PAYSTACK',
+                                    payment_channel = 'wallet',
+                                    transaction_context = 'wallet_funding'
+                                WHERE ref_id = '$providerReferenceSafe'";
+                if (!mysqli_query($conn, $updateTxSql)) {
+                    throw new Exception('Failed to update funding transaction record: ' . mysqli_error($conn));
+                }
+            } else {
+                $insertTxSql = "INSERT INTO transactions (
+                        ref_id, user_id, amount, charge, profit, refund, status, medium, payment_channel, transaction_context
+                    ) VALUES (
+                        '$providerReferenceSafe', $userId, $amount, 0, 0, 0, 'successful', 'PAYSTACK', 'wallet', 'wallet_funding'
+                    )";
+                if (!mysqli_query($conn, $insertTxSql)) {
+                    throw new Exception('Failed to create funding transaction record: ' . mysqli_error($conn));
+                }
+            }
+
+            mysqli_commit($conn);
+        } catch (Throwable $e) {
+            mysqli_rollback($conn);
+            throw $e;
+        }
+
+        nivasityWalletLog('Applied wallet funding transaction', [
+            'wallet_id' => $walletId,
+            'user_id' => $userId,
+            'provider_reference' => $providerReference,
+            'amount' => $amount,
+            'source' => $source,
+        ]);
+
+        return [
+            'status' => 'posted',
+            'amount' => $amount,
+        ];
+    }
+}
+
+if (!function_exists('nivasitySyncWalletFundingFromPaystack')) {
+    function nivasitySyncWalletFundingFromPaystack($conn, $userId, $source = 'refresh') {
+        $wallet = nivasityGetUserWallet($conn, $userId);
+        if (!$wallet || empty($wallet['provider_account_id'])) {
+            return [
+                'status' => 'no_wallet',
+                'processed' => 0,
+                'posted' => 0,
+            ];
+        }
+
+        if (!defined('PAYSTACK_SECRET_KEY') || PAYSTACK_SECRET_KEY === '') {
+            throw new Exception('Paystack secret key is not configured');
+        }
+
+        $providerAccountId = rawurlencode((string)$wallet['provider_account_id']);
+        $curl = curl_init();
+        curl_setopt_array($curl, [
+            CURLOPT_URL => 'https://api.paystack.co/dedicated_account/transactions?dedicated_account_id=' . $providerAccountId,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'GET',
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . PAYSTACK_SECRET_KEY,
+            ],
+        ]);
+        $response = curl_exec($curl);
+        $curlError = curl_error($curl);
+        curl_close($curl);
+
+        if ($curlError) {
+            throw new Exception('Failed to sync wallet funding transactions: ' . $curlError);
+        }
+
+        $decoded = json_decode($response, true);
+        if (!isset($decoded['status']) || $decoded['status'] !== true || !isset($decoded['data']) || !is_array($decoded['data'])) {
+            throw new Exception('Unexpected Paystack wallet funding sync response');
+        }
+
+        $processed = 0;
+        $posted = 0;
+        foreach ($decoded['data'] as $row) {
+            $processed++;
+            try {
+                $applyResult = nivasityApplyWalletFundingTransaction($conn, $wallet, $row, $source, 'dedicated_account.credit');
+                if (($applyResult['status'] ?? '') === 'posted') {
+                    $posted++;
+                }
+            } catch (Throwable $e) {
+                nivasityWalletLog('Wallet funding sync row failed', [
+                    'user_id' => (int)$userId,
+                    'error' => $e->getMessage(),
+                    'reference' => $row['reference'] ?? null,
+                ]);
+            }
+        }
+
+        return [
+            'status' => 'ok',
+            'processed' => $processed,
+            'posted' => $posted,
+        ];
+    }
+}
+
+if (!function_exists('nivasityDeterminePaystackWebhookIntent')) {
+    function nivasityDeterminePaystackWebhookIntent($conn, $payload) {
+        $data = $payload['data'] ?? [];
+        $reference = trim((string)($data['reference'] ?? ''));
+
+        if ($reference !== '') {
+            $referenceSafe = mysqli_real_escape_string($conn, $reference);
+            $cartSql = "SELECT 1 FROM cart WHERE ref_id = '$referenceSafe' LIMIT 1";
+            $cartRs = mysqli_query($conn, $cartSql);
+            if ($cartRs && mysqli_num_rows($cartRs) > 0) {
+                return 'purchase';
+            }
+        }
+
+        $wallet = nivasityResolveWalletFromPaystackPayload($conn, $data);
+        if ($wallet) {
+            return 'wallet_funding';
+        }
+
+        return 'unknown';
+    }
+}
