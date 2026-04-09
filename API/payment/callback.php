@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../model/functions.php';
 require_once __DIR__ . '/../../model/refund_engine.php';
 require_once __DIR__ . '/../../model/mail.php';
 require_once __DIR__ . '/../../model/notifications.php';
+require_once __DIR__ . '/../../model/internal_wallet_service.php';
 require_once __DIR__ . '/../../config/fw.php';
 
 // Only accept GET requests (most gateways use GET for callbacks)
@@ -236,6 +237,21 @@ try {
                 throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
             }
         }
+        nivasityRecordSchoolPayable($conn, [
+            'school_id' => $school_id,
+            'source_ref_id' => $tx_ref,
+            'payer_user_id' => $user_id,
+            'source_medium' => $gateway_medium,
+            'source_channel' => 'api',
+            'item_subtotal' => $amount,
+            'collected_total' => $total_amount,
+            'charge_amount' => $charge,
+            'refund_amount' => $refund_applied,
+            'metadata' => [
+                'handler' => 'API/payment/callback.php',
+                'already_repaired_tx' => $tx_exists,
+            ],
+        ]);
         mysqli_commit($conn);
     } catch (Throwable $e) {
         mysqli_rollback($conn);

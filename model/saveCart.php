@@ -79,8 +79,8 @@ if (!mysqli_query($conn, $query)) {
 // Housekeeping of stale reservations.
 releaseExpiredReservations($conn, 60);
 
-// Build seller totals from server-trusted item records.
-$seller_totals = [];
+// Build subtotal from server-trusted item records.
+$cart_subtotal = 0;
 foreach ($items as $item) {
     $item_id = isset($item['item_id']) ? (int)$item['item_id'] : 0;
     $type = isset($item['type']) ? (string)$item['type'] : '';
@@ -90,43 +90,20 @@ foreach ($items as $item) {
         $manual_q = mysqli_query($conn, "SELECT price, user_id FROM manuals WHERE id = $item_id AND school_id = $school_id LIMIT 1");
         if ($manual_q && mysqli_num_rows($manual_q) > 0) {
             $manual = mysqli_fetch_assoc($manual_q);
-            $seller_id = (int)$manual['user_id'];
             $price = (int)round((float)$manual['price']);
-            if (!isset($seller_totals[$seller_id])) {
-                $seller_totals[$seller_id] = 0;
-            }
-            $seller_totals[$seller_id] += $price;
+            $cart_subtotal += $price;
         }
     } elseif ($type === 'event') {
         $event_q = mysqli_query($conn, "SELECT price, user_id FROM events WHERE id = $item_id LIMIT 1");
         if ($event_q && mysqli_num_rows($event_q) > 0) {
             $event = mysqli_fetch_assoc($event_q);
-            $seller_id = (int)$event['user_id'];
             $price = (int)round((float)$event['price']);
-            if (!isset($seller_totals[$seller_id])) {
-                $seller_totals[$seller_id] = 0;
-            }
-            $seller_totals[$seller_id] += $price;
+            $cart_subtotal += $price;
         }
     }
 }
 
-$subaccount_shares = [];
-foreach ($seller_totals as $seller_id => $seller_total) {
-    $seller_subaccount = getSettlementSubaccount($conn, $seller_id, $school_id, $gateway_slug);
-    if (!empty($seller_subaccount)) {
-        if (!isset($subaccount_shares[$seller_subaccount])) {
-            $subaccount_shares[$seller_subaccount] = 0;
-        }
-        $subaccount_shares[$seller_subaccount] += (int)$seller_total;
-    }
-}
-
-$school_subaccount_code = getSchoolSettlementSubaccount($conn, $school_id, $gateway_slug);
-$school_share_before = 0;
-if (!empty($school_subaccount_code) && isset($subaccount_shares[$school_subaccount_code])) {
-    $school_share_before = (int)$subaccount_shares[$school_subaccount_code];
-}
+$school_share_before = (int)$cart_subtotal;
 
 $refund_reserved = 0;
 if ($school_share_before > 0) {
@@ -142,43 +119,14 @@ if ($school_share_before > 0) {
 }
 $school_share_after = max(0, $school_share_before - $refund_reserved);
 
-if (!empty($school_subaccount_code) && isset($subaccount_shares[$school_subaccount_code])) {
-    $subaccount_shares[$school_subaccount_code] = $school_share_after;
-    if ($subaccount_shares[$school_subaccount_code] <= 0) {
-        unset($subaccount_shares[$school_subaccount_code]);
-    }
-}
-
-$adjusted_subaccounts = [];
-if ($gateway_slug === 'flutterwave') {
-    foreach ($subaccount_shares as $sub_code => $share_naira) {
-        $share_naira = (int)round((float)$share_naira);
-        if ($share_naira <= 0) { continue; }
-        $adjusted_subaccounts[] = [
-            'id' => $sub_code,
-            'transaction_charge_type' => 'flat_subaccount',
-            'transaction_charge' => $share_naira
-        ];
-    }
-} else {
-    foreach ($subaccount_shares as $sub_code => $share_naira) {
-        $share_naira = (int)round((float)$share_naira);
-        if ($share_naira <= 0) { continue; }
-        $adjusted_subaccounts[] = [
-            'id' => $sub_code,
-            'total' => $share_naira
-        ];
-    }
-}
-
 echo json_encode([
     'success' => true,
     'message' => 'Cart saved successfully',
     'gateway' => $gateway_slug,
+    'internal_settlement_mode' => true,
     'refund_reserved' => (int)$refund_reserved,
     'school_share_before' => (int)$school_share_before,
-    'school_share_after' => (int)$school_share_after,
-    'adjusted_subaccounts' => $adjusted_subaccounts
+    'school_share_after' => (int)$school_share_after
 ]);
 
 mysqli_close($conn);

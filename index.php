@@ -991,27 +991,6 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
         const myUniqueID = generateUniqueID();
 
-        // Build fallback split map from session (server will override with adjusted_subaccounts).
-        let fallbackSubaccounts = [];
-        let fallbackSellerTotals = {};
-
-        $.each(parsedSessionData, function(key, item) {
-            const price = parseFloat(item.price);
-            if (fallbackSellerTotals[item.seller]) {
-                fallbackSellerTotals[item.seller] += price;
-            } else {
-                fallbackSellerTotals[item.seller] = price;
-            }
-        });
-
-        for (const seller in fallbackSellerTotals) {
-            fallbackSubaccounts.push({
-                id: seller,
-                transaction_charge_type: "flat_subaccount",
-                transaction_charge: fallbackSellerTotals[seller]
-            });
-        }
-
         // Get payment gateway keys first to determine active gateway
         $.ajax({
           url: 'model/getKey.php',
@@ -1069,22 +1048,6 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                   school_share_after: response.school_share_after || 0
                 });
 
-                let adjustedSubaccounts = fallbackSubaccounts;
-                let paystackSellerTotals = $.extend({}, fallbackSellerTotals);
-
-                if (response.adjusted_subaccounts && Array.isArray(response.adjusted_subaccounts)) {
-                  if (activeGateway === 'flutterwave') {
-                    adjustedSubaccounts = response.adjusted_subaccounts;
-                  } else if (activeGateway === 'paystack') {
-                    paystackSellerTotals = {};
-                    $.each(response.adjusted_subaccounts, function(_, row) {
-                      if (row && row.id) {
-                        paystackSellerTotals[row.id] = parseFloat(row.total || 0);
-                      }
-                    });
-                  }
-                }
-
                 // Route to the appropriate payment gateway
                 if (activeGateway === 'flutterwave') {
                   FlutterwaveCheckout({
@@ -1092,7 +1055,6 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                     tx_ref: myUniqueID,
                     amount: transfer_amount,
                     currency: "NGN",
-                    subaccounts: adjustedSubaccounts,
                     payment_options: "card, banktransfer, ussd",
                     callback: function(payment) {
                       console.log(payment);
@@ -1120,15 +1082,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                   });
                 } else if (activeGateway === 'paystack') {
                   const amountKobo = Math.round(transfer_amount * 100);
-                  const sellerPayload = [];
-                  for (const seller in paystackSellerTotals) {
-                    const share = parseFloat(paystackSellerTotals[seller] || 0);
-                    if (share > 0) {
-                      sellerPayload.push({ id: seller, total: share });
-                    }
-                  }
-
-                  function launchPaystack(splitCode) {
+                  function launchPaystack() {
                     var options = {
                       key: ps_pk,
                       email: email,
@@ -1146,42 +1100,10 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                         }).modal('show');
                       }
                     };
-                    if (splitCode) {
-                      options.split_code = splitCode;
-                    } else if (sellerPayload.length > 0) {
-                      options.subaccount = sellerPayload[0].id;
-                    }
                     var handler = PaystackPop.setup(options);
                     handler.openIframe();
                   }
-
-                  if (sellerPayload.length === 0) {
-                    launchPaystack(null);
-                  } else {
-                    $.ajax({
-                      url: 'model/create-ps-split.php',
-                      type: 'POST',
-                      contentType: 'application/json',
-                      dataType: 'json',
-                      data: JSON.stringify({
-                        sellers: sellerPayload,
-                        amount_kobo: amountKobo,
-                        bearer_type: 'account'
-                      }),
-                      success: function(res) {
-                        if (res && res.status === 'success' && res.split_code) {
-                          launchPaystack(res.split_code);
-                        } else {
-                          console.warn('Split creation failed, falling back to single subaccount', res);
-                          launchPaystack(null);
-                        }
-                      },
-                      error: function(err) {
-                        console.error('Split creation error', err);
-                        launchPaystack(null);
-                      }
-                    });
-                  }
+                  launchPaystack();
                 } else if (activeGateway === 'interswitch') {
                   console.log('Interswitch payment - server-side initialization required');
                   window.location.href = 'model/handle-isw-init.php?ref=' + myUniqueID + '&amount=' + transfer_amount;

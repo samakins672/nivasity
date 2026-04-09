@@ -12,6 +12,7 @@ require_once 'PaymentGatewayFactory.php';
 include('mail.php');
 include('functions.php');
 require_once 'refund_engine.php';
+require_once 'internal_wallet_service.php';
 
 $statusRes = "success";
 $messageRes = "Payment processed successfully!";
@@ -273,6 +274,21 @@ if (isset($_GET['transaction_id']) || isset($_GET['reference']) || isset($_GET['
                     throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
                 }
             }
+            nivasityRecordSchoolPayable($conn, [
+                'school_id' => $school_id,
+                'source_ref_id' => $tx_ref,
+                'payer_user_id' => $user_id,
+                'source_medium' => $medium,
+                'source_channel' => 'web',
+                'item_subtotal' => $sum_amount,
+                'collected_total' => $total_amount,
+                'charge_amount' => $charge,
+                'refund_amount' => $refund_applied,
+                'metadata' => [
+                    'handler' => 'model/handle-payment.php',
+                    'already_repaired_tx' => $tx_exists,
+                ],
+            ]);
             mysqli_commit($conn);
         } catch (Throwable $e) {
             mysqli_rollback($conn);
