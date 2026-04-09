@@ -20,10 +20,14 @@ if ($userId <= 0) {
 
 try {
     $result = nivasitySyncWalletFundingFromPaystack($conn, $userId, 'web_refresh');
+    $dashboard = nivasityGetWalletDashboardPayload($conn, $userId, 25);
     echo json_encode([
         'status' => 'success',
         'message' => trim((string)($result['message'] ?? '')) !== '' ? (string)$result['message'] : 'Wallet funding refresh completed',
-        'data' => $result,
+        'data' => [
+            'refresh' => $result,
+            'dashboard' => $dashboard,
+        ],
     ]);
 } catch (Throwable $e) {
     http_response_code(422);

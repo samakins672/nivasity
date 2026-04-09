@@ -566,6 +566,55 @@ if (!function_exists('nivasityGetUserWallet')) {
     }
 }
 
+if (!function_exists('nivasityGetWalletDashboardPayload')) {
+    function nivasityGetWalletDashboardPayload($conn, $userId, $limit = 25) {
+        $userId = (int)$userId;
+        $limit = (int)$limit;
+        if ($limit <= 0) {
+            $limit = 25;
+        }
+
+        $wallet = nivasityGetUserWallet($conn, $userId);
+        $hasWalletPin = $wallet ? nivasityUserHasWalletPin($conn, $userId) : false;
+        $entries = [];
+        $creditsTotal = 0;
+        $debitsTotal = 0;
+
+        if ($wallet && (int)($wallet['id'] ?? 0) > 0) {
+            $walletId = (int)$wallet['id'];
+            $entriesQuery = mysqli_query($conn, "SELECT * FROM wallet_ledger_entries WHERE wallet_id = $walletId ORDER BY created_at DESC, id DESC LIMIT $limit");
+            if ($entriesQuery) {
+                while ($entry = mysqli_fetch_assoc($entriesQuery)) {
+                    $entryType = strtolower((string)($entry['entry_type'] ?? 'adjustment'));
+                    $amount = (int)($entry['amount'] ?? 0);
+                    $isCreditLike = in_array($entryType, ['credit', 'refund'], true);
+                    if ($isCreditLike) {
+                        $creditsTotal += $amount;
+                    } elseif (in_array($entryType, ['debit', 'fee'], true)) {
+                        $debitsTotal += $amount;
+                    }
+
+                    $entry['display_reference'] = (string)($entry['provider_reference'] ?: $entry['reference']);
+                    $entry['display_date'] = !empty($entry['created_at']) ? date('j M, Y h:i a', strtotime((string)$entry['created_at'])) : '';
+                    $entry['badge_class'] = $isCreditLike ? 'bg-success' : (in_array($entryType, ['debit', 'fee'], true) ? 'bg-danger' : 'bg-secondary');
+                    $entry['amount_class'] = $isCreditLike ? 'text-success' : 'text-danger';
+                    $entry['amount_sign'] = $isCreditLike ? '+' : '-';
+                    $entries[] = $entry;
+                }
+            }
+        }
+
+        return [
+            'wallet' => $wallet,
+            'has_pin' => $hasWalletPin,
+            'credits_total' => $creditsTotal,
+            'debits_total' => $debitsTotal,
+            'entries_count' => count($entries),
+            'entries' => $entries,
+        ];
+    }
+}
+
 if (!function_exists('nivasityPaystackRequest')) {
     function nivasityPaystackRequest($method, $path, $payload = null) {
         if (!defined('PAYSTACK_SECRET_KEY') || PAYSTACK_SECRET_KEY === '') {

@@ -3,34 +3,17 @@ session_start();
 include('model/config.php');
 include('model/page_config.php');
 
-$wallet = nivasityGetUserWallet($conn, (int)$user_id);
+$walletDashboard = nivasityGetWalletDashboardPayload($conn, (int)$user_id, 25);
+$wallet = $walletDashboard['wallet'] ?? null;
 $walletEligibleRoles = ['student', 'hoc'];
 $currentUserRole = isset($_SESSION['nivas_userRole']) ? (string)$_SESSION['nivas_userRole'] : '';
 $isWalletEligibleRole = in_array($currentUserRole, $walletEligibleRoles, true);
 $isVerifiedUser = ((string)$user_status === 'verified');
 $canRequestWallet = $wallet === null && $isWalletEligibleRole && $isVerifiedUser;
-$hasWalletPin = $wallet ? nivasityUserHasWalletPin($conn, (int)$user_id) : false;
-
-$walletEntries = [];
-$walletCreditsTotal = 0;
-$walletDebitsTotal = 0;
-
-if ($wallet && (int)($wallet['id'] ?? 0) > 0) {
-  $walletId = (int)$wallet['id'];
-  $entriesQuery = mysqli_query($conn, "SELECT * FROM wallet_ledger_entries WHERE wallet_id = $walletId ORDER BY created_at DESC, id DESC LIMIT 25");
-  if ($entriesQuery) {
-    while ($entry = mysqli_fetch_assoc($entriesQuery)) {
-      $walletEntries[] = $entry;
-      $entryType = (string)($entry['entry_type'] ?? '');
-      $amount = (int)($entry['amount'] ?? 0);
-      if (in_array($entryType, ['credit', 'refund'], true)) {
-        $walletCreditsTotal += $amount;
-      } elseif (in_array($entryType, ['debit', 'fee'], true)) {
-        $walletDebitsTotal += $amount;
-      }
-    }
-  }
-}
+$hasWalletPin = (bool)($walletDashboard['has_pin'] ?? false);
+$walletEntries = $walletDashboard['entries'] ?? [];
+$walletCreditsTotal = (int)($walletDashboard['credits_total'] ?? 0);
+$walletDebitsTotal = (int)($walletDashboard['debits_total'] ?? 0);
 
 $walletAccessMessage = '';
 if ($wallet === null) {
@@ -210,7 +193,7 @@ function walletEntryBadgeClass($entryType) {
                             <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
                               <div>
                                 <p class="wallet-meta-label mb-2">Nivasity Wallet</p>
-                                <h2 class="wallet-balance mb-2">₦ <?php echo number_format((int)($wallet['balance'] ?? 0)); ?></h2>
+                                <h2 class="wallet-balance mb-2" id="wallet-balance-value">₦ <?php echo number_format((int)($wallet['balance'] ?? 0)); ?></h2>
                                 <p class="mb-0"><?php echo $wallet ? 'Fund this wallet with your dedicated account below.' : 'Request wallet access from this page before it can be created.'; ?></p>
                               </div>
                               <div class="d-flex flex-wrap gap-2">
@@ -233,11 +216,11 @@ function walletEntryBadgeClass($entryType) {
                               <div class="row mt-3">
                                 <div class="col-6">
                                   <p class="text-muted mb-1">Total Credits</p>
-                                  <h6 class="fw-bold text-success">₦ <?php echo number_format($walletCreditsTotal); ?></h6>
+                                  <h6 class="fw-bold text-success" id="wallet-credits-total">₦ <?php echo number_format($walletCreditsTotal); ?></h6>
                                 </div>
                                 <div class="col-6">
                                   <p class="text-muted mb-1">Total Debits</p>
-                                  <h6 class="fw-bold text-danger">₦ <?php echo number_format($walletDebitsTotal); ?></h6>
+                                  <h6 class="fw-bold text-danger" id="wallet-debits-total">₦ <?php echo number_format($walletDebitsTotal); ?></h6>
                                 </div>
                               </div>
                             <?php else: ?>
@@ -262,26 +245,26 @@ function walletEntryBadgeClass($entryType) {
                             <?php if ($wallet): ?>
                               <div class="wallet-data-box mb-3">
                                 <p class="text-muted mb-1">Account Name</p>
-                                <h5 class="fw-bold mb-0"><?php echo htmlspecialchars((string)($wallet['account_name'] ?? $user_name)); ?></h5>
+                                <h5 class="fw-bold mb-0" id="wallet-account-name"><?php echo htmlspecialchars((string)($wallet['account_name'] ?? $user_name)); ?></h5>
                               </div>
                               <div class="wallet-data-box mb-3">
                                 <p class="text-muted mb-1">Account Number</p>
                                 <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
-                                  <h4 class="fw-bold mb-0"><?php echo htmlspecialchars((string)($wallet['account_number'] ?? '')); ?></h4>
-                                  <button type="button" class="btn btn-outline-primary btn-sm copy-wallet-value" data-copy-value="<?php echo htmlspecialchars((string)($wallet['account_number'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">Copy</button>
+                                  <h4 class="fw-bold mb-0" id="wallet-account-number"><?php echo htmlspecialchars((string)($wallet['account_number'] ?? '')); ?></h4>
+                                  <button type="button" class="btn btn-outline-primary btn-sm copy-wallet-value" id="wallet-account-copy-btn" data-copy-value="<?php echo htmlspecialchars((string)($wallet['account_number'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">Copy</button>
                                 </div>
                               </div>
                               <div class="row g-3">
                                 <div class="col-sm-6">
                                   <div class="wallet-data-box h-100">
                                     <p class="text-muted mb-1">Bank</p>
-                                    <h6 class="fw-bold mb-0"><?php echo htmlspecialchars((string)($wallet['bank_name'] ?? 'Wema Bank')); ?></h6>
+                                    <h6 class="fw-bold mb-0" id="wallet-bank-name"><?php echo htmlspecialchars((string)($wallet['bank_name'] ?? 'Wema Bank')); ?></h6>
                                   </div>
                                 </div>
                                 <div class="col-sm-6">
                                   <div class="wallet-data-box h-100">
                                     <p class="text-muted mb-1">Provider</p>
-                                    <h6 class="fw-bold mb-0 text-capitalize"><?php echo htmlspecialchars((string)($wallet['provider'] ?? 'paystack')); ?></h6>
+                                    <h6 class="fw-bold mb-0 text-capitalize" id="wallet-provider-name"><?php echo htmlspecialchars((string)($wallet['provider'] ?? 'paystack')); ?></h6>
                                   </div>
                                 </div>
                               </div>
@@ -329,11 +312,11 @@ function walletEntryBadgeClass($entryType) {
                             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                               <h4 class="fw-bold mb-0">Recent Wallet Activity</h4>
                               <?php if ($wallet): ?>
-                                <span class="badge bg-light text-dark border"><?php echo count($walletEntries); ?> entries</span>
+                                <span class="badge bg-light text-dark border" id="wallet-entries-count"><?php echo count($walletEntries); ?> entries</span>
                               <?php endif; ?>
                             </div>
                           </div>
-                          <div class="card-body">
+                          <div class="card-body" id="wallet-activity-content">
                             <?php if ($wallet && !empty($walletEntries)): ?>
                               <div class="table-responsive mt-1">
                                 <table class="table table-striped table-hover select-table">
@@ -347,7 +330,7 @@ function walletEntryBadgeClass($entryType) {
                                       <th>Date</th>
                                     </tr>
                                   </thead>
-                                  <tbody>
+                                  <tbody id="wallet-activity-body">
                                     <?php foreach ($walletEntries as $entry): ?>
                                       <tr>
                                         <td>
@@ -468,10 +451,108 @@ function walletEntryBadgeClass($entryType) {
       $('.btn').attr('data-mdb-ripple-duration', '0');
 
       var walletPinMode = <?php echo json_encode($hasWalletPin ? 'update' : 'create'); ?>;
+      var walletExists = <?php echo $wallet ? 'true' : 'false'; ?>;
       var walletPinStep = 'code';
       var walletPinVerificationToken = '';
       var walletPinModalElement = document.getElementById('walletPinModal');
       var walletPinModal = walletPinModalElement ? new bootstrap.Modal(walletPinModalElement) : null;
+
+      function formatNaira(value) {
+        return '₦ ' + Number(value || 0).toLocaleString();
+      }
+
+      function escapeHtml(value) {
+        return String(value == null ? '' : value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      function renderWalletEntries(entries, hasWallet) {
+        if (!hasWallet) {
+          return '<div class="wallet-empty-state"><div><i class="mdi mdi-history text-secondary" style="font-size: 3rem;"></i><h5 class="fw-bold mt-3">No Wallet Activity Yet</h5><p class="text-muted mb-0">Request your wallet first to start seeing activity here.</p></div></div>';
+        }
+
+        if (!entries || !entries.length) {
+          return '<div class="wallet-empty-state"><div><i class="mdi mdi-history text-secondary" style="font-size: 3rem;"></i><h5 class="fw-bold mt-3">No Wallet Activity Yet</h5><p class="text-muted mb-0">Fund or spend from your wallet to see activity here.</p></div></div>';
+        }
+
+        var rows = entries.map(function(entry) {
+          return '<tr>'
+            + '<td><span class="badge ' + escapeHtml(entry.badge_class || 'bg-secondary') + ' text-uppercase">' + escapeHtml(entry.entry_type || 'adjustment') + '</span></td>'
+            + '<td><h6 class="mb-0">' + escapeHtml(entry.display_reference || '') + '</h6></td>'
+            + '<td class="wallet-hide-mobile">' + escapeHtml(entry.description || '-') + '</td>'
+            + '<td><h6 class="mb-0 ' + escapeHtml(entry.amount_class || 'text-danger') + '">' + escapeHtml(entry.amount_sign || '-') + formatNaira(entry.amount || 0) + '</h6></td>'
+            + '<td class="wallet-hide-mobile">' + formatNaira(entry.balance_after || 0) + '</td>'
+            + '<td>' + escapeHtml(entry.display_date || '') + '</td>'
+            + '</tr>';
+        }).join('');
+
+        return '<div class="table-responsive mt-1"><table class="table table-striped table-hover select-table"><thead><tr><th>Type</th><th>Reference</th><th class="wallet-hide-mobile">Description</th><th>Amount</th><th class="wallet-hide-mobile">Balance After</th><th>Date</th></tr></thead><tbody id="wallet-activity-body">' + rows + '</tbody></table></div>';
+      }
+
+      function applyWalletDashboard(dashboard) {
+        if (!dashboard || !dashboard.wallet) {
+          return;
+        }
+
+        var wallet = dashboard.wallet;
+        var entries = dashboard.entries || [];
+        $('#wallet-balance-value').text(formatNaira(wallet.balance || 0));
+        $('#wallet-credits-total').text(formatNaira(dashboard.credits_total || 0));
+        $('#wallet-debits-total').text(formatNaira(dashboard.debits_total || 0));
+        $('#wallet-account-name').text(wallet.account_name || <?php echo json_encode((string)$user_name); ?>);
+        $('#wallet-account-number').text(wallet.account_number || '');
+        $('#wallet-account-copy-btn').attr('data-copy-value', wallet.account_number || '');
+        $('#wallet-bank-name').text(wallet.bank_name || 'Wema Bank');
+        $('#wallet-provider-name').text(wallet.provider || 'paystack');
+        $('#wallet-entries-count').text((dashboard.entries_count || entries.length || 0) + ' entries');
+        $('#wallet-activity-content').html(renderWalletEntries(entries, true));
+      }
+
+      function runWalletRefresh(options) {
+        var settings = $.extend({
+          silent: false,
+          button: null,
+          loadingText: 'Refreshing...'
+        }, options || {});
+        var button = settings.button ? $(settings.button) : $();
+        var originalText = button.length ? button.text() : '';
+
+        if (button.length) {
+          button.prop('disabled', true).text(settings.loadingText);
+        }
+
+        return $.ajax({
+          url: 'model/refresh-wallet-credits.php',
+          type: 'POST',
+          dataType: 'json'
+        }).done(function(response) {
+          if (response && response.status === 'success') {
+            if (response.data && response.data.dashboard) {
+              applyWalletDashboard(response.data.dashboard);
+            }
+            if (!settings.silent) {
+              showWalletBanner(response.message || 'Wallet refreshed successfully.', 'success');
+            }
+            return;
+          }
+          if (!settings.silent) {
+            showWalletBanner((response && response.message) ? response.message : 'Wallet refresh failed.', 'danger');
+          }
+        }).fail(function(xhr) {
+          if (!settings.silent) {
+            var message = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Wallet refresh failed.';
+            showWalletBanner(message, 'danger');
+          }
+        }).always(function() {
+          if (button.length) {
+            button.prop('disabled', false).text(originalText);
+          }
+        });
+      }
 
       function setWalletPinStep(step) {
         walletPinStep = step === 'pin' ? 'pin' : 'code';
@@ -657,28 +738,12 @@ function walletEntryBadgeClass($entryType) {
       });
 
       $('#refresh-wallet-btn').on('click', function() {
-        var button = $(this);
-        var originalText = button.text();
-        button.prop('disabled', true).text('Refreshing...');
-
-        $.ajax({
-          url: 'model/refresh-wallet-credits.php',
-          type: 'POST',
-          dataType: 'json'
-        }).done(function(response) {
-          if (response && response.status === 'success') {
-            showWalletBanner(response.message || 'Wallet refreshed successfully.', 'success');
-            window.location.reload();
-            return;
-          }
-          showWalletBanner((response && response.message) ? response.message : 'Wallet refresh failed.', 'danger');
-        }).fail(function(xhr) {
-          var message = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Wallet refresh failed.';
-          showWalletBanner(message, 'danger');
-        }).always(function() {
-          button.prop('disabled', false).text(originalText);
-        });
+        runWalletRefresh({ button: this, loadingText: 'Refreshing...' });
       });
+
+      if (walletExists) {
+        runWalletRefresh({ silent: true, button: '#refresh-wallet-btn', loadingText: 'Checking DVA...' });
+      }
 
       $(document).on('click', '.copy-wallet-value', async function() {
         var value = $(this).data('copy-value');
