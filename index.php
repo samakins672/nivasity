@@ -113,6 +113,34 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
   <title>Store - Nivasity</title>
 
   <?php include('partials/_head.php') ?>
+  <style>
+    .wallet-pin-input {
+      height: 4.5rem;
+      border-radius: 0.85rem;
+      font-size: 1.55rem;
+      font-weight: 700;
+      letter-spacing: 0.24em;
+      text-align: center;
+      padding: 0.75rem 1rem;
+    }
+
+    .wallet-pin-input::placeholder {
+      letter-spacing: 0.08em;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .wallet-pin-field {
+      max-width: 21rem;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .wallet-pin-field .form-label {
+      display: block;
+      text-align: center;
+    }
+  </style>
 </head>
 
 <body>
@@ -1385,11 +1413,11 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <p class="text-muted mb-3">Enter your 4-digit Wallet PIN to authorize this payment.</p>
+          <p class="text-muted text-center mb-3">Enter your 4-digit Wallet PIN to authorize this payment.</p>
           <div class="alert alert-danger d-none" id="walletCheckoutPinError"></div>
-          <div id="walletPinCheckoutForm">
+          <div id="walletPinCheckoutForm" class="wallet-pin-field">
             <label for="walletCheckoutPin" class="form-label fw-bold">Wallet PIN</label>
-            <input type="password" class="form-control" id="walletCheckoutPin" maxlength="4" inputmode="numeric" placeholder="Enter 4-digit PIN">
+            <input type="password" class="form-control wallet-pin-input" id="walletCheckoutPin" maxlength="4" inputmode="numeric" placeholder="4-DIGIT PIN">
           </div>
           <div class="alert alert-warning d-none mb-0" id="walletPinCheckoutMissing">
             Set up your Wallet PIN first on your wallet page before paying with wallet.
