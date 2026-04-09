@@ -11,8 +11,10 @@ $user = authenticateApiRequest($conn);
 requireStudentRole($user);
 
 $wallet = nivasityGetUserWallet($conn, (int)$user['id']);
+$hasWalletPin = nivasityUserHasWalletPin($conn, (int)$user['id']);
 
 sendApiSuccess('Wallet summary retrieved successfully', [
     'has_wallet' => $wallet !== null,
+    'has_pin' => $hasWalletPin,
     'wallet' => $wallet,
 ]);

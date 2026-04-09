@@ -4,6 +4,7 @@ include('model/config.php');
 include('model/page_config.php');
 include('model/system_alerts.php');
 include('model/payment_freeze.php');
+require_once 'model/internal_wallet_service.php';
 
 // Fetch active system alerts
 $system_alerts = get_active_system_alerts($conn);
@@ -13,6 +14,7 @@ $payment_freeze_info = get_payment_freeze_info();
 $play_store_url = 'https://play.google.com/store/apps/details?id=com.nivasity.app';
 $mobile_prompt_captured = !empty($mobile_experience_prompt_state['captured']);
 $mobile_prompt_should_show = !empty($mobile_experience_prompt_state['should_show']);
+$wallet_pin_configured = function_exists('nivasityUserHasWalletPin') ? nivasityUserHasWalletPin($conn, (int)$user_id) : false;
 
 // Simulate adding/removing the product to/from the cart
 if (!isset($_SESSION["nivas_cart$user_id"])) {
@@ -1157,52 +1159,90 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           return `nivas_<?php echo $user_id ?>_${currentDate.getTime()}`;
         }
 
-        const walletRef = generateUniqueID();
+        function executeWalletCheckout(walletPin) {
+          const walletRef = generateUniqueID();
 
-        $.ajax({
-          url: 'model/saveCart.php',
-          type: 'POST',
-          contentType: 'application/json',
-          dataType: 'json',
-          data: JSON.stringify({
-            ref_id: walletRef,
-            user_id: "<?php echo $user_id; ?>",
-            gateway: 'NIVASITY',
-            payment_channel: 'wallet',
-            items: parsedSessionData.map(item => ({
-              item_id: item.product_id,
-              type: item.type
-            }))
-          }),
-          success: function(response) {
-            if (!response || !response.success) {
-              alert(response && response.message ? response.message : 'Unable to prepare wallet checkout.');
-              return;
-            }
-
-            $.ajax({
-              url: 'model/wallet-checkout.php',
-              type: 'POST',
-              dataType: 'json',
-              data: { ref_id: walletRef },
-              success: function(walletResponse) {
-                if (walletResponse.status === 'success') {
-                  location.reload();
-                  return;
-                }
-                alert(walletResponse.message || 'Wallet checkout failed.');
-              },
-              error: function(xhr) {
-                console.error('Wallet checkout error', xhr);
-                alert('Wallet checkout failed. Please try again.');
+          $.ajax({
+            url: 'model/saveCart.php',
+            type: 'POST',
+            contentType: 'application/json',
+            dataType: 'json',
+            data: JSON.stringify({
+              ref_id: walletRef,
+              user_id: "<?php echo $user_id; ?>",
+              gateway: 'NIVASITY',
+              payment_channel: 'wallet',
+              items: parsedSessionData.map(item => ({
+                item_id: item.product_id,
+                type: item.type
+              }))
+            }),
+            success: function(response) {
+              if (!response || !response.success) {
+                alert(response && response.message ? response.message : 'Unable to prepare wallet checkout.');
+                return;
               }
-            });
-          },
-          error: function(xhr) {
-            console.error('Wallet saveCart error', xhr);
-            alert('Unable to prepare wallet checkout. Please try again.');
+
+              $.ajax({
+                url: 'model/wallet-checkout.php',
+                type: 'POST',
+                dataType: 'json',
+                data: { ref_id: walletRef, wallet_pin: walletPin },
+                success: function(walletResponse) {
+                  if (walletResponse.status === 'success') {
+                    location.reload();
+                    return;
+                  }
+                  $('#walletCheckoutPinError').removeClass('d-none').text(walletResponse.message || 'Wallet checkout failed.');
+                },
+                error: function(xhr) {
+                  console.error('Wallet checkout error', xhr);
+                  var message = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Wallet checkout failed. Please try again.';
+                  $('#walletCheckoutPinError').removeClass('d-none').text(message);
+                },
+                complete: function() {
+                  $('#confirm-wallet-pin-btn').prop('disabled', false).text('Confirm & Pay');
+                }
+              });
+            },
+            error: function(xhr) {
+              console.error('Wallet saveCart error', xhr);
+              $('#walletCheckoutPinError').removeClass('d-none').text('Unable to prepare wallet checkout. Please try again.');
+              $('#confirm-wallet-pin-btn').prop('disabled', false).text('Confirm & Pay');
+            }
+          });
+        }
+
+        var walletCheckoutModalElement = document.getElementById('walletPinCheckoutModal');
+        var walletCheckoutModal = walletCheckoutModalElement ? new bootstrap.Modal(walletCheckoutModalElement) : null;
+        $('#walletCheckoutPinError').addClass('d-none').text('');
+        $('#walletCheckoutPin').val('');
+
+        if (<?php echo $wallet_pin_configured ? 'true' : 'false'; ?>) {
+          $('#walletPinCheckoutForm').removeClass('d-none');
+          $('#walletPinCheckoutMissing').addClass('d-none');
+          $('#confirm-wallet-pin-btn').removeClass('d-none').prop('disabled', false).text('Confirm & Pay');
+        } else {
+          $('#walletPinCheckoutForm').addClass('d-none');
+          $('#walletPinCheckoutMissing').removeClass('d-none');
+          $('#confirm-wallet-pin-btn').addClass('d-none');
+        }
+
+        $('#confirm-wallet-pin-btn').off('click').on('click', function() {
+          var walletPin = $('#walletCheckoutPin').val().trim();
+          if (!/^\d{4}$/.test(walletPin)) {
+            $('#walletCheckoutPinError').removeClass('d-none').text('Enter your 4-digit Wallet PIN to continue.');
+            return;
           }
+
+          $('#walletCheckoutPinError').addClass('d-none').text('');
+          $(this).prop('disabled', true).text('Processing...');
+          executeWalletCheckout(walletPin);
         });
+
+        if (walletCheckoutModal) {
+          walletCheckoutModal.show();
+        }
       });
 
       // free checkout button click event
@@ -1332,6 +1372,35 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Okay, I Understand</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="walletPinCheckoutModal" tabindex="-1" aria-labelledby="walletPinCheckoutLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold" id="walletPinCheckoutLabel">Confirm Wallet Payment</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted mb-3">Enter your 4-digit Wallet PIN to authorize this payment.</p>
+          <div class="alert alert-danger d-none" id="walletCheckoutPinError"></div>
+          <div id="walletPinCheckoutForm">
+            <label for="walletCheckoutPin" class="form-label fw-bold">Wallet PIN</label>
+            <input type="password" class="form-control" id="walletCheckoutPin" maxlength="4" inputmode="numeric" placeholder="Enter 4-digit PIN">
+          </div>
+          <div class="alert alert-warning d-none mb-0" id="walletPinCheckoutMissing">
+            Set up your Wallet PIN first on your wallet page before paying with wallet.
+            <div class="mt-3">
+              <a class="btn btn-outline-primary btn-sm" href="<?php echo htmlspecialchars(nivasity_app_url('wallet.php'), ENT_QUOTES, 'UTF-8'); ?>">Go to Wallet Page</a>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary fw-bold" id="confirm-wallet-pin-btn">Confirm & Pay</button>
         </div>
       </div>
     </div>

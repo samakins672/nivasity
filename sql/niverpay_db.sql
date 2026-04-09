@@ -297,6 +297,8 @@ CREATE TABLE `users` (
   `phone` varchar(20) NOT NULL,
   `paystack_customer_code` varchar(100) DEFAULT NULL,
   `paystack_customer_id` bigint(20) unsigned DEFAULT NULL,
+  `wallet_pin_hash` varchar(255) DEFAULT NULL,
+  `wallet_pin_updated_at` datetime DEFAULT NULL,
   `gender` varchar(10) DEFAULT NULL,
   `school` int(11) DEFAULT NULL,
   `dept` int(11) DEFAULT NULL,
@@ -322,6 +324,16 @@ CREATE TABLE `verification_code` (
   `exp_date` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE `wallet_pin_tokens` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `code` varchar(20) NOT NULL,
+  `purpose` enum('create','update') NOT NULL DEFAULT 'create',
+  `expires_at` datetime NOT NULL,
+  `consumed_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 --
 -- Indexes for dumped tables
 --
@@ -331,6 +343,11 @@ CREATE TABLE `verification_code` (
 --
 ALTER TABLE `admins`
   ADD PRIMARY KEY (`id`);
+
+ALTER TABLE `wallet_pin_tokens`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_wallet_pin_tokens_user` (`user_id`),
+  ADD KEY `idx_wallet_pin_tokens_code` (`code`);
 
 --
 -- Indexes for table `admin_roles`

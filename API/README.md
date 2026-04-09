@@ -978,6 +978,7 @@ GET /materials/details.php?code=MAN-2024-001
 **Parameters:**
 - `redirect_url` (optional): Custom URL where users will be redirected after payment verification. The gateway callback itself always points to `/payment/callback.php`, and this value is forwarded in payment metadata.
 - `payment_channel` (optional): `gateway` or `wallet`. Defaults to `gateway`.
+- `wallet_pin` (required when `payment_channel = wallet`): The user's 4-digit Wallet PIN used to authorize wallet checkout.
 
 **Current Payment Model:**
 - Gateway checkout still uses the active provider's hosted payment page
@@ -1070,6 +1071,7 @@ This allows the payment gateway to redirect back to your mobile app after the us
 
 **Wallet Checkout Notes:**
 - Wallets are not auto-created; the client must call `POST /wallet/create.php` first
+- Wallet-funded checkout requires a valid 4-digit Wallet PIN
 - Before wallet debit, the API attempts a Paystack dedicated-account sync to capture missed funding credits
 - On insufficient balance or missing wallet, the API returns an error with HTTP `422`
 - Wallet-funded purchases are recorded with `payment_channel = wallet`
@@ -1216,6 +1218,7 @@ This allows the payment gateway to redirect back to your mobile app after the us
   "message": "Wallet summary retrieved successfully",
   "data": {
     "has_wallet": true,
+    "has_pin": true,
     "wallet": {
       "id": 12,
       "user_id": 123,
@@ -1234,6 +1237,65 @@ This allows the payment gateway to redirect back to your mobile app after the us
   }
 }
 ```
+
+**Response Fields:**
+- `has_wallet`: Whether the authenticated user already has a provisioned wallet
+- `has_pin`: Whether the authenticated user has already configured a Wallet PIN
+
+#### Wallet PIN Management
+**Endpoint:** `POST /wallet/pin.php`
+
+**Description:** Send a Wallet PIN verification code to email or create/update the authenticated user's 4-digit Wallet PIN.
+
+**Authentication:** Required
+
+**Request Body (JSON) to Send Code:**
+```json
+{
+  "action": "send_code"
+}
+```
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "A Wallet PIN code has been sent to your email.",
+  "data": {
+    "status": "sent",
+    "purpose": "create",
+    "expires_at": "2026-04-09 14:35:00"
+  }
+}
+```
+
+**Request Body (JSON) to Save PIN:**
+```json
+{
+  "action": "save_pin",
+  "code": "123456",
+  "pin": "1234",
+  "confirm_pin": "1234"
+}
+```
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Wallet PIN saved successfully.",
+  "data": {
+    "status": "saved",
+    "has_pin": true
+  }
+}
+```
+
+**Behavior:**
+- `action = send_code` emails a 6-digit verification code to the authenticated user
+- `purpose` is `create` for first-time Wallet PIN setup and `update` when a Wallet PIN already exists
+- `action = save_pin` requires a valid unexpired verification code and matching 4-digit PIN values
+- The authenticated user must already have a wallet before PIN setup or update is allowed
 
 #### Refresh Wallet Credits
 **Endpoint:** `POST /wallet/refresh-credits.php`

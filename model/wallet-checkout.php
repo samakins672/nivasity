@@ -29,6 +29,8 @@ if ($refId === '') {
     exit;
 }
 
+$walletPin = isset($_POST['wallet_pin']) ? trim((string)$_POST['wallet_pin']) : '';
+
 try {
     try {
         nivasitySyncWalletFundingFromPaystack($conn, $userId, 'web_wallet_checkout');
@@ -36,7 +38,7 @@ try {
         error_log('[NIVASITY_WALLET_WEB_SYNC] ' . $syncError->getMessage());
     }
 
-    $result = nivasityProcessWalletCheckout($conn, $refId, $userId, 'web');
+    $result = nivasityProcessWalletCheckout($conn, $refId, $userId, 'web', $walletPin);
 
     $cartManualKey = "nivas_cart$userId";
     $cartEventKey = "nivas_cart_event$userId";

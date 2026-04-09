@@ -35,6 +35,7 @@ $input = json_decode(file_get_contents('php://input'), true);
 $redirect_url = isset($input['redirect_url']) ? trim($input['redirect_url']) : null;
 $payment_channel = isset($input['payment_channel']) ? strtolower(trim((string)$input['payment_channel'])) : 'gateway';
 $payment_channel = $payment_channel === 'wallet' ? 'wallet' : 'gateway';
+$wallet_pin = isset($input['wallet_pin']) ? trim((string)$input['wallet_pin']) : '';
 
 // Log redirect URL if provided
 if ($redirect_url) {
@@ -155,7 +156,7 @@ if ($payment_channel === 'wallet') {
     }
 
     try {
-        $walletResult = nivasityProcessWalletCheckout($conn, $tx_ref, (int)$user_id, 'api');
+        $walletResult = nivasityProcessWalletCheckout($conn, $tx_ref, (int)$user_id, 'api', $wallet_pin);
         $_SESSION[$cart_key] = [];
         $_SESSION[$cart_event_key] = [];
         sendApiSuccess('Wallet payment completed successfully', [

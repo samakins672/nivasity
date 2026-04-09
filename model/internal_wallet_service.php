@@ -1,6 +1,8 @@
 <?php
 
 require_once __DIR__ . '/../config/fw.php';
+require_once __DIR__ . '/notifications.php';
+require_once __DIR__ . '/mail.php';
 
 if (!function_exists('nivasityWalletLog')) {
     function nivasityWalletLog($message, $context = []) {
@@ -9,6 +11,350 @@ if (!function_exists('nivasityWalletLog')) {
             $payload .= ' ' . json_encode($context);
         }
         error_log($payload);
+    }
+}
+
+if (!function_exists('nivasityFormatWalletAmount')) {
+    function nivasityFormatWalletAmount($amount) {
+        return 'NGN ' . number_format((int)round((float)$amount), 2);
+    }
+}
+
+if (!function_exists('nivasityGetWalletUserProfile')) {
+    function nivasityGetWalletUserProfile($conn, $userId) {
+        $userId = (int)$userId;
+        if ($userId <= 0) {
+            return null;
+        }
+
+        $sql = "SELECT id, first_name, last_name, email FROM users WHERE id = $userId LIMIT 1";
+        $rs = mysqli_query($conn, $sql);
+        if ($rs && mysqli_num_rows($rs) > 0) {
+            return mysqli_fetch_assoc($rs);
+        }
+
+        return null;
+    }
+}
+
+if (!function_exists('nivasityUsersHasWalletPinHashColumn')) {
+    function nivasityUsersHasWalletPinHashColumn($conn) {
+        static $hasColumn = null;
+
+        if ($hasColumn !== null) {
+            return $hasColumn;
+        }
+
+        $rs = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'wallet_pin_hash'");
+        $hasColumn = $rs && mysqli_num_rows($rs) > 0;
+        return $hasColumn;
+    }
+}
+
+if (!function_exists('nivasityUsersHasWalletPinUpdatedAtColumn')) {
+    function nivasityUsersHasWalletPinUpdatedAtColumn($conn) {
+        static $hasColumn = null;
+
+        if ($hasColumn !== null) {
+            return $hasColumn;
+        }
+
+        $rs = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'wallet_pin_updated_at'");
+        $hasColumn = $rs && mysqli_num_rows($rs) > 0;
+        return $hasColumn;
+    }
+}
+
+if (!function_exists('nivasityWalletPinTokensTableExists')) {
+    function nivasityWalletPinTokensTableExists($conn) {
+        static $exists = null;
+
+        if ($exists !== null) {
+            return $exists;
+        }
+
+        $rs = mysqli_query($conn, "SHOW TABLES LIKE 'wallet_pin_tokens'");
+        $exists = $rs && mysqli_num_rows($rs) > 0;
+        return $exists;
+    }
+}
+
+if (!function_exists('nivasityRequireWalletPinInfrastructure')) {
+    function nivasityRequireWalletPinInfrastructure($conn) {
+        if (!nivasityUsersHasWalletPinHashColumn($conn) || !nivasityUsersHasWalletPinUpdatedAtColumn($conn) || !nivasityWalletPinTokensTableExists($conn)) {
+            throw new Exception('Wallet PIN management is not available until the latest wallet PIN SQL update is applied.');
+        }
+    }
+}
+
+if (!function_exists('nivasityIsValidWalletPin')) {
+    function nivasityIsValidWalletPin($pin) {
+        return preg_match('/^\d{4}$/', (string)$pin) === 1;
+    }
+}
+
+if (!function_exists('nivasityUserHasWalletPin')) {
+    function nivasityUserHasWalletPin($conn, $userId) {
+        $userId = (int)$userId;
+        if ($userId <= 0 || !nivasityUsersHasWalletPinHashColumn($conn)) {
+            return false;
+        }
+
+        $sql = "SELECT wallet_pin_hash FROM users WHERE id = $userId LIMIT 1";
+        $rs = mysqli_query($conn, $sql);
+        if (!$rs || mysqli_num_rows($rs) < 1) {
+            return false;
+        }
+
+        $row = mysqli_fetch_assoc($rs);
+        return trim((string)($row['wallet_pin_hash'] ?? '')) !== '';
+    }
+}
+
+if (!function_exists('nivasitySendWalletPinCode')) {
+    function nivasitySendWalletPinCode($conn, $userId) {
+        $userId = (int)$userId;
+        if ($userId <= 0) {
+            throw new Exception('Authentication required');
+        }
+
+        nivasityRequireWalletPinInfrastructure($conn);
+
+        $wallet = nivasityGetUserWallet($conn, $userId);
+        if (!$wallet || (int)($wallet['id'] ?? 0) <= 0) {
+            throw new Exception('Create your wallet before setting a Wallet PIN');
+        }
+
+        $user = nivasityGetWalletUserProfile($conn, $userId);
+        if (!$user || empty($user['email'])) {
+            throw new Exception('User email address was not found');
+        }
+
+        $purpose = nivasityUserHasWalletPin($conn, $userId) ? 'update' : 'create';
+        $code = (string)rand(100000, 999999);
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+10 minutes'));
+        $codeSafe = mysqli_real_escape_string($conn, $code);
+        $purposeSafe = mysqli_real_escape_string($conn, $purpose);
+        $expiresAtSafe = mysqli_real_escape_string($conn, $expiresAt);
+
+        mysqli_query($conn, "DELETE FROM wallet_pin_tokens WHERE user_id = $userId");
+        $insertSql = "INSERT INTO wallet_pin_tokens (user_id, code, purpose, expires_at, created_at) VALUES ($userId, '$codeSafe', '$purposeSafe', '$expiresAtSafe', NOW())";
+        if (!mysqli_query($conn, $insertSql)) {
+            throw new Exception('Failed to create Wallet PIN verification code: ' . mysqli_error($conn));
+        }
+
+        $displayName = trim((string)(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')));
+        if ($displayName === '') {
+            $displayName = 'there';
+        }
+        $subject = $purpose === 'create' ? 'Create your Nivasity Wallet PIN' : 'Update your Nivasity Wallet PIN';
+        $body = '<p>Hello ' . htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8') . ',</p>'
+            . '<p>Your Wallet PIN verification code is <b>' . htmlspecialchars($code, ENT_QUOTES, 'UTF-8') . '</b>.</p>'
+            . '<p>This code expires in 10 minutes. Use it to ' . ($purpose === 'create' ? 'create' : 'update') . ' your 4-digit Wallet PIN.</p>'
+            . '<p>If you did not request this, please ignore this email.</p><p>Regards,<br><b>Nivasity Team</b></p>';
+
+        $mailStatus = function_exists('sendBrevoMail') ? sendBrevoMail($subject, $body, (string)$user['email']) : sendMail($subject, $body, (string)$user['email']);
+        if ($mailStatus !== 'success' && function_exists('sendMail')) {
+            $mailStatus = sendMail($subject, $body, (string)$user['email']);
+        }
+        if ($mailStatus !== 'success') {
+            throw new Exception('Failed to send Wallet PIN code to your email');
+        }
+
+        return [
+            'status' => 'sent',
+            'purpose' => $purpose,
+            'expires_at' => $expiresAt,
+        ];
+    }
+}
+
+if (!function_exists('nivasitySaveWalletPin')) {
+    function nivasitySaveWalletPin($conn, $userId, $code, $pin, $confirmPin) {
+        $userId = (int)$userId;
+        $code = trim((string)$code);
+        $pin = trim((string)$pin);
+        $confirmPin = trim((string)$confirmPin);
+
+        if ($userId <= 0) {
+            throw new Exception('Authentication required');
+        }
+
+        nivasityRequireWalletPinInfrastructure($conn);
+
+        if (!nivasityIsValidWalletPin($pin)) {
+            throw new Exception('Wallet PIN must be exactly 4 digits');
+        }
+        if ($pin !== $confirmPin) {
+            throw new Exception('Wallet PIN confirmation does not match');
+        }
+        if ($code === '') {
+            throw new Exception('Wallet PIN verification code is required');
+        }
+
+        $wallet = nivasityGetUserWallet($conn, $userId);
+        if (!$wallet || (int)($wallet['id'] ?? 0) <= 0) {
+            throw new Exception('Create your wallet before setting a Wallet PIN');
+        }
+
+        $codeSafe = mysqli_real_escape_string($conn, $code);
+        $nowSafe = mysqli_real_escape_string($conn, date('Y-m-d H:i:s'));
+        $tokenSql = "SELECT * FROM wallet_pin_tokens WHERE user_id = $userId AND code = '$codeSafe' AND consumed_at IS NULL AND expires_at >= '$nowSafe' ORDER BY id DESC LIMIT 1";
+        $tokenRs = mysqli_query($conn, $tokenSql);
+        if (!$tokenRs || mysqli_num_rows($tokenRs) < 1) {
+            throw new Exception('Invalid or expired Wallet PIN code');
+        }
+
+        $pinHashSafe = mysqli_real_escape_string($conn, password_hash($pin, PASSWORD_DEFAULT));
+        mysqli_begin_transaction($conn);
+        try {
+            $updates = ["wallet_pin_hash = '$pinHashSafe'"];
+            if (nivasityUsersHasWalletPinUpdatedAtColumn($conn)) {
+                $updates[] = 'wallet_pin_updated_at = NOW()';
+            }
+            $updateSql = 'UPDATE users SET ' . implode(', ', $updates) . " WHERE id = $userId LIMIT 1";
+            if (!mysqli_query($conn, $updateSql)) {
+                throw new Exception('Failed to save Wallet PIN: ' . mysqli_error($conn));
+            }
+
+            $consumeSql = "UPDATE wallet_pin_tokens SET consumed_at = NOW() WHERE user_id = $userId AND code = '$codeSafe' AND consumed_at IS NULL";
+            if (!mysqli_query($conn, $consumeSql)) {
+                throw new Exception('Failed to consume Wallet PIN code: ' . mysqli_error($conn));
+            }
+
+            mysqli_commit($conn);
+        } catch (Throwable $e) {
+            mysqli_rollback($conn);
+            throw $e;
+        }
+
+        return [
+            'status' => 'saved',
+            'has_pin' => true,
+        ];
+    }
+}
+
+if (!function_exists('nivasityVerifyWalletPin')) {
+    function nivasityVerifyWalletPin($conn, $userId, $pin) {
+        $userId = (int)$userId;
+        $pin = trim((string)$pin);
+        if ($userId <= 0) {
+            throw new Exception('Authentication required');
+        }
+
+        nivasityRequireWalletPinInfrastructure($conn);
+
+        if (!nivasityIsValidWalletPin($pin)) {
+            throw new Exception('Enter your 4-digit Wallet PIN to continue');
+        }
+
+        $sql = "SELECT wallet_pin_hash FROM users WHERE id = $userId LIMIT 1";
+        $rs = mysqli_query($conn, $sql);
+        if (!$rs || mysqli_num_rows($rs) < 1) {
+            throw new Exception('Unable to verify Wallet PIN for this user');
+        }
+
+        $row = mysqli_fetch_assoc($rs);
+        $walletPinHash = (string)($row['wallet_pin_hash'] ?? '');
+        if ($walletPinHash === '') {
+            throw new Exception('Set up your Wallet PIN before paying with wallet');
+        }
+        if (!password_verify($pin, $walletPinHash)) {
+            throw new Exception('Incorrect Wallet PIN');
+        }
+
+        return true;
+    }
+}
+
+if (!function_exists('nivasitySendWalletAlert')) {
+    function nivasitySendWalletAlert($conn, $userId, $eventType, $payload = []) {
+        $userId = (int)$userId;
+        if ($userId <= 0) {
+            return;
+        }
+
+        $user = nivasityGetWalletUserProfile($conn, $userId);
+        if (!$user) {
+            return;
+        }
+
+        $amountText = nivasityFormatWalletAmount($payload['amount'] ?? 0);
+        $balanceText = nivasityFormatWalletAmount($payload['balance_after'] ?? 0);
+        $reference = trim((string)($payload['reference'] ?? ''));
+        $description = trim((string)($payload['description'] ?? ''));
+        $displayName = trim((string)(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')));
+        if ($displayName === '') {
+            $displayName = 'there';
+        }
+
+        $title = 'Wallet Update';
+        $body = 'Your wallet activity has been updated.';
+        $emailSubject = 'Nivasity Wallet Update';
+        $emailBody = '<p>Hello ' . htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8') . ',</p>';
+
+        if ($eventType === 'credit') {
+            $title = 'Wallet Credited';
+            $body = 'Your Nivasity Wallet has been credited with ' . $amountText . '. New balance: ' . $balanceText . '.';
+            $emailSubject = 'Nivasity Wallet Credited';
+            $emailBody .= '<p>Your Nivasity Wallet has been credited with <b>' . htmlspecialchars($amountText, ENT_QUOTES, 'UTF-8') . '</b>.</p>'
+                . '<p>New balance: <b>' . htmlspecialchars($balanceText, ENT_QUOTES, 'UTF-8') . '</b>.</p>';
+        } elseif ($eventType === 'refund') {
+            $title = 'Wallet Refund Credited';
+            $body = 'A refund of ' . $amountText . ' has been credited to your Nivasity Wallet. New balance: ' . $balanceText . '.';
+            $emailSubject = 'Nivasity Wallet Refund Credited';
+            $emailBody .= '<p>A refund of <b>' . htmlspecialchars($amountText, ENT_QUOTES, 'UTF-8') . '</b> has been credited to your Nivasity Wallet.</p>'
+                . '<p>New balance: <b>' . htmlspecialchars($balanceText, ENT_QUOTES, 'UTF-8') . '</b>.</p>';
+        } elseif ($eventType === 'debit') {
+            $title = 'Wallet Debited';
+            $body = 'Your Nivasity Wallet was debited ' . $amountText . '. New balance: ' . $balanceText . '.';
+            $emailSubject = 'Nivasity Wallet Debited';
+            $emailBody .= '<p>Your Nivasity Wallet was debited <b>' . htmlspecialchars($amountText, ENT_QUOTES, 'UTF-8') . '</b>.</p>'
+                . '<p>New balance: <b>' . htmlspecialchars($balanceText, ENT_QUOTES, 'UTF-8') . '</b>.</p>';
+        }
+
+        if ($description !== '') {
+            $body .= ' ' . $description;
+            $emailBody .= '<p>Description: ' . htmlspecialchars($description, ENT_QUOTES, 'UTF-8') . '</p>';
+        }
+        if ($reference !== '') {
+            $emailBody .= '<p>Reference: <b>' . htmlspecialchars($reference, ENT_QUOTES, 'UTF-8') . '</b></p>';
+        }
+        $emailBody .= '<p>If you did not expect this wallet activity, contact support immediately.</p><p>Regards,<br><b>Nivasity Team</b></p>';
+
+        try {
+            notifyUser($conn, $userId, $title, $body, 'wallet', [
+                'action' => 'wallet_activity',
+                'wallet_event' => $eventType,
+                'amount' => (int)($payload['amount'] ?? 0),
+                'balance_after' => (int)($payload['balance_after'] ?? 0),
+                'reference' => $reference,
+                'payment_channel' => 'wallet',
+            ]);
+        } catch (Throwable $e) {
+            nivasityWalletLog('Wallet push notification failed', [
+                'user_id' => $userId,
+                'event_type' => $eventType,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        $email = trim((string)($user['email'] ?? ''));
+        if ($email !== '') {
+            try {
+                $mailStatus = function_exists('sendBrevoMail') ? sendBrevoMail($emailSubject, $emailBody, $email) : sendMail($emailSubject, $emailBody, $email);
+                if ($mailStatus !== 'success' && function_exists('sendMail')) {
+                    sendMail($emailSubject, $emailBody, $email);
+                }
+            } catch (Throwable $e) {
+                nivasityWalletLog('Wallet email alert failed', [
+                    'user_id' => $userId,
+                    'event_type' => $eventType,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 }
 
@@ -869,6 +1215,13 @@ if (!function_exists('nivasityApplyWalletFundingTransaction')) {
             'source' => $source,
         ]);
 
+        nivasitySendWalletAlert($conn, $userId, 'credit', [
+            'amount' => $amount,
+            'balance_after' => $balanceAfter,
+            'reference' => $providerReference,
+            'description' => $description,
+        ]);
+
         return [
             'status' => 'posted',
             'amount' => $amount,
@@ -1142,6 +1495,13 @@ if (!function_exists('nivasityCreditWalletRefund')) {
             'amount' => $amount,
         ]);
 
+        nivasitySendWalletAlert($conn, $userId, 'refund', [
+            'amount' => $amount,
+            'balance_after' => $balanceAfter,
+            'reference' => $sourceRefId,
+            'description' => $description,
+        ]);
+
         return [
             'status' => 'credited',
             'wallet_id' => $walletId,
@@ -1271,7 +1631,7 @@ if (!function_exists('nivasityAdjustSchoolPayableForRefund')) {
 }
 
 if (!function_exists('nivasityProcessWalletCheckout')) {
-    function nivasityProcessWalletCheckout($conn, $refId, $userId, $sourceChannel = 'web') {
+    function nivasityProcessWalletCheckout($conn, $refId, $userId, $sourceChannel = 'web', $walletPin = null) {
         $refId = trim((string)$refId);
         $refIdSafe = mysqli_real_escape_string($conn, $refId);
         $userId = (int)$userId;
@@ -1281,6 +1641,8 @@ if (!function_exists('nivasityProcessWalletCheckout')) {
         if ($refId === '' || $userId <= 0) {
             throw new Exception('Invalid wallet checkout request');
         }
+
+        nivasityVerifyWalletPin($conn, $userId, $walletPin);
 
         return withTxProcessingLock($conn, $refId, function() use ($conn, $refId, $refIdSafe, $userId, $sourceChannel) {
             $wallet = nivasityGetUserWallet($conn, $userId);
@@ -1477,6 +1839,13 @@ if (!function_exists('nivasityProcessWalletCheckout')) {
                     'amount' => $totalAmount,
                     'refund_applied' => $refundApplied,
                     'payable_status' => $payableResult['status'] ?? null,
+                ]);
+
+                nivasitySendWalletAlert($conn, $userId, 'debit', [
+                    'amount' => $totalAmount,
+                    'balance_after' => $balanceAfter,
+                    'reference' => $refId,
+                    'description' => 'Wallet payment for order ' . $refId,
                 ]);
 
                 return [
