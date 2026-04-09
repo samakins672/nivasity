@@ -849,7 +849,7 @@ GET /materials/details.php?code=MAN-2024-001
 #### 16. View Cart
 **Endpoint:** `GET /materials/cart-view.php`
 
-**Description:** Get cart contents with detailed pricing breakdown including subtotal, gateway charges, and total amount.
+**Description:** Get cart contents with detailed pricing breakdown for both gateway checkout and wallet checkout.
 
 **Authentication:** Required
 
@@ -877,7 +877,13 @@ GET /materials/details.php?code=MAN-2024-001
     "subtotal": 5000,
     "charge": 100,
     "total_amount": 5100,
-    "total_items": 3
+    "total_items": 3,
+    "wallet": {
+      "has_wallet": true,
+      "balance": 7200,
+      "wallet_total_amount": 5000,
+      "can_pay_with_wallet": true
+    }
   }
 }
 ```
@@ -886,6 +892,9 @@ GET /materials/details.php?code=MAN-2024-001
 - `subtotal` - Sum of all item prices
 - `charge` - Gateway processing fees (calculated using active gateway's fee structure)
 - `total_amount` - Final amount to be charged (subtotal + charge)
+- `wallet.balance` - Current Nivasity Wallet balance
+- `wallet.wallet_total_amount` - Amount that will be debited if the user pays with wallet
+- `wallet.can_pay_with_wallet` - Whether the current wallet balance covers the cart subtotal
 
 #### 17. List Purchased Materials
 **Endpoint:** `GET /materials/purchased.php`
@@ -954,36 +963,30 @@ GET /materials/details.php?code=MAN-2024-001
 #### 19. Initialize Payment
 **Endpoint:** `POST /payment/init.php`
 
-**Description:** Initialize payment for cart items. Supports automatic payment splitting for multi-seller transactions using gateway-specific split mechanisms. Optionally accepts a custom redirect URL for mobile app callback.
+**Description:** Initialize checkout for cart items. Supports both hosted gateway checkout and direct Nivasity Wallet checkout. Gateway payments are collected by Nivasity first and then credited into the internal school payable ledger for later settlement.
 
 **Authentication:** Required
 
 **Request Body (JSON):**
 ```json
 {
-  "redirect_url": "https://yourapp.com/payment-callback"
+  "redirect_url": "https://yourapp.com/payment-callback",
+  "payment_channel": "gateway"
 }
 ```
 
 **Parameters:**
 - `redirect_url` (optional): Custom URL where users will be redirected after payment verification. The gateway callback itself always points to `/payment/callback.php`, and this value is forwarded in payment metadata.
+- `payment_channel` (optional): `gateway` or `wallet`. Defaults to `gateway`.
 
-**Payment Split Features:**
-- **Paystack:** Uses Paystack Split API with intelligent caching to avoid recreating splits for identical seller combinations
-- **Flutterwave:** Uses subaccounts array for direct settlement to sellers
-- Sellers receive their exact item prices automatically
-- Platform charges are calculated separately by the gateway
-- Split configurations are cached based on seller combinations to improve performance and reduce API calls
+**Current Payment Model:**
+- Gateway checkout still uses the active provider's hosted payment page
+- Wallet checkout debits the user's Nivasity Wallet immediately and returns success in the same API call
+- Gateway payments no longer split directly to schools or sellers at checkout time
+- After successful purchase processing, the school's payable balance is credited internally and later settled by the settlement cron
+- Refund reservations are tracked against the internal school share before final settlement
 
-**Split Caching:**
-The endpoint uses an intelligent caching system to avoid recreating payment splits:
-- Cache key is generated from sorted seller subaccounts and their shares
-- Same seller combination with same amounts reuses existing split code
-- Cache stored in `model/paystack_split_cache.json`
-- Reduces unnecessary API calls to Paystack Split API
-- Improves payment initialization performance
-
-**Response (Success):**
+**Gateway Checkout Response (Success):**
 ```json
 {
   "status": "success",
@@ -995,6 +998,37 @@ The endpoint uses an intelligent caching system to avoid recreating payment spli
     "subtotal": 5000,
     "charge": 100,
     "total_amount": 5100,
+    "internal_settlement_mode": true,
+    "refund_reserved": 0,
+    "school_share_before": 5000,
+    "school_share_after": 5000,
+    "items": [
+      {
+        "type": "manual",
+        "id": 45,
+        "title": "Introduction to Algorithms",
+        "price": 1500,
+        "seller_id": 67
+      }
+    ]
+  }
+}
+```
+
+**Wallet Checkout Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Wallet payment completed successfully",
+  "data": {
+    "tx_ref": "nivas_123_1703689200",
+    "gateway": "nivasity",
+    "payment_channel": "wallet",
+    "subtotal": 5000,
+    "charge": 0,
+    "total_amount": 5000,
+    "refund_applied": 0,
+    "wallet_balance_after": 2200,
     "items": [
       {
         "type": "manual",
@@ -1010,12 +1044,18 @@ The endpoint uses an intelligent caching system to avoid recreating payment spli
 
 **Response Fields:**
 - `tx_ref`: Transaction reference for tracking the payment
-- `payment_url`: Hosted checkout URL where user completes payment
+- `payment_url`: Hosted checkout URL where user completes payment. Present only for `gateway` checkout.
 - `redirect_url` (optional): Returned only when you passed `redirect_url` in request body
-- `gateway`: Payment gateway being used (paystack/flutterwave)
+- `gateway`: Payment provider used for the flow (`paystack`, `flutterwave`, `interswitch`, or `nivasity` for wallet checkout)
+- `payment_channel`: `gateway` or `wallet`
 - `subtotal`: Total cost of items before gateway charges
-- `charge`: Gateway processing fees
-- `total_amount`: Final amount to be paid (subtotal + charge)
+- `charge`: Gateway processing fees. `0` for wallet checkout.
+- `total_amount`: Final amount to be paid or debited
+- `internal_settlement_mode`: `true` when the purchase is using the internal school-settlement ledger
+- `refund_reserved`: Amount reserved from the school's future payable for pending refunds
+- `school_share_before`: School payable share before refund reservation is applied
+- `school_share_after`: School payable share after refund reservation is applied
+- `wallet_balance_after`: Present for wallet checkout after successful debit
 - `items`: Array of cart items with details
 
 **Mobile App Integration:**
@@ -1028,39 +1068,11 @@ For mobile apps, provide a custom `redirect_url` that uses your app's deep link 
 
 This allows the payment gateway to redirect back to your mobile app after the user completes or cancels payment on the hosted checkout page.
 
-**How Payment Splitting Works:**
-
-1. **Collection Phase:**
-   - System collects all cart items with their seller information
-   - Retrieves subaccount codes from `settlement_accounts` table using `getSettlementSubaccount()` function
-   - Function checks school-level accounts first, then falls back to seller's personal account
-   - Calculates total amount per seller
-
-2. **Paystack Split (with caching):**
-   - Sellers are sorted by subaccount code for consistent cache keys
-   - Cache key is generated: `md5(json_encode(sorted_sellers))`
-   - System checks cache file for existing split with same configuration
-   - If cached split exists, reuses the `split_code`
-   - If no cache, creates new split via Paystack Split API
-   - New splits are cached with their configuration for future reuse
-   - Split code is included in payment initialization
-
-3. **Flutterwave Subaccounts:**
-   - Builds array of subaccounts with flat charge type
-   - Each seller's total is set as their transaction charge
-   - Subaccounts array is passed to payment initialization
-
-4. **Payment Distribution:**
-   - Gateway automatically settles each seller's share to their subaccount
-   - Platform receives gateway processing fees
-   - No manual settlement required
-
-**Requirements:**
-- Sellers must have subaccount codes in `settlement_accounts` table
-- Subaccounts are retrieved by gateway type (paystack or flutterwave)
-- System first checks for school-level accounts, then user-level accounts
-- Platform must have valid gateway credentials (PAYSTACK_SECRET_KEY, FLUTTERWAVE_SECRET_KEY)
-- Cart items are saved to database before payment initialization
+**Wallet Checkout Notes:**
+- Wallets are not auto-created; the client must call `POST /wallet/create.php` first
+- Before wallet debit, the API attempts a Paystack dedicated-account sync to capture missed funding credits
+- On insufficient balance or missing wallet, the API returns an error with HTTP `422`
+- Wallet-funded purchases are recorded with `payment_channel = wallet`
 
 #### 20. Verify Payment
 **Endpoint:** `GET /payment/verify.php`
@@ -1115,6 +1127,9 @@ This allows the payment gateway to redirect back to your mobile app after the us
         "amount": 4500,
         "refund": 0,
         "status": "successful",
+        "medium": "PAYSTACK",
+        "payment_channel": "gateway",
+        "transaction_context": "purchase",
         "gateway_ref": "FLW_REF_123456",
         "items": [
           {
@@ -1141,6 +1156,108 @@ This allows the payment gateway to redirect back to your mobile app after the us
   }
 }
 ```
+
+**Response Fields:**
+- `medium`: Payment provider or source that produced the transaction record
+- `payment_channel`: `gateway` for hosted checkout flows, `wallet` for wallet-funded purchases and wallet funding credits
+- `transaction_context`: `purchase` for actual material/event purchases, `wallet_funding` for dedicated-account wallet topups
+
+---
+
+### Wallet Endpoints
+
+#### Create Wallet
+**Endpoint:** `POST /wallet/create.php`
+
+**Description:** Create a Nivasity Wallet explicitly for the authenticated user. Wallets are never auto-provisioned.
+
+**Authentication:** Required
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Wallet created successfully",
+  "data": {
+    "created": true,
+    "wallet": {
+      "id": 12,
+      "user_id": 123,
+      "school_id": 5,
+      "status": "active",
+      "balance": 0,
+      "currency": "NGN",
+      "provider": "paystack",
+      "provider_account_id": "1234567",
+      "account_name": "John Doe",
+      "account_number": "0123456789",
+      "bank_name": "Wema Bank",
+      "bank_slug": "wema-bank"
+    }
+  }
+}
+```
+
+**Behavior:**
+- If a wallet already exists, the endpoint still returns success with `created: false`
+- The wallet includes the dedicated virtual account details to display in the mobile app
+
+#### Wallet Summary
+**Endpoint:** `GET /wallet/summary.php`
+
+**Description:** Retrieve wallet availability and current wallet details without auto-creating a wallet.
+
+**Authentication:** Required
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Wallet summary retrieved successfully",
+  "data": {
+    "has_wallet": true,
+    "wallet": {
+      "id": 12,
+      "user_id": 123,
+      "school_id": 5,
+      "status": "active",
+      "balance": 7200,
+      "currency": "NGN",
+      "provider": "paystack",
+      "provider_account_id": "1234567",
+      "account_name": "John Doe",
+      "account_number": "0123456789",
+      "bank_name": "Wema Bank",
+      "bank_slug": "wema-bank",
+      "account_status": "active"
+    }
+  }
+}
+```
+
+#### Refresh Wallet Credits
+**Endpoint:** `POST /wallet/refresh-credits.php`
+
+**Description:** Re-sync Paystack dedicated-account funding transactions for the authenticated user's wallet. This is useful if a credit webhook was delayed or missed.
+
+**Authentication:** Required
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Wallet funding refresh completed",
+  "data": {
+    "status": "ok",
+    "processed": 3,
+    "posted": 1
+  }
+}
+```
+
+**Response Fields:**
+- `processed`: Number of provider funding rows inspected
+- `posted`: Number of new wallet credits actually applied during this refresh
 
 ---
 
