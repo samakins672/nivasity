@@ -295,6 +295,8 @@ CREATE TABLE `users` (
   `last_name` varchar(255) NOT NULL,
   `email` varchar(255) NOT NULL,
   `phone` varchar(20) NOT NULL,
+  `paystack_customer_code` varchar(100) DEFAULT NULL,
+  `paystack_customer_id` bigint(20) unsigned DEFAULT NULL,
   `gender` varchar(10) DEFAULT NULL,
   `school` int(11) DEFAULT NULL,
   `dept` int(11) DEFAULT NULL,

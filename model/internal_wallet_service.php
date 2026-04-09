@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../config/fw.php';
+
 if (!function_exists('nivasityWalletLog')) {
     function nivasityWalletLog($message, $context = []) {
         $payload = '[NIVASITY_WALLET] ' . $message;
@@ -134,6 +136,444 @@ if (!function_exists('nivasityGetUserWallet')) {
     }
 }
 
+if (!function_exists('nivasityPaystackRequest')) {
+    function nivasityPaystackRequest($method, $path, $payload = null) {
+        if (!defined('PAYSTACK_SECRET_KEY') || PAYSTACK_SECRET_KEY === '') {
+            throw new Exception('Paystack secret key is not configured');
+        }
+
+        $path = '/' . ltrim((string)$path, '/');
+        $url = 'https://api.paystack.co' . $path;
+        $encodedPayload = $payload === null ? null : json_encode($payload);
+
+        $curl = curl_init();
+        curl_setopt_array($curl, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper((string)$method),
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . PAYSTACK_SECRET_KEY,
+            ],
+        ]);
+
+        if ($encodedPayload !== null) {
+            curl_setopt($curl, CURLOPT_POSTFIELDS, $encodedPayload);
+        }
+
+        $rawBody = curl_exec($curl);
+        $curlError = curl_error($curl);
+        $statusCode = (int)curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        curl_close($curl);
+
+        return [
+            'ok' => $curlError === '' && $statusCode >= 200 && $statusCode < 300,
+            'status_code' => $statusCode,
+            'error' => $curlError,
+            'raw_body' => $rawBody,
+            'data' => is_string($rawBody) ? json_decode($rawBody, true) : null,
+        ];
+    }
+}
+
+if (!function_exists('nivasityIsPaystackTestMode')) {
+    function nivasityIsPaystackTestMode() {
+        if (!defined('PAYSTACK_SECRET_KEY')) {
+            return false;
+        }
+
+        return stripos((string)PAYSTACK_SECRET_KEY, 'sk_test_') === 0;
+    }
+}
+
+if (!function_exists('nivasityGetPaystackDedicatedAccountPreferredBank')) {
+    function nivasityGetPaystackDedicatedAccountPreferredBank() {
+        return nivasityIsPaystackTestMode() ? 'test-bank' : 'wema-bank';
+    }
+}
+
+if (!function_exists('nivasityExtractPaystackErrorMessage')) {
+    function nivasityExtractPaystackErrorMessage($response, $fallback = 'Paystack request failed') {
+        $fallback = trim((string)$fallback);
+        $decoded = isset($response['data']) && is_array($response['data']) ? $response['data'] : null;
+
+        if ($decoded && !empty($decoded['message'])) {
+            return (string)$decoded['message'];
+        }
+
+        if (!empty($response['error'])) {
+            return (string)$response['error'];
+        }
+
+        if (!empty($response['raw_body'])) {
+            return (string)$response['raw_body'];
+        }
+
+        return $fallback !== '' ? $fallback : 'Paystack request failed';
+    }
+}
+
+if (!function_exists('nivasityUsersHasPaystackCustomerCodeColumn')) {
+    function nivasityUsersHasPaystackCustomerCodeColumn($conn) {
+        static $hasColumn = null;
+
+        if ($hasColumn !== null) {
+            return $hasColumn;
+        }
+
+        $rs = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'paystack_customer_code'");
+        $hasColumn = $rs && mysqli_num_rows($rs) > 0;
+        return $hasColumn;
+    }
+}
+
+if (!function_exists('nivasityUsersHasPaystackCustomerIdColumn')) {
+    function nivasityUsersHasPaystackCustomerIdColumn($conn) {
+        static $hasColumn = null;
+
+        if ($hasColumn !== null) {
+            return $hasColumn;
+        }
+
+        $rs = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'paystack_customer_id'");
+        $hasColumn = $rs && mysqli_num_rows($rs) > 0;
+        return $hasColumn;
+    }
+}
+
+if (!function_exists('nivasityPersistPaystackCustomerCode')) {
+    function nivasityPersistPaystackCustomerCode($conn, $userId, $customerCode) {
+        $userId = (int)$userId;
+        $customerCode = trim((string)$customerCode);
+        if ($userId <= 0 || $customerCode === '' || !nivasityUsersHasPaystackCustomerCodeColumn($conn)) {
+            return false;
+        }
+
+        $customerCodeSafe = mysqli_real_escape_string($conn, $customerCode);
+        $sql = "UPDATE users SET paystack_customer_code = '$customerCodeSafe' WHERE id = $userId LIMIT 1";
+        return mysqli_query($conn, $sql) !== false;
+    }
+}
+
+if (!function_exists('nivasityPersistPaystackCustomerDetails')) {
+    function nivasityPersistPaystackCustomerDetails($conn, $userId, $customer) {
+        $userId = (int)$userId;
+        if ($userId <= 0 || !is_array($customer)) {
+            return false;
+        }
+
+        $updates = [];
+
+        $customerCode = trim((string)($customer['customer_code'] ?? ''));
+        if ($customerCode !== '' && nivasityUsersHasPaystackCustomerCodeColumn($conn)) {
+            $customerCodeSafe = mysqli_real_escape_string($conn, $customerCode);
+            $updates[] = "paystack_customer_code = '$customerCodeSafe'";
+        }
+
+        $customerId = (int)($customer['id'] ?? 0);
+        if ($customerId > 0 && nivasityUsersHasPaystackCustomerIdColumn($conn)) {
+            $updates[] = "paystack_customer_id = $customerId";
+        }
+
+        if (empty($updates)) {
+            return false;
+        }
+
+        $sql = 'UPDATE users SET ' . implode(', ', $updates) . " WHERE id = $userId LIMIT 1";
+        return mysqli_query($conn, $sql) !== false;
+    }
+}
+
+if (!function_exists('nivasityFetchPaystackCustomer')) {
+    function nivasityFetchPaystackCustomer($emailOrCode) {
+        $emailOrCode = trim((string)$emailOrCode);
+        if ($emailOrCode === '') {
+            return null;
+        }
+
+        $response = nivasityPaystackRequest('GET', '/customer/' . rawurlencode($emailOrCode));
+        if ((int)($response['status_code'] ?? 0) === 404) {
+            return null;
+        }
+        if (!$response['ok']) {
+            $message = $response['error'] !== '' ? $response['error'] : (string)($response['raw_body'] ?? 'Unable to fetch Paystack customer');
+            throw new Exception('Failed to fetch Paystack customer: ' . $message);
+        }
+
+        $decoded = $response['data'];
+        if (!is_array($decoded) || !isset($decoded['status']) || $decoded['status'] !== true || empty($decoded['data'])) {
+            return null;
+        }
+
+        return $decoded['data'];
+    }
+}
+
+if (!function_exists('nivasityFetchPaystackCustomerByEmail')) {
+    function nivasityFetchPaystackCustomerByEmail($email) {
+        return nivasityFetchPaystackCustomer($email);
+    }
+}
+
+if (!function_exists('nivasityCreatePaystackCustomer')) {
+    function nivasityCreatePaystackCustomer($user) {
+        $payload = [
+            'email' => (string)($user['email'] ?? ''),
+            'first_name' => (string)($user['first_name'] ?? ''),
+            'last_name' => (string)($user['last_name'] ?? ''),
+            'phone' => (string)($user['phone'] ?? ''),
+        ];
+
+        $response = nivasityPaystackRequest('POST', '/customer', $payload);
+        if (!$response['ok']) {
+            $message = $response['error'] !== '' ? $response['error'] : (string)($response['raw_body'] ?? 'Unable to create Paystack customer');
+            throw new Exception('Failed to create Paystack customer: ' . $message);
+        }
+
+        $decoded = $response['data'];
+        if (!is_array($decoded) || !isset($decoded['status']) || $decoded['status'] !== true || empty($decoded['data'])) {
+            throw new Exception('Unexpected Paystack customer creation response');
+        }
+
+        return $decoded['data'];
+    }
+}
+
+if (!function_exists('nivasityUpdatePaystackCustomer')) {
+    function nivasityUpdatePaystackCustomer($customerCode, $user) {
+        $customerCode = trim((string)$customerCode);
+        if ($customerCode === '') {
+            throw new Exception('Unable to update Paystack customer without a customer code');
+        }
+
+        $payload = [
+            'first_name' => (string)($user['first_name'] ?? ''),
+            'last_name' => (string)($user['last_name'] ?? ''),
+            'phone' => (string)($user['phone'] ?? ''),
+        ];
+
+        $response = nivasityPaystackRequest('PUT', '/customer/' . rawurlencode($customerCode), $payload);
+        if (!$response['ok']) {
+            $message = nivasityExtractPaystackErrorMessage($response, 'Unable to update Paystack customer');
+            throw new Exception('Failed to update Paystack customer: ' . $message);
+        }
+
+        $decoded = $response['data'];
+        if (!is_array($decoded) || !isset($decoded['status']) || $decoded['status'] !== true || empty($decoded['data'])) {
+            throw new Exception('Unexpected Paystack customer update response');
+        }
+
+        return $decoded['data'];
+    }
+}
+
+if (!function_exists('nivasityEnsurePaystackCustomer')) {
+    function nivasityEnsurePaystackCustomer($conn, $user) {
+        $userId = (int)($user['id'] ?? 0);
+        $storedCustomerCode = trim((string)($user['paystack_customer_code'] ?? ''));
+        $customer = null;
+        $status = 'updated';
+
+        if ($storedCustomerCode !== '') {
+            $customer = nivasityFetchPaystackCustomer($storedCustomerCode);
+        }
+
+        if (!$customer) {
+            $customer = nivasityFetchPaystackCustomerByEmail((string)($user['email'] ?? ''));
+        }
+
+        if (!$customer) {
+            $customer = nivasityCreatePaystackCustomer($user);
+            $status = 'created';
+        }
+
+        $customerCode = trim((string)($customer['customer_code'] ?? ''));
+        if ($customerCode === '') {
+            throw new Exception('Unable to resolve Paystack customer code');
+        }
+
+        $customer = nivasityUpdatePaystackCustomer($customerCode, $user);
+        nivasityPersistPaystackCustomerDetails($conn, $userId, $customer);
+
+        return [
+            'status' => $status,
+            'customer' => $customer,
+        ];
+    }
+}
+
+if (!function_exists('nivasityFetchDedicatedAccountForCustomer')) {
+    function nivasityFetchDedicatedAccountForCustomer($customer, $preferredBank = 'wema-bank') {
+        $customerId = (int)($customer['id'] ?? 0);
+        $customerCode = trim((string)($customer['customer_code'] ?? ''));
+        if ($customerId <= 0 && $customerCode === '') {
+            return null;
+        }
+
+        if ($customerCode !== '') {
+            $freshCustomer = nivasityFetchPaystackCustomer($customerCode);
+            $dedicatedAccount = $freshCustomer['dedicated_account'] ?? null;
+            $bankSlug = strtolower(trim((string)($dedicatedAccount['bank']['slug'] ?? '')));
+
+            if (is_array($dedicatedAccount) && !empty($dedicatedAccount['account_number']) && ($preferredBank === '' || $bankSlug === strtolower($preferredBank))) {
+                return $dedicatedAccount;
+            }
+        }
+
+        if ($customerId <= 0) {
+            return null;
+        }
+
+        $queryParams = [
+            'customer' => $customerId,
+            'active' => 'true',
+            'provider_slug' => $preferredBank,
+            'perPage' => 100,
+        ];
+
+        $query = http_build_query($queryParams);
+        $response = nivasityPaystackRequest('GET', '/dedicated_account?' . $query);
+        if (!$response['ok']) {
+            $message = nivasityExtractPaystackErrorMessage($response, 'Unable to list Paystack dedicated accounts');
+            nivasityWalletLog('Paystack dedicated account lookup failed', [
+                'customer_id' => $customerId,
+                'query' => $queryParams,
+                'message' => $message,
+            ]);
+            return null;
+        }
+
+        $decoded = $response['data'];
+        if (!is_array($decoded) || !isset($decoded['status']) || $decoded['status'] !== true || !isset($decoded['data']) || !is_array($decoded['data'])) {
+            nivasityWalletLog('Paystack dedicated account lookup returned unexpected response', [
+                'customer_id' => $customerId,
+                'query' => $queryParams,
+                'response' => $decoded,
+            ]);
+            return null;
+        }
+
+        foreach ($decoded['data'] as $account) {
+            $accountBankSlug = strtolower(trim((string)($account['bank']['slug'] ?? '')));
+            $accountCustomerId = (int)($account['customer']['id'] ?? 0);
+
+            if ($accountCustomerId === $customerId && ($preferredBank === '' || $accountBankSlug === strtolower($preferredBank))) {
+                return $account;
+            }
+        }
+
+        return null;
+    }
+}
+
+if (!function_exists('nivasityCreateDedicatedAccountForCustomer')) {
+    function nivasityCreateDedicatedAccountForCustomer($customer, $user, $preferredBank = 'wema-bank') {
+        $customerRef = (string)($customer['customer_code'] ?? $customer['id'] ?? '');
+        if ($customerRef === '') {
+            throw new Exception('Unable to resolve Paystack customer reference for wallet creation');
+        }
+
+        $payload = [
+            'customer' => $customerRef,
+            'preferred_bank' => $preferredBank,
+            'first_name' => (string)($user['first_name'] ?? ''),
+            'last_name' => (string)($user['last_name'] ?? ''),
+            'phone' => (string)($user['phone'] ?? ''),
+        ];
+
+        $response = nivasityPaystackRequest('POST', '/dedicated_account', $payload);
+        if (!$response['ok']) {
+            $message = nivasityExtractPaystackErrorMessage($response, 'Unable to create Paystack dedicated account');
+            throw new Exception('Failed to create Paystack dedicated account: ' . $message);
+        }
+
+        $decoded = $response['data'];
+        if (!is_array($decoded) || !isset($decoded['status']) || $decoded['status'] !== true || empty($decoded['data']['account_number'])) {
+            throw new Exception('Unexpected Paystack dedicated account creation response');
+        }
+
+        return [
+            'account' => $decoded['data'],
+            'raw_response' => $decoded,
+        ];
+    }
+}
+
+if (!function_exists('nivasityPersistWalletFromPaystackData')) {
+    function nivasityPersistWalletFromPaystackData($conn, $userId, $requestedVia, $user, $walletData, $rawResponse, $accountSource = 'created') {
+        $existingWallet = nivasityGetUserWallet($conn, $userId);
+        if ($existingWallet) {
+            return [
+                'status' => 'exists',
+                'wallet' => $existingWallet,
+                'account_source' => $accountSource,
+            ];
+        }
+
+        $userId = (int)$userId;
+        $schoolId = (int)($user['school'] ?? 0);
+        $requestedViaSafe = mysqli_real_escape_string($conn, strtolower(trim((string)$requestedVia)) ?: 'web');
+        $providerAccountId = mysqli_real_escape_string($conn, (string)($walletData['id'] ?? ''));
+        $providerCustomerCode = mysqli_real_escape_string($conn, (string)($walletData['customer']['customer_code'] ?? ''));
+        $accountName = mysqli_real_escape_string($conn, (string)($walletData['account_name'] ?? (($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''))));
+        $accountNumber = mysqli_real_escape_string($conn, (string)($walletData['account_number'] ?? ''));
+        $bankName = mysqli_real_escape_string($conn, (string)($walletData['bank']['name'] ?? 'Wema Bank'));
+        $bankSlug = mysqli_real_escape_string($conn, (string)($walletData['bank']['slug'] ?? 'wema-bank'));
+        $accountStatus = !empty($walletData['active']) || !array_key_exists('active', $walletData) ? 'active' : 'inactive';
+        $accountStatusSafe = mysqli_real_escape_string($conn, $accountStatus);
+        $rawResponseSafe = mysqli_real_escape_string($conn, json_encode($rawResponse));
+
+        mysqli_begin_transaction($conn);
+        try {
+            $walletLockSql = "SELECT id FROM user_wallets WHERE user_id = $userId LIMIT 1 FOR UPDATE";
+            $walletLockRs = mysqli_query($conn, $walletLockSql);
+            if ($walletLockRs && mysqli_num_rows($walletLockRs) > 0) {
+                mysqli_commit($conn);
+                $existingWallet = nivasityGetUserWallet($conn, $userId);
+                return [
+                    'status' => 'exists',
+                    'wallet' => $existingWallet,
+                    'account_source' => $accountSource,
+                ];
+            }
+
+            $insertWalletSql = "INSERT INTO user_wallets (user_id, school_id, requested_via) VALUES ($userId, $schoolId, '$requestedViaSafe')";
+            if (!mysqli_query($conn, $insertWalletSql)) {
+                throw new Exception('Failed to create wallet row: ' . mysqli_error($conn));
+            }
+            $walletId = (int)mysqli_insert_id($conn);
+
+            $insertVaSql = "INSERT INTO wallet_virtual_accounts (
+                    wallet_id, provider, provider_account_id, provider_customer_code,
+                    account_name, account_number, bank_name, bank_slug, status, raw_response
+                ) VALUES (
+                    $walletId, 'paystack', '$providerAccountId', '$providerCustomerCode',
+                    '$accountName', '$accountNumber', '$bankName', '$bankSlug', '$accountStatusSafe', '$rawResponseSafe'
+                )";
+            if (!mysqli_query($conn, $insertVaSql)) {
+                throw new Exception('Failed to create wallet virtual account row: ' . mysqli_error($conn));
+            }
+
+            mysqli_commit($conn);
+        } catch (Throwable $e) {
+            mysqli_rollback($conn);
+            throw $e;
+        }
+
+        $wallet = nivasityGetUserWallet($conn, $userId);
+        return [
+            'status' => 'created',
+            'wallet' => $wallet,
+            'account_source' => $accountSource,
+        ];
+    }
+}
+
 if (!function_exists('nivasityCreateWalletOnRequest')) {
     function nivasityCreateWalletOnRequest($conn, $userId, $requestedVia = 'web') {
         $wallet = nivasityGetUserWallet($conn, $userId);
@@ -148,7 +588,15 @@ if (!function_exists('nivasityCreateWalletOnRequest')) {
         $requestedVia = strtolower(trim((string)$requestedVia));
         $requestedVia = $requestedVia !== '' ? $requestedVia : 'web';
 
-        $userSql = "SELECT id, first_name, last_name, email, phone, school, role, status FROM users WHERE id = $userId LIMIT 1";
+        $userSelectFields = 'id, first_name, last_name, email, phone, school, role, status';
+        if (nivasityUsersHasPaystackCustomerCodeColumn($conn)) {
+            $userSelectFields .= ', paystack_customer_code';
+        }
+        if (nivasityUsersHasPaystackCustomerIdColumn($conn)) {
+            $userSelectFields .= ', paystack_customer_id';
+        }
+
+        $userSql = "SELECT $userSelectFields FROM users WHERE id = $userId LIMIT 1";
         $userRs = mysqli_query($conn, $userSql);
         if (!$userRs || mysqli_num_rows($userRs) < 1) {
             throw new Exception('User not found for wallet creation');
@@ -166,89 +614,50 @@ if (!function_exists('nivasityCreateWalletOnRequest')) {
             throw new Exception('Paystack secret key is not configured');
         }
 
-        $payload = [
-            'email' => (string)$user['email'],
-            'first_name' => (string)$user['first_name'],
-            'last_name' => (string)$user['last_name'],
-            'phone' => (string)$user['phone'],
-            'preferred_bank' => 'wema-bank',
+        $preferredBank = nivasityGetPaystackDedicatedAccountPreferredBank();
+
+        $customerResult = nivasityEnsurePaystackCustomer($conn, $user);
+        $customer = $customerResult['customer'] ?? null;
+        if (!$customer) {
+            throw new Exception('Unable to resolve Paystack customer for wallet creation');
+        }
+
+        $walletData = nivasityFetchDedicatedAccountForCustomer($customer, $preferredBank);
+        $walletSource = 'existing_dva';
+        $rawPayload = [
+            'status' => true,
+            'message' => 'Existing dedicated account reused',
+            'data' => $walletData,
+            'customer' => $customer,
         ];
 
-        $curl = curl_init();
-        curl_setopt_array($curl, [
-            CURLOPT_URL => 'https://api.paystack.co/dedicated_account',
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => json_encode($payload),
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json',
-                'Authorization: Bearer ' . PAYSTACK_SECRET_KEY,
-            ],
-        ]);
-        $response = curl_exec($curl);
-        $curlError = curl_error($curl);
-        curl_close($curl);
-
-        if ($curlError) {
-            throw new Exception('Failed to create wallet account: ' . $curlError);
+        if (!$walletData || empty($walletData['account_number'])) {
+            $createdAccount = nivasityCreateDedicatedAccountForCustomer($customer, $user, $preferredBank);
+            $walletData = $createdAccount['account'] ?? null;
+            $rawPayload = $createdAccount['raw_response'] ?? $rawPayload;
+            $walletSource = 'new_dva';
         }
 
-        $decoded = json_decode($response, true);
-        if (!isset($decoded['status']) || $decoded['status'] !== true || empty($decoded['data']['account_number'])) {
-            throw new Exception('Paystack DVA request failed: ' . (is_string($response) ? $response : json_encode($decoded)));
+        if (!$walletData || empty($walletData['account_number'])) {
+            throw new Exception('Paystack dedicated account could not be resolved for wallet creation');
         }
 
-        $walletData = $decoded['data'];
-        $schoolId = (int)($user['school'] ?? 0);
-        $requestedViaSafe = mysqli_real_escape_string($conn, $requestedVia);
-        $providerAccountId = mysqli_real_escape_string($conn, (string)($walletData['id'] ?? ''));
-        $providerCustomerCode = mysqli_real_escape_string($conn, (string)($walletData['customer']['customer_code'] ?? ''));
-        $accountName = mysqli_real_escape_string($conn, (string)($walletData['account_name'] ?? (($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''))));
-        $accountNumber = mysqli_real_escape_string($conn, (string)($walletData['account_number'] ?? ''));
-        $bankName = mysqli_real_escape_string($conn, (string)($walletData['bank']['name'] ?? 'Wema Bank'));
-        $bankSlug = mysqli_real_escape_string($conn, (string)($walletData['bank']['slug'] ?? 'wema-bank'));
-        $rawResponse = mysqli_real_escape_string($conn, json_encode($decoded));
+        $persistResult = nivasityPersistWalletFromPaystackData($conn, $userId, $requestedVia, $user, $walletData, $rawPayload, $walletSource);
+        $wallet = $persistResult['wallet'] ?? nivasityGetUserWallet($conn, $userId);
 
-        mysqli_begin_transaction($conn);
-        try {
-            $insertWalletSql = "INSERT INTO user_wallets (user_id, school_id, requested_via) VALUES ($userId, $schoolId, '$requestedViaSafe')";
-            if (!mysqli_query($conn, $insertWalletSql)) {
-                throw new Exception('Failed to create wallet row: ' . mysqli_error($conn));
-            }
-            $walletId = (int)mysqli_insert_id($conn);
-
-            $insertVaSql = "INSERT INTO wallet_virtual_accounts (
-                    wallet_id, provider, provider_account_id, provider_customer_code,
-                    account_name, account_number, bank_name, bank_slug, raw_response
-                ) VALUES (
-                    $walletId, 'paystack', '$providerAccountId', '$providerCustomerCode',
-                    '$accountName', '$accountNumber', '$bankName', '$bankSlug', '$rawResponse'
-                )";
-            if (!mysqli_query($conn, $insertVaSql)) {
-                throw new Exception('Failed to create wallet virtual account row: ' . mysqli_error($conn));
-            }
-
-            mysqli_commit($conn);
-        } catch (Throwable $e) {
-            mysqli_rollback($conn);
-            throw $e;
-        }
-
-        $wallet = nivasityGetUserWallet($conn, $userId);
         nivasityWalletLog('Created wallet on explicit request', [
             'user_id' => $userId,
             'requested_via' => $requestedVia,
+            'customer_status' => $customerResult['status'] ?? null,
+            'wallet_source' => $persistResult['account_source'] ?? $walletSource,
             'account_number' => $wallet['account_number'] ?? null,
         ]);
 
         return [
-            'status' => 'created',
+            'status' => $persistResult['status'] ?? 'created',
             'wallet' => $wallet,
+            'customer_status' => $customerResult['status'] ?? null,
+            'wallet_source' => $persistResult['account_source'] ?? $walletSource,
         ];
     }
 }
@@ -467,6 +876,125 @@ if (!function_exists('nivasityApplyWalletFundingTransaction')) {
     }
 }
 
+if (!function_exists('nivasityResolveUserPaystackCustomer')) {
+    function nivasityResolveUserPaystackCustomer($conn, $userId) {
+        $userId = (int)$userId;
+        if ($userId <= 0) {
+            return null;
+        }
+
+        $fields = 'id, email';
+        if (nivasityUsersHasPaystackCustomerCodeColumn($conn)) {
+            $fields .= ', paystack_customer_code';
+        }
+        if (nivasityUsersHasPaystackCustomerIdColumn($conn)) {
+            $fields .= ', paystack_customer_id';
+        }
+
+        $sql = "SELECT $fields FROM users WHERE id = $userId LIMIT 1";
+        $rs = mysqli_query($conn, $sql);
+        if (!$rs || mysqli_num_rows($rs) < 1) {
+            return null;
+        }
+
+        $user = mysqli_fetch_assoc($rs);
+        $customerId = (int)($user['paystack_customer_id'] ?? 0);
+        $customerCode = trim((string)($user['paystack_customer_code'] ?? ''));
+        if ($customerId > 0 && $customerCode !== '') {
+            return [
+                'id' => $customerId,
+                'customer_code' => $customerCode,
+                'email' => (string)($user['email'] ?? ''),
+            ];
+        }
+
+        $customer = null;
+        if ($customerCode !== '') {
+            $customer = nivasityFetchPaystackCustomer($customerCode);
+        }
+        if (!$customer && !empty($user['email'])) {
+            $customer = nivasityFetchPaystackCustomerByEmail((string)$user['email']);
+        }
+        if ($customer) {
+            nivasityPersistPaystackCustomerDetails($conn, $userId, $customer);
+        }
+
+        return $customer;
+    }
+}
+
+if (!function_exists('nivasityListPaystackTransactionsForCustomer')) {
+    function nivasityListPaystackTransactionsForCustomer($customerId, $fromDate = null, $status = 'success', $perPage = 100) {
+        $customerId = (int)$customerId;
+        if ($customerId <= 0) {
+            return [];
+        }
+
+        $queryParams = [
+            'customer' => $customerId,
+            'perPage' => max(1, (int)$perPage),
+        ];
+        if (trim((string)$status) !== '') {
+            $queryParams['status'] = trim((string)$status);
+        }
+        if ($fromDate !== null && trim((string)$fromDate) !== '') {
+            $queryParams['from'] = trim((string)$fromDate);
+        }
+
+        $response = nivasityPaystackRequest('GET', '/transaction?' . http_build_query($queryParams));
+        if (!$response['ok']) {
+            $message = nivasityExtractPaystackErrorMessage($response, 'Unable to fetch Paystack transactions');
+            throw new Exception('Failed to fetch Paystack transactions: ' . $message);
+        }
+
+        $decoded = $response['data'];
+        if (!is_array($decoded) || !isset($decoded['status']) || $decoded['status'] !== true || !isset($decoded['data']) || !is_array($decoded['data'])) {
+            throw new Exception('Unexpected Paystack transaction list response');
+        }
+
+        return $decoded['data'];
+    }
+}
+
+if (!function_exists('nivasityIsPaystackDvaTransaction')) {
+    function nivasityIsPaystackDvaTransaction($wallet, $transaction, $customerId, $customerCode = '') {
+        if (!is_array($transaction) || strtolower((string)($transaction['status'] ?? '')) !== 'success') {
+            return false;
+        }
+
+        $txCustomerId = (int)($transaction['customer']['id'] ?? 0);
+        if ($customerId > 0 && $txCustomerId > 0 && $txCustomerId !== (int)$customerId) {
+            return false;
+        }
+
+        $txCustomerCode = trim((string)($transaction['customer']['customer_code'] ?? ''));
+        if ($customerCode !== '' && $txCustomerCode !== '' && $txCustomerCode !== $customerCode) {
+            return false;
+        }
+
+        $walletAccountNumber = trim((string)($wallet['account_number'] ?? ''));
+        $topLevelChannel = strtolower(trim((string)($transaction['channel'] ?? '')));
+        $authChannel = strtolower(trim((string)($transaction['authorization']['channel'] ?? '')));
+        $authCardType = strtolower(trim((string)($transaction['authorization']['card_type'] ?? '')));
+        $authBrand = strtolower(trim((string)($transaction['authorization']['brand'] ?? '')));
+        $receiverAccountNumber = trim((string)($transaction['authorization']['receiver_bank_account_number'] ?? ''));
+
+        if ($authChannel === 'dedicated_nuban') {
+            return true;
+        }
+
+        if ($topLevelChannel === 'bank_transfer' && $walletAccountNumber !== '' && $receiverAccountNumber !== '' && $walletAccountNumber === $receiverAccountNumber) {
+            return true;
+        }
+
+        if ($authBrand === 'managed account' && $authCardType === 'transfer') {
+            return true;
+        }
+
+        return false;
+    }
+}
+
 if (!function_exists('nivasitySyncWalletFundingFromPaystack')) {
     function nivasitySyncWalletFundingFromPaystack($conn, $userId, $source = 'refresh') {
         $wallet = nivasityGetUserWallet($conn, $userId);
@@ -482,38 +1010,23 @@ if (!function_exists('nivasitySyncWalletFundingFromPaystack')) {
             throw new Exception('Paystack secret key is not configured');
         }
 
-        $providerAccountId = rawurlencode((string)$wallet['provider_account_id']);
-        $curl = curl_init();
-        curl_setopt_array($curl, [
-            CURLOPT_URL => 'https://api.paystack.co/dedicated_account/transactions?dedicated_account_id=' . $providerAccountId,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'GET',
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json',
-                'Authorization: Bearer ' . PAYSTACK_SECRET_KEY,
-            ],
-        ]);
-        $response = curl_exec($curl);
-        $curlError = curl_error($curl);
-        curl_close($curl);
-
-        if ($curlError) {
-            throw new Exception('Failed to sync wallet funding transactions: ' . $curlError);
+        $customer = nivasityResolveUserPaystackCustomer($conn, $userId);
+        $customerId = (int)($customer['id'] ?? 0);
+        if ($customerId <= 0) {
+            throw new Exception('Unable to resolve Paystack customer id for wallet funding sync');
         }
 
-        $decoded = json_decode($response, true);
-        if (!isset($decoded['status']) || $decoded['status'] !== true || !isset($decoded['data']) || !is_array($decoded['data'])) {
-            throw new Exception('Unexpected Paystack wallet funding sync response');
-        }
+        $customerCode = trim((string)($customer['customer_code'] ?? ''));
+        $fromDate = !empty($wallet['created_at']) ? date('Y-m-d', strtotime((string)$wallet['created_at'])) : null;
+        $transactions = nivasityListPaystackTransactionsForCustomer($customerId, $fromDate, 'success', 100);
 
         $processed = 0;
         $posted = 0;
-        foreach ($decoded['data'] as $row) {
+        foreach ($transactions as $row) {
+            if (!nivasityIsPaystackDvaTransaction($wallet, $row, $customerId, $customerCode)) {
+                continue;
+            }
+
             $processed++;
             try {
                 $applyResult = nivasityApplyWalletFundingTransaction($conn, $wallet, $row, $source, 'dedicated_account.credit');
@@ -533,6 +1046,7 @@ if (!function_exists('nivasitySyncWalletFundingFromPaystack')) {
             'status' => 'ok',
             'processed' => $processed,
             'posted' => $posted,
+            'message' => $posted > 0 ? 'Wallet funding sync completed successfully.' : 'No new DVA funding transactions were found for this customer.',
         ];
     }
 }

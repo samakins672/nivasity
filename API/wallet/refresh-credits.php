@@ -12,7 +12,7 @@ requireStudentRole($user);
 
 try {
     $result = nivasitySyncWalletFundingFromPaystack($conn, (int)$user['id'], 'api_refresh');
-    sendApiSuccess('Wallet funding refresh completed', $result);
+    sendApiSuccess(trim((string)($result['message'] ?? '')) !== '' ? (string)$result['message'] : 'Wallet funding refresh completed', $result);
 } catch (Throwable $e) {
     sendApiError($e->getMessage(), 422);
 }

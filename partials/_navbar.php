@@ -1,9 +1,33 @@
 <?php
+require_once __DIR__ . '/../model/internal_wallet_service.php';
 $appHomeUrl = nivasity_app_url();
 $brandLogoUrl = nivasity_asset_url('assets/images/nivasity-main.png');
 $brandMiniLogoUrl = nivasity_asset_url('assets/images/nivasity-logo-tr.png');
 $profileImageUrl = nivasity_asset_url('assets/images/users/' . $user_image);
 $logoutUrl = nivasity_app_url('signin.html?logout=1');
+$walletPageUrl = nivasity_app_url('wallet.php');
+$navbarWallet = null;
+$navbarWalletBalance = 0;
+$navbarWalletLabel = 'Wallet';
+$navbarWalletToneClass = 'btn-outline-primary';
+
+if (isset($conn) && isset($_SESSION['nivas_userId']) && function_exists('nivasityGetUserWallet')) {
+  try {
+    $navbarWallet = nivasityGetUserWallet($conn, (int)$_SESSION['nivas_userId']);
+    $navbarWalletBalance = (int)($navbarWallet['balance'] ?? 0);
+
+    if ($navbarWallet) {
+      $navbarWalletLabel = '₦ ' . number_format($navbarWalletBalance);
+      $navbarWalletToneClass = 'btn-primary';
+    } elseif (in_array((string)($_SESSION['nivas_userRole'] ?? ''), ['student', 'hoc'], true)) {
+      $navbarWalletLabel = 'Request Wallet';
+    } else {
+      $navbarWalletLabel = 'Wallet Page';
+    }
+  } catch (Throwable $e) {
+    error_log('[NIVASITY_NAVBAR_WALLET] ' . $e->getMessage());
+  }
+}
 ?>
 <nav class="navbar default-layout col-lg-12 col-12 p-0 fixed-top d-flex align-items-top flex-row">
   <div class="text-center navbar-brand-wrapper d-flex align-items-center justify-content-start">
@@ -34,11 +58,25 @@ $logoutUrl = nivasity_app_url('signin.html?logout=1');
       </li>
     </ul>
     <ul class="navbar-nav ms-auto">
+      <li class="nav-item d-none d-lg-flex align-items-center me-2">
+        <a class="btn <?php echo $navbarWalletToneClass; ?> rounded-pill px-3 py-2 fw-bold d-inline-flex align-items-center gap-2" href="<?php echo htmlspecialchars($walletPageUrl, ENT_QUOTES, 'UTF-8'); ?>">
+          <i class="mdi mdi-wallet-outline"></i>
+          <span><?php echo htmlspecialchars($navbarWalletLabel, ENT_QUOTES, 'UTF-8'); ?></span>
+        </a>
+      </li>
       <li class="nav-item">
         <form class="search-form" action="#">
           <i class="icon-search"></i>
           <input type="search" class="form-control" placeholder="Search Here" title="Search here">
         </form>
+      </li>
+      <li class="nav-item dropdown d-md-none d-inline">
+        <a class="nav-link count-indicator mt-2" href="<?php echo htmlspecialchars($walletPageUrl, ENT_QUOTES, 'UTF-8'); ?>" title="Wallet">
+          <i class="mdi mdi-wallet-outline"></i>
+          <?php if ($navbarWallet): ?>
+            <span class="count bg-success"></span>
+          <?php endif; ?>
+        </a>
       </li>
       <?php if($url == 'index.php'):?>
       <li class="nav-item dropdown d-md-none d-inline">

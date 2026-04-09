@@ -10,6 +10,7 @@ require_once __DIR__ . '/../config/fw.php';
 require_once __DIR__ . '/mobile_experience_prompt.php';
 require_once __DIR__ . '/internal_wallet_service.php';
 $url = substr($_SERVER["SCRIPT_NAME"], strrpos($_SERVER["SCRIPT_NAME"], "/") + 1);
+$allow_all_roles_wallet_page = ($url === 'wallet.php');
 
 $__stagingGate = defined('STAGING_GATE') && STAGING_GATE === true;
 
@@ -56,7 +57,7 @@ if (isset($_SESSION['nivas_userId'])) {
     }
   }
   
-  if ($_SESSION['nivas_userRole'] == 'org_admin' || $_SESSION['nivas_userRole'] == 'visitor') {
+  if (!$allow_all_roles_wallet_page && ($_SESSION['nivas_userRole'] == 'org_admin' || $_SESSION['nivas_userRole'] == 'visitor')) {
     header('Location: ' . nivasity_app_url('signin.html?logout=1&not_allowed=1'));
     exit();
   }

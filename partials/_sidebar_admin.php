@@ -75,6 +75,12 @@
       </a>
     </li>
     <li class="nav-item">
+      <a class="nav-link" href="../wallet.php">
+        <i class="mdi mdi-wallet menu-icon"></i>
+        <span class="menu-title">Nivasity Wallet</span>
+      </a>
+    </li>
+    <li class="nav-item">
       <a class="nav-link" href="user.php">
         <i class="mdi mdi-account-outline menu-icon"></i>
         <span class="menu-title">Profile Settings</span>

@@ -18,10 +18,10 @@
         </span>
       </div>
     </li>
-    <li class="nav-item active">
-      <a class="nav-link bg-primary" href="/">
-        <i class="mdi mdi-store menu-icon text-white"></i>
-        <span class="menu-title text-white fw-bold">Store</span>
+    <li class="nav-item <?php echo ($url == 'index.php') ? 'active' : ''; ?>">
+      <a class="nav-link <?php echo ($url == 'index.php') ? 'bg-primary' : ''; ?>" href="/">
+        <i class="mdi mdi-store menu-icon <?php echo ($url == 'index.php') ? 'text-white' : ''; ?>"></i>
+        <span class="menu-title <?php echo ($url == 'index.php') ? 'text-white fw-bold' : ''; ?>">Store</span>
       </a>
     </li>
     <!-- <li class="nav-item nav-category">Dashboard</li> -->
@@ -37,6 +37,12 @@
       <a class="nav-link" href="tickets.php">
         <i class="mdi mdi-ticket menu-icon"></i>
         <span class="menu-title">Event Tickets</span>
+      </a>
+    </li>
+    <li class="nav-item <?php echo ($url == 'wallet.php') ? 'active' : ''; ?>">
+      <a class="nav-link" href="wallet.php">
+        <i class="mdi mdi-wallet menu-icon"></i>
+        <span class="menu-title">Nivasity Wallet</span>
       </a>
     </li>
     <li class="nav-item">
