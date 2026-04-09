@@ -98,6 +98,70 @@ function walletEntryBadgeClass($entryType) {
       text-align: center;
     }
 
+    #manage-wallet-pin-btn,
+    #manage-wallet-pin-btn:hover,
+    #manage-wallet-pin-btn:focus {
+      color: #fff;
+    }
+
+    .wallet-pin-input {
+      height: 4.5rem;
+      border-radius: 0.85rem;
+      font-size: 1.55rem;
+      font-weight: 700;
+      letter-spacing: 0.24em;
+      text-align: center;
+      padding: 0.75rem 1rem;
+    }
+
+    .wallet-pin-input::placeholder {
+      letter-spacing: 0.08em;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .wallet-pin-field {
+      max-width: 21rem;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .wallet-pin-field .form-label {
+      display: block;
+      text-align: center;
+    }
+
+    .wallet-pin-flow {
+      overflow: hidden;
+    }
+
+    .wallet-pin-track {
+      width: 200%;
+      display: flex;
+      transition: transform 0.3s ease;
+    }
+
+    .wallet-pin-step {
+      width: 50%;
+      flex: 0 0 50%;
+      padding: 0 0.15rem;
+    }
+
+    .wallet-pin-resend-btn {
+      border: 0;
+      background: transparent;
+      padding: 0;
+      color: #0d6efd;
+      font-weight: 700;
+      text-decoration: underline;
+    }
+
+    .wallet-pin-resend-btn:disabled {
+      color: #6c757d;
+      text-decoration: none;
+      cursor: not-allowed;
+    }
+
     @media (max-width: 767.98px) {
       .wallet-balance {
         font-size: 1.85rem;
@@ -157,15 +221,6 @@ function walletEntryBadgeClass($entryType) {
                                 <div class="col-6">
                                   <p class="text-muted mb-1">Total Debits</p>
                                   <h6 class="fw-bold text-danger">₦ <?php echo number_format($walletDebitsTotal); ?></h6>
-                                </div>
-                              </div>
-                              <div class="wallet-data-box mt-3">
-                                <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
-                                  <div>
-                                    <p class="text-muted mb-1">Wallet PIN</p>
-                                    <h6 class="fw-bold mb-0 <?php echo $hasWalletPin ? 'text-success' : 'text-warning'; ?>"><?php echo $hasWalletPin ? 'Configured' : 'Not Set'; ?></h6>
-                                  </div>
-                                  <button type="button" class="btn btn-outline-primary btn-sm" id="manage-wallet-pin-secondary-btn" data-mode="<?php echo $hasWalletPin ? 'update' : 'create'; ?>"><?php echo $hasWalletPin ? 'Update PIN' : 'Create PIN'; ?></button>
                                 </div>
                               </div>
                             <?php else: ?>
@@ -334,28 +389,41 @@ function walletEntryBadgeClass($entryType) {
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-              <p class="text-muted" id="walletPinModalIntro">Use your email verification code to manage your 4-digit Wallet PIN.</p>
-              <div class="alert alert-info d-none" id="walletPinCodeStatus"></div>
               <div class="alert alert-danger d-none" id="walletPinError"></div>
-              <div class="d-grid mb-3">
-                <button type="button" class="btn btn-outline-primary fw-bold" id="send-wallet-pin-code-btn">Send Code to Email</button>
-              </div>
-              <div class="mb-3">
-                <label for="wallet-pin-code" class="form-label fw-bold">Email Code</label>
-                <input type="text" class="form-control" id="wallet-pin-code" maxlength="6" inputmode="numeric" placeholder="Enter 6-digit code">
-              </div>
-              <div class="mb-3">
-                <label for="wallet-pin-value" class="form-label fw-bold">New 4-digit PIN</label>
-                <input type="password" class="form-control" id="wallet-pin-value" maxlength="4" inputmode="numeric" placeholder="Enter 4-digit PIN">
-              </div>
-              <div class="mb-0">
-                <label for="wallet-pin-confirm" class="form-label fw-bold">Confirm PIN</label>
-                <input type="password" class="form-control" id="wallet-pin-confirm" maxlength="4" inputmode="numeric" placeholder="Confirm 4-digit PIN">
+              <div class="wallet-pin-flow">
+                <div class="wallet-pin-track" id="walletPinFlowTrack">
+                  <div class="wallet-pin-step">
+                    <p class="text-muted text-center" id="walletPinModalIntro">Enter the verification code from your email to continue.</p>
+                    <div class="mb-3 wallet-pin-field">
+                      <label for="wallet-pin-code" class="form-label fw-bold">Email Code</label>
+                      <input type="text" class="form-control wallet-pin-input" id="wallet-pin-code" maxlength="6" inputmode="numeric" placeholder="6-DIGIT CODE">
+                      <div class="mt-2 small text-muted">
+                        Didn&apos;t get it?
+                        <button type="button" id="resend-wallet-pin-code-btn" class="wallet-pin-resend-btn">Resend code</button>
+                      </div>
+                    </div>
+                    <div class="wallet-pin-field d-grid">
+                      <button type="button" class="btn btn-outline-primary fw-bold" id="verify-wallet-pin-code-btn">Verify Code</button>
+                    </div>
+                </div>
+                  <div class="wallet-pin-step">
+                    <p class="text-muted text-center" id="walletPinPinIntro">Code confirmed. Set your 4-digit Wallet PIN.</p>
+                    <div class="mb-3 wallet-pin-field">
+                      <label for="wallet-pin-value" class="form-label fw-bold">New 4-digit PIN</label>
+                      <input type="password" class="form-control wallet-pin-input" id="wallet-pin-value" maxlength="4" inputmode="numeric" placeholder="4-DIGIT PIN">
+                    </div>
+                    <div class="mb-0 wallet-pin-field">
+                      <label for="wallet-pin-confirm" class="form-label fw-bold">Confirm PIN</label>
+                      <input type="password" class="form-control wallet-pin-input" id="wallet-pin-confirm" maxlength="4" inputmode="numeric" placeholder="CONFIRM PIN">
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
-              <button type="button" class="btn btn-primary fw-bold" id="save-wallet-pin-btn">Save Wallet PIN</button>
+              <button type="button" class="btn btn-outline-secondary d-none" id="wallet-pin-back-btn">Back</button>
+              <button type="button" class="btn btn-primary fw-bold d-none" id="save-wallet-pin-btn">Save Wallet PIN</button>
             </div>
           </div>
         </div>
@@ -383,40 +451,41 @@ function walletEntryBadgeClass($entryType) {
       $('.btn').attr('data-mdb-ripple-duration', '0');
 
       var walletPinMode = <?php echo json_encode($hasWalletPin ? 'update' : 'create'); ?>;
+      var walletPinStep = 'code';
+      var walletPinVerificationToken = '';
       var walletPinModalElement = document.getElementById('walletPinModal');
       var walletPinModal = walletPinModalElement ? new bootstrap.Modal(walletPinModalElement) : null;
 
-      function resetWalletPinModal(mode) {
-        walletPinMode = mode || walletPinMode;
-        $('#walletPinModalLabel').text(walletPinMode === 'update' ? 'Update Wallet PIN' : 'Create Wallet PIN');
-        $('#walletPinModalIntro').text(walletPinMode === 'update'
-          ? 'Send a verification code to your email, then enter the code and your new 4-digit Wallet PIN.'
-          : 'Send a verification code to your email, then enter the code and create your 4-digit Wallet PIN.');
-        $('#walletPinCodeStatus, #walletPinError').addClass('d-none').text('');
-        $('#wallet-pin-code, #wallet-pin-value, #wallet-pin-confirm').val('');
+      function setWalletPinStep(step) {
+        walletPinStep = step === 'pin' ? 'pin' : 'code';
+        $('#walletPinFlowTrack').css('transform', walletPinStep === 'pin' ? 'translateX(-50%)' : 'translateX(0)');
+        $('#wallet-pin-back-btn, #save-wallet-pin-btn').toggleClass('d-none', walletPinStep !== 'pin');
+        if (walletPinStep === 'pin') {
+          $('#wallet-pin-value').trigger('focus');
+        } else {
+          $('#wallet-pin-code').trigger('focus');
+        }
       }
 
-      $('#manage-wallet-pin-btn, #manage-wallet-pin-secondary-btn').on('click', function() {
-        resetWalletPinModal($(this).data('mode') || walletPinMode);
-        if (walletPinModal) {
-          walletPinModal.show();
+      function sendWalletPinCode(triggerButton, successMessage) {
+        var button = triggerButton ? $(triggerButton) : $();
+        var originalText = button.length ? button.text() : '';
+        if (button.length) {
+          button.prop('disabled', true).text('Sending...');
         }
-      });
 
-      $('#send-wallet-pin-code-btn').on('click', function() {
-        var button = $(this);
-        var originalText = button.text();
-        button.prop('disabled', true).text('Sending...');
         $('#walletPinError').addClass('d-none').text('');
 
-        $.ajax({
+        return $.ajax({
           url: 'model/wallet-pin.php',
           type: 'POST',
           dataType: 'json',
           data: { action: 'send_code' }
         }).done(function(response) {
           if (response && response.status === 'success') {
-            $('#walletPinCodeStatus').removeClass('d-none').text(response.message || 'Code sent to your email.');
+            walletPinVerificationToken = '';
+            setWalletPinStep('code');
+            showWalletBanner(successMessage || response.message || 'Code sent to your email.', 'success');
             return;
           }
           $('#walletPinError').removeClass('d-none').text((response && response.message) ? response.message : 'Unable to send Wallet PIN code.');
@@ -424,20 +493,90 @@ function walletEntryBadgeClass($entryType) {
           var message = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Unable to send Wallet PIN code.';
           $('#walletPinError').removeClass('d-none').text(message);
         }).always(function() {
+          if (button.length) {
+            button.prop('disabled', false).text(originalText);
+          }
+        });
+      }
+
+      function resetWalletPinModal(mode) {
+        walletPinMode = mode || walletPinMode;
+        $('#walletPinModalLabel').text(walletPinMode === 'update' ? 'Update Wallet PIN' : 'Create Wallet PIN');
+        $('#walletPinModalIntro').text(walletPinMode === 'update'
+          ? 'Enter the verification code sent to your email to continue updating your Wallet PIN.'
+          : 'Enter the verification code sent to your email to continue creating your Wallet PIN.');
+        $('#walletPinPinIntro').text(walletPinMode === 'update'
+          ? 'Code confirmed. Set your new 4-digit Wallet PIN.'
+          : 'Code confirmed. Create your 4-digit Wallet PIN.');
+        walletPinVerificationToken = '';
+        $('#walletPinError').addClass('d-none').text('');
+        $('#wallet-pin-code, #wallet-pin-value, #wallet-pin-confirm').val('');
+        setWalletPinStep('code');
+      }
+
+      $('#manage-wallet-pin-btn').on('click', function() {
+        resetWalletPinModal($(this).data('mode') || walletPinMode);
+        if (walletPinModal) {
+          walletPinModal.show();
+        }
+        sendWalletPinCode(null, 'A verification code has been sent to your email.');
+      });
+
+      $('#resend-wallet-pin-code-btn').on('click', function() {
+        sendWalletPinCode(this, 'A new verification code has been sent to your email.');
+      });
+
+      $('#verify-wallet-pin-code-btn').on('click', function() {
+        var button = $(this);
+        var originalText = button.text();
+        var code = $('#wallet-pin-code').val().trim();
+
+        $('#walletPinError').addClass('d-none').text('');
+        if (!/^\d{6}$/.test(code)) {
+          $('#walletPinError').removeClass('d-none').text('Enter the 6-digit code sent to your email.');
+          return;
+        }
+
+        button.prop('disabled', true).text('Verifying...');
+        $.ajax({
+          url: 'model/wallet-pin.php',
+          type: 'POST',
+          dataType: 'json',
+          data: {
+            action: 'verify_code',
+            code: code
+          }
+        }).done(function(response) {
+          if (response && response.status === 'success' && response.data && response.data.pin_token) {
+            walletPinVerificationToken = response.data.pin_token;
+            setWalletPinStep('pin');
+            return;
+          }
+          $('#walletPinError').removeClass('d-none').text((response && response.message) ? response.message : 'Unable to verify Wallet PIN code.');
+        }).fail(function(xhr) {
+          var message = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Unable to verify Wallet PIN code.';
+          $('#walletPinError').removeClass('d-none').text(message);
+        }).always(function() {
           button.prop('disabled', false).text(originalText);
         });
+      });
+
+      $('#wallet-pin-back-btn').on('click', function() {
+        walletPinVerificationToken = '';
+        $('#wallet-pin-value, #wallet-pin-confirm').val('');
+        $('#walletPinError').addClass('d-none').text('');
+        setWalletPinStep('code');
       });
 
       $('#save-wallet-pin-btn').on('click', function() {
         var button = $(this);
         var originalText = button.text();
-        var code = $('#wallet-pin-code').val().trim();
         var pin = $('#wallet-pin-value').val().trim();
         var confirmPin = $('#wallet-pin-confirm').val().trim();
 
         $('#walletPinError').addClass('d-none').text('');
-        if (!/^\d{6}$/.test(code)) {
-          $('#walletPinError').removeClass('d-none').text('Enter the 6-digit code sent to your email.');
+        if (!walletPinVerificationToken) {
+          $('#walletPinError').removeClass('d-none').text('Verify the email code before setting your Wallet PIN.');
           return;
         }
         if (!/^\d{4}$/.test(pin)) {
@@ -456,7 +595,7 @@ function walletEntryBadgeClass($entryType) {
           dataType: 'json',
           data: {
             action: 'save_pin',
-            code: code,
+            pin_token: walletPinVerificationToken,
             pin: pin,
             confirm_pin: confirmPin
           }

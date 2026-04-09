@@ -31,12 +31,24 @@ try {
         exit;
     }
 
-    if ($action === 'save_pin') {
+    if ($action === 'verify_code') {
         $code = trim((string)($_POST['code'] ?? ''));
+
+        $result = nivasityVerifyWalletPinCode($conn, $userId, $code);
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Wallet PIN code verified successfully.',
+            'data' => $result,
+        ]);
+        exit;
+    }
+
+    if ($action === 'save_pin') {
+        $pinToken = trim((string)($_POST['pin_token'] ?? ''));
         $pin = trim((string)($_POST['pin'] ?? ''));
         $confirmPin = trim((string)($_POST['confirm_pin'] ?? ''));
 
-        $result = nivasitySaveWalletPin($conn, $userId, $code, $pin, $confirmPin);
+        $result = nivasitySaveWalletPin($conn, $userId, $pinToken, $pin, $confirmPin);
         echo json_encode([
             'status' => 'success',
             'message' => 'Wallet PIN saved successfully.',

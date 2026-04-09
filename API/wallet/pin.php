@@ -27,13 +27,25 @@ try {
         sendApiSuccess('A Wallet PIN code has been sent to your email.', $result);
     }
 
+    if ($action === 'verify_code') {
+        validateRequiredFields(['code'], $input);
+
+        $result = nivasityVerifyWalletPinCode(
+            $conn,
+            (int)$user['id'],
+            (string)$input['code']
+        );
+
+        sendApiSuccess('Wallet PIN code verified successfully.', $result);
+    }
+
     if ($action === 'save_pin') {
-        validateRequiredFields(['code', 'pin', 'confirm_pin'], $input);
+        validateRequiredFields(['pin_token', 'pin', 'confirm_pin'], $input);
 
         $result = nivasitySaveWalletPin(
             $conn,
             (int)$user['id'],
-            (string)$input['code'],
+            (string)$input['pin_token'],
             (string)$input['pin'],
             (string)$input['confirm_pin']
         );

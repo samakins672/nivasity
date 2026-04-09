@@ -79,9 +79,31 @@ if (!function_exists('nivasityWalletPinTokensTableExists')) {
     }
 }
 
+if (!function_exists('nivasityWalletPinTokensHasColumn')) {
+    function nivasityWalletPinTokensHasColumn($conn, $columnName) {
+        static $columns = [];
+
+        if (array_key_exists($columnName, $columns)) {
+            return $columns[$columnName];
+        }
+
+        $columnNameSafe = mysqli_real_escape_string($conn, (string)$columnName);
+        $rs = mysqli_query($conn, "SHOW COLUMNS FROM wallet_pin_tokens LIKE '$columnNameSafe'");
+        $columns[$columnName] = $rs && mysqli_num_rows($rs) > 0;
+        return $columns[$columnName];
+    }
+}
+
 if (!function_exists('nivasityRequireWalletPinInfrastructure')) {
     function nivasityRequireWalletPinInfrastructure($conn) {
-        if (!nivasityUsersHasWalletPinHashColumn($conn) || !nivasityUsersHasWalletPinUpdatedAtColumn($conn) || !nivasityWalletPinTokensTableExists($conn)) {
+        if (
+            !nivasityUsersHasWalletPinHashColumn($conn)
+            || !nivasityUsersHasWalletPinUpdatedAtColumn($conn)
+            || !nivasityWalletPinTokensTableExists($conn)
+            || !nivasityWalletPinTokensHasColumn($conn, 'verified_at')
+            || !nivasityWalletPinTokensHasColumn($conn, 'verification_token_hash')
+            || !nivasityWalletPinTokensHasColumn($conn, 'verification_token_expires_at')
+        ) {
             throw new Exception('Wallet PIN management is not available until the latest wallet PIN SQL update is applied.');
         }
     }
@@ -170,11 +192,9 @@ if (!function_exists('nivasitySendWalletPinCode')) {
 }
 
 if (!function_exists('nivasitySaveWalletPin')) {
-    function nivasitySaveWalletPin($conn, $userId, $code, $pin, $confirmPin) {
+    function nivasityVerifyWalletPinCode($conn, $userId, $code) {
         $userId = (int)$userId;
         $code = trim((string)$code);
-        $pin = trim((string)$pin);
-        $confirmPin = trim((string)$confirmPin);
 
         if ($userId <= 0) {
             throw new Exception('Authentication required');
@@ -182,14 +202,8 @@ if (!function_exists('nivasitySaveWalletPin')) {
 
         nivasityRequireWalletPinInfrastructure($conn);
 
-        if (!nivasityIsValidWalletPin($pin)) {
-            throw new Exception('Wallet PIN must be exactly 4 digits');
-        }
-        if ($pin !== $confirmPin) {
-            throw new Exception('Wallet PIN confirmation does not match');
-        }
-        if ($code === '') {
-            throw new Exception('Wallet PIN verification code is required');
+        if (!preg_match('/^\d{6}$/', $code)) {
+            throw new Exception('Enter the 6-digit code sent to your email');
         }
 
         $wallet = nivasityGetUserWallet($conn, $userId);
@@ -205,7 +219,77 @@ if (!function_exists('nivasitySaveWalletPin')) {
             throw new Exception('Invalid or expired Wallet PIN code');
         }
 
+        $tokenRow = mysqli_fetch_assoc($tokenRs);
+        $verificationToken = bin2hex(random_bytes(24));
+        $verificationTokenHash = mysqli_real_escape_string($conn, password_hash($verificationToken, PASSWORD_DEFAULT));
+        $verificationTokenExpiresAt = date('Y-m-d H:i:s', strtotime('+10 minutes'));
+        $verificationTokenExpiresAtSafe = mysqli_real_escape_string($conn, $verificationTokenExpiresAt);
+        $tokenId = (int)($tokenRow['id'] ?? 0);
+
+        $updateSql = "UPDATE wallet_pin_tokens SET verified_at = NOW(), verification_token_hash = '$verificationTokenHash', verification_token_expires_at = '$verificationTokenExpiresAtSafe' WHERE id = $tokenId LIMIT 1";
+        if (!mysqli_query($conn, $updateSql)) {
+            throw new Exception('Failed to verify Wallet PIN code: ' . mysqli_error($conn));
+        }
+
+        return [
+            'status' => 'verified',
+            'purpose' => (string)($tokenRow['purpose'] ?? (nivasityUserHasWalletPin($conn, $userId) ? 'update' : 'create')),
+            'pin_token' => $verificationToken,
+            'token_expires_at' => $verificationTokenExpiresAt,
+        ];
+    }
+}
+
+if (!function_exists('nivasitySaveWalletPin')) {
+    function nivasitySaveWalletPin($conn, $userId, $pinToken, $pin, $confirmPin) {
+        $userId = (int)$userId;
+        $pinToken = trim((string)$pinToken);
+        $pin = trim((string)$pin);
+        $confirmPin = trim((string)$confirmPin);
+
+        if ($userId <= 0) {
+            throw new Exception('Authentication required');
+        }
+
+        nivasityRequireWalletPinInfrastructure($conn);
+
+        if (!nivasityIsValidWalletPin($pin)) {
+            throw new Exception('Wallet PIN must be exactly 4 digits');
+        }
+        if ($pin !== $confirmPin) {
+            throw new Exception('Wallet PIN confirmation does not match');
+        }
+        if ($pinToken === '') {
+            throw new Exception('Wallet PIN verification token is required');
+        }
+
+        $wallet = nivasityGetUserWallet($conn, $userId);
+        if (!$wallet || (int)($wallet['id'] ?? 0) <= 0) {
+            throw new Exception('Create your wallet before setting a Wallet PIN');
+        }
+
+        $nowSafe = mysqli_real_escape_string($conn, date('Y-m-d H:i:s'));
+        $tokenSql = "SELECT * FROM wallet_pin_tokens WHERE user_id = $userId AND consumed_at IS NULL AND verified_at IS NOT NULL AND verification_token_expires_at >= '$nowSafe' ORDER BY id DESC LIMIT 5";
+        $tokenRs = mysqli_query($conn, $tokenSql);
+        if (!$tokenRs || mysqli_num_rows($tokenRs) < 1) {
+            throw new Exception('Invalid or expired Wallet PIN verification session');
+        }
+
+        $verifiedTokenRow = null;
+        while ($row = mysqli_fetch_assoc($tokenRs)) {
+            $storedHash = (string)($row['verification_token_hash'] ?? '');
+            if ($storedHash !== '' && password_verify($pinToken, $storedHash)) {
+                $verifiedTokenRow = $row;
+                break;
+            }
+        }
+
+        if (!$verifiedTokenRow) {
+            throw new Exception('Invalid or expired Wallet PIN verification session');
+        }
+
         $pinHashSafe = mysqli_real_escape_string($conn, password_hash($pin, PASSWORD_DEFAULT));
+        $verifiedTokenId = (int)($verifiedTokenRow['id'] ?? 0);
         mysqli_begin_transaction($conn);
         try {
             $updates = ["wallet_pin_hash = '$pinHashSafe'"];
@@ -217,9 +301,9 @@ if (!function_exists('nivasitySaveWalletPin')) {
                 throw new Exception('Failed to save Wallet PIN: ' . mysqli_error($conn));
             }
 
-            $consumeSql = "UPDATE wallet_pin_tokens SET consumed_at = NOW() WHERE user_id = $userId AND code = '$codeSafe' AND consumed_at IS NULL";
+            $consumeSql = "UPDATE wallet_pin_tokens SET consumed_at = NOW(), verification_token_hash = NULL, verification_token_expires_at = NULL WHERE id = $verifiedTokenId LIMIT 1";
             if (!mysqli_query($conn, $consumeSql)) {
-                throw new Exception('Failed to consume Wallet PIN code: ' . mysqli_error($conn));
+                throw new Exception('Failed to consume Wallet PIN verification session: ' . mysqli_error($conn));
             }
 
             mysqli_commit($conn);

@@ -1245,7 +1245,7 @@ This allows the payment gateway to redirect back to your mobile app after the us
 #### Wallet PIN Management
 **Endpoint:** `POST /wallet/pin.php`
 
-**Description:** Send a Wallet PIN verification code to email or create/update the authenticated user's 4-digit Wallet PIN.
+**Description:** Send a Wallet PIN verification code to email, verify that code, then create/update the authenticated user's 4-digit Wallet PIN with the returned verification token.
 
 **Authentication:** Required
 
@@ -1269,11 +1269,33 @@ This allows the payment gateway to redirect back to your mobile app after the us
 }
 ```
 
+**Request Body (JSON) to Verify Code:**
+```json
+{
+  "action": "verify_code",
+  "code": "123456"
+}
+```
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Wallet PIN code verified successfully.",
+  "data": {
+    "status": "verified",
+    "purpose": "create",
+    "pin_token": "5b1f42c7baf2c7d4f98d6e4830ce8d35adf74f2a3a6d4f11",
+    "token_expires_at": "2026-04-09 14:45:00"
+  }
+}
+```
+
 **Request Body (JSON) to Save PIN:**
 ```json
 {
   "action": "save_pin",
-  "code": "123456",
+  "pin_token": "5b1f42c7baf2c7d4f98d6e4830ce8d35adf74f2a3a6d4f11",
   "pin": "1234",
   "confirm_pin": "1234"
 }
@@ -1294,7 +1316,8 @@ This allows the payment gateway to redirect back to your mobile app after the us
 **Behavior:**
 - `action = send_code` emails a 6-digit verification code to the authenticated user
 - `purpose` is `create` for first-time Wallet PIN setup and `update` when a Wallet PIN already exists
-- `action = save_pin` requires a valid unexpired verification code and matching 4-digit PIN values
+- `action = verify_code` validates the email code and returns a short-lived `pin_token`
+- `action = save_pin` requires that `pin_token` plus matching 4-digit PIN values
 - The authenticated user must already have a wallet before PIN setup or update is allowed
 
 #### Refresh Wallet Credits

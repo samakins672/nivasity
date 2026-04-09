@@ -330,6 +330,9 @@ CREATE TABLE `wallet_pin_tokens` (
   `code` varchar(20) NOT NULL,
   `purpose` enum('create','update') NOT NULL DEFAULT 'create',
   `expires_at` datetime NOT NULL,
+  `verified_at` datetime DEFAULT NULL,
+  `verification_token_hash` varchar(255) DEFAULT NULL,
+  `verification_token_expires_at` datetime DEFAULT NULL,
   `consumed_at` datetime DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
