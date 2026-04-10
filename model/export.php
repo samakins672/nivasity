@@ -413,8 +413,13 @@ if (isset($_POST['manual_id'])) {
     // Construct the INSERT query with proper NULL handling.
     // Export creation must remain pending; grant action is handled in command center.
     $lastStudentSql = $lastStudentId ? (int)$lastStudentId : 'NULL';
-    $insertColumns = ['code', 'manual_id', 'hoc_user_id', 'students_count', 'total_amount', 'downloaded_at', 'last_student_id'];
-    $insertValues = ["'$safeCode'", (string)$manualIdInt, (string)$hocUserIdInt, (string)$studentsCountInt, (string)$totalAmountInt, "'$safeDownloadedAt'", (string)$lastStudentSql];
+    $insertColumns = ['code', 'manual_id', 'hoc_user_id', 'students_count', 'total_amount', 'downloaded_at'];
+    $insertValues = ["'$safeCode'", (string)$manualIdInt, (string)$hocUserIdInt, (string)$studentsCountInt, (string)$totalAmountInt, "'$safeDownloadedAt'"];
+
+    if (exportAuditHasColumn($conn, 'last_student_id')) {
+      $insertColumns[] = 'last_student_id';
+      $insertValues[] = (string)$lastStudentSql;
+    }
 
     if (exportAuditHasColumn($conn, 'from_bought_id')) {
       $insertColumns[] = 'from_bought_id';
