@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS `wallet_funding_transactions` (
   `provider_account_id` VARCHAR(100) DEFAULT NULL,
   `account_number` VARCHAR(30) DEFAULT NULL,
   `amount` INT(11) NOT NULL DEFAULT 0,
+  `provider_charge_amount` INT(11) NOT NULL DEFAULT 0,
   `status` ENUM('pending','posted','ignored','failed','reversed') NOT NULL DEFAULT 'posted',
   `source` VARCHAR(20) NOT NULL DEFAULT 'webhook',
   `description` VARCHAR(255) DEFAULT NULL,

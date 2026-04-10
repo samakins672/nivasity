@@ -94,6 +94,21 @@ if (!function_exists('nivasityWalletPinTokensHasColumn')) {
     }
 }
 
+if (!function_exists('nivasityWalletFundingTransactionsHasColumn')) {
+    function nivasityWalletFundingTransactionsHasColumn($conn, $columnName) {
+        static $columns = [];
+
+        if (array_key_exists($columnName, $columns)) {
+            return $columns[$columnName];
+        }
+
+        $columnNameSafe = mysqli_real_escape_string($conn, (string)$columnName);
+        $rs = mysqli_query($conn, "SHOW COLUMNS FROM wallet_funding_transactions LIKE '$columnNameSafe'");
+        $columns[$columnName] = $rs && mysqli_num_rows($rs) > 0;
+        return $columns[$columnName];
+    }
+}
+
 if (!function_exists('nivasityRequireWalletPinInfrastructure')) {
     function nivasityRequireWalletPinInfrastructure($conn) {
         if (
@@ -1218,6 +1233,22 @@ if (!function_exists('nivasityNormalizePaystackAmount')) {
     }
 }
 
+if (!function_exists('nivasityCalculateWalletFundingProviderCharge')) {
+    function nivasityCalculateWalletFundingProviderCharge($amount, $provider = 'paystack') {
+        $amount = (int)round((float)$amount);
+        if ($amount <= 0) {
+            return 0;
+        }
+
+        $provider = strtolower(trim((string)$provider));
+        if ($provider === 'paystack') {
+            return min(300, (int)round($amount * 0.01));
+        }
+
+        return 0;
+    }
+}
+
 if (!function_exists('nivasityResolveWalletFromPaystackPayload')) {
     function nivasityResolveWalletFromPaystackPayload($conn, $data) {
         $candidates = [];
@@ -1298,6 +1329,7 @@ if (!function_exists('nivasityApplyWalletFundingTransaction')) {
         $providerAccountId = trim((string)($data['dedicated_account']['id'] ?? $wallet['provider_account_id'] ?? ''));
         $accountNumber = trim((string)($data['dedicated_account']['account_number'] ?? $data['authorization']['receiver_bank_account_number'] ?? $wallet['account_number'] ?? ''));
         $amount = nivasityNormalizePaystackAmount($data['amount'] ?? 0);
+        $providerChargeAmount = nivasityCalculateWalletFundingProviderCharge($amount, 'paystack');
         $description = trim((string)($data['narration'] ?? $data['gateway_response'] ?? 'Wallet funding via Paystack DVA'));
         $source = strtolower(trim((string)$source));
         $source = $source !== '' ? $source : 'webhook';
@@ -1339,15 +1371,27 @@ if (!function_exists('nivasityApplyWalletFundingTransaction')) {
             $balanceBefore = (int)($walletRow['balance'] ?? 0);
             $balanceAfter = $balanceBefore + $amount;
 
-            $insertFundingSql = "INSERT INTO wallet_funding_transactions (
-                    wallet_id, user_id, provider, provider_reference, provider_event,
-                    provider_transaction_id, provider_account_id, account_number, amount,
-                    status, source, description, raw_payload, posted_at
-                ) VALUES (
-                    $walletId, $userId, 'paystack', '$providerReferenceSafe', '$providerEventSafe',
-                    '$providerTransactionIdSafe', '$providerAccountIdSafe', '$accountNumberSafe', $amount,
-                    'posted', '$sourceSafe', '$descriptionSafe', '$rawPayloadSafe', NOW()
-                )";
+            if (nivasityWalletFundingTransactionsHasColumn($conn, 'provider_charge_amount')) {
+                $insertFundingSql = "INSERT INTO wallet_funding_transactions (
+                        wallet_id, user_id, provider, provider_reference, provider_event,
+                        provider_transaction_id, provider_account_id, account_number, amount, provider_charge_amount,
+                        status, source, description, raw_payload, posted_at
+                    ) VALUES (
+                        $walletId, $userId, 'paystack', '$providerReferenceSafe', '$providerEventSafe',
+                        '$providerTransactionIdSafe', '$providerAccountIdSafe', '$accountNumberSafe', $amount, $providerChargeAmount,
+                        'posted', '$sourceSafe', '$descriptionSafe', '$rawPayloadSafe', NOW()
+                    )";
+            } else {
+                $insertFundingSql = "INSERT INTO wallet_funding_transactions (
+                        wallet_id, user_id, provider, provider_reference, provider_event,
+                        provider_transaction_id, provider_account_id, account_number, amount,
+                        status, source, description, raw_payload, posted_at
+                    ) VALUES (
+                        $walletId, $userId, 'paystack', '$providerReferenceSafe', '$providerEventSafe',
+                        '$providerTransactionIdSafe', '$providerAccountIdSafe', '$accountNumberSafe', $amount,
+                        'posted', '$sourceSafe', '$descriptionSafe', '$rawPayloadSafe', NOW()
+                    )";
+            }
             if (!mysqli_query($conn, $insertFundingSql)) {
                 throw new Exception('Failed to insert wallet funding transaction: ' . mysqli_error($conn));
             }
@@ -1411,6 +1455,7 @@ if (!function_exists('nivasityApplyWalletFundingTransaction')) {
             'user_id' => $userId,
             'provider_reference' => $providerReference,
             'amount' => $amount,
+            'provider_charge_amount' => $providerChargeAmount,
             'source' => $source,
         ]);
 
@@ -1481,7 +1526,6 @@ if (!function_exists('nivasityListPaystackTransactionsForCustomer')) {
         if ($customerId <= 0) {
             return [];
         }
-
         $queryParams = [
             'customer' => $customerId,
             'perPage' => max(1, (int)$perPage),
