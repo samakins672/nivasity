@@ -265,6 +265,48 @@ if (isset($_POST['update_academic_info'])) {
   }
 }
 
+if (isset($_POST['switch_academic_role'])) {
+  session_start();
+  $user_id = isset($_SESSION['nivas_userId']) ? (int)$_SESSION['nivas_userId'] : 0;
+  $current_role = isset($_SESSION['nivas_userRole']) ? trim((string)$_SESSION['nivas_userRole']) : '';
+  $target_role = isset($_POST['role']) ? trim((string)$_POST['role']) : '';
+
+  if ($user_id <= 0) {
+    $statusRes = "error";
+    $messageRes = "Your session has expired. Please sign in again.";
+  } elseif (!in_array($current_role, ['student', 'hoc'], true)) {
+    $statusRes = "failed";
+    $messageRes = "This account cannot change academic role here.";
+  } elseif (!in_array($target_role, ['student', 'hoc'], true)) {
+    $statusRes = "failed";
+    $messageRes = "Please choose a valid academic role.";
+  } elseif ($target_role === $current_role) {
+    $statusRes = "failed";
+    $messageRes = "This role is already active for your account.";
+  } else {
+    $target_role_safe = mysqli_real_escape_string($conn, $target_role);
+    mysqli_query($conn, "UPDATE users SET role = '$target_role_safe' WHERE id = $user_id LIMIT 1");
+
+    if (mysqli_errno($conn) !== 0) {
+      $statusRes = "error";
+      $messageRes = "Internal Server Error. Please try again later!";
+    } else {
+      $_SESSION['nivas_userRole'] = $target_role;
+      $roleRes = ($target_role === 'hoc') ? 'admin' : 'failed';
+      $role_label = $target_role === 'hoc' ? 'HOC/Lecturer' : 'Student';
+      $statusRes = "success";
+      $messageRes = "Academic role changed to $role_label. Your UI will refresh now to match the new role.";
+      $responseData = array(
+        "role" => "$roleRes",
+        "status" => "$statusRes",
+        "message" => "$messageRes",
+        "new_role" => $target_role,
+        "ui_changed" => true
+      );
+    }
+  }
+}
+
 if (isset($_POST['change_password'])) {
   session_start();
   $user_id = $_SESSION['nivas_userId'];

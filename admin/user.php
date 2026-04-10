@@ -122,6 +122,26 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
       margin-bottom: 1.5rem;
     }
 
+    .role-switch-card {
+      border: 1px solid rgba(255, 145, 0, 0.16);
+      background: linear-gradient(180deg, #fffaf3 0%, #ffffff 100%);
+    }
+
+    .role-switch-note {
+      border-radius: 0.85rem;
+      background: rgba(255, 145, 0, 0.1);
+      border: 1px solid rgba(255, 145, 0, 0.14);
+      color: #7a4b00;
+      padding: 0.9rem 1rem;
+      font-size: 0.95rem;
+      line-height: 1.55;
+    }
+
+    .role-switch-subtitle {
+      color: #6f655d;
+      margin-bottom: 1rem;
+    }
+
     .select2-container--bootstrap {
       width: 100% !important;
     }
@@ -445,7 +465,7 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
                   <?php if ($user_status == 'verified' && $_SESSION['nivas_userRole'] == 'hoc'): ?>
                     <div class="tab-pane fade hide" id="academics" role="tabpanel" aria-labelledby="academics">
                       <div class="row">
-                        <div class="col-12">
+                        <div class="col-12 mb-4">
                           <div class="card card-rounded p-3 shadow-sm">
                             <div class="card-header">
                               <h4 class="fw-bold">Academic Information</4>
@@ -505,6 +525,34 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
                                 </div>
                                 <button id="academic_info_submit" type="submit"
                                   class="btn btn-primary fw-bold btn-lg btn-block mt-2">Save Changes</button>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="col-12">
+                          <div class="card card-rounded p-3 shadow-sm role-switch-card">
+                            <div class="card-header border-0 pb-0">
+                              <h4 class="fw-bold mb-1">Academic Role</h4>
+                              <p class="role-switch-subtitle mb-0">Switch between Student and HOC/Lecturer from this page when you need the other experience.</p>
+                            </div>
+                            <div class="card-body pt-3">
+                              <div class="role-switch-note mb-4">
+                                Once you change this role, your UI will change after refresh. If you switch to Student, this admin page will close and you will return to the student-side interface.
+                              </div>
+                              <form id="academic-role-form">
+                                <input type="hidden" name="switch_academic_role" value="1" />
+                                <div class="row align-items-end">
+                                  <div class="col-md-8">
+                                    <label class="form-label" for="academic_role">Role</label>
+                                    <select id="academic_role" name="role" class="form-control form-control-lg w-100 academic-select" required>
+                                      <option value="student">Student</option>
+                                      <option value="hoc" selected>HOC / Lecturer</option>
+                                    </select>
+                                  </div>
+                                  <div class="col-md-4 mt-3 mt-md-0">
+                                    <button id="academic_role_submit" type="submit" class="btn btn-primary fw-bold btn-lg btn-block w-100">Update Role</button>
+                                  </div>
+                                </div>
                               </form>
                             </div>
                           </div>
@@ -1079,6 +1127,48 @@ if ($_SESSION['nivas_userRole'] == 'hoc') {
             button.html(originalText);
             button.prop("disabled", false);
           }
+      });
+    });
+
+    $('#academic-role-form').submit(function (event) {
+      event.preventDefault();
+
+      var button = $('#academic_role_submit');
+      var originalText = button.html();
+
+      button.html(originalText + '  <div class="spinner-border text-white" style="width: 1rem; height: 1rem;" role="status"><span class="sr-only"></span>');
+      button.prop('disabled', true);
+
+      $.ajax({
+        type: 'POST',
+        url: '../model/user.php',
+        data: $('#academic-role-form').serialize(),
+        success: function (data) {
+          $('#alertBanner').html(data.message);
+
+          if (data.status == 'success') {
+            $('#alertBanner').removeClass('alert-info');
+            $('#alertBanner').removeClass('alert-danger');
+            $('#alertBanner').addClass('alert-success');
+
+            setTimeout(function () {
+              location.reload();
+            }, 1800);
+          } else {
+            $('#alertBanner').removeClass('alert-success');
+            $('#alertBanner').removeClass('alert-info');
+            $('#alertBanner').addClass('alert-danger');
+          }
+
+          $('#alertBanner').fadeIn();
+
+          setTimeout(function () {
+            $('#alertBanner').fadeOut();
+          }, 5000);
+
+          button.html(originalText);
+          button.prop('disabled', false);
+        }
       });
     });
 
