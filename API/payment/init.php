@@ -123,6 +123,14 @@ if ($payment_channel === 'wallet') {
     $total_amount = $charges_result['total_amount'] ?? ($subtotal + $charge);
 }
 
+if ($payment_channel === 'wallet') {
+    try {
+        nivasityVerifyWalletPin($conn, (int)$user_id, $wallet_pin);
+    } catch (Throwable $e) {
+        sendApiError($e->getMessage(), 422);
+    }
+}
+
 // Generate transaction reference
 $tx_ref = 'nivas_'. $user_id . '_' . time();
 

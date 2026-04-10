@@ -32,6 +32,8 @@ if ($refId === '') {
 $walletPin = isset($_POST['wallet_pin']) ? trim((string)$_POST['wallet_pin']) : '';
 
 try {
+    nivasityVerifyWalletPin($conn, $userId, $walletPin);
+
     try {
         nivasitySyncWalletFundingFromPaystack($conn, $userId, 'web_wallet_checkout');
     } catch (Throwable $syncError) {
