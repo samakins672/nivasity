@@ -1750,96 +1750,47 @@ if (mysqli_num_rows($settlement_query) == 0) {
 
         // Simulate an AJAX call using setTimeout
         setTimeout(function () {
-          // Call the Ajax function to get data
-          $.ajax({
-            url: "../model/export.php",
-            type: "POST",
-            dataType: "json",
-            data: { manual_id: manualId },
-            success: function (response) {
-              if (!response || response.status !== 'success') {
-                alert((response && response.message) ? response.message : "Error fetching data.");
-                button.html(originalText);
-                button.prop("disabled", false);
-                return;
-              }
-
-              var rows = response.rows || [];
-
-              // Sort rows based on matric_no before rendering
-              rows.sort(function (a, b) {
-                return (a.matric_no || '').localeCompare(b.matric_no || '');
-              });
-
-              var heading = "<center><h2 style='text-transform: uppercase'>PAYMENTS FOR " + code + " MANUAL</h2></center>";
-
-              var totalAmount = Number(response.total_amount || 0);
-              var totalAmountFormatted = totalAmount.toLocaleString('en-NG');
-              var studentsCount = Number(response.students_count || 0);
-              var verificationUrl = <?php echo json_encode(nivasity_app_url('manual-export-verify.php')); ?> + "?code=" + encodeURIComponent(response.code);
-
-              var metaHtml = "<div style='margin: 10px 0 20px; font-size: 13px; line-height: 1.5;'>"
-                + "<p><strong>Verification Code:</strong> " + response.code + "</p>"
-                + "<p><strong>Total Students:</strong> " + studentsCount + " &nbsp;&nbsp;"
-                + "<strong>Total Amount:</strong> &#8358; " + totalAmountFormatted + "</p>"
-                + "<p><strong>Date Exported:</strong> " + (response.downloaded_at_readable || response.downloaded_at) + "</p>";
-
-              if (response.hoc && response.hoc.name) {
-                metaHtml += "<p><strong>HOC:</strong> " + response.hoc.name + (response.hoc.email ? " (" + response.hoc.email + ")" : "") + "</p>";
-              }
-
-              metaHtml += "<p style='font-size: 11px; color: #555;'>"
-                + "You can verify this export at " + verificationUrl + "</p></div>";
-
-              var table;
-              if (rrr === '') {
-                // Format data into a table
-                table = "<table><tr><th>S/N</th><th>NAMES</th><th>MATRIC NO</th><th>ADMISSION YEAR</th><th>PRICE PAID</th></tr>";
-
-                $.each(rows, function (index, item) {
-                  table += "<tr><td>" + (index + 1) + "</td><td>" + item.name + "</td><td>" + item.matric_no + "</td><td>" + item.adm_year + "</td><td>" + item.price + "</td></tr>";
-                });
-              } else {
-                // Format data into a table
-                table = "<table><tr><th>S/N</th><th>NAMES</th><th>MATRIC NO</th><th>ADMISSION YEAR</th><th>PRICE PAID</th><th>RRR</th></tr>";
-
-                $.each(rows, function (index, item) {
-                  table += "<tr><td>" + (index + 1) + "</td><td>" + item.name + "</td><td>" + item.matric_no + "</td><td>" + item.adm_year + "</td><td>" + item.price + "</td><td>" + rrr + "</td></tr>";
-                });
-              }
-
-              table += "</table>";
-
-              // Open a new window with the formatted data
-              var exportWindow = window.open("", "_blank");
-              var logoUrl = "https://nivasity.com/nivasity.png";
-              exportWindow.document.write("<html><head><title>Exported Data</title> <style>body {padding: 50px;margin: 0;width: 100%;font-family: sans-serif;box-sizing: border-box;position: relative;} table{width: 100%} th{text-align: left}.watermark{position: fixed;top: 50%;left: 50%;transform: translate(-50%, -50%) rotate(-45deg);opacity: 0.1;width: 80%;z-index:-1;}</style></head><body>");
-              exportWindow.document.write('<img src="' + logoUrl + '" class="watermark" />');
-              exportWindow.document.write(heading + metaHtml + table);
-              exportWindow.document.write("</body></html>");
-
-              // Add a print button in the new window
-              exportWindow.document.write("<script>setTimeout(function(){window.print();},3000);</scr" + "ipt>");
-              // AJAX call successful, stop the spinner and update button text
-              button.html(originalText);
-              button.prop("disabled", false);
+          fetch("../model/export.php", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
             },
-            error: function (xhr) {
-              var errorMessage = "Error fetching data.";
-              if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
-                errorMessage = xhr.responseJSON.message;
-              } else if (xhr && xhr.responseText) {
-                try {
-                  var parsed = JSON.parse(xhr.responseText);
-                  if (parsed && parsed.message) {
-                    errorMessage = parsed.message;
-                  }
-                } catch (e) {}
+            body: new URLSearchParams({
+              manual_id: manualId,
+              code: code,
+              rrr: rrr,
+              output: "pdf"
+            })
+          })
+          .then(async function (response) {
+            var contentType = response.headers.get("content-type") || "";
+            if (!response.ok || contentType.indexOf("application/pdf") === -1) {
+              var errorMessage = "Unable to export material right now. Please try again.";
+              if (contentType.indexOf("application/json") !== -1) {
+                var payload = await response.json();
+                if (payload && payload.message) {
+                  errorMessage = payload.message;
+                }
               }
-              alert(errorMessage);
-              button.html(originalText);
-              button.prop("disabled", false);
+              throw new Error(errorMessage);
             }
+
+            var blob = await response.blob();
+            var downloadUrl = window.URL.createObjectURL(blob);
+            var link = document.createElement("a");
+            link.href = downloadUrl;
+            link.download = "manual-export-" + code + ".pdf";
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(downloadUrl);
+          })
+          .catch(function (error) {
+            alert(error && error.message ? error.message : "Unable to export material right now. Please try again.");
+          })
+          .finally(function () {
+            button.html(originalText);
+            button.prop("disabled", false);
           });
         }, 2000);
       });

@@ -2,6 +2,7 @@
 session_start();
 include('config.php');
 include('functions.php');
+require_once __DIR__ . '/export_pdf.php';
 $statusRes = $schools = 'failed';
 
 /**
@@ -59,6 +60,16 @@ function exportJsonResponse(array $payload, $statusCode = 200) {
     header('Content-Type: application/json');
   }
   echo json_encode($payload);
+}
+
+function exportPdfResponse(string $payload, string $filename, $statusCode = 200) {
+  if (!headers_sent()) {
+    http_response_code((int)$statusCode);
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Content-Length: ' . strlen($payload));
+  }
+  echo $payload;
 }
 
 function exportRunQuery(mysqli $conn, $sql, $requestId, $step, array $context = []) {
@@ -129,6 +140,8 @@ if (isset($_POST['manual_id'])) {
   $requestId = exportRequestId();
   try {
     $manualId = isset($_POST['manual_id']) ? (int)$_POST['manual_id'] : 0;
+    $outputMode = isset($_POST['output']) ? strtolower(trim((string)$_POST['output'])) : 'json';
+    $rrr = isset($_POST['rrr']) ? trim((string)$_POST['rrr']) : '';
     if ($manualId <= 0) {
       exportJsonResponse(['status' => 'error', 'message' => 'Invalid manual ID', 'request_id' => $requestId], 400);
       exit;
@@ -491,6 +504,63 @@ if (isset($_POST['manual_id'])) {
       'bought_ids_count' => count($boughtIds),
     ]);
 
+    if ($outputMode === 'pdf') {
+      $heading = 'PAYMENTS FOR ' . strtoupper((string)$manualRow['course_code']) . ' MANUAL';
+      $verificationUrl = nivasity_app_url('manual-export-verify.php?code=' . urlencode($verificationCode));
+      $metaLines = [
+        'Verification Code: ' . $verificationCode,
+        'Total Students: ' . $studentsCount . '    Total Amount: NGN ' . number_format((float)$totalAmount, 0),
+        'Date Exported: ' . date('j M Y, g:ia', strtotime($downloadedAt)),
+      ];
+
+      if ($hocName) {
+        $metaLines[] = 'HOC: ' . $hocName . ($hocEmail ? ' (' . $hocEmail . ')' : '');
+      }
+
+      if ($rrr !== '') {
+        $metaLines[] = 'RRR: ' . $rrr;
+      }
+
+      $metaLines[] = 'You can verify this export at ' . $verificationUrl;
+
+      $headers = [
+        ['key' => 'sn', 'label' => 'S/N', 'x' => 50, 'width' => 24],
+        ['key' => 'name', 'label' => 'NAMES', 'x' => 80, 'width' => 205],
+        ['key' => 'matric_no', 'label' => 'MATRIC NO', 'x' => 290, 'width' => 82],
+        ['key' => 'adm_year', 'label' => 'ADMISSION YEAR', 'x' => 378, 'width' => 72],
+        ['key' => 'price', 'label' => 'PRICE PAID', 'x' => ($rrr !== '' ? 484 : 545), 'width' => 56, 'align' => 'right'],
+      ];
+      if ($rrr !== '') {
+        $headers[] = ['key' => 'rrr', 'label' => 'RRR', 'x' => 545, 'width' => 55, 'align' => 'right'];
+      }
+
+      $pdfRows = [];
+      foreach ($usersData as $index => $row) {
+        $pdfRow = [
+          'sn' => (string)($index + 1),
+          'name' => (string)$row['name'],
+          'matric_no' => (string)$row['matric_no'],
+          'adm_year' => (string)$row['adm_year'],
+          'price' => number_format((float)$row['price'], 0),
+        ];
+        if ($rrr !== '') {
+          $pdfRow['rrr'] = $rrr;
+        }
+        $pdfRows[] = $pdfRow;
+      }
+
+      $pdfBinary = manual_export_pdf_render([
+        'heading' => $heading,
+        'meta_lines' => $metaLines,
+        'headers' => $headers,
+        'rows' => $pdfRows,
+      ], dirname(__DIR__) . '/assets/images/nivasity-main.png');
+
+      $filename = 'manual-export-' . preg_replace('/[^A-Za-z0-9_\-]/', '', (string)$manualRow['course_code']) . '-' . $verificationCode . '.pdf';
+      exportPdfResponse($pdfBinary, $filename);
+      exit;
+    }
+
     $response = [
       'status' => 'success',
       'code' => $verificationCode,
@@ -526,11 +596,19 @@ if (isset($_POST['manual_id'])) {
       'file' => $e->getFile(),
       'line' => $e->getLine(),
     ]);
-    exportJsonResponse([
-      'status' => 'error',
-      'message' => 'Unable to export material right now. Please try again.',
-      'request_id' => $requestId,
-    ], 500);
+    if (isset($outputMode) && $outputMode === 'pdf') {
+      exportJsonResponse([
+        'status' => 'error',
+        'message' => 'Unable to export material right now. Please try again.',
+        'request_id' => $requestId,
+      ], 500);
+    } else {
+      exportJsonResponse([
+        'status' => 'error',
+        'message' => 'Unable to export material right now. Please try again.',
+        'request_id' => $requestId,
+      ], 500);
+    }
   }
 } elseif (isset($_POST['event_id'])) {
   $requestId = exportRequestId();
