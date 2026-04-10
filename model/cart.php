@@ -230,36 +230,29 @@ if (isset($_POST['reload_cart'])) {
                         <div class="cart-payment-option-header">
                             <div>
                                 <h5 class="cart-payment-option-title">Nivasity Wallet</h5>
-                                <span class="cart-payment-option-subtitle">Lower fee, faster confirmation, and a clearer total upfront.</span>
                             </div>
                             <span class="cart-payment-badge is-wallet">Recommended</span>
-                        </div>
-                        <div class="cart-payment-total">
-                            <span class="cart-payment-total-label">Wallet total</span>
-                            <span class="cart-payment-total-amount">' . $walletTotalLabel . '</span>
                         </div>
                         <div class="cart-payment-meta">
                             <div class="cart-payment-meta-row">
                                 <span>Wallet handling fee</span>
-                                <strong>' . $walletChargeLabel . '</strong>
-                            </div>
-                            <div class="cart-payment-meta-row is-saving">
-                                <span>You save vs gateway</span>
-                                <strong>' . $walletSavingsLabel . '</strong>
-                            </div>';
-        if ($walletExists) {
-            echo '
-                            <div class="cart-payment-meta-row">
-                                <span>Your wallet balance</span>
-                                <strong>' . $walletBalanceLabel . '</strong>
-                            </div>';
+                                <div>
+                                    <strong>' . $walletChargeLabel . '</strong>';
+        if ($walletSavings > 0) {
+            echo '<span class="fee-strike">' . $gatewayChargeLabel . '</span>';
         }
+        echo '
+                                </div>
+                            </div>
+                            <div class="cart-payment-meta-row">
+                                <span>Wallet total</span>
+                                <strong>' . $walletTotalLabel . '</strong>
+                            </div>';
         echo '
                         </div>';
         if ($wallet !== null) {
             if ($canPayWithWallet) {
                 echo '
-                        <p class="cart-payment-note">Best value for this cart. You will pay ' . $walletTotalLabel . ' instead of ' . $gatewayTotalLabel . ' online.</p>
                         <button class="btn w-100 cart-payment-action wallet-primary wallet-cart-checkout" data-session_data="'.$sessionData.'" data-wallet_amount="'.$walletTotalAmount.'" data-wallet_charge="'.$walletCharge.'" data-mdb-ripple-duration="0ms">Pay ' . $walletTotalLabel . ' with Nivasity Wallet</button>';
             } else {
                 echo '
@@ -278,13 +271,8 @@ if (isset($_POST['reload_cart'])) {
                         <div class="cart-payment-option-header">
                             <div>
                                 <h5 class="cart-payment-option-title">Gateway Checkout</h5>
-                                <span class="cart-payment-option-subtitle">Card, transfer, or USSD checkout with the active payment gateway.</span>
                             </div>
                             <span class="cart-payment-badge is-neutral">Online</span>
-                        </div>
-                        <div class="cart-payment-total">
-                            <span class="cart-payment-total-label">Gateway total</span>
-                            <span class="cart-payment-total-amount">' . $gatewayTotalLabel . '</span>
                         </div>
                         <div class="cart-payment-meta">
                             <div class="cart-payment-meta-row">
@@ -292,11 +280,10 @@ if (isset($_POST['reload_cart'])) {
                                 <strong>' . $gatewayChargeLabel . '</strong>
                             </div>
                             <div class="cart-payment-meta-row">
-                                <span>Difference from wallet</span>
-                                <strong>' . ($walletSavings > 0 ? $walletSavingsLabel . ' more' : '&#8358; 0') . '</strong>
+                                <span>Gateway total</span>
+                                <strong>' . $gatewayTotalLabel . '</strong>
                             </div>
                         </div>
-                        <p class="cart-payment-note">Use this if you want to pay directly online instead of from your wallet balance.</p>
                         <button class="btn w-100 cart-payment-action gateway-secondary checkout-cart" data-session_data="'.$sessionData.'" data-charge="'.$charge.'" data-transfer_amount="'.$transferAmount.'" data-mdb-ripple-duration="0ms">Pay ' . $gatewayTotalLabel . ' online</button>
                     </div>';
     } else if ($total_cart_price == 0 && $total_cart_event > 0) {

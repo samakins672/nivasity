@@ -311,6 +311,14 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       font-weight: 800;
     }
 
+    .cart-payment-meta-row .fee-strike {
+      color: #9a8f87;
+      font-weight: 700;
+      font-size: 0.82rem;
+      text-decoration: line-through;
+      margin-left: 0.45rem;
+    }
+
     .cart-payment-meta-row.is-saving strong,
     .cart-payment-meta-row.is-saving span:last-child {
       color: #c46600;
