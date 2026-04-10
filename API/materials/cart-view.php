@@ -137,6 +137,9 @@ $charge = $charges_result['charge'] ?? 0;
 $total_amount = $charges_result['total_amount'] ?? ($subtotal + $charge);
 $wallet = nivasityGetUserWallet($conn, (int)$user_id);
 $wallet_balance = (int)($wallet['balance'] ?? 0);
+$wallet_fee = nivasityGetWalletHandlingFeeBreakdown($conn, $subtotal, $charge);
+$wallet_charge = (int)($wallet_fee['charge'] ?? 0);
+$wallet_total_amount = (int)($wallet_fee['total_amount'] ?? $subtotal);
 
 sendApiSuccess('Cart retrieved successfully', [
     'items' => $cart_items,
@@ -147,8 +150,9 @@ sendApiSuccess('Cart retrieved successfully', [
     'wallet' => [
         'has_wallet' => $wallet !== null,
         'balance' => $wallet_balance,
-        'wallet_total_amount' => $subtotal,
-        'can_pay_with_wallet' => $wallet !== null && $wallet_balance >= (int)round((float)$subtotal),
+        'wallet_charge' => $wallet_charge,
+        'wallet_total_amount' => $wallet_total_amount,
+        'can_pay_with_wallet' => $wallet !== null && $wallet_balance >= $wallet_total_amount,
     ]
 ]);
 ?>

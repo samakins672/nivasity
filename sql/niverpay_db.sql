@@ -337,6 +337,17 @@ CREATE TABLE `wallet_pin_tokens` (
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE `wallet_fee_thresholds` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `label` varchar(100) DEFAULT NULL,
+  `min_subtotal` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `max_subtotal` decimal(12,2) DEFAULT NULL,
+  `fee_amount` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `status` enum('active','inactive') NOT NULL DEFAULT 'active',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 --
 -- Indexes for dumped tables
 --
@@ -351,6 +362,11 @@ ALTER TABLE `wallet_pin_tokens`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_wallet_pin_tokens_user` (`user_id`),
   ADD KEY `idx_wallet_pin_tokens_code` (`code`);
+
+ALTER TABLE `wallet_fee_thresholds`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_wallet_fee_thresholds_status` (`status`),
+  ADD KEY `idx_wallet_fee_thresholds_range` (`min_subtotal`,`max_subtotal`);
 
 --
 -- Indexes for table `admin_roles`

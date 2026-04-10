@@ -175,13 +175,16 @@ if (isset($_POST['reload_cart'])) {
     $charge = 0;
     $wallet = nivasityGetUserWallet($conn, (int)$user_id);
     $walletBalance = (int)($wallet['balance'] ?? 0);
-    $canPayWithWallet = $wallet !== null && $walletBalance >= (int)round((float)$total_cart_price);
     if ($transferAmount > 0) {
         // Use active gateway pricing (Paystack/Flutterwave/Interswitch) for accuracy
         $gatewayCharges = calculateGatewayCharges($transferAmount);
         $charge = $gatewayCharges['charge'] ?? 0;
         $transferAmount = $gatewayCharges['total_amount'] ?? ($transferAmount + $charge);
     }
+    $walletFee = nivasityGetWalletHandlingFeeBreakdown($conn, $total_cart_price, $charge);
+    $walletCharge = (int)($walletFee['charge'] ?? 0);
+    $walletTotalAmount = (int)($walletFee['total_amount'] ?? $total_cart_price);
+    $canPayWithWallet = $wallet !== null && $walletBalance >= $walletTotalAmount;
 
 
     echo '
@@ -206,7 +209,11 @@ if (isset($_POST['reload_cart'])) {
                     <div class="d-flex justify-content-between mt-0 mb-3 fw-bold">
                         <p>Handling fee</p>
                         <h5>₦ ' . $charge . '</h5>
-                    </div>                    
+                    </div>
+                    <div class="d-flex justify-content-between mt-0 mb-3 fw-bold text-primary">
+                        <p>Wallet handling fee</p>
+                        <h5>₦ ' . number_format($walletCharge) . '</h5>
+                    </div>
                     <div class="d-flex justify-content-between my-3 text-secondary fw-bold">
                         <h5 class="fw-bold">Total Due</h5>
                         <h5 class="fw-bold">₦ ' . number_format($transferAmount) . '</h5>
@@ -216,7 +223,7 @@ if (isset($_POST['reload_cart'])) {
         if ($wallet !== null) {
             if ($canPayWithWallet) {
                 echo '
-                    <button class="btn fw-bold btn-primary w-100 mb-2 btn-block py-3 wallet-cart-checkout" data-session_data="'.$sessionData.'" data-wallet_amount="'.$total_cart_price.'" data-mdb-ripple-duration="0ms" >PAY WITH NIVASITY WALLET</button>
+                    <button class="btn fw-bold btn-primary w-100 mb-2 btn-block py-3 wallet-cart-checkout" data-session_data="'.$sessionData.'" data-wallet_amount="'.$walletTotalAmount.'" data-wallet_charge="'.$walletCharge.'" data-mdb-ripple-duration="0ms" >PAY WITH NIVASITY WALLET</button>
                     <button class="btn fw-bold btn-outline-primary w-100 mb-0 btn-block py-3 checkout-cart" data-session_data="'.$sessionData.'" data-charge="'.$charge.'" data-transfer_amount="'.$transferAmount.'" data-mdb-ripple-duration="0ms" >CHECKOUT WITH PAYSTACK</button>';
             } else {
                 echo '

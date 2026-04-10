@@ -881,7 +881,8 @@ GET /materials/details.php?code=MAN-2024-001
     "wallet": {
       "has_wallet": true,
       "balance": 7200,
-      "wallet_total_amount": 5000,
+      "wallet_charge": 50,
+      "wallet_total_amount": 5050,
       "can_pay_with_wallet": true
     }
   }
@@ -893,8 +894,9 @@ GET /materials/details.php?code=MAN-2024-001
 - `charge` - Gateway processing fees (calculated using active gateway's fee structure)
 - `total_amount` - Final amount to be charged (subtotal + charge)
 - `wallet.balance` - Current Nivasity Wallet balance
+- `wallet.wallet_charge` - Wallet-specific handling fee derived from wallet fee thresholds and capped below gateway fee
 - `wallet.wallet_total_amount` - Amount that will be debited if the user pays with wallet
-- `wallet.can_pay_with_wallet` - Whether the current wallet balance covers the cart subtotal
+- `wallet.can_pay_with_wallet` - Whether the current wallet balance covers the wallet total amount
 
 #### 17. List Purchased Materials
 **Endpoint:** `GET /materials/purchased.php`
@@ -1026,8 +1028,8 @@ GET /materials/details.php?code=MAN-2024-001
     "gateway": "nivasity",
     "payment_channel": "wallet",
     "subtotal": 5000,
-    "charge": 0,
-    "total_amount": 5000,
+    "charge": 50,
+    "total_amount": 5050,
     "refund_applied": 0,
     "wallet_balance_after": 2200,
     "items": [
@@ -1050,7 +1052,7 @@ GET /materials/details.php?code=MAN-2024-001
 - `gateway`: Payment provider used for the flow (`paystack`, `flutterwave`, `interswitch`, or `nivasity` for wallet checkout)
 - `payment_channel`: `gateway` or `wallet`
 - `subtotal`: Total cost of items before gateway charges
-- `charge`: Gateway processing fees. `0` for wallet checkout.
+- `charge`: Handling fee for the selected checkout path. Wallet checkout uses wallet fee thresholds and is capped below the active gateway fee.
 - `total_amount`: Final amount to be paid or debited
 - `internal_settlement_mode`: `true` when the purchase is using the internal school-settlement ledger
 - `refund_reserved`: Amount reserved from the school's future payable for pending refunds

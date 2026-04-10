@@ -115,8 +115,10 @@ if ($subtotal <= 0) {
 }
 
 if ($payment_channel === 'wallet') {
-    $charge = 0;
-    $total_amount = $subtotal;
+    $gateway_charges_result = calculateGatewayCharges($subtotal);
+    $wallet_fee = nivasityGetWalletHandlingFeeBreakdown($conn, $subtotal, (int)($gateway_charges_result['charge'] ?? 0));
+    $charge = (int)($wallet_fee['charge'] ?? 0);
+    $total_amount = (int)($wallet_fee['total_amount'] ?? $subtotal);
 } else {
     $charges_result = calculateGatewayCharges($subtotal);
     $charge = $charges_result['charge'] ?? 0;
@@ -172,7 +174,7 @@ if ($payment_channel === 'wallet') {
             'gateway' => 'nivasity',
             'payment_channel' => 'wallet',
             'subtotal' => $subtotal,
-            'charge' => 0,
+            'charge' => $charge,
             'total_amount' => $walletResult['total_amount'] ?? $subtotal,
             'refund_applied' => (int)($walletResult['refund_applied'] ?? 0),
             'wallet_balance_after' => (int)($walletResult['wallet_balance_after'] ?? 0),

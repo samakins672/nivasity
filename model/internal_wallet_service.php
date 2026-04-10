@@ -615,6 +615,72 @@ if (!function_exists('nivasityGetWalletDashboardPayload')) {
     }
 }
 
+if (!function_exists('nivasityWalletFeeThresholdsTableExists')) {
+    function nivasityWalletFeeThresholdsTableExists($conn) {
+        static $exists = null;
+
+        if ($exists !== null) {
+            return $exists;
+        }
+
+        $rs = mysqli_query($conn, "SHOW TABLES LIKE 'wallet_fee_thresholds'");
+        $exists = $rs && mysqli_num_rows($rs) > 0;
+        return $exists;
+    }
+}
+
+if (!function_exists('nivasityGetWalletHandlingFeeBreakdown')) {
+    function nivasityGetWalletHandlingFeeBreakdown($conn, $subtotal, $gatewayCharge = null) {
+        $subtotal = (int)round((float)$subtotal);
+        $gatewayCharge = $gatewayCharge === null ? null : (int)round((float)$gatewayCharge);
+
+        if ($subtotal <= 0) {
+            return [
+                'subtotal' => 0,
+                'charge' => 0,
+                'configured_charge' => 0,
+                'gateway_charge' => max(0, (int)$gatewayCharge),
+                'total_amount' => 0,
+            ];
+        }
+
+        $configuredCharge = 0;
+        if (nivasityWalletFeeThresholdsTableExists($conn)) {
+            $subtotalValue = (float)$subtotal;
+            $thresholdSql = "SELECT fee_amount
+                             FROM wallet_fee_thresholds
+                             WHERE status = 'active'
+                               AND min_subtotal <= $subtotalValue
+                               AND (max_subtotal IS NULL OR max_subtotal = 0 OR max_subtotal >= $subtotalValue)
+                             ORDER BY min_subtotal DESC, id DESC
+                             LIMIT 1";
+            $thresholdRs = mysqli_query($conn, $thresholdSql);
+            if ($thresholdRs && mysqli_num_rows($thresholdRs) > 0) {
+                $thresholdRow = mysqli_fetch_assoc($thresholdRs);
+                $configuredCharge = max(0, (int)round((float)($thresholdRow['fee_amount'] ?? 0)));
+            }
+        }
+
+        $effectiveCharge = $configuredCharge;
+        if ($gatewayCharge !== null) {
+            $gatewayCharge = max(0, $gatewayCharge);
+            if ($gatewayCharge <= 0) {
+                $effectiveCharge = 0;
+            } else {
+                $effectiveCharge = min($configuredCharge, max(0, $gatewayCharge - 1));
+            }
+        }
+
+        return [
+            'subtotal' => $subtotal,
+            'charge' => $effectiveCharge,
+            'configured_charge' => $configuredCharge,
+            'gateway_charge' => $gatewayCharge,
+            'total_amount' => $subtotal + $effectiveCharge,
+        ];
+    }
+}
+
 if (!function_exists('nivasityPaystackRequest')) {
     function nivasityPaystackRequest($method, $path, $payload = null) {
         if (!defined('PAYSTACK_SECRET_KEY') || PAYSTACK_SECRET_KEY === '') {
@@ -1894,9 +1960,11 @@ if (!function_exists('nivasityProcessWalletCheckout')) {
                     throw new Exception('No cart items were fulfilled for wallet checkout');
                 }
 
-                $charge = 0;
+                $gatewayCharges = function_exists('calculateGatewayCharges') ? calculateGatewayCharges($sumAmount) : ['charge' => 0];
+                $walletFee = nivasityGetWalletHandlingFeeBreakdown($conn, $sumAmount, (int)($gatewayCharges['charge'] ?? 0));
+                $charge = (int)($walletFee['charge'] ?? 0);
                 $profit = 0;
-                $totalAmount = $sumAmount;
+                $totalAmount = (int)($walletFee['total_amount'] ?? $sumAmount);
                 if ($balanceBefore < $totalAmount) {
                     throw new Exception('Insufficient wallet balance for this purchase');
                 }
@@ -1955,7 +2023,7 @@ if (!function_exists('nivasityProcessWalletCheckout')) {
                     'source_channel' => $sourceChannel,
                     'item_subtotal' => $sumAmount,
                     'collected_total' => $totalAmount,
-                    'charge_amount' => 0,
+                    'charge_amount' => $charge,
                     'refund_amount' => $refundApplied,
                     'metadata' => [
                         'handler' => 'wallet_checkout',
