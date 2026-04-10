@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS `manual_change_logs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `buyer_id` int(11) NOT NULL,
+  `school_id` int(11) NOT NULL DEFAULT 1,
+  `manuals_bought_id` int(11) DEFAULT NULL,
+  `ref_id` varchar(50) NOT NULL,
+  `old_manual_id` int(11) NOT NULL,
+  `new_manual_id` int(11) NOT NULL,
+  `old_seller_id` int(11) DEFAULT NULL,
+  `new_seller_id` int(11) DEFAULT NULL,
+  `old_manual_price` int(11) NOT NULL DEFAULT 0,
+  `new_manual_price` int(11) NOT NULL DEFAULT 0,
+  `source` varchar(20) NOT NULL DEFAULT 'web',
+  `request_context` varchar(32) DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_manual_change_order` (`buyer_id`, `ref_id`, `old_manual_id`),
+  UNIQUE KEY `uniq_manual_change_bought` (`manuals_bought_id`),
+  KEY `idx_manual_change_new_manual` (`new_manual_id`),
+  KEY `idx_manual_change_buyer_created` (`buyer_id`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

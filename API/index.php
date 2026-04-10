@@ -26,7 +26,9 @@ $response = [
             'POST /materials/cart-add.php' => 'Add material to cart',
             'POST /materials/cart-remove.php' => 'Remove material from cart',
             'GET /materials/cart-view.php' => 'View cart',
-            'GET /materials/purchased.php' => 'List purchased materials'
+            'GET /materials/purchased.php' => 'List purchased materials',
+            'GET /materials/change.php' => 'List eligible replacement materials for a purchased item',
+            'POST /materials/change.php' => 'Change a purchased material once if it is not granted and the replacement price matches'
         ],
         'payment' => [
             'POST /payment/init.php' => 'Initialize payment',
