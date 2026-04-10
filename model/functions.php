@@ -94,7 +94,7 @@ function nivasity_get_support_whatsapp_link() {
     return $resolvedLink;
 }
 
-function buildReceiptHtmlFromRef($conn, $user_id, $tx_ref, $filterType = null, $filterId = null) {
+function getReceiptDataFromRef($conn, $user_id, $tx_ref, $filterType = null, $filterId = null) {
     // Fetch user details
     $user_q = mysqli_query($conn, "SELECT * FROM users WHERE id = " . (int)$user_id);
     $user = $user_q ? mysqli_fetch_array($user_q) : null;
@@ -135,7 +135,7 @@ function buildReceiptHtmlFromRef($conn, $user_id, $tx_ref, $filterType = null, $
         if ($mb_rs && mysqli_num_rows($mb_rs) > 0) {
             while ($row = mysqli_fetch_assoc($mb_rs)) {
                 $items[] = [
-                    'name' => trim(htmlspecialchars($row['title']) . (isset($row['course_code']) && $row['course_code'] !== '' ? ' (' . htmlspecialchars($row['course_code']) . ')' : '')),
+                    'name' => trim((string) ($row['title'] ?? '') . (isset($row['course_code']) && $row['course_code'] !== '' ? ' (' . (string) $row['course_code'] . ')' : '')),
                     'type' => 'Material',
                     'price' => isset($row['price']) ? (float)$row['price'] : 0,
                     'meta' => ''
@@ -163,19 +163,19 @@ function buildReceiptHtmlFromRef($conn, $user_id, $tx_ref, $filterType = null, $
                     $school_query = mysqli_query($conn, "SELECT name FROM schools WHERE id = " . (int)$event['school']);
                     if ($school_query && mysqli_num_rows($school_query) > 0) {
                         $school_name = mysqli_fetch_array($school_query)['name'];
-                        $metaBits[] = 'School: ' . htmlspecialchars($school_name);
+                        $metaBits[] = 'School: ' . (string) $school_name;
                     }
                 } elseif (isset($event['event_type']) && $event['event_type'] == 'online') {
                     if (!empty($event['event_link'])) {
-                        $metaBits[] = 'Link: ' . htmlspecialchars($event['event_link']);
+                        $metaBits[] = 'Link: ' . (string) $event['event_link'];
                     }
                 } else {
                     if (!empty($event['location'])) {
-                        $metaBits[] = 'Location: ' . htmlspecialchars($event['location']);
+                        $metaBits[] = 'Location: ' . (string) $event['location'];
                     }
                 }
                 $items[] = [
-                    'name' => htmlspecialchars($event['title']),
+                    'name' => (string) ($event['title'] ?? ''),
                     'type' => 'Event',
                     'price' => isset($event['price']) ? (float)$event['price'] : 0,
                     'meta' => implode(' &bull; ', $metaBits)
@@ -205,6 +205,17 @@ function buildReceiptHtmlFromRef($conn, $user_id, $tx_ref, $filterType = null, $
         }
     }
 
+    return [
+        'payer_name' => $payerName,
+        'matric_no' => $matricNo,
+        'reference' => $tx_ref,
+        'receipt_date' => $receiptDateFormatted,
+        'total_amount' => (float) $total_amount,
+        'items' => $items,
+    ];
+}
+
+function buildReceiptHtmlFromData(array $receiptData) {
     // Build receipt HTML (same visual style as original)
     $currency = '&#8358;';
     $message = '';
@@ -212,14 +223,14 @@ function buildReceiptHtmlFromRef($conn, $user_id, $tx_ref, $filterType = null, $
     $message .= '<p style="margin:6px 0 18px">Thank you for your purchase!</p>';
 
     $message .= '<div style="background:#f9f4ff;border:1px solid #e8d7f0;border-radius:6px;padding:12px;margin-bottom:16px">'
-              . '<div style="margin:4px 0"><strong>Payer Name:</strong> ' . htmlspecialchars($payerName) . '</div>'
-              . '<div style="margin:4px 0"><strong>Matric No.:</strong> ' . htmlspecialchars($matricNo) . '</div>'
-              . '<div style="margin:4px 0"><strong>Reference:</strong> #' . htmlspecialchars($tx_ref) . '</div>'
-              . '<div style="margin:4px 0"><strong>Date:</strong> ' . htmlspecialchars($receiptDateFormatted) . '</div>'
-              . '<div style="margin:4px 0"><strong>Total Amount:</strong> ' . $currency . ' ' . number_format((float)$total_amount, 2) . '</div>'
+              . '<div style="margin:4px 0"><strong>Payer Name:</strong> ' . htmlspecialchars((string) $receiptData['payer_name']) . '</div>'
+              . '<div style="margin:4px 0"><strong>Matric No.:</strong> ' . htmlspecialchars((string) $receiptData['matric_no']) . '</div>'
+              . '<div style="margin:4px 0"><strong>Reference:</strong> #' . htmlspecialchars((string) $receiptData['reference']) . '</div>'
+              . '<div style="margin:4px 0"><strong>Date:</strong> ' . htmlspecialchars((string) $receiptData['receipt_date']) . '</div>'
+              . '<div style="margin:4px 0"><strong>Total Amount:</strong> ' . $currency . ' ' . number_format((float)$receiptData['total_amount'], 2) . '</div>'
               . '</div>';
 
-    if (!empty($items)) {
+    if (!empty($receiptData['items'])) {
         $message .= '<h3 style="margin:12px 0 8px;color:#7a3b73">Items Purchased</h3>';
         $message .= '<table width="100%" cellpadding="6" cellspacing="0" style="border-collapse:collapse">';
         $message .= '<thead>'
@@ -230,10 +241,10 @@ function buildReceiptHtmlFromRef($conn, $user_id, $tx_ref, $filterType = null, $
                   . '</tr>'
                   . '</thead>';
         $message .= '<tbody>';
-        foreach ($items as $it) {
-            $nameCell = $it['name'];
+        foreach ($receiptData['items'] as $it) {
+            $nameCell = htmlspecialchars((string) $it['name']);
             if (!empty($it['meta'])) {
-                $nameCell .= '<div style="color:#777;font-size:13px;margin-top:2px">' . $it['meta'] . '</div>';
+                $nameCell .= '<div style="color:#777;font-size:13px;margin-top:2px">' . htmlspecialchars((string) $it['meta']) . '</div>';
             }
             $message .= '<tr>'
                       . '<td style="border-bottom:1px solid #f2f2f2;padding:8px 0">' . $nameCell . '</td>'
@@ -247,6 +258,11 @@ function buildReceiptHtmlFromRef($conn, $user_id, $tx_ref, $filterType = null, $
 
     $message .= '<p style="margin-top:18px">We hope you enjoy your purchase!<br><br>Best regards,<br><b>Nivasity Team</b></p>';
     return $message;
+}
+
+function buildReceiptHtmlFromRef($conn, $user_id, $tx_ref, $filterType = null, $filterId = null) {
+    $receiptData = getReceiptDataFromRef($conn, $user_id, $tx_ref, $filterType, $filterId);
+    return buildReceiptHtmlFromData($receiptData);
 }
 
 function sendCongratulatoryEmail($conn, $user_id, $tx_ref, $cart_, $cart_2, $total_amount) {

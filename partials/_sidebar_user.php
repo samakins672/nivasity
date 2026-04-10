@@ -32,6 +32,12 @@
         <span class="menu-title">Order History</span>
       </a>
     </li>
+    <li class="nav-item <?php echo ($url == 'material_requests.php') ? 'active' : ''; ?>">
+      <a class="nav-link <?php echo ($url == 'material_requests.php') ? 'bg-primary' : ''; ?>" href="material_requests.php">
+        <i class="mdi mdi-file-document-edit-outline menu-icon <?php echo ($url == 'material_requests.php') ? 'text-white' : ''; ?>"></i>
+        <span class="menu-title <?php echo ($url == 'material_requests.php') ? 'text-white fw-bold' : ''; ?>">Material Requests</span>
+      </a>
+    </li>
     <?php endif; ?>
     <li class="nav-item">
       <a class="nav-link" href="tickets.php">

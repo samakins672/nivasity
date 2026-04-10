@@ -348,6 +348,40 @@ CREATE TABLE `wallet_fee_thresholds` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE `material_requests` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `school_id` int(11) NOT NULL,
+  `requester_user_id` int(11) NOT NULL,
+  `requester_dept_id` int(11) NOT NULL DEFAULT 0,
+  `requester_faculty_id` int(11) NOT NULL DEFAULT 0,
+  `material_code` varchar(100) NOT NULL,
+  `material_title` varchar(255) NOT NULL,
+  `material_code_normalized` varchar(100) NOT NULL,
+  `material_title_normalized` varchar(255) NOT NULL,
+  `scope` enum('school','faculty','selected_faculties','selected_departments','my_department') NOT NULL DEFAULT 'my_department',
+  `target_faculty_id` int(11) NOT NULL DEFAULT 0,
+  `target_department_id` int(11) NOT NULL DEFAULT 0,
+  `target_faculty_ids_json` longtext DEFAULT NULL,
+  `target_dept_ids_json` longtext DEFAULT NULL,
+  `expected_buyers_count` int(11) NOT NULL DEFAULT 0,
+  `share_token` varchar(40) NOT NULL,
+  `status` enum('open','under_review','resolved') NOT NULL DEFAULT 'open',
+  `threshold_percent` decimal(5,2) NOT NULL DEFAULT 40.00,
+  `resolved_manual_id` int(11) DEFAULT NULL,
+  `resolution_note` text DEFAULT NULL,
+  `resolved_by_admin_id` int(11) DEFAULT NULL,
+  `resolved_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `material_request_votes` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `request_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 --
 -- Indexes for dumped tables
 --
@@ -367,6 +401,19 @@ ALTER TABLE `wallet_fee_thresholds`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_wallet_fee_thresholds_status` (`status`),
   ADD KEY `idx_wallet_fee_thresholds_range` (`min_subtotal`,`max_subtotal`);
+
+ALTER TABLE `material_requests`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uniq_material_requests_share_token` (`share_token`),
+  ADD KEY `idx_material_requests_school_status` (`school_id`,`status`),
+  ADD KEY `idx_material_requests_lookup_code` (`school_id`,`material_code_normalized`),
+  ADD KEY `idx_material_requests_lookup_title` (`school_id`,`material_title_normalized`);
+
+ALTER TABLE `material_request_votes`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uniq_material_request_vote` (`request_id`,`user_id`),
+  ADD KEY `idx_material_request_votes_request` (`request_id`),
+  ADD KEY `idx_material_request_votes_user` (`user_id`);
 
 --
 -- Indexes for table `admin_roles`

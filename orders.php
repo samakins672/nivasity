@@ -254,7 +254,6 @@ if ($manuals_bought_has_id) {
   <!-- endinject -->
   <!-- Custom js for this page-->
   <script src="assets/js/script.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <script>
     $(document).ready(function () {
@@ -320,49 +319,6 @@ if ($manuals_bought_has_id) {
         $select.html(options.join('')).prop('disabled', false);
       }
 
-      $(document).on('click', '.js-download-receipt', async function () {
-        const $btn = $(this);
-        const ref = $btn.data('ref');
-        const kind = $btn.data('kind');
-        const itemId = $btn.data('item-id');
-        const url = `model/receipt.php?action=download&pdf=1&ref=${encodeURIComponent(ref)}&kind=${encodeURIComponent(kind)}&item_id=${encodeURIComponent(itemId)}`;
-        const filename = `receipt-${ref}-${kind}-${itemId}.pdf`;
-        try {
-          $btn.prop('disabled', true).text('Preparing...');
-          const resp = await fetch(url, { method: 'GET', credentials: 'same-origin', cache: 'no-store' });
-          if (!resp.ok) throw new Error('Failed to load receipt HTML');
-          const html = await resp.text();
-          if (!html || html.replace(/\s+/g, '').length < 20) throw new Error('Empty receipt content');
-          // Render in an offscreen iframe to avoid CSS conflicts
-          const iframe = document.createElement('iframe');
-          iframe.style.position = 'fixed';
-          iframe.style.left = '-9999px';
-          iframe.style.top = '0';
-          iframe.style.width = '794px';
-          iframe.style.height = '1123px';
-          document.body.appendChild(iframe);
-          const doc = iframe.contentDocument || iframe.contentWindow.document;
-          doc.open();
-          doc.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">`
-            + `<style>*{box-sizing:border-box;} body{font-family: Arial,Helvetica,sans-serif; color:#333; background:#fff; margin:0;} .pdf-container{width:178mm; margin:0 auto; padding:6mm;} .header{display:flex; align-items:center; margin-bottom:8px;} .header img{height:42px; display:block; max-width:100%;} table{width:100%; border-collapse: collapse; table-layout: fixed;} th,td{font-size:13px; word-wrap:break-word;} th:nth-child(3),td:nth-child(3){width:32mm; text-align:right; white-space:nowrap;} h2,h3{color:#7a3b73; margin:0 0 8px;}</style>`
-            + `</head><body><div class="pdf-container"><div class="header"><img crossorigin="anonymous" src="<?php echo htmlspecialchars(nivasity_asset_url('assets/images/nivasity-main.png'), ENT_QUOTES, 'UTF-8'); ?>" alt="Nivasity"></div><div class="content">${html}</div></div></body></html>`);
-          doc.close();
-          await new Promise(r => setTimeout(r, 150));
-          const opt = {
-            margin: [10, 10, 10, 10],
-            filename: filename,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, logging: false, allowTaint: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-          };
-          await html2pdf().set(opt).from(doc.querySelector('.pdf-container')).save();
-          document.body.removeChild(iframe);
-        } catch (e) {
-          showBanner('Could not generate PDF receipt.', 'danger');
-        } finally {
-          $btn.prop('disabled', false).text('Download');
-        }
-      });
       $(document).on('click', '.js-email-receipt', function() {
         var ref = $(this).data('ref');
         var kind = $(this).data('kind');

@@ -3,6 +3,7 @@ session_start();
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/mail.php';
+require_once __DIR__ . '/receipt_pdf.php';
 
 header_remove('X-Powered-By');
 
@@ -80,8 +81,9 @@ if ($kind && $itemId) {
   }
 }
 
-// Build receipt body
-$body = buildReceiptHtmlFromRef($conn, $user_id, $ref, $kind, $itemId);
+// Build receipt body and data
+$receiptData = getReceiptDataFromRef($conn, $user_id, $ref, $kind, $itemId);
+$body = buildReceiptHtmlFromData($receiptData);
 
 if ($action === 'email') {
   // Resolve recipient email
@@ -110,8 +112,21 @@ if ($pdfInline) {
   exit;
 }
 
-// Server-side PDF generation (if Dompdf is available)
 if ($action === 'download' && $format === 'pdf') {
+  $filenamePdf = 'receipt-' . preg_replace('/[^A-Za-z0-9_\-]/', '', $ref) . '.pdf';
+
+  try {
+    $pdfBinary = receipt_pdf_render($receiptData, dirname(__DIR__) . '/assets/images/nivasity-main.png');
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="' . $filenamePdf . '"');
+    header('Content-Length: ' . strlen($pdfBinary));
+    echo $pdfBinary;
+    exit;
+  } catch (Throwable $receiptPdfError) {
+    error_log('[receipt] native pdf render failed: ' . $receiptPdfError->getMessage());
+  }
+
+  // Fallback to Dompdf if it is available.
   $autoloaders = [
     __DIR__ . '/../vendor/autoload.php',
     __DIR__ . '/../vendor/dompdf/dompdf/autoload.inc.php',
@@ -123,8 +138,6 @@ if ($action === 'download' && $format === 'pdf') {
     }
   }
   if (class_exists('Dompdf\\Dompdf')) {
-    $filenamePdf = 'receipt-' . preg_replace('/[^A-Za-z0-9_\-]/', '', $ref) . '.pdf';
-
     $logoUrl = nivasity_asset_url('assets/images/nivasity-main.png');
     $html = '<!doctype html><html><head><meta charset="utf-8">'
           . '<style>'
@@ -157,6 +170,10 @@ if ($action === 'download' && $format === 'pdf') {
     echo $dompdf->output();
     exit;
   }
+
+  http_response_code(500);
+  echo 'Unable to generate PDF receipt right now.';
+  exit;
 }
 
 // Default behavior: download styled HTML email
