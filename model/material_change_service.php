@@ -85,6 +85,19 @@ if (!function_exists('material_change_boolish_is_true')) {
   }
 }
 
+if (!function_exists('material_change_is_within_window')) {
+  function material_change_is_within_window(string $createdAt, int $hours = 72): bool
+  {
+    $timestamp = strtotime($createdAt);
+    if ($timestamp === false) {
+      return false;
+    }
+
+    $hours = max(1, $hours);
+    return $timestamp >= strtotime('-' . $hours . ' hours');
+  }
+}
+
 if (!function_exists('material_change_get_user_faculty_id')) {
   function material_change_get_user_faculty_id(mysqli $conn, int $deptId, int $schoolId): int
   {
@@ -297,6 +310,14 @@ if (!function_exists('material_change_get_order_context')) {
       ];
     }
 
+    if (!material_change_is_within_window((string) ($order['created_at'] ?? ''), 72)) {
+      return [
+        'ok' => false,
+        'status_code' => 409,
+        'message' => 'Materials can only be changed within 72 hours of purchase.',
+      ];
+    }
+
     if (material_change_is_order_granted($order)) {
       return [
         'ok' => false,
@@ -346,17 +367,13 @@ if (!function_exists('material_change_get_candidate_materials')) {
         m.course_code,
         m.code,
         m.price,
-        m.user_id,
         m.due_date,
         m.dept,
         m.status,
         {$selectDepts},
-        d.name AS dept_name,
-        u.first_name,
-        u.last_name
+        d.name AS dept_name
       FROM manuals AS m
       LEFT JOIN depts AS d ON d.id = m.dept
-      LEFT JOIN users AS u ON u.id = m.user_id
       WHERE m.school_id = {$schoolId}
         AND m.id <> {$oldManualId}
         AND m.status = 'open'
@@ -383,7 +400,6 @@ if (!function_exists('material_change_get_candidate_materials')) {
           'price' => (float) ($row['price'] ?? 0),
           'due_date' => (string) ($row['due_date'] ?? ''),
           'dept_name' => ((int) ($row['dept'] ?? 0) === 0) ? 'All Departments' : (string) ($row['dept_name'] ?? 'Department'),
-          'seller_name' => trim((string) ($row['first_name'] ?? '') . ' ' . (string) ($row['last_name'] ?? '')),
         ];
       }
     }

@@ -103,12 +103,15 @@ if ($manuals_bought_has_id) {
                                 $status = $manual['status'];
                                 $event_price = number_format($manuals['price']);
                                 $event_price = $event_price > 0 ? "₦ $event_price" : 'FREE';
+                                $is_within_change_window = material_change_is_within_window((string) ($manual['created_at'] ?? ''), 72);
                                 $is_granted = ($manuals_bought_has_grant_status && material_change_boolish_is_true($manual['grant_status'] ?? '0'))
                                   || ($manuals_bought_has_export_id && (int) ($manual['export_id'] ?? 0) > 0);
                                 $was_changed = $manuals_bought_has_id && isset($changed_bought_ids[(int) ($manual['id'] ?? 0)]);
-                                $can_change_material = strtolower((string) $status) === 'successful' && !$is_granted && !$was_changed;
+                                $can_change_material = $is_within_change_window && strtolower((string) $status) === 'successful' && !$is_granted && !$was_changed;
                                 $change_material_reason = '';
-                                if (strtolower((string) $status) !== 'successful') {
+                                if (!$is_within_change_window) {
+                                  $change_material_reason = 'Material change is only available within 72 hours of purchase.';
+                                } elseif (strtolower((string) $status) !== 'successful') {
                                   $change_material_reason = 'Only successful purchases can be changed.';
                                 } elseif ($is_granted) {
                                   $change_material_reason = 'Granted materials cannot be changed.';
@@ -123,8 +126,9 @@ if ($manuals_bought_has_id) {
                                 <td>
                                   <div class="d-flex ">
                                     <div>
-                                      <h6><span class="d-sm-none-2"><?php echo $manuals['title'] ?> -</span> <?php echo $manuals['course_code'] ?></h6>
-                                      <p class="d-sm-none-2">ID: <span class="fw-bold"><?php echo $manuals['code'] ?></span></p>
+                                      <h6 class="order-mobile-hidden"><span class="d-sm-none-2"><?php echo $manuals['title'] ?> -</span> <?php echo $manuals['course_code'] ?></h6>
+                                      <h6 class="d-md-none mb-1"><?php echo $manuals['code'] ?></h6>
+                                      <p class="order-mobile-hidden d-sm-none-2">ID: <span class="fw-bold"><?php echo $manuals['code'] ?></span></p>
                                     </div>
                                   </div>
                                 </td>
@@ -146,18 +150,20 @@ if ($manuals_bought_has_id) {
                                     <button type="button" class="btn btn-sm btn-outline-secondary js-email-receipt" data-ref="<?php echo htmlspecialchars($manual['ref_id']); ?>" data-kind="manual" data-item-id="<?php echo (int)$manual['manual_id']; ?>" title="Email receipt">
                                       Email
                                     </button>
-                                    <button
-                                      type="button"
-                                      class="btn btn-sm btn-outline-dark js-open-material-change"
-                                      data-old-manual-id="<?php echo (int) $manual['manual_id']; ?>"
-                                      data-ref="<?php echo htmlspecialchars($manual['ref_id'], ENT_QUOTES, 'UTF-8'); ?>"
-                                      data-item-title="<?php echo htmlspecialchars((string) ($manuals['title'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
-                                      data-course-code="<?php echo htmlspecialchars((string) ($manuals['course_code'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
-                                      data-price="<?php echo htmlspecialchars((string) ($manuals['price'] ?? 0), ENT_QUOTES, 'UTF-8'); ?>"
-                                      <?php echo $can_change_material ? '' : 'disabled'; ?>
-                                      title="<?php echo htmlspecialchars($can_change_material ? 'Choose another material with the same price.' : $change_material_reason, ENT_QUOTES, 'UTF-8'); ?>">
-                                      Change Material
-                                    </button>
+                                    <?php if ($is_within_change_window): ?>
+                                      <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-dark js-open-material-change"
+                                        data-old-manual-id="<?php echo (int) $manual['manual_id']; ?>"
+                                        data-ref="<?php echo htmlspecialchars($manual['ref_id'], ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-item-title="<?php echo htmlspecialchars((string) ($manuals['title'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-course-code="<?php echo htmlspecialchars((string) ($manuals['course_code'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-price="<?php echo htmlspecialchars((string) ($manuals['price'] ?? 0), ENT_QUOTES, 'UTF-8'); ?>"
+                                        <?php echo $can_change_material ? '' : 'disabled'; ?>
+                                        title="<?php echo htmlspecialchars($can_change_material ? 'Choose another material with the same price.' : $change_material_reason, ENT_QUOTES, 'UTF-8'); ?>">
+                                        Change Material
+                                      </button>
+                                    <?php endif; ?>
                                   </div>
                                   <?php if (!$can_change_material && $change_material_reason !== ''): ?>
                                     <small class="text-muted d-block mt-2"><?php echo htmlspecialchars($change_material_reason, ENT_QUOTES, 'UTF-8'); ?></small>
@@ -301,13 +307,12 @@ if ($manuals_bought_has_id) {
 
         var options = ['<option value="">Select a replacement material</option>'];
         candidates.forEach(function(candidate) {
-          var seller = candidate.seller_name ? ' • ' + candidate.seller_name : '';
           var dept = candidate.dept_name ? ' • ' + candidate.dept_name : '';
           options.push(
             '<option value="' + candidate.id + '">' +
             candidate.title + (candidate.course_code ? ' - ' + candidate.course_code : '') +
             ' • ₦ ' + Number(candidate.price).toLocaleString() +
-            dept + seller +
+            dept +
             '</option>'
           );
         });
