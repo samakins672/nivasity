@@ -140,6 +140,262 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       display: block;
       text-align: center;
     }
+
+    .cart-payment-summary {
+      background: linear-gradient(180deg, #fffdfa 0%, #ffffff 100%);
+      border: 1px solid rgba(255, 145, 0, 0.12);
+      border-radius: 1.35rem;
+      overflow: hidden;
+    }
+
+    .cart-payment-summary .summary-muted {
+      color: #7c6f67;
+      font-size: 0.92rem;
+    }
+
+    .cart-payment-summary .summary-divider {
+      border-top: 1px solid rgba(28, 24, 20, 0.08);
+      margin: 1rem 0 1.25rem;
+    }
+
+    .cart-payment-summary .summary-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .cart-payment-summary .summary-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .cart-payment-summary .summary-row-label {
+      color: #3b312a;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .cart-payment-summary .summary-row-value {
+      color: #1d1b1a;
+      font-weight: 800;
+      margin: 0;
+      text-align: right;
+    }
+
+    .cart-payment-summary .wallet-savings-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: rgba(255, 145, 0, 0.12);
+      color: #c46600;
+      border-radius: 999px;
+      padding: 0.45rem 0.85rem;
+      font-size: 0.82rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .cart-payment-options {
+      display: grid;
+      gap: 0.9rem;
+      margin-top: 1.15rem;
+    }
+
+    .cart-payment-option {
+      border: 1px solid rgba(28, 24, 20, 0.08);
+      border-radius: 1.1rem;
+      padding: 1rem;
+      background: #fff;
+      box-shadow: 0 12px 30px rgba(45, 28, 8, 0.05);
+    }
+
+    .cart-payment-option.is-wallet {
+      border-color: rgba(255, 145, 0, 0.28);
+      background: linear-gradient(180deg, rgba(255, 244, 229, 0.96) 0%, rgba(255, 255, 255, 1) 100%);
+      box-shadow: 0 18px 40px rgba(255, 145, 0, 0.12);
+    }
+
+    .cart-payment-option.is-wallet.is-disabled {
+      background: linear-gradient(180deg, rgba(248, 244, 239, 0.9) 0%, rgba(255, 255, 255, 1) 100%);
+      border-color: rgba(130, 122, 116, 0.18);
+      box-shadow: none;
+    }
+
+    .cart-payment-option-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .cart-payment-option-title {
+      margin: 0;
+      color: #1f1f1f;
+      font-size: 1rem;
+      font-weight: 800;
+    }
+
+    .cart-payment-option-subtitle {
+      display: block;
+      margin-top: 0.2rem;
+      color: #7c6f67;
+      font-size: 0.84rem;
+      line-height: 1.45;
+    }
+
+    .cart-payment-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 0.35rem 0.7rem;
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+
+    .cart-payment-badge.is-wallet {
+      background: #ff9100;
+      color: #fff;
+    }
+
+    .cart-payment-badge.is-neutral {
+      background: rgba(43, 36, 31, 0.08);
+      color: #675950;
+    }
+
+    .cart-payment-total {
+      display: flex;
+      align-items: baseline;
+      gap: 0.45rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .cart-payment-total-label {
+      color: #7c6f67;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .cart-payment-total-amount {
+      color: #1f1f1f;
+      font-size: 1.6rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .cart-payment-meta {
+      display: grid;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .cart-payment-meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      color: #5a4b41;
+      font-size: 0.9rem;
+    }
+
+    .cart-payment-meta-row strong {
+      color: #211d1a;
+      font-weight: 800;
+    }
+
+    .cart-payment-meta-row.is-saving strong,
+    .cart-payment-meta-row.is-saving span:last-child {
+      color: #c46600;
+    }
+
+    .cart-payment-note {
+      margin: 0 0 0.95rem;
+      color: #6d625a;
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    .cart-payment-action {
+      border-radius: 0.9rem;
+      font-size: 0.96rem;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      min-height: 3.35rem;
+    }
+
+    .cart-payment-action.wallet-primary {
+      background: linear-gradient(135deg, #ff9a1f 0%, #ff8400 100%);
+      border: none;
+      color: #fff;
+      box-shadow: 0 16px 30px rgba(255, 145, 0, 0.22);
+    }
+
+    .cart-payment-action.wallet-primary:hover,
+    .cart-payment-action.wallet-primary:focus {
+      color: #fff;
+      background: linear-gradient(135deg, #ff9210 0%, #f47800 100%);
+    }
+
+    .cart-payment-action.gateway-secondary {
+      border: 1px solid rgba(255, 145, 0, 0.55);
+      color: #d67400;
+      background: #fff;
+    }
+
+    .cart-payment-action.gateway-secondary:hover,
+    .cart-payment-action.gateway-secondary:focus {
+      color: #b86100;
+      border-color: rgba(216, 116, 0, 0.75);
+      background: rgba(255, 145, 0, 0.04);
+    }
+
+    .cart-payment-action.wallet-disabled {
+      background: #ebe7e2;
+      border: 1px solid #dfd8d1;
+      color: #8f847b;
+      box-shadow: none;
+    }
+
+    .cart-wallet-helper-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      color: #c46600;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .cart-wallet-helper-link:hover,
+    .cart-wallet-helper-link:focus {
+      color: #a85600;
+      text-decoration: underline;
+    }
+
+    @media (max-width: 575.98px) {
+      .cart-payment-option-header,
+      .cart-payment-total,
+      .cart-payment-meta-row,
+      .cart-payment-summary .summary-row {
+        gap: 0.75rem;
+      }
+
+      .cart-payment-total {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .cart-payment-total-amount {
+        font-size: 1.4rem;
+      }
+    }
   </style>
 </head>
 

@@ -185,6 +185,16 @@ if (isset($_POST['reload_cart'])) {
     $walletCharge = (int)($walletFee['charge'] ?? 0);
     $walletTotalAmount = (int)($walletFee['total_amount'] ?? $total_cart_price);
     $canPayWithWallet = $wallet !== null && $walletBalance >= $walletTotalAmount;
+    $walletSavings = max(0, (int)$transferAmount - (int)$walletTotalAmount);
+    $walletShortfall = max(0, (int)$walletTotalAmount - (int)$walletBalance);
+    $walletExists = $wallet !== null;
+    $walletBalanceLabel = '&#8358; ' . number_format($walletBalance);
+    $gatewayTotalLabel = '&#8358; ' . number_format($transferAmount);
+    $walletTotalLabel = '&#8358; ' . number_format($walletTotalAmount);
+    $gatewayChargeLabel = '&#8358; ' . number_format($charge);
+    $walletChargeLabel = '&#8358; ' . number_format($walletCharge);
+    $walletSavingsLabel = '&#8358; ' . number_format($walletSavings);
+    $walletShortfallLabel = '&#8358; ' . number_format($walletShortfall);
 
 
     echo '
@@ -195,51 +205,127 @@ if (isset($_POST['reload_cart'])) {
             </div>
         </div>
         <div class="col-sm-4 grid-margin">
-            <div class="card card-rounded shadow-sm">
+            <div class="card card-rounded shadow-sm cart-payment-summary">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                         <div>
-                            <h4 class="card-title card-title-dash">Cart Summary</h4>
-                        </div>
-                    </div><hr>
-                    <div class="d-flex justify-content-between mt-3 mb-1 fw-bold">
-                        <p>Subtotal</p>
-                        <h4>₦ ' . number_format($total_cart_price) . '</h4>
+                            <h4 class="card-title card-title-dash mb-1">Cart Summary</h4>
+                            <p class="summary-muted mb-0">Compare both payment routes before you choose.</p>
+                        </div>';
+    if ($walletSavings > 0) {
+        echo '<span class="wallet-savings-pill">Save ' . $walletSavingsLabel . ' with wallet</span>';
+    }
+    echo '
                     </div>
-                    <div class="d-flex justify-content-between mt-0 mb-3 fw-bold">
-                        <p>Handling fee</p>
-                        <h5>₦ ' . $charge . '</h5>
+                    <div class="summary-divider"></div>
+                    <div class="summary-row">
+                        <p class="summary-row-label">Subtotal</p>
+                        <h4 class="summary-row-value">&#8358; ' . number_format($total_cart_price) . '</h4>
                     </div>
-                    <div class="d-flex justify-content-between mt-0 mb-3 fw-bold text-primary">
-                        <p>Wallet handling fee</p>
-                        <h5>₦ ' . number_format($walletCharge) . '</h5>
-                    </div>
-                    <div class="d-flex justify-content-between my-3 text-secondary fw-bold">
-                        <h5 class="fw-bold">Total Due</h5>
-                        <h5 class="fw-bold">₦ ' . number_format($transferAmount) . '</h5>
-                    </div>';
+                    <div class="cart-payment-options">';
     if ($total_cart_price > 0) {
         $sessionData = htmlspecialchars(json_encode($_SESSION['cart_sellers']), ENT_QUOTES, 'UTF-8');
+        echo '
+                    <div class="cart-payment-option is-wallet' . (!$canPayWithWallet ? ' is-disabled' : '') . '">
+                        <div class="cart-payment-option-header">
+                            <div>
+                                <h5 class="cart-payment-option-title">Nivasity Wallet</h5>
+                                <span class="cart-payment-option-subtitle">Lower fee, faster confirmation, and a clearer total upfront.</span>
+                            </div>
+                            <span class="cart-payment-badge is-wallet">Recommended</span>
+                        </div>
+                        <div class="cart-payment-total">
+                            <span class="cart-payment-total-label">Wallet total</span>
+                            <span class="cart-payment-total-amount">' . $walletTotalLabel . '</span>
+                        </div>
+                        <div class="cart-payment-meta">
+                            <div class="cart-payment-meta-row">
+                                <span>Wallet handling fee</span>
+                                <strong>' . $walletChargeLabel . '</strong>
+                            </div>
+                            <div class="cart-payment-meta-row is-saving">
+                                <span>You save vs gateway</span>
+                                <strong>' . $walletSavingsLabel . '</strong>
+                            </div>';
+        if ($walletExists) {
+            echo '
+                            <div class="cart-payment-meta-row">
+                                <span>Your wallet balance</span>
+                                <strong>' . $walletBalanceLabel . '</strong>
+                            </div>';
+        }
+        echo '
+                        </div>';
         if ($wallet !== null) {
             if ($canPayWithWallet) {
                 echo '
-                    <button class="btn fw-bold btn-primary w-100 mb-2 btn-block py-3 wallet-cart-checkout" data-session_data="'.$sessionData.'" data-wallet_amount="'.$walletTotalAmount.'" data-wallet_charge="'.$walletCharge.'" data-mdb-ripple-duration="0ms" >PAY WITH NIVASITY WALLET</button>
-                    <button class="btn fw-bold btn-outline-primary w-100 mb-0 btn-block py-3 checkout-cart" data-session_data="'.$sessionData.'" data-charge="'.$charge.'" data-transfer_amount="'.$transferAmount.'" data-mdb-ripple-duration="0ms" >CHECKOUT WITH PAYSTACK</button>';
+                        <p class="cart-payment-note">Best value for this cart. You will pay ' . $walletTotalLabel . ' instead of ' . $gatewayTotalLabel . ' online.</p>
+                        <button class="btn w-100 cart-payment-action wallet-primary wallet-cart-checkout" data-session_data="'.$sessionData.'" data-wallet_amount="'.$walletTotalAmount.'" data-wallet_charge="'.$walletCharge.'" data-mdb-ripple-duration="0ms">Pay ' . $walletTotalLabel . ' with Nivasity Wallet</button>';
             } else {
                 echo '
-                    <button class="btn fw-bold btn-primary w-100 mb-2 btn-block py-3 checkout-cart" data-session_data="'.$sessionData.'" data-charge="'.$charge.'" data-transfer_amount="'.$transferAmount.'" data-mdb-ripple-duration="0ms" >CHECKOUT</button>
-                    <button class="btn fw-bold btn-outline-secondary w-100 mb-0 btn-block py-3" disabled>INSUFFICIENT WALLET BALANCE</button>';
+                        <p class="cart-payment-note">Your wallet is short by ' . $walletShortfallLabel . '. Fund it first if you want the lower total.</p>
+                        <button class="btn w-100 cart-payment-action wallet-disabled" disabled>Need ' . $walletShortfallLabel . ' more to use wallet</button>
+                        <a class="cart-wallet-helper-link mt-3" href="wallet.php">Open wallet page to fund your wallet</a>';
             }
         } else {
             echo '
-                    <button class="btn fw-bold btn-primary w-100 mb-2 btn-block py-3 checkout-cart" data-session_data="'.$sessionData.'" data-charge="'.$charge.'" data-transfer_amount="'.$transferAmount.'" data-mdb-ripple-duration="0ms" >CHECKOUT</button>';
+                        <p class="cart-payment-note">Create your wallet to unlock the lower ' . $walletTotalLabel . ' total for this cart.</p>
+                        <a class="btn w-100 cart-payment-action wallet-primary" href="wallet.php">Set up wallet to pay ' . $walletTotalLabel . '</a>';
         }
+        echo '
+                    </div>
+                    <div class="cart-payment-option">
+                        <div class="cart-payment-option-header">
+                            <div>
+                                <h5 class="cart-payment-option-title">Gateway Checkout</h5>
+                                <span class="cart-payment-option-subtitle">Card, transfer, or USSD checkout with the active payment gateway.</span>
+                            </div>
+                            <span class="cart-payment-badge is-neutral">Online</span>
+                        </div>
+                        <div class="cart-payment-total">
+                            <span class="cart-payment-total-label">Gateway total</span>
+                            <span class="cart-payment-total-amount">' . $gatewayTotalLabel . '</span>
+                        </div>
+                        <div class="cart-payment-meta">
+                            <div class="cart-payment-meta-row">
+                                <span>Gateway handling fee</span>
+                                <strong>' . $gatewayChargeLabel . '</strong>
+                            </div>
+                            <div class="cart-payment-meta-row">
+                                <span>Difference from wallet</span>
+                                <strong>' . ($walletSavings > 0 ? $walletSavingsLabel . ' more' : '&#8358; 0') . '</strong>
+                            </div>
+                        </div>
+                        <p class="cart-payment-note">Use this if you want to pay directly online instead of from your wallet balance.</p>
+                        <button class="btn w-100 cart-payment-action gateway-secondary checkout-cart" data-session_data="'.$sessionData.'" data-charge="'.$charge.'" data-transfer_amount="'.$transferAmount.'" data-mdb-ripple-duration="0ms">Pay ' . $gatewayTotalLabel . ' online</button>
+                    </div>';
     } else if ($total_cart_price == 0 && $total_cart_event > 0) {
         echo '
-                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3 free-cart-checkout" data-mdb-ripple-duration="0ms" >CHECKOUT</button>';
+                    <div class="cart-payment-option is-wallet">
+                        <div class="cart-payment-option-header">
+                            <div>
+                                <h5 class="cart-payment-option-title">Free Checkout</h5>
+                                <span class="cart-payment-option-subtitle">No payment is required for the items currently in your cart.</span>
+                            </div>
+                            <span class="cart-payment-badge is-wallet">Free</span>
+                        </div>
+                        <div class="cart-payment-total">
+                            <span class="cart-payment-total-label">Amount due</span>
+                            <span class="cart-payment-total-amount">&#8358; 0</span>
+                        </div>
+                        <button class="btn w-100 cart-payment-action wallet-primary free-cart-checkout" data-mdb-ripple-duration="0ms">Complete free checkout</button>
+                    </div>';
     } else {
         echo '
-                    <button class="btn fw-bold btn-primary w-100 mb-0 btn-block py-3" disabled>CHECKOUT</button>';
+                    <div class="cart-payment-option">
+                        <div class="cart-payment-option-header">
+                            <div>
+                                <h5 class="cart-payment-option-title">Your cart is empty</h5>
+                                <span class="cart-payment-option-subtitle">Add materials or events to see payment options here.</span>
+                            </div>
+                        </div>
+                        <button class="btn w-100 cart-payment-action wallet-disabled" disabled>Checkout unavailable</button>
+                    </div>';
     }
     echo "</div></div></div></div>";
 
