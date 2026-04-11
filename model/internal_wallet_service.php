@@ -630,6 +630,86 @@ if (!function_exists('nivasityGetWalletDashboardPayload')) {
     }
 }
 
+if (!function_exists('nivasityGetWalletTransactionsPayload')) {
+    function nivasityGetWalletTransactionsPayload($conn, $userId, $page = 1, $limit = 20) {
+        $userId = (int)$userId;
+        $page = max(1, (int)$page);
+        $limit = (int)$limit;
+        if ($limit <= 0) {
+            $limit = 20;
+        }
+        if ($limit > 20) {
+            $limit = 20;
+        }
+
+        $wallet = nivasityGetUserWallet($conn, $userId);
+        $hasWalletPin = $wallet ? nivasityUserHasWalletPin($conn, $userId) : false;
+        $transactions = [];
+        $pagination = [
+            'total' => 0,
+            'page' => $page,
+            'limit' => $limit,
+            'total_pages' => 0,
+        ];
+
+        if (!$wallet || (int)($wallet['id'] ?? 0) <= 0) {
+            return [
+                'wallet' => null,
+                'has_wallet' => false,
+                'has_pin' => $hasWalletPin,
+                'transactions' => $transactions,
+                'pagination' => $pagination,
+            ];
+        }
+
+        $walletId = (int)$wallet['id'];
+        $offset = ($page - 1) * $limit;
+
+        $countQuery = mysqli_query($conn, "SELECT COUNT(*) AS total FROM wallet_ledger_entries WHERE wallet_id = $walletId");
+        if ($countQuery) {
+            $countRow = mysqli_fetch_assoc($countQuery);
+            $pagination['total'] = (int)($countRow['total'] ?? 0);
+            $pagination['total_pages'] = $pagination['total'] > 0 ? (int)ceil($pagination['total'] / $limit) : 0;
+        }
+
+        $entriesQuery = mysqli_query($conn, "SELECT * FROM wallet_ledger_entries WHERE wallet_id = $walletId ORDER BY created_at DESC, id DESC LIMIT $limit OFFSET $offset");
+        if ($entriesQuery) {
+            while ($entry = mysqli_fetch_assoc($entriesQuery)) {
+                $entryType = strtolower((string)($entry['entry_type'] ?? 'adjustment'));
+                $amount = (int)($entry['amount'] ?? 0);
+                $isCredit = in_array($entryType, ['credit', 'refund'], true);
+                $isDebit = in_array($entryType, ['debit', 'fee'], true);
+                $direction = $isCredit ? 'credit' : ($isDebit ? 'debit' : 'neutral');
+
+                $transactions[] = [
+                    'id' => (int)($entry['id'] ?? 0),
+                    'entry_type' => $entryType,
+                    'direction' => $direction,
+                    'amount' => $amount,
+                    'signed_amount' => $isCredit ? $amount : ($isDebit ? ($amount * -1) : $amount),
+                    'status' => (string)($entry['status'] ?? ''),
+                    'reference' => (string)($entry['reference'] ?? ''),
+                    'provider_reference' => !empty($entry['provider_reference']) ? (string)$entry['provider_reference'] : null,
+                    'display_reference' => (string)($entry['provider_reference'] ?: $entry['reference']),
+                    'description' => (string)($entry['description'] ?? ''),
+                    'balance_before' => (int)($entry['balance_before'] ?? 0),
+                    'balance_after' => (int)($entry['balance_after'] ?? 0),
+                    'created_at' => (string)($entry['created_at'] ?? ''),
+                    'display_date' => !empty($entry['created_at']) ? date('j M, Y h:i a', strtotime((string)$entry['created_at'])) : '',
+                ];
+            }
+        }
+
+        return [
+            'wallet' => $wallet,
+            'has_wallet' => true,
+            'has_pin' => $hasWalletPin,
+            'transactions' => $transactions,
+            'pagination' => $pagination,
+        ];
+    }
+}
+
 if (!function_exists('nivasityWalletFeeThresholdsTableExists')) {
     function nivasityWalletFeeThresholdsTableExists($conn) {
         static $exists = null;

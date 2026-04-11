@@ -39,6 +39,7 @@ $response = [
         'wallet' => [
             'POST /wallet/create.php' => 'Create wallet on explicit user request',
             'GET /wallet/summary.php' => 'Get wallet summary without auto-provisioning',
+            'GET /wallet/transactions.php' => 'List wallet credit and debit ledger entries (20 per page)',
             'POST /wallet/pin.php' => 'Send Wallet PIN code, verify it, and save/update 4-digit Wallet PIN',
             'POST /wallet/refresh-credits.php' => 'Refresh missed DVA wallet credits from Paystack'
         ],

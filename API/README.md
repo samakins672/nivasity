@@ -1244,6 +1244,89 @@ This allows the payment gateway to redirect back to your mobile app after the us
 - `has_wallet`: Whether the authenticated user already has a provisioned wallet
 - `has_pin`: Whether the authenticated user has already configured a Wallet PIN
 
+#### Wallet Transactions
+**Endpoint:** `GET /wallet/transactions.php`
+
+**Description:** List wallet ledger transactions for the authenticated user. The endpoint returns credits and debits in reverse chronological order with a fixed page size of 20 records.
+
+**Authentication:** Required
+
+**Query Parameters:**
+- `page` (optional): Page number starting from `1`. Default is `1`
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Wallet transactions retrieved successfully",
+  "data": {
+    "wallet": {
+      "id": 12,
+      "user_id": 123,
+      "school_id": 5,
+      "status": "active",
+      "balance": 7200,
+      "currency": "NGN",
+      "provider": "paystack",
+      "provider_account_id": "1234567",
+      "account_name": "John Doe",
+      "account_number": "0123456789",
+      "bank_name": "Wema Bank",
+      "bank_slug": "wema-bank",
+      "account_status": "active"
+    },
+    "has_wallet": true,
+    "has_pin": true,
+    "transactions": [
+      {
+        "id": 91,
+        "entry_type": "credit",
+        "direction": "credit",
+        "amount": 5000,
+        "signed_amount": 5000,
+        "status": "posted",
+        "reference": "wallet_funding:PSK_REF_123",
+        "provider_reference": "PSK_REF_123",
+        "display_reference": "PSK_REF_123",
+        "description": "Wallet funded via dedicated account",
+        "balance_before": 2200,
+        "balance_after": 7200,
+        "created_at": "2026-04-11 08:15:42",
+        "display_date": "11 Apr, 2026 08:15 am"
+      },
+      {
+        "id": 90,
+        "entry_type": "debit",
+        "direction": "debit",
+        "amount": 1800,
+        "signed_amount": -1800,
+        "status": "posted",
+        "reference": "wallet_purchase:nivas_123_1712817300",
+        "provider_reference": "nivas_123_1712817300",
+        "display_reference": "nivas_123_1712817300",
+        "description": "Wallet purchase",
+        "balance_before": 4000,
+        "balance_after": 2200,
+        "created_at": "2026-04-10 18:04:17",
+        "display_date": "10 Apr, 2026 06:04 pm"
+      }
+    ],
+    "pagination": {
+      "total": 34,
+      "page": 1,
+      "limit": 20,
+      "total_pages": 2
+    }
+  }
+}
+```
+
+**Response Fields:**
+- `entry_type`: Raw wallet ledger entry type such as `credit`, `debit`, `refund`, or `fee`
+- `direction`: Normalized transaction direction. One of `credit`, `debit`, or `neutral`
+- `signed_amount`: Positive for credit-like entries and negative for debit-like entries
+- `pagination.limit`: Always `20` for this endpoint
+
 #### Wallet PIN Management
 **Endpoint:** `POST /wallet/pin.php`
 
