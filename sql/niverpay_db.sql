@@ -69,6 +69,29 @@ CREATE TABLE `admin_roles` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `app_update_configs`
+--
+
+CREATE TABLE `app_update_configs` (
+  `id` int(11) NOT NULL,
+  `android_latest_version` varchar(50) NOT NULL,
+  `android_minimum_version` varchar(50) NOT NULL,
+  `android_store_url` varchar(500) NOT NULL,
+  `android_title` varchar(255) NOT NULL,
+  `android_message` text NOT NULL,
+  `android_required` tinyint(1) NOT NULL DEFAULT 0,
+  `ios_latest_version` varchar(50) NOT NULL,
+  `ios_minimum_version` varchar(50) NOT NULL,
+  `ios_store_url` varchar(500) NOT NULL,
+  `ios_title` varchar(255) NOT NULL,
+  `ios_message` text NOT NULL,
+  `ios_required` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `cart`
 --
 
@@ -415,6 +438,10 @@ ALTER TABLE `material_request_votes`
   ADD KEY `idx_material_request_votes_request` (`request_id`),
   ADD KEY `idx_material_request_votes_user` (`user_id`);
 
+ALTER TABLE `app_update_configs`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `created_at` (`created_at`);
+
 --
 -- Indexes for table `admin_roles`
 --
@@ -501,6 +528,12 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `admins`
 --
 ALTER TABLE `admins`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `app_update_configs`
+--
+ALTER TABLE `app_update_configs`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --

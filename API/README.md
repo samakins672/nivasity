@@ -939,6 +939,51 @@ GET /materials/details.php?code=MAN-2024-001
 
 ---
 
+### App Endpoints
+
+#### App Update Config
+**Endpoint:** `GET /app/update-config.php`
+
+**Description:** Retrieve the latest mobile app update configuration for Android and iOS. The endpoint reads the newest row from the `app_update_configs` table and returns soft-update and force-update settings for both platforms.
+
+**Authentication:** Not required
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "App update configuration retrieved successfully",
+  "data": {
+    "android": {
+      "latestVersion": "1.0.1",
+      "minimumVersion": "1.0.0",
+      "storeUrl": "https://play.google.com/store/apps/details?id=com.nivasity.app",
+      "title": "Update available",
+      "message": "A newer version is available.",
+      "required": false
+    },
+    "ios": {
+      "latestVersion": "1.0.1",
+      "minimumVersion": "1.0.0",
+      "storeUrl": "https://apps.apple.com/app/id1234567890",
+      "title": "Update available",
+      "message": "A newer version is available.",
+      "required": false
+    }
+  }
+}
+```
+
+**Response Fields:**
+- `latestVersion`: Used for soft update prompts when the installed app version is behind the newest available build
+- `minimumVersion`: Used to force an update when the installed app version is below the minimum supported build
+- `storeUrl`: Destination URL to open the relevant app store listing
+- `title`: Title text for the update prompt
+- `message`: Body text for the update prompt
+- `required`: Explicit force-update flag for the platform
+
+---
+
 ### Payment Endpoints
 
 #### 18. Get Payment Gateway

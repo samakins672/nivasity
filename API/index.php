@@ -20,6 +20,9 @@ $response = [
             'POST /profile/change-password.php' => 'Change password',
             'POST /profile/delete-account.php' => 'Delete account'
         ],
+        'app' => [
+            'GET /app/update-config.php' => 'Get the latest Android and iOS app update prompt configuration'
+        ],
         'materials' => [
             'GET /materials/list.php' => 'List available materials',
             'GET /materials/details.php' => 'Get material details',
