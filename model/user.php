@@ -2,6 +2,7 @@
 include('config.php');
 include('mail.php');
 include('functions.php');
+include('email_change_service.php');
 require_once __DIR__ . '/../config/fw.php';
 $statusRes = $messageRes = $roleRes = 'failed';
 $responseData = null;
@@ -156,6 +157,60 @@ if (isset($_POST['resend_verification'])) {
         }
       }
     }
+  }
+}
+
+if (isset($_POST['request_email_change'])) {
+  session_start();
+  $user_id = isset($_SESSION['nivas_userId']) ? (int) $_SESSION['nivas_userId'] : 0;
+  $new_email = trim((string) ($_POST['new_email'] ?? ''));
+
+  try {
+    if ($user_id <= 0) {
+      throw new Exception('Your session has expired. Please sign in again.');
+    }
+
+    $result = nivasityDispatchEmailChangeOtp($conn, $user_id, $new_email);
+    $statusRes = 'success';
+    $messageRes = 'OTP sent to your new email address. Please check your inbox.';
+    $responseData = array(
+      'role' => "$roleRes",
+      'status' => "$statusRes",
+      'message' => "$messageRes",
+      'new_email' => $result['new_email'],
+      'expires_in' => $result['expires_in']
+    );
+  } catch (Throwable $e) {
+    $statusRes = 'failed';
+    $messageRes = $e->getMessage();
+  }
+}
+
+if (isset($_POST['verify_email_change'])) {
+  session_start();
+  $user_id = isset($_SESSION['nivas_userId']) ? (int) $_SESSION['nivas_userId'] : 0;
+  $new_email = trim((string) ($_POST['new_email'] ?? ''));
+  $otp = trim((string) ($_POST['otp'] ?? ''));
+
+  try {
+    if ($user_id <= 0) {
+      throw new Exception('Your session has expired. Please sign in again.');
+    }
+
+    $result = nivasityConfirmEmailChangeOtp($conn, $user_id, $new_email, $otp);
+    $_SESSION['nivas_userEmail'] = $result['email'];
+    $statusRes = 'success';
+    $messageRes = 'Email address updated successfully.';
+    $responseData = array(
+      'role' => "$roleRes",
+      'status' => "$statusRes",
+      'message' => "$messageRes",
+      'email' => $result['email'],
+      'old_email' => $result['old_email']
+    );
+  } catch (Throwable $e) {
+    $statusRes = 'failed';
+    $messageRes = $e->getMessage();
   }
 }
 

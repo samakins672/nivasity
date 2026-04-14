@@ -17,6 +17,8 @@ $response = [
         'profile' => [
             'GET /profile/profile.php' => 'Get user profile',
             'POST /profile/update-profile.php' => 'Update profile',
+            'POST /profile/request-email-change.php' => 'Send an OTP to a new email address before changing it',
+            'POST /profile/verify-email-change.php' => 'Verify the OTP for a pending email change and update the account email',
             'POST /profile/change-password.php' => 'Change password',
             'POST /profile/delete-account.php' => 'Delete account'
         ],

@@ -429,6 +429,59 @@ This approach separates OTP verification from password update for better securit
 }
 ```
 
+#### Request Email Change OTP
+**Endpoint:** `POST /profile/request-email-change.php`
+
+**Description:** Send a 6-digit OTP to a new email address before changing the authenticated user's account email.
+
+**Authentication:** Required
+
+**Request Body (JSON):**
+```json
+{
+  "new_email": "newaddress@example.com"
+}
+```
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "OTP sent to your new email address. Please check your inbox.",
+  "data": {
+    "new_email": "newaddress@example.com",
+    "expires_in": 600
+  }
+}
+```
+
+#### Verify Email Change OTP
+**Endpoint:** `POST /profile/verify-email-change.php`
+
+**Description:** Verify the OTP sent to a pending new email address and update the authenticated user's account email.
+
+**Authentication:** Required
+
+**Request Body (JSON):**
+```json
+{
+  "new_email": "newaddress@example.com",
+  "otp": "123456"
+}
+```
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Email address updated successfully.",
+  "data": {
+    "old_email": "student@example.com",
+    "email": "newaddress@example.com"
+  }
+}
+```
+
 #### 9. Update Academic Information
 **Endpoint:** `POST /profile/update-academic-info.php`
 

@@ -137,6 +137,21 @@ CREATE TABLE `depts` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `email_change_requests`
+--
+
+CREATE TABLE `email_change_requests` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `new_email` varchar(255) NOT NULL,
+  `otp` varchar(10) NOT NULL,
+  `exp_date` datetime NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `events`
 --
 
@@ -467,6 +482,15 @@ ALTER TABLE `depts`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `email_change_requests`
+--
+ALTER TABLE `email_change_requests`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uniq_email_change_requests_user` (`user_id`),
+  ADD KEY `idx_email_change_requests_email` (`new_email`),
+  ADD KEY `idx_email_change_requests_exp_date` (`exp_date`);
+
+--
 -- Indexes for table `events`
 --
 ALTER TABLE `events`
@@ -558,6 +582,12 @@ ALTER TABLE `faculties`
 -- AUTO_INCREMENT for table `depts`
 --
 ALTER TABLE `depts`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `email_change_requests`
+--
+ALTER TABLE `email_change_requests`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --

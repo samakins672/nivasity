@@ -201,10 +201,13 @@ if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !
                                 </div>
 
                               </div>
-                              <!-- Save button -->
-                              <button id="profile_submit" type="submit"
-                                class="btn btn-primary fw-bold btn-lg btn-block mt-2">Save
-                                Changes</button>
+                              <div class="d-flex flex-wrap gap-2 mt-2">
+                                <button id="profile_submit" type="submit"
+                                  class="btn btn-primary fw-bold btn-lg btn-block">Save
+                                  Changes</button>
+                                <button type="button" class="btn btn-outline-primary fw-bold btn-lg btn-block"
+                                  data-bs-toggle="modal" data-bs-target="#emailChangeModal">Update My Email Address</button>
+                              </div>
 
                             </div>
                           </form>
@@ -438,6 +441,37 @@ if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !
                     </div>
                   </div>
                 </div>
+
+                <div class="modal fade" id="emailChangeModal" tabindex="-1" aria-labelledby="emailChangeModalLabel" aria-hidden="true">
+                  <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title fw-bold" id="emailChangeModalLabel">Update My Email Address</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <form id="email-change-form">
+                        <div class="modal-body">
+                          <div class="form-outline mb-3">
+                            <input type="email" id="email_change_new_email" name="new_email" class="form-control form-control-lg w-100" required>
+                            <label class="form-label" for="email_change_new_email">New Email Address</label>
+                          </div>
+                          <div id="emailChangeInstructions" class="alert alert-info mb-0">
+                            Enter your new email address and request an OTP. We will send a 6-digit code to that new email for verification.
+                          </div>
+                          <div id="emailChangeOtpWrap" class="form-outline mt-3 d-none">
+                            <input type="text" id="email_change_otp" name="otp" class="form-control form-control-lg w-100" maxlength="6" inputmode="numeric">
+                            <label class="form-label" for="email_change_otp">OTP</label>
+                          </div>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-lg btn-light" data-bs-dismiss="modal">Cancel</button>
+                          <button type="button" id="request_email_change_btn" class="btn btn-lg btn-primary">Send OTP</button>
+                          <button type="button" id="verify_email_change_btn" class="btn btn-lg btn-primary d-none">Verify &amp; Update</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
                 
                 <!-- Add New Manual Modal -->
                 <div class="modal fade" id="addManual" tabindex="-1" role="dialog" aria-labelledby="addManualLabel"
@@ -555,6 +589,40 @@ if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !
         width: '100%',
         theme: 'bootstrap'
       });
+
+      var emailChangeModalElement = document.getElementById('emailChangeModal');
+      var emailChangeModal = emailChangeModalElement ? new bootstrap.Modal(emailChangeModalElement) : null;
+
+      function showProfileBanner(message, status) {
+        $('#alertBanner').html(message);
+
+        if (status == 'success') {
+          $('#alertBanner').removeClass('alert-info');
+          $('#alertBanner').removeClass('alert-danger');
+          $('#alertBanner').addClass('alert-success');
+        } else {
+          $('#alertBanner').removeClass('alert-success');
+          $('#alertBanner').removeClass('alert-info');
+          $('#alertBanner').addClass('alert-danger');
+        }
+
+        $('#alertBanner').fadeIn();
+
+        setTimeout(function () {
+          $('#alertBanner').fadeOut();
+        }, 5000);
+      }
+
+      function resetEmailChangeModal() {
+        if ($('#email-change-form')[0]) {
+          $('#email-change-form')[0].reset();
+        }
+        $('#email_change_new_email').prop('readonly', false);
+        $('#emailChangeOtpWrap').addClass('d-none');
+        $('#verify_email_change_btn').addClass('d-none').prop('disabled', false).text('Verify & Update');
+        $('#request_email_change_btn').removeClass('d-none').prop('disabled', false).text('Send OTP');
+        $('#emailChangeInstructions').removeClass('alert-danger alert-success').addClass('alert-info').text('Enter your new email address and request an OTP. We will send a 6-digit code to that new email for verification.');
+      }
       
       $('#upload').on('change', function (event) {
         const file = event.target.files[0]; // Get the uploaded file
@@ -666,6 +734,94 @@ if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !
             }
         });
       });
+
+      $('#request_email_change_btn').on('click', function () {
+        var button = $(this);
+        var originalText = button.text();
+        var newEmail = $.trim($('#email_change_new_email').val());
+
+        if (!newEmail) {
+          $('#emailChangeInstructions').removeClass('alert-info alert-success').addClass('alert-danger').text('Enter the new email address you want to use.');
+          return;
+        }
+
+        button.prop('disabled', true).text('Sending...');
+
+        $.ajax({
+          type: 'POST',
+          url: 'model/user.php',
+          data: {
+            request_email_change: 1,
+            new_email: newEmail
+          },
+          success: function (data) {
+            if (data.status == 'success') {
+              $('#email_change_new_email').val(data.new_email || newEmail).prop('readonly', true);
+              $('#emailChangeOtpWrap').removeClass('d-none');
+              $('#request_email_change_btn').addClass('d-none');
+              $('#verify_email_change_btn').removeClass('d-none');
+              $('#emailChangeInstructions').removeClass('alert-info alert-danger').addClass('alert-success').text(data.message);
+              showProfileBanner(data.message, data.status);
+            } else {
+              $('#emailChangeInstructions').removeClass('alert-info alert-success').addClass('alert-danger').text(data.message);
+              showProfileBanner(data.message, data.status);
+            }
+          },
+          complete: function () {
+            button.prop('disabled', false).text(originalText);
+          }
+        });
+      });
+
+      $('#verify_email_change_btn').on('click', function () {
+        var button = $(this);
+        var originalText = button.text();
+        var newEmail = $.trim($('#email_change_new_email').val());
+        var otp = $.trim($('#email_change_otp').val());
+
+        if (!otp) {
+          $('#emailChangeInstructions').removeClass('alert-info alert-success').addClass('alert-danger').text('Enter the OTP sent to your new email address.');
+          return;
+        }
+
+        button.prop('disabled', true).text('Verifying...');
+
+        $.ajax({
+          type: 'POST',
+          url: 'model/user.php',
+          data: {
+            verify_email_change: 1,
+            new_email: newEmail,
+            otp: otp
+          },
+          success: function (data) {
+            if (data.status == 'success') {
+              $('input[name="email"]').val(data.email);
+              $('#emailChangeInstructions').removeClass('alert-info alert-danger').addClass('alert-success').text(data.message);
+              showProfileBanner(data.message, data.status);
+
+              setTimeout(function () {
+                if (emailChangeModal) {
+                  emailChangeModal.hide();
+                }
+                location.reload();
+              }, 1200);
+            } else {
+              $('#emailChangeInstructions').removeClass('alert-info alert-success').addClass('alert-danger').text(data.message);
+              showProfileBanner(data.message, data.status);
+            }
+          },
+          complete: function () {
+            button.prop('disabled', false).text(originalText);
+          }
+        });
+      });
+
+      if (emailChangeModalElement) {
+        emailChangeModalElement.addEventListener('hidden.bs.modal', function () {
+          resetEmailChangeModal();
+        });
+      }
 
     });
 
