@@ -5,20 +5,22 @@ require_once __DIR__ . '/receipt_pdf.php';
 if (!class_exists('NivasityManualExportPdfComposer')) {
   class NivasityManualExportPdfComposer
   {
-    private float $pageWidth = 595.28;
-    private float $pageHeight = 841.89;
-    private float $contentTop = 56.0;
-    private float $contentBottom = 780.0;
-    private float $cursorY = 56.0;
-    private array $pages = [];
-    private string $content = '';
+    private $pageWidth = 595.28;
+    private $pageHeight = 841.89;
+    private $contentTop = 56.0;
+    private $contentBottom = 780.0;
+    private $cursorY = 56.0;
+    private $pages = [];
+    private $content = '';
+    private $watermarkImage = [];
 
-    public function __construct(private array $watermarkImage)
+    public function __construct(array $watermarkImage)
     {
+      $this->watermarkImage = $watermarkImage;
       $this->startPage();
     }
 
-    public function output(array $payload): string
+    public function output(array $payload)
     {
       $title = strtoupper(trim((string) ($payload['heading'] ?? 'MATERIAL EXPORT LIST')));
       $metaLines = $payload['meta_lines'] ?? [];
@@ -45,20 +47,20 @@ if (!class_exists('NivasityManualExportPdfComposer')) {
       return $this->buildPdf();
     }
 
-    private function startPage(): void
+    private function startPage()
     {
       $this->content = '';
       $this->cursorY = $this->contentTop;
       $this->drawWatermark();
     }
 
-    private function finishPage(): void
+    private function finishPage()
     {
       $this->pages[] = $this->content;
       $this->content = '';
     }
 
-    private function ensureSpace(float $height): bool
+    private function ensureSpace($height)
     {
       if (($this->cursorY + $height) <= $this->contentBottom) {
         return false;
@@ -70,7 +72,7 @@ if (!class_exists('NivasityManualExportPdfComposer')) {
       return true;
     }
 
-    private function drawWatermark(): void
+    private function drawWatermark()
     {
       $watermarkWidth = $this->pageWidth * 0.80;
       $aspectRatio = $this->watermarkImage['height'] / max(1, $this->watermarkImage['width']);
@@ -78,7 +80,7 @@ if (!class_exists('NivasityManualExportPdfComposer')) {
       $this->drawRotatedCenteredImage('Im1', $this->pageWidth / 2, $this->pageHeight / 2, $watermarkWidth, $watermarkHeight, -45.0, 0.08);
     }
 
-    private function drawTableHeader(array $headers): void
+    private function drawTableHeader(array $headers)
     {
       $this->ensureSpace(26);
       $this->line(50, $this->cursorY + 22, 545, $this->cursorY + 22, [0.870, 0.870, 0.870], 1.0);
@@ -94,7 +96,7 @@ if (!class_exists('NivasityManualExportPdfComposer')) {
       $this->cursorY += 26;
     }
 
-    private function drawTableRow(array $headers, array $row): void
+    private function drawTableRow(array $headers, array $row)
     {
       $lineCounts = [];
       foreach ($headers as $header) {
@@ -124,7 +126,7 @@ if (!class_exists('NivasityManualExportPdfComposer')) {
       $this->cursorY += $rowHeight;
     }
 
-    private function wrapText(string $text, float $maxWidth, float $fontSize): array
+    private function wrapText($text, $maxWidth, $fontSize)
     {
       $normalized = preg_replace('/\s+/u', ' ', trim($text));
       if ($normalized === null || $normalized === '') {
@@ -158,38 +160,38 @@ if (!class_exists('NivasityManualExportPdfComposer')) {
       return $lines === [] ? [''] : $lines;
     }
 
-    private function estimateTextWidth(string $text, float $fontSize): float
+    private function estimateTextWidth($text, $fontSize)
     {
       return strlen(receipt_pdf_escape_text($text)) * ($fontSize * 0.50);
     }
 
-    private function text(float $x, float $yTop, string $text, string $font, float $size, array $color): void
+    private function text($x, $yTop, $text, $font, $size, array $color)
     {
       $bottomY = $this->pageHeight - $yTop - ($size * 0.82);
       $escaped = receipt_pdf_escape_text($text);
       $this->content .= sprintf("q %.3F %.3F %.3F rg BT /%s %.2F Tf 1 0 0 1 %.2F %.2F Tm (%s) Tj ET Q\n", $color[0], $color[1], $color[2], $font, $size, $x, $bottomY, $escaped);
     }
 
-    private function textCentered(float $centerX, float $yTop, string $text, string $font, float $size, array $color): void
+    private function textCentered($centerX, $yTop, $text, $font, $size, array $color)
     {
       $width = $this->estimateTextWidth($text, $size);
       $this->text($centerX - ($width / 2), $yTop, $text, $font, $size, $color);
     }
 
-    private function textRight(float $rightX, float $yTop, string $text, string $font, float $size, array $color): void
+    private function textRight($rightX, $yTop, $text, $font, $size, array $color)
     {
       $width = $this->estimateTextWidth($text, $size);
       $this->text(max(50.0, $rightX - $width), $yTop, $text, $font, $size, $color);
     }
 
-    private function line(float $x1, float $y1Top, float $x2, float $y2Top, array $color, float $width): void
+    private function line($x1, $y1Top, $x2, $y2Top, array $color, $width)
     {
       $y1 = $this->pageHeight - $y1Top;
       $y2 = $this->pageHeight - $y2Top;
       $this->content .= sprintf("q %.3F %.3F %.3F RG %.2F w %.2F %.2F m %.2F %.2F l S Q\n", $color[0], $color[1], $color[2], $width, $x1, $y1, $x2, $y2);
     }
 
-    private function drawRotatedCenteredImage(string $imageName, float $centerX, float $centerYTop, float $width, float $height, float $degrees, float $opacity): void
+    private function drawRotatedCenteredImage($imageName, $centerX, $centerYTop, $width, $height, $degrees, $opacity)
     {
       $angle = deg2rad($degrees);
       $cos = cos($angle);
@@ -211,10 +213,10 @@ if (!class_exists('NivasityManualExportPdfComposer')) {
       );
     }
 
-    private function buildPdf(): string
+    private function buildPdf()
     {
       $objects = [];
-      $addObject = static function (string $body) use (&$objects): int {
+      $addObject = static function ($body) use (&$objects) {
         $objects[] = $body;
         return count($objects);
       };
@@ -244,7 +246,9 @@ if (!class_exists('NivasityManualExportPdfComposer')) {
         $pageIds[] = $pageId;
       }
 
-      $kids = implode(' ', array_map(static fn (int $pageId): string => $pageId . ' 0 R', $pageIds));
+      $kids = implode(' ', array_map(static function ($pageId) {
+        return $pageId . ' 0 R';
+      }, $pageIds));
       $objects[$pagesNodeId - 1] = "<< /Type /Pages /Count " . count($pageIds) . " /Kids [ {$kids} ] >>";
       $catalogId = $addObject("<< /Type /Catalog /Pages {$pagesNodeId} 0 R >>");
 
@@ -269,7 +273,7 @@ if (!class_exists('NivasityManualExportPdfComposer')) {
 }
 
 if (!function_exists('manual_export_pdf_render')) {
-  function manual_export_pdf_render(array $payload, ?string $watermarkPath = null): string
+  function manual_export_pdf_render(array $payload, $watermarkPath = null)
   {
     $resolvedWatermarkPath = $watermarkPath ?: dirname(__DIR__) . '/assets/images/nivasity-main.png';
     $watermarkImage = receipt_pdf_parse_png($resolvedWatermarkPath);
