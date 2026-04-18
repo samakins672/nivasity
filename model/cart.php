@@ -113,7 +113,7 @@ if (isset($_POST['reload_cart'])) {
                     <h6>&#8358; ' . number_format($cart_item['price']) . '</h6>
                 </td>
                 <td>
-                    <h6>' . $due_date . '</h6>
+                    <h6>---</h6>
                 </td>
                 <td>
                     <a class="btn btn-sm btn-outline-primary mb-0 btn-block remove-cart" data-mdb-ripple-duration="0ms" data-type="product" data-cart_id="' . $cart_item_id . '">Remove</a>

@@ -552,7 +552,6 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                     <th class="d-sm-none-2">Unit Price</th>
                                     <th>Revenue</th>
                                     <th class="d-sm-none-2">Availability</th>
-                                    <th class="d-sm-none-2">Due Date</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                   </tr>
@@ -665,9 +664,6 @@ if (mysqli_num_rows($settlement_query) == 0) {
                                                   aria-valuenow="<?php echo $percentage_sold ?>" aria-valuemin="0" aria-valuemax="100"></div>
                                             </div>
                                           </div>
-                                        </td>
-                                        <td class="d-sm-none-2">
-                                          <h6><?php echo $due_date ?></h6>
                                         </td>
                                         <td>
                                           <div class="badge <?php echo ($status == 'open') ? 'bg-success' : 'bg-danger'; ?>"> <?php echo ($status == 'open') ? 'Active' : 'Closed'; ?> </div>

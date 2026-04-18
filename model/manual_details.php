@@ -67,7 +67,6 @@ $is_public = isset($_GET['public']) || isset($_POST['public']);
     <div>
       <h5 class="mb-1 fw-bold"><?php echo htmlspecialchars($manual['title']); ?> <span class="text-secondary">- <?php echo htmlspecialchars($manual['course_code']); ?></span></h5>
       <p class="mb-2"><span class="fw-bold">Price:</span> &#8358; <span class="fw-bold"><?php echo $price; ?></span></p>
-      <p class="mb-2"><span class="fw-bold">Due date:</span> <span class="fw-bold <?php echo $is_overdue ? 'text-danger' : 'text-success'; ?>"><?php echo $due_date; ?></span></p>
       <p class="mb-0 text-secondary">By: <?php echo htmlspecialchars($material_scope_label); ?></p>
     </div>
   </div>

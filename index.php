@@ -517,7 +517,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                                           <div class="media-body">
                                             <h3 class="fw-bold price">₦ <?php echo number_format($manual['price']) ?></h3>
                                             <p class="card-text">
-                                              Due date:<span class="fw-bold text-<?php echo $status_c ?> due_date"> <?php echo $due_date ?></span><br>
+                                              <br>
                                               <span class="text-secondary">By: <?php echo $material_scope_label; ?></span>
                                             </p>
                                           </div>
