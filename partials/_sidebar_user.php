@@ -24,6 +24,12 @@
         <span class="menu-title <?php echo ($url == 'index.php') ? 'text-white fw-bold' : ''; ?>">Store</span>
       </a>
     </li>
+    <li class="nav-item <?php echo ($url == 'wallet.php') ? 'active' : ''; ?>">
+      <a class="nav-link" href="wallet.php">
+        <i class="mdi mdi-wallet menu-icon"></i>
+        <span class="menu-title">Nivasity Wallet</span>
+      </a>
+    </li>
     <!-- <li class="nav-item nav-category">Dashboard</li> -->
     <?php if ($_SESSION['nivas_userRole'] !== 'org_admin'): ?>
     <li class="nav-item">
@@ -43,12 +49,6 @@
       <a class="nav-link" href="tickets.php">
         <i class="mdi mdi-ticket menu-icon"></i>
         <span class="menu-title">Event Tickets</span>
-      </a>
-    </li>
-    <li class="nav-item <?php echo ($url == 'wallet.php') ? 'active' : ''; ?>">
-      <a class="nav-link" href="wallet.php">
-        <i class="mdi mdi-wallet menu-icon"></i>
-        <span class="menu-title">Nivasity Wallet</span>
       </a>
     </li>
     <li class="nav-item">
