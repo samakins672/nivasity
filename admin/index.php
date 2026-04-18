@@ -1246,6 +1246,11 @@ if (mysqli_num_rows($settlement_query) == 0) {
 
         </div>
         <!-- content-wrapper ends -->
+        <?php
+          $nivasity_intro_mark_seen_url = '../model/user.php';
+          $nivasity_intro_cta_label = 'Continue to dashboard';
+          include('../partials/_nivasity_2_modal.php');
+        ?>
         <!-- partial:partials/_footer.php -->
         <?php include('../partials/_footer.php') ?>
         <!-- partial -->

@@ -736,6 +736,11 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
         </div>
         <!-- content-wrapper ends -->
+        <?php
+          $nivasity_intro_mark_seen_url = 'model/user.php';
+          $nivasity_intro_cta_label = 'Continue to Nivasity';
+          include('partials/_nivasity_2_modal.php');
+        ?>
         <!-- partial:partials/_footer.php -->
         <?php include('partials/_footer.php') ?>
         <!-- partial -->

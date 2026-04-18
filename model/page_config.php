@@ -24,6 +24,7 @@ if (!isset($_SESSION['nivas_userId'])) {
 if (isset($_SESSION['nivas_userId'])) {
   $user_id = $_SESSION['nivas_userId'];
   $school_id = $_SESSION['nivas_userSch'];
+  $nivasity_2_intro_seen = false;
   $mobile_experience_prompt_state = [
     'captured' => false,
     'visit_count' => 0,
@@ -44,6 +45,9 @@ if (isset($_SESSION['nivas_userId'])) {
   $l_name = $user_['last_name'];
   $l_name = $user_['last_name'];
   $user_name = $f_name .' '. $l_name;
+  if (array_key_exists('nivasity_2_intro_seen_at', $user_)) {
+    $nivasity_2_intro_seen = !empty($user_['nivasity_2_intro_seen_at']);
+  }
   
   $is_admin_role = False;
 

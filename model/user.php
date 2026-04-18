@@ -362,6 +362,35 @@ if (isset($_POST['switch_academic_role'])) {
   }
 }
 
+if (isset($_POST['dismiss_nivasity_2_intro'])) {
+  if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+  }
+
+  $user_id = isset($_SESSION['nivas_userId']) ? (int) $_SESSION['nivas_userId'] : 0;
+
+  if ($user_id <= 0) {
+    $statusRes = 'failed';
+    $messageRes = 'Your session has expired. Please sign in again.';
+  } else {
+    mysqli_query($conn, "UPDATE users SET nivasity_2_intro_seen_at = NOW() WHERE id = $user_id LIMIT 1");
+
+    if (mysqli_errno($conn) !== 0) {
+      $statusRes = 'error';
+      $messageRes = 'We could not save your update preference right now.';
+    } else {
+      $statusRes = 'success';
+      $messageRes = 'Update preference saved.';
+      $responseData = array(
+        'role' => "$roleRes",
+        'status' => "$statusRes",
+        'message' => "$messageRes",
+        'dismissed' => true
+      );
+    }
+  }
+}
+
 if (isset($_POST['change_password'])) {
   session_start();
   $user_id = $_SESSION['nivas_userId'];
