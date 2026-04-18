@@ -134,8 +134,8 @@ if (!class_exists('NivasityReceiptPdfComposer')) {
     {
       $this->startPage();
     }
-
-    public function output(array $receiptData): string
+      $this->headerImage = $headerImage; // Assign headerImage
+    public function output(array $receiptData)
     {
       $purple = [0.478, 0.231, 0.451];
       $muted = [0.333, 0.333, 0.333];
@@ -178,20 +178,20 @@ if (!class_exists('NivasityReceiptPdfComposer')) {
       return $this->buildPdf();
     }
 
-    private function startPage(): void
+    private function startPage()
     {
       $this->content = '';
       $this->cursorY = $this->contentTop;
       $this->drawChrome();
     }
 
-    private function finishPage(): void
+    private function finishPage()
     {
       $this->pages[] = $this->content;
       $this->content = '';
     }
 
-    private function ensureSpace(float $height): void
+    private function ensureSpace($height)
     {
       if (($this->cursorY + $height) <= $this->contentBottom) {
         return;
@@ -203,7 +203,7 @@ if (!class_exists('NivasityReceiptPdfComposer')) {
       $this->cursorY = 136;
     }
 
-    private function drawChrome(): void
+    private function drawChrome()
     {
       $this->strokeRect(28, 28, 539.28, 742, [0.478, 0.231, 0.451], 1.2);
       $this->drawImage('Im1', 42, 42, 160, 49);
@@ -215,7 +215,7 @@ if (!class_exists('NivasityReceiptPdfComposer')) {
       $this->text(42, 792, 'Copyright © Nivasity. 2025 All rights reserved.', 'F1', 8.5, [0.360, 0.360, 0.360]);
     }
 
-    private function drawTableHeader(): void
+    private function drawTableHeader()
     {
       $this->fillRect(42, $this->cursorY, 511.28, 24, [0.985, 0.985, 0.985]);
       $this->line(42, $this->cursorY + 24, 553, $this->cursorY + 24, [0.910, 0.910, 0.910], 1.0);
@@ -225,7 +225,7 @@ if (!class_exists('NivasityReceiptPdfComposer')) {
       $this->cursorY += 28;
     }
 
-    private function drawItemRow(array $item): void
+    private function drawItemRow(array $item)
     {
       $itemText = (string) ($item['name'] ?? '');
       $metaText = html_entity_decode((string) ($item['meta'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
@@ -258,13 +258,13 @@ if (!class_exists('NivasityReceiptPdfComposer')) {
       $this->cursorY += $rowHeight;
     }
 
-    private function labelValueLine(float $x, float $y, string $label, string $value): void
+    private function labelValueLine($x, $y, $label, $value)
     {
       $this->text($x, $y, $label . ':', 'F2', 10, [0.220, 0.220, 0.220]);
       $this->text($x + 90, $y, $value, 'F1', 10, [0.220, 0.220, 0.220]);
     }
 
-    private function wrapText(string $text, float $maxWidth, float $fontSize): array
+    private function wrapText($text, $maxWidth, $fontSize)
     {
       $normalized = preg_replace('/\s+/u', ' ', trim($text));
       if ($normalized === null || $normalized === '') {
@@ -305,59 +305,59 @@ if (!class_exists('NivasityReceiptPdfComposer')) {
       return $lines === [] ? [''] : $lines;
     }
 
-    private function estimateTextWidth(string $text, float $fontSize): float
+    private function estimateTextWidth($text, $fontSize)
     {
       $encoded = receipt_pdf_escape_text($text);
       return strlen($encoded) * ($fontSize * 0.52);
     }
 
-    private function formatCurrency(float $amount): string
+    private function formatCurrency($amount)
     {
       return 'NGN ' . number_format($amount, 2);
     }
 
-    private function text(float $x, float $yTop, string $text, string $font, float $size, array $color): void
+    private function text($x, $yTop, $text, $font, $size, $color)
     {
       $bottomY = $this->pageHeight - $yTop - ($size * 0.82);
       $escaped = receipt_pdf_escape_text($text);
       $this->content .= sprintf("q %.3F %.3F %.3F rg BT /%s %.2F Tf 1 0 0 1 %.2F %.2F Tm (%s) Tj ET Q\n", $color[0], $color[1], $color[2], $font, $size, $x, $bottomY, $escaped);
     }
 
-    private function textRight(float $rightX, float $yTop, string $text, string $font, float $size, array $color): void
+    private function textRight($rightX, $yTop, $text, $font, $size, $color)
     {
       $width = $this->estimateTextWidth($text, $size);
       $this->text(max(42.0, $rightX - $width), $yTop, $text, $font, $size, $color);
     }
 
-    private function line(float $x1, float $y1Top, float $x2, float $y2Top, array $color, float $width): void
+    private function line($x1, $y1Top, $x2, $y2Top, $color, $width)
     {
       $y1 = $this->pageHeight - $y1Top;
       $y2 = $this->pageHeight - $y2Top;
       $this->content .= sprintf("q %.3F %.3F %.3F RG %.2F w %.2F %.2F m %.2F %.2F l S Q\n", $color[0], $color[1], $color[2], $width, $x1, $y1, $x2, $y2);
     }
 
-    private function strokeRect(float $x, float $yTop, float $width, float $height, array $color, float $lineWidth): void
+    private function strokeRect($x, $yTop, $width, $height, $color, $lineWidth)
     {
       $bottomY = $this->pageHeight - $yTop - $height;
       $this->content .= sprintf("q %.3F %.3F %.3F RG %.2F w %.2F %.2F %.2F %.2F re S Q\n", $color[0], $color[1], $color[2], $lineWidth, $x, $bottomY, $width, $height);
     }
 
-    private function fillRect(float $x, float $yTop, float $width, float $height, array $color): void
+    private function fillRect($x, $yTop, $width, $height, $color)
     {
       $bottomY = $this->pageHeight - $yTop - $height;
       $this->content .= sprintf("q %.3F %.3F %.3F rg %.2F %.2F %.2F %.2F re f Q\n", $color[0], $color[1], $color[2], $x, $bottomY, $width, $height);
     }
 
-    private function drawImage(string $imageName, float $x, float $yTop, float $width, float $height): void
+    private function drawImage($imageName, $x, $yTop, $width, $height)
     {
       $bottomY = $this->pageHeight - $yTop - $height;
       $this->content .= sprintf("q %.2F 0 0 %.2F %.2F %.2F cm /%s Do Q\n", $width, $height, $x, $bottomY, $imageName);
     }
 
-    private function buildPdf(): string
+    private function buildPdf()
     {
       $objects = [];
-      $addObject = static function (string $body) use (&$objects): int {
+      $addObject = static function ($body) use (&$objects) {
         $objects[] = $body;
         return count($objects);
       };
@@ -410,7 +410,7 @@ if (!class_exists('NivasityReceiptPdfComposer')) {
 }
 
 if (!function_exists('receipt_pdf_render')) {
-  function receipt_pdf_render(array $receiptData, ?string $logoPath = null): string
+  function receipt_pdf_render(array $receiptData, $logoPath = null)
   {
     $resolvedHeaderLogoPath = $logoPath ?: dirname(__DIR__) . '/assets/images/nivasity-main.png';
     $headerImage = receipt_pdf_parse_png($resolvedHeaderLogoPath);
