@@ -200,14 +200,22 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       color: #3b312a;
       font-weight: 700;
       margin: 0;
+      min-width: 0;
     }
 
     .cart-payment-summary .summary-row-caption {
-      display: block;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
       margin-top: 0.25rem;
       color: #c46600;
       font-size: 0.82rem;
       font-weight: 700;
+    }
+
+    .cart-payment-summary .summary-row-caption span:last-child {
+      white-space: nowrap;
     }
 
     .cart-payment-summary .summary-row-value {
@@ -215,6 +223,8 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       font-weight: 800;
       margin: 0;
       text-align: right;
+      flex-shrink: 0;
+      white-space: nowrap;
     }
 
     .payment-options-heading {
@@ -352,9 +362,15 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       font-size: 0.9rem;
     }
 
+    .cart-payment-meta-row span:first-child {
+      min-width: 0;
+    }
+
     .cart-payment-meta-row strong {
       color: #211d1a;
       font-weight: 800;
+      flex-shrink: 0;
+      white-space: nowrap;
     }
 
     .cart-payment-meta-row.is-final-total {
@@ -453,16 +469,22 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       }
 
       .cart-summary-heading,
-      .cart-payment-option-header,
-      .cart-payment-meta-row,
-      .cart-payment-summary .summary-row {
+      .cart-payment-option-header {
         flex-direction: column;
         align-items: flex-start;
       }
 
-      .cart-payment-summary .summary-row-value,
+      .cart-payment-summary .summary-row,
+      .cart-payment-meta-row {
+        align-items: center;
+      }
+
+      .cart-payment-summary .summary-row-value {
+        text-align: right;
+      }
+
       .cart-payment-meta-row strong {
-        text-align: left;
+        text-align: right;
       }
 
       .cart-payment-total {

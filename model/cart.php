@@ -222,7 +222,7 @@ if (isset($_POST['reload_cart'])) {
                             <div>
                                 <p class="summary-row-label">Wallet Fee</p>';
     if ($walletSavings > 0) {
-        echo '<span class="summary-row-caption">(' . $walletSavingsNegativeLabel . ' standard fee)</span>';
+        echo '<span class="summary-row-caption"><span>Standard fee</span><span>' . $walletSavingsNegativeLabel . '</span></span>';
     }
     echo '
                             </div>
@@ -250,10 +250,6 @@ if (isset($_POST['reload_cart'])) {
                             <span class="cart-payment-badge is-wallet">Recommended</span>
                         </div>
                         <div class="cart-payment-meta">
-                            <div class="cart-payment-meta-row">
-                                <span>Wallet Discount</span>
-                                <strong>' . $walletSavingsNegativeLabel . '</strong>
-                            </div>
                             <div class="cart-payment-meta-row is-final-total">
                                 <span>Final Total</span>
                                 <strong>' . $walletTotalLabel . '</strong>
@@ -266,7 +262,6 @@ if (isset($_POST['reload_cart'])) {
                         <button class="btn w-100 cart-payment-action wallet-primary wallet-cart-checkout" data-session_data="'.$sessionData.'" data-wallet_amount="'.$walletTotalAmount.'" data-wallet_charge="'.$walletCharge.'" data-mdb-ripple-duration="0ms">Pay ' . $walletTotalLabel . ' with Wallet</button>';
             } else {
                 echo '
-                        <p class="cart-payment-note">Your wallet is short by ' . $walletShortfallLabel . '. Fund it first if you want the lower total.</p>
                         <button class="btn w-100 cart-payment-action wallet-disabled" disabled>Need ' . $walletShortfallLabel . ' more to use wallet</button>
                         <a class="cart-wallet-helper-link mt-3" href="wallet.php">Open wallet page to fund your wallet</a>';
             }
