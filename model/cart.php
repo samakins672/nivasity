@@ -216,7 +216,7 @@ if (isset($_POST['reload_cart'])) {
                     <div class="cart-summary-breakdown">
                         <div class="summary-row">
                             <p class="summary-row-label">Base Price</p>
-                            <h4 class="summary-row-value">&#8358; ' . number_format($total_cart_price) . '</h4>
+                            <h6 class="summary-row-value">&#8358; ' . number_format($total_cart_price) . '</h6>
                         </div>
                         <div class="summary-row summary-row-stack">
                             <div>
@@ -226,7 +226,7 @@ if (isset($_POST['reload_cart'])) {
     }
     echo '
                             </div>
-                            <h4 class="summary-row-value">' . $walletChargeLabel . '</h4>
+                            <h6 class="summary-row-value">' . $walletChargeLabel . '</h6>
                         </div>
                         <div class="summary-row is-total">
                             <p class="summary-row-label">Total</p>
@@ -282,7 +282,7 @@ if (isset($_POST['reload_cart'])) {
                             <div>
                                 <h5 class="cart-payment-option-title">Gateway Checkout</h5>
                             </div>
-                            <span class="cart-payment-badge is-neutral">Card / Bank Transfer</span>
+                            <span class="cart-payment-badge is-neutral">Card / Bank</span>
                         </div>
                         <div class="cart-payment-meta">
                             <div class="cart-payment-meta-row is-final-total">
