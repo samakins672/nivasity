@@ -218,14 +218,14 @@ if (isset($_POST['reload_cart'])) {
                             <p class="summary-row-label">Base Price</p>
                             <h6 class="summary-row-value">&#8358; ' . number_format($total_cart_price) . '</h6>
                         </div>
-                        <div class="summary-row summary-row-caption">';
+                        <div class="summary-row">
+                            <div>
+                                <p class="summary-row-label">Wallet Fee</p>';
     if ($walletSavings > 0) {
-        echo '<p class="summary-row-label">Standard fee</p><h6 class="summary-row-value">' . $walletSavingsNegativeLabel . '</h6>';
+        echo '<span class="summary-row-caption">(' . $walletSavingsNegativeLabel . ' standard fee)</span>';
     }
     echo '
-                        </div>
-                        <div class="summary-row">
-                            <p class="summary-row-label">Wallet Fee</p>
+                            </div>
                             <h6 class="summary-row-value">' . $walletChargeLabel . '</h6>
                         </div>
                         <div class="summary-row is-total">

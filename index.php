@@ -200,11 +200,8 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
     }
 
     .cart-payment-summary .summary-row-caption {
-      margin-bottom: 0.4rem;
-    }
-
-    .cart-payment-summary .summary-row-caption .summary-row-label,
-    .cart-payment-summary .summary-row-caption .summary-row-value {
+      display: block;
+      margin-top: 0.25rem;
       color: #c46600;
       font-size: 0.82rem;
       font-weight: 700;
