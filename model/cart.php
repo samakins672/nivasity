@@ -194,6 +194,7 @@ if (isset($_POST['reload_cart'])) {
     $gatewayChargeLabel = '&#8358; ' . number_format($charge);
     $walletChargeLabel = '&#8358; ' . number_format($walletCharge);
     $walletSavingsLabel = '&#8358; ' . number_format($walletSavings);
+    $walletSavingsNegativeLabel = '-&#8358; ' . number_format($walletSavings);
     $walletShortfallLabel = '&#8358; ' . number_format($walletShortfall);
 
 
@@ -207,20 +208,40 @@ if (isset($_POST['reload_cart'])) {
         <div class="col-sm-4 grid-margin">
             <div class="card card-rounded shadow-sm cart-payment-summary">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div class="cart-summary-heading">
                         <div>
                             <h4 class="card-title card-title-dash mb-1">Cart Summary</h4>
-                            <p class="summary-muted mb-0">Compare both payment routes before you choose.</p>
+                            <p class="summary-muted mb-0">Review your preferred checkout route before you pay.</p>
                         </div>';
     if ($walletSavings > 0) {
-        echo '<span class="wallet-savings-pill">Save ' . $walletSavingsLabel . ' with wallet</span>';
+        echo '<span class="wallet-savings-pill">Wallet saves ' . $walletSavingsLabel . '</span>';
     }
     echo '
                     </div>
+                    <div class="cart-summary-breakdown">
+                        <div class="summary-row">
+                            <p class="summary-row-label">Base Price</p>
+                            <h4 class="summary-row-value">&#8358; ' . number_format($total_cart_price) . '</h4>
+                        </div>
+                        <div class="summary-row summary-row-stack">
+                            <div>
+                                <p class="summary-row-label">Wallet Fee</p>';
+    if ($walletSavings > 0) {
+        echo '<span class="summary-row-caption">(' . $walletSavingsNegativeLabel . ' standard fee)</span>';
+    }
+    echo '
+                            </div>
+                            <h4 class="summary-row-value">' . $walletChargeLabel . '</h4>
+                        </div>
+                        <div class="summary-row is-total">
+                            <p class="summary-row-label">Total</p>
+                            <h4 class="summary-row-value">' . $walletTotalLabel . '</h4>
+                        </div>
+                    </div>
                     <div class="summary-divider"></div>
-                    <div class="summary-row">
-                        <p class="summary-row-label">Subtotal</p>
-                        <h4 class="summary-row-value">&#8358; ' . number_format($total_cart_price) . '</h4>
+                    <div class="payment-options-heading">
+                        <h5 class="payment-options-title">Payment Options</h5>
+                        <p class="summary-muted mb-0">Choose wallet checkout for the lower final total, or continue with card or bank transfer.</p>
                     </div>
                     <div class="cart-payment-options">';
     if ($total_cart_price > 0) {
@@ -230,22 +251,17 @@ if (isset($_POST['reload_cart'])) {
                         <div class="cart-payment-option-header">
                             <div>
                                 <h5 class="cart-payment-option-title">Nivasity Wallet</h5>
+                                <span class="cart-payment-option-subtitle">Fastest route for the best checkout price.</span>
                             </div>
                             <span class="cart-payment-badge is-wallet">Recommended</span>
                         </div>
                         <div class="cart-payment-meta">
                             <div class="cart-payment-meta-row">
-                                <span>Wallet handling fee</span>
-                                <div>
-                                    <strong>' . $walletChargeLabel . '</strong>';
-        if ($walletSavings > 0) {
-            echo '<span class="fee-strike">' . $gatewayChargeLabel . '</span>';
-        }
-        echo '
-                                </div>
+                                <span>Wallet Discount</span>
+                                <strong>' . $walletSavingsNegativeLabel . '</strong>
                             </div>
-                            <div class="cart-payment-meta-row">
-                                <span>Wallet total</span>
+                            <div class="cart-payment-meta-row is-final-total">
+                                <span>Final Total</span>
                                 <strong>' . $walletTotalLabel . '</strong>
                             </div>';
         echo '
@@ -253,7 +269,7 @@ if (isset($_POST['reload_cart'])) {
         if ($wallet !== null) {
             if ($canPayWithWallet) {
                 echo '
-                        <button class="btn w-100 cart-payment-action wallet-primary wallet-cart-checkout" data-session_data="'.$sessionData.'" data-wallet_amount="'.$walletTotalAmount.'" data-wallet_charge="'.$walletCharge.'" data-mdb-ripple-duration="0ms">Pay ' . $walletTotalLabel . ' with Nivasity Wallet</button>';
+                        <button class="btn w-100 cart-payment-action wallet-primary wallet-cart-checkout" data-session_data="'.$sessionData.'" data-wallet_amount="'.$walletTotalAmount.'" data-wallet_charge="'.$walletCharge.'" data-mdb-ripple-duration="0ms">Pay ' . $walletTotalLabel . ' with Wallet</button>';
             } else {
                 echo '
                         <p class="cart-payment-note">Your wallet is short by ' . $walletShortfallLabel . '. Fund it first if you want the lower total.</p>
@@ -271,16 +287,13 @@ if (isset($_POST['reload_cart'])) {
                         <div class="cart-payment-option-header">
                             <div>
                                 <h5 class="cart-payment-option-title">Gateway Checkout</h5>
+                                <span class="cart-payment-option-subtitle">Card / Bank Transfer</span>
                             </div>
                             <span class="cart-payment-badge is-neutral">Online</span>
                         </div>
                         <div class="cart-payment-meta">
-                            <div class="cart-payment-meta-row">
-                                <span>Gateway handling fee</span>
-                                <strong>' . $gatewayChargeLabel . '</strong>
-                            </div>
-                            <div class="cart-payment-meta-row">
-                                <span>Gateway total</span>
+                            <div class="cart-payment-meta-row is-final-total">
+                                <span>Final Total</span>
                                 <strong>' . $gatewayTotalLabel . '</strong>
                             </div>
                         </div>

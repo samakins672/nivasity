@@ -148,9 +148,25 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       overflow: hidden;
     }
 
+    .cart-summary-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.9rem;
+      flex-wrap: wrap;
+    }
+
     .cart-payment-summary .summary-muted {
       color: #7c6f67;
       font-size: 0.92rem;
+    }
+
+    .cart-summary-breakdown {
+      margin-top: 1.15rem;
+      padding: 1rem 1.05rem;
+      border: 1px solid rgba(255, 145, 0, 0.14);
+      border-radius: 1.1rem;
+      background: linear-gradient(180deg, rgba(255, 248, 238, 0.98) 0%, rgba(255, 255, 255, 1) 100%);
     }
 
     .cart-payment-summary .summary-divider {
@@ -170,10 +186,28 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       margin-bottom: 0;
     }
 
+    .cart-payment-summary .summary-row.summary-row-stack {
+      align-items: flex-start;
+    }
+
+    .cart-payment-summary .summary-row.is-total {
+      padding-top: 0.85rem;
+      margin-top: 0.85rem;
+      border-top: 1px dashed rgba(28, 24, 20, 0.12);
+    }
+
     .cart-payment-summary .summary-row-label {
       color: #3b312a;
       font-weight: 700;
       margin: 0;
+    }
+
+    .cart-payment-summary .summary-row-caption {
+      display: block;
+      margin-top: 0.25rem;
+      color: #c46600;
+      font-size: 0.82rem;
+      font-weight: 700;
     }
 
     .cart-payment-summary .summary-row-value {
@@ -181,6 +215,18 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       font-weight: 800;
       margin: 0;
       text-align: right;
+    }
+
+    .payment-options-heading {
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .payment-options-title {
+      margin: 0;
+      color: #1d1b1a;
+      font-size: 1rem;
+      font-weight: 800;
     }
 
     .cart-payment-summary .wallet-savings-pill {
@@ -311,6 +357,16 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       font-weight: 800;
     }
 
+    .cart-payment-meta-row.is-final-total {
+      padding-top: 0.65rem;
+      border-top: 1px dashed rgba(28, 24, 20, 0.12);
+      margin-top: 0.15rem;
+    }
+
+    .cart-payment-meta-row.is-final-total strong {
+      font-size: 1.05rem;
+    }
+
     .cart-payment-meta-row .fee-strike {
       color: #9a8f87;
       font-weight: 700;
@@ -388,11 +444,25 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
     }
 
     @media (max-width: 575.98px) {
+      .cart-summary-heading,
       .cart-payment-option-header,
       .cart-payment-total,
       .cart-payment-meta-row,
       .cart-payment-summary .summary-row {
         gap: 0.75rem;
+      }
+
+      .cart-summary-heading,
+      .cart-payment-option-header,
+      .cart-payment-meta-row,
+      .cart-payment-summary .summary-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .cart-payment-summary .summary-row-value,
+      .cart-payment-meta-row strong {
+        text-align: left;
       }
 
       .cart-payment-total {
