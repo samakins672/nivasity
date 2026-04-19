@@ -1451,7 +1451,23 @@ if (!function_exists('nivasityApplyWalletFundingTransaction')) {
             $balanceBefore = (int)($walletRow['balance'] ?? 0);
             $balanceAfter = $balanceBefore + $amount;
 
-            if (nivasityWalletFundingTransactionsHasColumn($conn, 'provider_charge_amount')) {
+            if (
+                nivasityWalletFundingTransactionsHasColumn($conn, 'provider_charge_amount')
+                && nivasityWalletFundingTransactionsHasColumn($conn, 'consumed_charge_amount')
+                && nivasityWalletFundingTransactionsHasColumn($conn, 'remaining_charge_amount')
+            ) {
+                $insertFundingSql = "INSERT INTO wallet_funding_transactions (
+                        wallet_id, user_id, provider, provider_reference, provider_event,
+                        provider_transaction_id, provider_account_id, account_number, amount, provider_charge_amount,
+                        consumed_charge_amount, remaining_charge_amount,
+                        status, source, description, raw_payload, posted_at
+                    ) VALUES (
+                        $walletId, $userId, 'paystack', '$providerReferenceSafe', '$providerEventSafe',
+                        '$providerTransactionIdSafe', '$providerAccountIdSafe', '$accountNumberSafe', $amount, $providerChargeAmount,
+                        0, $providerChargeAmount,
+                        'posted', '$sourceSafe', '$descriptionSafe', '$rawPayloadSafe', NOW()
+                    )";
+            } elseif (nivasityWalletFundingTransactionsHasColumn($conn, 'provider_charge_amount')) {
                 $insertFundingSql = "INSERT INTO wallet_funding_transactions (
                         wallet_id, user_id, provider, provider_reference, provider_event,
                         provider_transaction_id, provider_account_id, account_number, amount, provider_charge_amount,
@@ -1502,7 +1518,7 @@ if (!function_exists('nivasityApplyWalletFundingTransaction')) {
                 $updateTxSql = "UPDATE transactions
                                 SET user_id = $userId,
                                     amount = $amount,
-                                    charge = 0,
+                                    charge = $providerChargeAmount,
                                     profit = 0,
                                     refund = 0,
                                     status = 'successful',
@@ -1517,7 +1533,7 @@ if (!function_exists('nivasityApplyWalletFundingTransaction')) {
                 $insertTxSql = "INSERT INTO transactions (
                         ref_id, user_id, amount, charge, profit, refund, status, medium, payment_channel, transaction_context
                     ) VALUES (
-                        '$providerReferenceSafe', $userId, $amount, 0, 0, 0, 'successful', 'PAYSTACK', 'wallet', 'wallet_funding'
+                        '$providerReferenceSafe', $userId, $amount, $providerChargeAmount, 0, 0, 'successful', 'PAYSTACK', 'wallet', 'wallet_funding'
                     )";
                 if (!mysqli_query($conn, $insertTxSql)) {
                     throw new Exception('Failed to create funding transaction record: ' . mysqli_error($conn));
@@ -1550,6 +1566,252 @@ if (!function_exists('nivasityApplyWalletFundingTransaction')) {
             'status' => 'posted',
             'amount' => $amount,
         ];
+    }
+}
+
+if (!function_exists('nivasityWalletFundingChargeTrackingColumnsExist')) {
+    function nivasityWalletFundingChargeTrackingColumnsExist($conn) {
+        return nivasityWalletFundingTransactionsHasColumn($conn, 'provider_charge_amount')
+            && nivasityWalletFundingTransactionsHasColumn($conn, 'consumed_charge_amount')
+            && nivasityWalletFundingTransactionsHasColumn($conn, 'remaining_charge_amount');
+    }
+}
+
+if (!function_exists('nivasityExtractRecoveredFundingChargeFromMetadata')) {
+    function nivasityExtractRecoveredFundingChargeFromMetadata($metadata) {
+        if (is_string($metadata) && trim($metadata) !== '') {
+            $decoded = json_decode($metadata, true);
+            if (is_array($decoded)) {
+                $metadata = $decoded;
+            }
+        }
+
+        if (!is_array($metadata)) {
+            return 0;
+        }
+
+        if (isset($metadata['funding_charge_recovered'])) {
+            return max(0, (int)round((float)$metadata['funding_charge_recovered']));
+        }
+
+        if (isset($metadata['funding_charge_recovery']) && is_array($metadata['funding_charge_recovery'])) {
+            return max(0, (int)round((float)($metadata['funding_charge_recovery']['recovered_amount'] ?? 0)));
+        }
+
+        return 0;
+    }
+}
+
+if (!function_exists('nivasityGetWalletFundingChargeRecoveryState')) {
+    function nivasityGetWalletFundingChargeRecoveryState($conn, $walletId, $forUpdate = false) {
+        $walletId = (int)$walletId;
+        if ($walletId <= 0) {
+            return [
+                'total_provider_charge' => 0,
+                'recovered_provider_charge' => 0,
+                'outstanding_provider_charge' => 0,
+            ];
+        }
+
+        if (nivasityWalletFundingChargeTrackingColumnsExist($conn)) {
+            nivasitySyncWalletFundingChargeTracking($conn, $walletId, $forUpdate);
+
+            $suffix = $forUpdate ? ' FOR UPDATE' : '';
+            $trackingSql = "SELECT
+                                COALESCE(SUM(provider_charge_amount), 0) AS total_provider_charge,
+                                COALESCE(SUM(consumed_charge_amount), 0) AS recovered_provider_charge,
+                                COALESCE(SUM(remaining_charge_amount), 0) AS outstanding_provider_charge
+                            FROM wallet_funding_transactions
+                            WHERE wallet_id = $walletId AND status = 'posted'$suffix";
+            $trackingRs = mysqli_query($conn, $trackingSql);
+            if (!$trackingRs) {
+                throw new Exception('Failed to inspect wallet funding charge tracking: ' . mysqli_error($conn));
+            }
+
+            $trackingRow = mysqli_fetch_assoc($trackingRs) ?: [];
+            return [
+                'total_provider_charge' => max(0, (int)($trackingRow['total_provider_charge'] ?? 0)),
+                'recovered_provider_charge' => max(0, (int)($trackingRow['recovered_provider_charge'] ?? 0)),
+                'outstanding_provider_charge' => max(0, (int)($trackingRow['outstanding_provider_charge'] ?? 0)),
+            ];
+        }
+
+        $hasProviderChargeColumn = nivasityWalletFundingTransactionsHasColumn($conn, 'provider_charge_amount');
+        $fundingFields = $hasProviderChargeColumn
+            ? 'amount, provider, provider_charge_amount'
+            : 'amount, provider';
+        $fundingSql = "SELECT $fundingFields FROM wallet_funding_transactions WHERE wallet_id = $walletId AND status = 'posted'";
+        $fundingRs = mysqli_query($conn, $fundingSql);
+        if (!$fundingRs) {
+            throw new Exception('Failed to inspect wallet funding charges: ' . mysqli_error($conn));
+        }
+
+        $totalProviderCharge = 0;
+        while ($fundingRow = mysqli_fetch_assoc($fundingRs)) {
+            $provider = trim((string)($fundingRow['provider'] ?? 'paystack'));
+            $amount = (int)round((float)($fundingRow['amount'] ?? 0));
+            $providerChargeAmount = $hasProviderChargeColumn
+                ? (int)round((float)($fundingRow['provider_charge_amount'] ?? 0))
+                : 0;
+
+            if ($providerChargeAmount <= 0 && $amount > 0) {
+                $providerChargeAmount = nivasityCalculateWalletFundingProviderCharge($amount, $provider);
+            }
+
+            $totalProviderCharge += max(0, $providerChargeAmount);
+        }
+
+        $ledgerSql = "SELECT metadata FROM wallet_ledger_entries WHERE wallet_id = $walletId AND entry_type = 'debit' AND reference LIKE 'wallet_purchase:%'";
+        $ledgerRs = mysqli_query($conn, $ledgerSql);
+        if (!$ledgerRs) {
+            throw new Exception('Failed to inspect wallet charge recovery history: ' . mysqli_error($conn));
+        }
+
+        $recoveredProviderCharge = 0;
+        while ($ledgerRow = mysqli_fetch_assoc($ledgerRs)) {
+            $recoveredProviderCharge += nivasityExtractRecoveredFundingChargeFromMetadata($ledgerRow['metadata'] ?? '');
+        }
+
+        $recoveredProviderCharge = min($recoveredProviderCharge, $totalProviderCharge);
+
+        return [
+            'total_provider_charge' => $totalProviderCharge,
+            'recovered_provider_charge' => $recoveredProviderCharge,
+            'outstanding_provider_charge' => max(0, $totalProviderCharge - $recoveredProviderCharge),
+        ];
+    }
+}
+
+if (!function_exists('nivasitySyncWalletFundingChargeTracking')) {
+    function nivasitySyncWalletFundingChargeTracking($conn, $walletId, $forUpdate = false) {
+        $walletId = (int)$walletId;
+        if ($walletId <= 0 || !nivasityWalletFundingChargeTrackingColumnsExist($conn)) {
+            return [
+                'total_provider_charge' => 0,
+                'recovered_provider_charge' => 0,
+                'outstanding_provider_charge' => 0,
+            ];
+        }
+
+        $suffix = $forUpdate ? ' FOR UPDATE' : '';
+        $fundingSql = "SELECT id, amount, provider, provider_charge_amount, consumed_charge_amount, remaining_charge_amount
+                       FROM wallet_funding_transactions
+                       WHERE wallet_id = $walletId AND status = 'posted'
+                       ORDER BY posted_at ASC, id ASC$suffix";
+        $fundingRs = mysqli_query($conn, $fundingSql);
+        if (!$fundingRs) {
+            throw new Exception('Failed to read wallet funding rows for charge tracking sync: ' . mysqli_error($conn));
+        }
+
+        $fundingRows = [];
+        $totalProviderCharge = 0;
+        while ($fundingRow = mysqli_fetch_assoc($fundingRs)) {
+            $provider = trim((string)($fundingRow['provider'] ?? 'paystack'));
+            $amount = (int)round((float)($fundingRow['amount'] ?? 0));
+            $providerChargeAmount = (int)round((float)($fundingRow['provider_charge_amount'] ?? 0));
+            if ($providerChargeAmount <= 0 && $amount > 0) {
+                $providerChargeAmount = nivasityCalculateWalletFundingProviderCharge($amount, $provider);
+            }
+
+            $fundingRow['provider_charge_amount'] = max(0, $providerChargeAmount);
+            $fundingRows[] = $fundingRow;
+            $totalProviderCharge += (int)$fundingRow['provider_charge_amount'];
+        }
+
+        $ledgerSql = "SELECT metadata FROM wallet_ledger_entries WHERE wallet_id = $walletId AND entry_type = 'debit' AND reference LIKE 'wallet_purchase:%'";
+        $ledgerRs = mysqli_query($conn, $ledgerSql);
+        if (!$ledgerRs) {
+            throw new Exception('Failed to inspect wallet charge recovery history: ' . mysqli_error($conn));
+        }
+
+        $recoveredProviderCharge = 0;
+        while ($ledgerRow = mysqli_fetch_assoc($ledgerRs)) {
+            $recoveredProviderCharge += nivasityExtractRecoveredFundingChargeFromMetadata($ledgerRow['metadata'] ?? '');
+        }
+        $recoveredProviderCharge = min($recoveredProviderCharge, $totalProviderCharge);
+
+        $remainingToAllocate = $recoveredProviderCharge;
+        foreach ($fundingRows as $fundingRow) {
+            $fundingId = (int)($fundingRow['id'] ?? 0);
+            $providerChargeAmount = (int)($fundingRow['provider_charge_amount'] ?? 0);
+            $expectedConsumed = min($providerChargeAmount, $remainingToAllocate);
+            $expectedRemaining = max(0, $providerChargeAmount - $expectedConsumed);
+            $remainingToAllocate = max(0, $remainingToAllocate - $expectedConsumed);
+
+            $currentConsumed = max(0, (int)($fundingRow['consumed_charge_amount'] ?? 0));
+            $currentRemaining = max(0, (int)($fundingRow['remaining_charge_amount'] ?? 0));
+
+            if (
+                $currentConsumed !== $expectedConsumed
+                || $currentRemaining !== $expectedRemaining
+                || (int)($fundingRow['provider_charge_amount'] ?? 0) !== $providerChargeAmount
+            ) {
+                $updateSql = "UPDATE wallet_funding_transactions
+                              SET provider_charge_amount = $providerChargeAmount,
+                                  consumed_charge_amount = $expectedConsumed,
+                                  remaining_charge_amount = $expectedRemaining,
+                                  updated_at = NOW()
+                              WHERE id = $fundingId LIMIT 1";
+                if (!mysqli_query($conn, $updateSql)) {
+                    throw new Exception('Failed to sync wallet funding charge tracking: ' . mysqli_error($conn));
+                }
+            }
+        }
+
+        return [
+            'total_provider_charge' => $totalProviderCharge,
+            'recovered_provider_charge' => $recoveredProviderCharge,
+            'outstanding_provider_charge' => max(0, $totalProviderCharge - $recoveredProviderCharge),
+        ];
+    }
+}
+
+if (!function_exists('nivasityConsumeWalletFundingChargeTracking')) {
+    function nivasityConsumeWalletFundingChargeTracking($conn, $walletId, $amountToRecover) {
+        $walletId = (int)$walletId;
+        $amountToRecover = max(0, (int)$amountToRecover);
+        if ($walletId <= 0 || $amountToRecover <= 0 || !nivasityWalletFundingChargeTrackingColumnsExist($conn)) {
+            return 0;
+        }
+
+        nivasitySyncWalletFundingChargeTracking($conn, $walletId, true);
+
+        $fundingSql = "SELECT id, provider_charge_amount, consumed_charge_amount, remaining_charge_amount
+                       FROM wallet_funding_transactions
+                       WHERE wallet_id = $walletId AND status = 'posted' AND remaining_charge_amount > 0
+                       ORDER BY posted_at ASC, id ASC FOR UPDATE";
+        $fundingRs = mysqli_query($conn, $fundingSql);
+        if (!$fundingRs) {
+            throw new Exception('Failed to load wallet funding rows for charge consumption: ' . mysqli_error($conn));
+        }
+
+        $recovered = 0;
+        while ($amountToRecover > 0 && ($fundingRow = mysqli_fetch_assoc($fundingRs))) {
+            $fundingId = (int)($fundingRow['id'] ?? 0);
+            $providerChargeAmount = max(0, (int)($fundingRow['provider_charge_amount'] ?? 0));
+            $currentConsumed = max(0, (int)($fundingRow['consumed_charge_amount'] ?? 0));
+            $currentRemaining = max(0, (int)($fundingRow['remaining_charge_amount'] ?? 0));
+            if ($currentRemaining <= 0) {
+                continue;
+            }
+
+            $consumeNow = min($currentRemaining, $amountToRecover);
+            $newConsumed = min($providerChargeAmount, $currentConsumed + $consumeNow);
+            $newRemaining = max(0, $providerChargeAmount - $newConsumed);
+            $updateSql = "UPDATE wallet_funding_transactions
+                          SET consumed_charge_amount = $newConsumed,
+                              remaining_charge_amount = $newRemaining,
+                              updated_at = NOW()
+                          WHERE id = $fundingId LIMIT 1";
+            if (!mysqli_query($conn, $updateSql)) {
+                throw new Exception('Failed to consume wallet funding charge tracking: ' . mysqli_error($conn));
+            }
+
+            $amountToRecover -= $consumeNow;
+            $recovered += $consumeNow;
+        }
+
+        return $recovered;
     }
 }
 
@@ -2087,7 +2349,13 @@ if (!function_exists('nivasityProcessWalletCheckout')) {
                 $gatewayCharges = function_exists('calculateGatewayCharges') ? calculateGatewayCharges($sumAmount) : ['charge' => 0];
                 $walletFee = nivasityGetWalletHandlingFeeBreakdown($conn, $sumAmount, (int)($gatewayCharges['charge'] ?? 0));
                 $charge = (int)($walletFee['charge'] ?? 0);
-                $profit = 0;
+                $chargeRecoveryState = nivasityGetWalletFundingChargeRecoveryState($conn, $walletId, true);
+                $fundingChargeOutstandingBefore = (int)($chargeRecoveryState['outstanding_provider_charge'] ?? 0);
+                $fundingChargeRecovered = min($charge, $fundingChargeOutstandingBefore);
+                if ($fundingChargeRecovered > 0 && nivasityWalletFundingChargeTrackingColumnsExist($conn)) {
+                    $fundingChargeRecovered = nivasityConsumeWalletFundingChargeTracking($conn, $walletId, $fundingChargeRecovered);
+                }
+                $profit = max(0, $charge - $fundingChargeRecovered);
                 $totalAmount = (int)($walletFee['total_amount'] ?? $sumAmount);
                 if ($balanceBefore < $totalAmount) {
                     throw new Exception('Insufficient wallet balance for this purchase');
@@ -2102,6 +2370,17 @@ if (!function_exists('nivasityProcessWalletCheckout')) {
                     'source_channel' => $sourceChannel,
                     'manual_ids' => $manualIds,
                     'event_ids' => $eventIds,
+                    'funding_charge_recovered' => $fundingChargeRecovered,
+                    'funding_charge_recovery' => [
+                        'outstanding_before' => $fundingChargeOutstandingBefore,
+                        'recovered_amount' => $fundingChargeRecovered,
+                        'outstanding_after' => max(0, $fundingChargeOutstandingBefore - $fundingChargeRecovered),
+                        'charge_amount' => $charge,
+                        'profit_amount' => $profit,
+                        'total_provider_charge' => (int)($chargeRecoveryState['total_provider_charge'] ?? 0),
+                        'recovered_before' => (int)($chargeRecoveryState['recovered_provider_charge'] ?? 0),
+                        'recovered_after' => (int)($chargeRecoveryState['recovered_provider_charge'] ?? 0) + $fundingChargeRecovered,
+                    ],
                 ]));
 
                 $insertLedgerSql = "INSERT INTO wallet_ledger_entries (
@@ -2162,6 +2441,9 @@ if (!function_exists('nivasityProcessWalletCheckout')) {
                     'user_id' => $userId,
                     'ref_id' => $refId,
                     'amount' => $totalAmount,
+                    'charge' => $charge,
+                    'profit' => $profit,
+                    'funding_charge_recovered' => $fundingChargeRecovered,
                     'refund_applied' => $refundApplied,
                     'payable_status' => $payableResult['status'] ?? null,
                 ]);
@@ -2177,6 +2459,9 @@ if (!function_exists('nivasityProcessWalletCheckout')) {
                     'status' => 'success',
                     'already_processed' => false,
                     'total_amount' => $totalAmount,
+                    'charge' => $charge,
+                    'profit' => $profit,
+                    'funding_charge_recovered' => $fundingChargeRecovered,
                     'refund_applied' => (int)$refundApplied,
                     'manual_ids' => $manualIds,
                     'event_ids' => $eventIds,
