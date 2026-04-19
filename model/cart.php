@@ -211,12 +211,7 @@ if (isset($_POST['reload_cart'])) {
                     <div class="cart-summary-heading">
                         <div>
                             <h4 class="card-title card-title-dash mb-1">Cart Summary</h4>
-                            <p class="summary-muted mb-0">Review your preferred checkout route before you pay.</p>
-                        </div>';
-    if ($walletSavings > 0) {
-        echo '<span class="wallet-savings-pill">Wallet saves ' . $walletSavingsLabel . '</span>';
-    }
-    echo '
+                        </div>
                     </div>
                     <div class="cart-summary-breakdown">
                         <div class="summary-row">
@@ -241,7 +236,7 @@ if (isset($_POST['reload_cart'])) {
                     <div class="summary-divider"></div>
                     <div class="payment-options-heading">
                         <h5 class="payment-options-title">Payment Options</h5>
-                        <p class="summary-muted mb-0">Choose wallet checkout for the lower final total, or continue with card or bank transfer.</p>
+                        <p class="summary-muted mb-0">Review your preferred checkout route before you pay.</p>
                     </div>
                     <div class="cart-payment-options">';
     if ($total_cart_price > 0) {
@@ -251,7 +246,6 @@ if (isset($_POST['reload_cart'])) {
                         <div class="cart-payment-option-header">
                             <div>
                                 <h5 class="cart-payment-option-title">Nivasity Wallet</h5>
-                                <span class="cart-payment-option-subtitle">Fastest route for the best checkout price.</span>
                             </div>
                             <span class="cart-payment-badge is-wallet">Recommended</span>
                         </div>
@@ -287,9 +281,8 @@ if (isset($_POST['reload_cart'])) {
                         <div class="cart-payment-option-header">
                             <div>
                                 <h5 class="cart-payment-option-title">Gateway Checkout</h5>
-                                <span class="cart-payment-option-subtitle">Card / Bank Transfer</span>
                             </div>
-                            <span class="cart-payment-badge is-neutral">Online</span>
+                            <span class="cart-payment-badge is-neutral">Card / Bank Transfer</span>
                         </div>
                         <div class="cart-payment-meta">
                             <div class="cart-payment-meta-row is-final-total">
