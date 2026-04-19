@@ -186,10 +186,6 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       margin-bottom: 0;
     }
 
-    .cart-payment-summary .summary-row.summary-row-stack {
-      align-items: flex-start;
-    }
-
     .cart-payment-summary .summary-row.is-total {
       padding-top: 0.85rem;
       margin-top: 0.85rem;
@@ -204,18 +200,14 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
     }
 
     .cart-payment-summary .summary-row-caption {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      margin-top: 0.25rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .cart-payment-summary .summary-row-caption .summary-row-label,
+    .cart-payment-summary .summary-row-caption .summary-row-value {
       color: #c46600;
       font-size: 0.82rem;
       font-weight: 700;
-    }
-
-    .cart-payment-summary .summary-row-caption span:last-child {
-      white-space: nowrap;
     }
 
     .cart-payment-summary .summary-row-value {
@@ -224,6 +216,22 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       margin: 0;
       text-align: right;
       flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .cart-payment-summary .summary-row-value-group {
+      display: inline-flex;
+      align-items: baseline;
+      justify-content: flex-end;
+      gap: 0.55rem;
+      flex-wrap: wrap;
+    }
+
+    .cart-payment-summary .summary-row-standard-value {
+      color: #c46600;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-decoration: line-through;
       white-space: nowrap;
     }
 
@@ -481,6 +489,10 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
       .cart-payment-summary .summary-row-value {
         text-align: right;
+      }
+
+      .cart-payment-summary .summary-row-value-group {
+        justify-content: flex-end;
       }
 
       .cart-payment-meta-row strong {

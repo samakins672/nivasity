@@ -218,19 +218,25 @@ if (isset($_POST['reload_cart'])) {
                             <p class="summary-row-label">Base Price</p>
                             <h6 class="summary-row-value">&#8358; ' . number_format($total_cart_price) . '</h6>
                         </div>
-                        <div class="summary-row summary-row-stack">
-                            <div>
-                                <p class="summary-row-label">Wallet Fee</p>';
+                        <div class="summary-row summary-row-caption">';
     if ($walletSavings > 0) {
-        echo '<span class="summary-row-caption"><span>Standard fee</span><span>' . $walletSavingsNegativeLabel . '</span></span>';
+        echo '<p class="summary-row-label">Standard fee</p><h6 class="summary-row-value">' . $walletSavingsNegativeLabel . '</h6>';
     }
     echo '
-                            </div>
+                        </div>
+                        <div class="summary-row">
+                            <p class="summary-row-label">Wallet Fee</p>
                             <h6 class="summary-row-value">' . $walletChargeLabel . '</h6>
                         </div>
                         <div class="summary-row is-total">
                             <p class="summary-row-label">Total</p>
-                            <h4 class="summary-row-value">' . $walletTotalLabel . '</h4>
+                            <div class="summary-row-value-group">
+                                <h4 class="summary-row-value">' . $walletTotalLabel . '</h4>';
+    if ($walletSavings > 0) {
+        echo '<span class="summary-row-standard-value">' . $gatewayTotalLabel . '</span>';
+    }
+    echo '
+                            </div>
                         </div>
                     </div>
                     <div class="summary-divider"></div>
