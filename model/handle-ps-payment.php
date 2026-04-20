@@ -35,7 +35,7 @@ if (isset($_POST['nivas_ref'])) {
       'reference' => $nivas_ref,
       'subaccount' => $seller,
       'transaction_charge' => $charge,
-      'callback_url' => nivasity_app_url('model/handle-ps-payment.php')
+      'callback_url' => nivasity_app_url('model/handle-payment.php')
     ]),
     CURLOPT_HTTPHEADER => array(
       'Content-Type: application/json',
@@ -87,7 +87,23 @@ if (isset($_POST['nivas_ref'])) {
     if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE ref_id = '$safe_ref' LIMIT 1")) > 0) { $dupe = true; }
     if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM event_tickets WHERE ref_id = '$safe_ref' LIMIT 1")) > 0) { $dupe = true; }
     if ($dupe) {
-      consumeReservationsForSettledTx($conn, $tx_ref);
+      $refundApplied = consumeReservationsForSettledTx($conn, $tx_ref);
+      try {
+        nivasityEnsureSchoolPayableForPurchase($conn, [
+          'school_id' => $school_id,
+          'source_ref_id' => $tx_ref,
+          'payer_user_id' => $user_id,
+          'source_medium' => 'PAYSTACK',
+          'source_channel' => 'web',
+          'refund_amount' => $refundApplied,
+          'metadata' => [
+            'handler' => 'model/handle-ps-payment.php',
+            'repair_reason' => 'duplicate_already_processed',
+          ],
+        ]);
+      } catch (Throwable $repairError) {
+        error_log('Failed to repair school payable ledger for ' . $tx_ref . ': ' . $repairError->getMessage());
+      }
       mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$safe_ref'");
       $_SESSION["nivas_cart$user_id"] = array();
       $_SESSION["nivas_cart_event$user_id"] = array();

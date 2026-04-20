@@ -134,7 +134,21 @@ foreach ($cartItems as $refId) {
     if (!$dupe && mysqli_num_rows(mysqli_query($conn, "SELECT 1 FROM event_tickets WHERE ref_id = '$safe_ref' LIMIT 1")) > 0) { $dupe = true; }
     
     if ($dupe) {
-        consumeReservationsForSettledTx($conn, $tx_ref);
+        $refundApplied = consumeReservationsForSettledTx($conn, $tx_ref);
+        try {
+            nivasityEnsureSchoolPayableForPurchase($conn, [
+                'source_ref_id' => $tx_ref,
+                'source_medium' => 'PAYSTACK',
+                'source_channel' => 'webhook',
+                'refund_amount' => $refundApplied,
+                'metadata' => [
+                    'handler' => 'model/handle-ps-webhook.php',
+                    'repair_reason' => 'duplicate_already_processed',
+                ],
+            ]);
+        } catch (Throwable $repairError) {
+            sendMail('Paystack Webhook: Ledger Repair Error', $repairError->getMessage() . ' Ref: ' . $tx_ref, 'webhook@nivasity.com');
+        }
         mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$safe_ref'");
         sendMail('Paystack Webhook: Duplicate', 'Duplicate delivery for ref ' . $tx_ref, 'webhook@nivasity.com');
         continue;

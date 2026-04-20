@@ -85,6 +85,21 @@ try {
         }
 
         $refundApplied = consumeReservationsForSettledTx($conn, $ref_id);
+        try {
+            nivasityEnsureSchoolPayableForPurchase($conn, [
+                'school_id' => $school_id,
+                'source_ref_id' => $ref_id,
+                'payer_user_id' => $user_id,
+                'source_channel' => 'web',
+                'refund_amount' => $refundApplied,
+                'metadata' => [
+                    'handler' => 'model/verify-pending-payment.php',
+                    'repair_reason' => 'duplicate_already_processed',
+                ],
+            ]);
+        } catch (Throwable $repairError) {
+            error_log('Failed to repair school payable ledger for ' . $ref_id . ': ' . $repairError->getMessage());
+        }
         return [
             'status' => 'success',
             'message' => 'Already processed',

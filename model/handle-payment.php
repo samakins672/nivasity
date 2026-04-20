@@ -128,6 +128,22 @@ if (isset($_GET['transaction_id']) || isset($_GET['reference']) || isset($_GET['
             $_SESSION["nivas_cart_event$user_id"] = array();
 
             $refundApplied = consumeReservationsForSettledTx($conn, $tx_ref);
+            try {
+                nivasityEnsureSchoolPayableForPurchase($conn, [
+                    'school_id' => $school_id,
+                    'source_ref_id' => $tx_ref,
+                    'payer_user_id' => $user_id,
+                    'source_medium' => strtoupper($gatewayName),
+                    'source_channel' => 'web',
+                    'refund_amount' => $refundApplied,
+                    'metadata' => [
+                        'handler' => 'model/handle-payment.php',
+                        'repair_reason' => 'duplicate_already_processed',
+                    ],
+                ]);
+            } catch (Throwable $repairError) {
+                error_log('Failed to repair school payable ledger for ' . $tx_ref . ': ' . $repairError->getMessage());
+            }
             return [
                 'status' => 'success',
                 'message' => 'Already processed',

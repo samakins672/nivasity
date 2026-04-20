@@ -560,6 +560,142 @@ if (!function_exists('nivasityRecordSchoolPayable')) {
     }
 }
 
+if (!function_exists('nivasityEnsureSchoolPayableForPurchase')) {
+    function nivasityEnsureSchoolPayableForPurchase($conn, $payload) {
+        $sourceRefId = trim((string)($payload['source_ref_id'] ?? ($payload['ref_id'] ?? '')));
+        if ($sourceRefId === '') {
+            return [
+                'status' => 'ignored',
+                'payable_amount' => 0,
+            ];
+        }
+
+        $sourceRefSafe = mysqli_real_escape_string($conn, $sourceRefId);
+        $existingRs = mysqli_query($conn, "SELECT * FROM school_payable_ledger WHERE source_ref_id = '$sourceRefSafe' LIMIT 1");
+        if (!$existingRs) {
+            throw new Exception('Failed to inspect school payable ledger state: ' . mysqli_error($conn));
+        }
+        if (mysqli_num_rows($existingRs) > 0) {
+            $existingRow = mysqli_fetch_assoc($existingRs);
+            return [
+                'status' => 'exists',
+                'payable_amount' => (int)($existingRow['payable_amount'] ?? 0),
+                'row' => $existingRow,
+            ];
+        }
+
+        $transactionRs = mysqli_query($conn, "SELECT * FROM transactions WHERE ref_id = '$sourceRefSafe' ORDER BY id DESC LIMIT 1");
+        if (!$transactionRs) {
+            throw new Exception('Failed to inspect purchase transaction for ledger repair: ' . mysqli_error($conn));
+        }
+        if (mysqli_num_rows($transactionRs) < 1) {
+            return [
+                'status' => 'missing_transaction',
+                'payable_amount' => 0,
+            ];
+        }
+
+        $transactionRow = mysqli_fetch_assoc($transactionRs);
+        $payerUserId = (int)($payload['payer_user_id'] ?? ($payload['user_id'] ?? 0));
+        if ($payerUserId <= 0) {
+            $buyerSources = [
+                "SELECT buyer AS buyer_id FROM manuals_bought WHERE ref_id = '$sourceRefSafe' ORDER BY id DESC LIMIT 1",
+                "SELECT buyer AS buyer_id FROM event_tickets WHERE ref_id = '$sourceRefSafe' ORDER BY id DESC LIMIT 1",
+                "SELECT user_id AS buyer_id FROM cart WHERE ref_id = '$sourceRefSafe' ORDER BY id DESC LIMIT 1",
+            ];
+            foreach ($buyerSources as $sql) {
+                $buyerRs = mysqli_query($conn, $sql);
+                if ($buyerRs && mysqli_num_rows($buyerRs) > 0) {
+                    $buyerRow = mysqli_fetch_assoc($buyerRs);
+                    $payerUserId = (int)($buyerRow['buyer_id'] ?? 0);
+                    if ($payerUserId > 0) {
+                        break;
+                    }
+                }
+            }
+        }
+        if ($payerUserId <= 0) {
+            $payerUserId = (int)($transactionRow['user_id'] ?? 0);
+        }
+
+        $schoolId = (int)($payload['school_id'] ?? 0);
+        if ($schoolId <= 0) {
+            $manualSchoolRs = mysqli_query($conn, "SELECT school_id FROM manuals_bought WHERE ref_id = '$sourceRefSafe' AND school_id IS NOT NULL AND school_id > 0 ORDER BY id DESC LIMIT 1");
+            if ($manualSchoolRs && mysqli_num_rows($manualSchoolRs) > 0) {
+                $manualSchoolRow = mysqli_fetch_assoc($manualSchoolRs);
+                $schoolId = (int)($manualSchoolRow['school_id'] ?? 0);
+            }
+        }
+        if ($schoolId <= 0 && $payerUserId > 0) {
+            $userSchoolRs = mysqli_query($conn, "SELECT school FROM users WHERE id = $payerUserId LIMIT 1");
+            if ($userSchoolRs && mysqli_num_rows($userSchoolRs) > 0) {
+                $userSchoolRow = mysqli_fetch_assoc($userSchoolRs);
+                $schoolId = (int)($userSchoolRow['school'] ?? 0);
+            }
+        }
+        if ($schoolId <= 0) {
+            $cartSchoolRs = mysqli_query($conn, "SELECT u.school FROM cart c INNER JOIN users u ON u.id = c.user_id WHERE c.ref_id = '$sourceRefSafe' LIMIT 1");
+            if ($cartSchoolRs && mysqli_num_rows($cartSchoolRs) > 0) {
+                $cartSchoolRow = mysqli_fetch_assoc($cartSchoolRs);
+                $schoolId = (int)($cartSchoolRow['school'] ?? 0);
+            }
+        }
+
+        $sourceMedium = strtoupper(trim((string)($payload['source_medium'] ?? ($transactionRow['medium'] ?? 'NIVASITY'))));
+        if ($sourceMedium === '') {
+            $sourceMedium = 'NIVASITY';
+        }
+
+        $sourceChannel = strtolower(trim((string)($payload['source_channel'] ?? '')));
+        if ($sourceChannel === '') {
+            $paymentChannel = strtolower(trim((string)($transactionRow['payment_channel'] ?? '')));
+            $sourceChannel = $paymentChannel !== '' ? $paymentChannel : 'web';
+        }
+
+        $collectedTotal = array_key_exists('collected_total', $payload)
+            ? (int)round((float)$payload['collected_total'])
+            : (int)round((float)($transactionRow['amount'] ?? 0));
+        $chargeAmount = array_key_exists('charge_amount', $payload)
+            ? (int)round((float)$payload['charge_amount'])
+            : (int)round((float)($transactionRow['charge'] ?? 0));
+        $refundAmount = array_key_exists('refund_amount', $payload)
+            ? (int)round((float)$payload['refund_amount'])
+            : (int)round((float)($transactionRow['refund'] ?? 0));
+        $itemSubtotal = array_key_exists('item_subtotal', $payload)
+            ? (int)round((float)$payload['item_subtotal'])
+            : max(0, $collectedTotal - $chargeAmount);
+
+        if ($schoolId <= 0 || $payerUserId <= 0) {
+            return [
+                'status' => 'unresolved',
+                'payable_amount' => 0,
+            ];
+        }
+
+        $metadata = $payload['metadata'] ?? [];
+        if (!is_array($metadata)) {
+            $metadata = [];
+        }
+        $metadata['repair_source'] = 'nivasityEnsureSchoolPayableForPurchase';
+        $metadata['repaired_from_transaction_id'] = (int)($transactionRow['id'] ?? 0);
+        $metadata['repaired_transaction_medium'] = (string)($transactionRow['medium'] ?? '');
+        $metadata['repaired_transaction_channel'] = (string)($transactionRow['payment_channel'] ?? '');
+
+        return nivasityRecordSchoolPayable($conn, [
+            'school_id' => $schoolId,
+            'source_ref_id' => $sourceRefId,
+            'payer_user_id' => $payerUserId,
+            'source_medium' => $sourceMedium,
+            'source_channel' => $sourceChannel,
+            'item_subtotal' => $itemSubtotal,
+            'collected_total' => $collectedTotal,
+            'charge_amount' => $chargeAmount,
+            'refund_amount' => $refundAmount,
+            'metadata' => $metadata,
+        ]);
+    }
+}
+
 if (!function_exists('nivasityGetUserWallet')) {
     function nivasityGetUserWallet($conn, $userId) {
         $userId = (int)$userId;
