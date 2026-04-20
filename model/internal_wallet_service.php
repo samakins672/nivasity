@@ -1329,9 +1329,63 @@ if (!function_exists('nivasityCalculateWalletFundingProviderCharge')) {
     }
 }
 
+if (!function_exists('nivasityIsPaystackDedicatedNubanPayload')) {
+    function nivasityIsPaystackDedicatedNubanPayload($data) {
+        if (!is_array($data)) {
+            return false;
+        }
+
+        $topLevelChannel = strtolower(trim((string)($data['channel'] ?? '')));
+        $authChannel = strtolower(trim((string)($data['authorization']['channel'] ?? '')));
+
+        return $topLevelChannel === 'dedicated_nuban' || $authChannel === 'dedicated_nuban';
+    }
+}
+
+if (!function_exists('nivasityIsLikelyCheckoutReference')) {
+    function nivasityIsLikelyCheckoutReference($reference) {
+        $reference = trim((string)$reference);
+        if ($reference === '') {
+            return false;
+        }
+
+        return (bool)preg_match('/^nivas_[0-9]+_[0-9]+$/i', $reference);
+    }
+}
+
+if (!function_exists('nivasityReferenceBelongsToPurchaseFlow')) {
+    function nivasityReferenceBelongsToPurchaseFlow($conn, $reference) {
+        $reference = trim((string)$reference);
+        if ($reference === '') {
+            return false;
+        }
+
+        if (nivasityIsLikelyCheckoutReference($reference)) {
+            return true;
+        }
+
+        $referenceSafe = mysqli_real_escape_string($conn, $reference);
+        $checks = [
+            "SELECT 1 FROM cart WHERE ref_id = '$referenceSafe' LIMIT 1",
+            "SELECT 1 FROM manuals_bought WHERE ref_id = '$referenceSafe' LIMIT 1",
+            "SELECT 1 FROM event_tickets WHERE ref_id = '$referenceSafe' LIMIT 1",
+            "SELECT 1 FROM transactions WHERE ref_id = '$referenceSafe' AND (transaction_context = 'purchase' OR payment_channel = 'gateway') LIMIT 1",
+        ];
+
+        foreach ($checks as $sql) {
+            $rs = mysqli_query($conn, $sql);
+            if ($rs && mysqli_num_rows($rs) > 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
 if (!function_exists('nivasityResolveWalletFromPaystackPayload')) {
-    function nivasityResolveWalletFromPaystackPayload($conn, $data) {
-        $candidates = [];
+    function nivasityResolveWalletFromPaystackPayload($conn, $data, $allowCustomerFallback = true) {
+        $strongCandidates = [];
 
         $accountNumberCandidates = [
             $data['dedicated_account']['account_number'] ?? null,
@@ -1343,7 +1397,7 @@ if (!function_exists('nivasityResolveWalletFromPaystackPayload')) {
             $accountNumber = trim((string)$accountNumber);
             if ($accountNumber !== '') {
                 $safe = mysqli_real_escape_string($conn, $accountNumber);
-                $candidates[] = "va.account_number = '$safe'";
+                $strongCandidates[] = "va.account_number = '$safe'";
             }
         }
 
@@ -1356,27 +1410,47 @@ if (!function_exists('nivasityResolveWalletFromPaystackPayload')) {
             $providerAccountId = trim((string)$providerAccountId);
             if ($providerAccountId !== '') {
                 $safe = mysqli_real_escape_string($conn, $providerAccountId);
-                $candidates[] = "va.provider_account_id = '$safe'";
+                $strongCandidates[] = "va.provider_account_id = '$safe'";
             }
         }
+
+        if (!empty($strongCandidates)) {
+            $where = implode(' OR ', array_unique($strongCandidates));
+            $sql = "SELECT w.*, va.provider, va.provider_account_id, va.provider_customer_code, va.account_name, va.account_number, va.bank_name, va.bank_slug, u.email
+                    FROM user_wallets w
+                    LEFT JOIN wallet_virtual_accounts va ON va.wallet_id = w.id
+                    LEFT JOIN users u ON u.id = w.user_id
+                    WHERE $where
+                    LIMIT 1";
+            $rs = mysqli_query($conn, $sql);
+            if ($rs && mysqli_num_rows($rs) > 0) {
+                return mysqli_fetch_assoc($rs);
+            }
+        }
+
+        if (!$allowCustomerFallback) {
+            return null;
+        }
+
+        $fallbackCandidates = [];
 
         $customerCode = trim((string)($data['customer']['customer_code'] ?? ''));
         if ($customerCode !== '') {
             $safe = mysqli_real_escape_string($conn, $customerCode);
-            $candidates[] = "va.provider_customer_code = '$safe'";
+            $fallbackCandidates[] = "va.provider_customer_code = '$safe'";
         }
 
         $email = trim((string)($data['customer']['email'] ?? ''));
         if ($email !== '') {
             $safeEmail = mysqli_real_escape_string($conn, $email);
-            $candidates[] = "u.email = '$safeEmail'";
+            $fallbackCandidates[] = "u.email = '$safeEmail'";
         }
 
-        if (empty($candidates)) {
+        if (empty($fallbackCandidates)) {
             return null;
         }
 
-        $where = implode(' OR ', array_unique($candidates));
+        $where = implode(' OR ', array_unique($fallbackCandidates));
         $sql = "SELECT w.*, va.provider, va.provider_account_id, va.provider_customer_code, va.account_name, va.account_number, va.bank_name, va.bank_slug, u.email
                 FROM user_wallets w
                 LEFT JOIN wallet_virtual_accounts va ON va.wallet_id = w.id
@@ -1895,8 +1969,13 @@ if (!function_exists('nivasityListPaystackTransactionsForCustomer')) {
 }
 
 if (!function_exists('nivasityIsPaystackDvaTransaction')) {
-    function nivasityIsPaystackDvaTransaction($wallet, $transaction, $customerId, $customerCode = '') {
+    function nivasityIsPaystackDvaTransaction($conn, $wallet, $transaction, $customerId, $customerCode = '') {
         if (!is_array($transaction) || strtolower((string)($transaction['status'] ?? '')) !== 'success') {
+            return false;
+        }
+
+        $reference = trim((string)($transaction['reference'] ?? ''));
+        if ($reference !== '' && nivasityReferenceBelongsToPurchaseFlow($conn, $reference)) {
             return false;
         }
 
@@ -1911,13 +1990,23 @@ if (!function_exists('nivasityIsPaystackDvaTransaction')) {
         }
 
         $walletAccountNumber = trim((string)($wallet['account_number'] ?? ''));
+        $walletProviderAccountId = trim((string)($wallet['provider_account_id'] ?? ''));
         $topLevelChannel = strtolower(trim((string)($transaction['channel'] ?? '')));
-        $authChannel = strtolower(trim((string)($transaction['authorization']['channel'] ?? '')));
         $authCardType = strtolower(trim((string)($transaction['authorization']['card_type'] ?? '')));
         $authBrand = strtolower(trim((string)($transaction['authorization']['brand'] ?? '')));
         $receiverAccountNumber = trim((string)($transaction['authorization']['receiver_bank_account_number'] ?? ''));
+        $dedicatedAccountNumber = trim((string)($transaction['dedicated_account']['account_number'] ?? $transaction['customer']['dedicated_account']['account_number'] ?? ''));
+        $dedicatedAccountId = trim((string)($transaction['dedicated_account']['id'] ?? $transaction['customer']['dedicated_account']['id'] ?? ''));
 
-        if ($authChannel === 'dedicated_nuban') {
+        if ($walletProviderAccountId !== '' && $dedicatedAccountId !== '' && $walletProviderAccountId === $dedicatedAccountId) {
+            return true;
+        }
+
+        if ($walletAccountNumber !== '' && $dedicatedAccountNumber !== '' && $walletAccountNumber === $dedicatedAccountNumber) {
+            return true;
+        }
+
+        if (nivasityIsPaystackDedicatedNubanPayload($transaction)) {
             return true;
         }
 
@@ -1961,7 +2050,7 @@ if (!function_exists('nivasitySyncWalletFundingFromPaystack')) {
         $processed = 0;
         $posted = 0;
         foreach ($transactions as $row) {
-            if (!nivasityIsPaystackDvaTransaction($wallet, $row, $customerId, $customerCode)) {
+            if (!nivasityIsPaystackDvaTransaction($conn, $wallet, $row, $customerId, $customerCode)) {
                 continue;
             }
 
@@ -1994,16 +2083,15 @@ if (!function_exists('nivasityDeterminePaystackWebhookIntent')) {
         $data = $payload['data'] ?? [];
         $reference = trim((string)($data['reference'] ?? ''));
 
-        if ($reference !== '') {
-            $referenceSafe = mysqli_real_escape_string($conn, $reference);
-            $cartSql = "SELECT 1 FROM cart WHERE ref_id = '$referenceSafe' LIMIT 1";
-            $cartRs = mysqli_query($conn, $cartSql);
-            if ($cartRs && mysqli_num_rows($cartRs) > 0) {
-                return 'purchase';
-            }
+        if ($reference !== '' && nivasityReferenceBelongsToPurchaseFlow($conn, $reference)) {
+            return 'purchase';
         }
 
-        $wallet = nivasityResolveWalletFromPaystackPayload($conn, $data);
+        if (nivasityIsPaystackDedicatedNubanPayload($data)) {
+            return 'wallet_funding';
+        }
+
+        $wallet = nivasityResolveWalletFromPaystackPayload($conn, $data, false);
         if ($wallet) {
             return 'wallet_funding';
         }

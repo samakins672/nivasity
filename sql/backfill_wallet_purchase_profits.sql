@@ -9,8 +9,53 @@
 
 START TRANSACTION;
 
+DROP TEMPORARY TABLE IF EXISTS `tmp_suspect_wallet_funding_refs`;
+CREATE TEMPORARY TABLE `tmp_suspect_wallet_funding_refs` AS
+SELECT DISTINCT `provider_reference`
+FROM (
+  SELECT f.`provider_reference`
+  FROM `wallet_funding_transactions` AS f
+  INNER JOIN `cart` AS c
+    ON c.`ref_id` = f.`provider_reference`
+  WHERE f.`status` = 'posted'
+
+  UNION
+
+  SELECT f.`provider_reference`
+  FROM `wallet_funding_transactions` AS f
+  INNER JOIN `manuals_bought` AS mb
+    ON mb.`ref_id` = f.`provider_reference`
+  WHERE f.`status` = 'posted'
+
+  UNION
+
+  SELECT f.`provider_reference`
+  FROM `wallet_funding_transactions` AS f
+  INNER JOIN `event_tickets` AS et
+    ON et.`ref_id` = f.`provider_reference`
+  WHERE f.`status` = 'posted'
+
+  UNION
+
+  SELECT f.`provider_reference`
+  FROM `wallet_funding_transactions` AS f
+  INNER JOIN `transactions` AS t
+    ON t.`ref_id` = f.`provider_reference`
+   AND (t.`transaction_context` = 'purchase' OR t.`payment_channel` = 'gateway')
+  WHERE f.`status` = 'posted'
+
+  UNION
+
+  SELECT f.`provider_reference`
+  FROM `wallet_funding_transactions` AS f
+  WHERE f.`status` = 'posted'
+    AND f.`provider_reference` REGEXP '^nivas_[0-9]+_[0-9]+$'
+) AS suspect_refs;
+
 -- Normalize funding charges before replaying recovery.
 UPDATE `wallet_funding_transactions`
+LEFT JOIN `tmp_suspect_wallet_funding_refs` AS s
+  ON s.`provider_reference` = `wallet_funding_transactions`.`provider_reference`
 SET
   `provider_charge_amount` = CASE
     WHEN `provider` = 'paystack' AND `amount` > 0 AND (`provider_charge_amount` IS NULL OR `provider_charge_amount` = 0)
@@ -23,7 +68,8 @@ SET
       THEN LEAST(300, ROUND(`amount` * 0.01))
     ELSE COALESCE(`provider_charge_amount`, 0)
   END
-WHERE `status` = 'posted';
+WHERE `status` = 'posted'
+  AND s.`provider_reference` IS NULL;
 
 DROP TEMPORARY TABLE IF EXISTS `tmp_wallet_purchase_tx_refs`;
 CREATE TEMPORARY TABLE `tmp_wallet_purchase_tx_refs` AS
@@ -78,7 +124,10 @@ FROM (
     COALESCE(f.`posted_at`, f.`created_at`) AS `event_at`,
     GREATEST(COALESCE(f.`provider_charge_amount`, 0), 0) AS `provider_charge_amount`
   FROM `wallet_funding_transactions` AS f
+  LEFT JOIN `tmp_suspect_wallet_funding_refs` AS s
+    ON s.`provider_reference` = f.`provider_reference`
   WHERE f.`status` = 'posted'
+    AND s.`provider_reference` IS NULL
 ) AS base;
 
 DROP TEMPORARY TABLE IF EXISTS `tmp_wallet_events`;
@@ -235,12 +284,16 @@ SET t.`profit` = p.`profit_amount`;
 UPDATE `transactions` AS t
 INNER JOIN `wallet_funding_transactions` AS f
   ON f.`provider_reference` = t.`ref_id`
+LEFT JOIN `tmp_suspect_wallet_funding_refs` AS s
+  ON s.`provider_reference` = f.`provider_reference`
 SET
   t.`charge` = f.`provider_charge_amount`,
   t.`profit` = 0
 WHERE t.`payment_channel` = 'wallet'
-  AND t.`transaction_context` = 'wallet_funding';
+  AND t.`transaction_context` = 'wallet_funding'
+  AND s.`provider_reference` IS NULL;
 
+DROP TEMPORARY TABLE IF EXISTS `tmp_suspect_wallet_funding_refs`;
 DROP TEMPORARY TABLE IF EXISTS `tmp_wallet_total_recovered`;
 DROP TEMPORARY TABLE IF EXISTS `tmp_wallet_purchase_recovery`;
 DROP TEMPORARY TABLE IF EXISTS `tmp_wallet_events`;
