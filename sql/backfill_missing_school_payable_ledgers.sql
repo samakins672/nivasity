@@ -9,6 +9,9 @@
 
 START TRANSACTION;
 
+-- Fixed cutoff in GMT+1 / Africa-Lagos time.
+SET @backfill_cutoff := '2026-04-18 21:00:00';
+
 DROP TEMPORARY TABLE IF EXISTS `tmp_target_backfill_refs`;
 CREATE TEMPORARY TABLE `tmp_target_backfill_refs` (
   `ref_id` VARCHAR(100) NOT NULL,
@@ -28,6 +31,7 @@ INNER JOIN (
   SELECT `ref_id`, MAX(`id`) AS `latest_id`
   FROM `transactions`
   WHERE `status` = 'successful'
+    AND `created_at` >= @backfill_cutoff
   GROUP BY `ref_id`
 ) AS src
   ON src.`latest_id` = t.`id`;
@@ -124,6 +128,7 @@ WHERE `ref_id` NOT IN (
 
 SELECT
   'backfill_candidates' AS `result_type`,
+  @backfill_cutoff AS `cutoff_datetime`,
   COUNT(*) AS `row_count`,
   COALESCE(SUM(`item_subtotal`), 0) AS `item_subtotal_total`,
   COALESCE(SUM(`refund_amount`), 0) AS `refund_total`,
