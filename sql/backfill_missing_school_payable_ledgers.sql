@@ -31,6 +31,7 @@ INNER JOIN (
   SELECT `ref_id`, MAX(`id`) AS `latest_id`
   FROM `transactions`
   WHERE `status` = 'successful'
+    AND `transaction_context` = 'purchase'
     AND `created_at` >= @backfill_cutoff
   GROUP BY `ref_id`
 ) AS src
@@ -93,13 +94,6 @@ LEFT JOIN `tmp_cart_by_ref` AS cb
 LEFT JOIN `users` AS u
   ON u.`id` = tx.`user_id`
 WHERE spl.`id` IS NULL
-  AND (
-    COALESCE(tx.`transaction_context`, '') = 'purchase'
-    OR COALESCE(tx.`payment_channel`, '') IN ('gateway', 'wallet')
-    OR mb.`ref_id` IS NOT NULL
-    OR et.`ref_id` IS NOT NULL
-    OR cb.`ref_id` IS NOT NULL
-  )
   AND (
     (SELECT COUNT(*) FROM `tmp_target_backfill_refs`) = 0
     OR EXISTS (
