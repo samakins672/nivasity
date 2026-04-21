@@ -1786,6 +1786,56 @@ This allows the payment gateway to redirect back to your mobile app after the us
 - `scheduled_for`: Override the settlement date using `YYYY-MM-DD`
 - `token`: Optional cron token for protected HTTP runs
 
+#### Repair School Ledger
+**Endpoint:** `GET /payment/repair-school-ledger.php`
+**Endpoint:** `POST /payment/repair-school-ledger.php`
+
+**Description:** Scans successful purchase transactions older than a safety window and repairs any missing `school_payable_ledger` rows, including the corresponding `school_internal_wallets` balances.
+
+**Authentication:** Not required by default. If `NIVASITY_LEDGER_REPAIR_CRON_TOKEN` is configured, pass `token` with the request.
+
+**Notes:**
+- Supports CLI execution for cron jobs
+- Default safety window is `10` minutes, so freshly written transactions are skipped
+- Repairs only purchase-like transactions and ignores wallet funding rows
+
+**Optional Parameters:**
+- `school_id`: Limit repair to one school
+- `ref_id`: Repair one specific transaction reference
+- `limit`: Limit how many refs are checked in one run
+- `dry_run`: Preview candidate refs without creating ledger rows
+- `older_than_minutes`: Minimum transaction age before repair is attempted; defaults to `10`
+- `token`: Optional cron token for protected HTTP runs
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "School ledger repair sweep completed",
+  "data": {
+    "summary": {
+      "refs_checked": 4,
+      "repaired": 2,
+      "already_present": 0,
+      "unresolved": 0,
+      "missing_transaction": 0,
+      "failed": 0,
+      "dry_run": 0
+    },
+    "results": [
+      {
+        "ref_id": "nivas_11988_1776702258882",
+        "transaction_id": 12345,
+        "user_id": 11988,
+        "status": "created",
+        "payable_amount": 2500,
+        "message": "School payable ledger repaired"
+      }
+    ]
+  }
+}
+```
+
 #### Notifications: List Inbox
 **Endpoint:** `GET /notifications/list.php`
 

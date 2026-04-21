@@ -42,6 +42,7 @@ define('STAGING_ALLOWED_EMAIL', 'your_email@example.com');
 // Optional cron protection for maintenance endpoints.
 define('NIVASITY_WALLET_CREDIT_CRON_TOKEN', 'change-me-wallet-credit-cron-token');
 define('NIVASITY_SETTLEMENT_CRON_TOKEN', 'change-me-settlement-cron-token');
+define('NIVASITY_LEDGER_REPAIR_CRON_TOKEN', 'change-me-ledger-repair-cron-token');
 
 // ============================================================================
 // MULTI-GATEWAY SUPPORT (New System)

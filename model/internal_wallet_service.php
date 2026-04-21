@@ -696,6 +696,163 @@ if (!function_exists('nivasityEnsureSchoolPayableForPurchase')) {
     }
 }
 
+if (!function_exists('nivasityListMissingSchoolPayableRefs')) {
+    function nivasityListMissingSchoolPayableRefs($conn, $options = []) {
+        $olderThanMinutes = max(1, (int)($options['older_than_minutes'] ?? 10));
+        $limit = (int)($options['limit'] ?? 0);
+        $refId = trim((string)($options['ref_id'] ?? ''));
+        $schoolId = (int)($options['school_id'] ?? 0);
+
+        $where = [
+            "t.status = 'successful'",
+            "COALESCE(t.ref_id, '') <> ''",
+            "l.id IS NULL",
+            "t.created_at <= DATE_SUB(NOW(), INTERVAL $olderThanMinutes MINUTE)",
+            "COALESCE(t.transaction_context, '') <> 'wallet_funding'",
+            "(
+                COALESCE(t.transaction_context, '') = 'purchase'
+                OR COALESCE(t.payment_channel, '') = 'gateway'
+                OR EXISTS (SELECT 1 FROM manuals_bought mb WHERE mb.ref_id = t.ref_id LIMIT 1)
+                OR EXISTS (SELECT 1 FROM event_tickets et WHERE et.ref_id = t.ref_id LIMIT 1)
+                OR EXISTS (SELECT 1 FROM cart c WHERE c.ref_id = t.ref_id LIMIT 1)
+            )",
+        ];
+
+        if ($refId !== '') {
+            $refIdSafe = mysqli_real_escape_string($conn, $refId);
+            $where[] = "t.ref_id = '$refIdSafe'";
+        }
+
+        if ($schoolId > 0) {
+            $where[] = "(
+                EXISTS (
+                    SELECT 1
+                    FROM users u
+                    WHERE u.id = t.user_id AND u.school = $schoolId
+                    LIMIT 1
+                )
+                OR EXISTS (
+                    SELECT 1
+                    FROM manuals_bought mb2
+                    WHERE mb2.ref_id = t.ref_id AND mb2.school_id = $schoolId
+                    LIMIT 1
+                )
+            )";
+        }
+
+        $limitSql = $limit > 0 ? ' LIMIT ' . $limit : '';
+        $sql = "SELECT
+                    t.ref_id,
+                    MAX(t.id) AS transaction_id,
+                    MAX(t.user_id) AS user_id,
+                    MAX(t.medium) AS medium,
+                    MAX(t.payment_channel) AS payment_channel,
+                    MAX(t.transaction_context) AS transaction_context,
+                    MAX(t.created_at) AS transaction_created_at
+                FROM transactions t
+                LEFT JOIN school_payable_ledger l ON l.source_ref_id = t.ref_id
+                WHERE " . implode(' AND ', $where) . "
+                GROUP BY t.ref_id
+                ORDER BY MAX(t.created_at) DESC" . $limitSql;
+        $rs = mysqli_query($conn, $sql);
+        if (!$rs) {
+            throw new Exception('Failed to load missing school payable refs: ' . mysqli_error($conn));
+        }
+
+        $refs = [];
+        while ($row = mysqli_fetch_assoc($rs)) {
+            $refs[] = $row;
+        }
+
+        return $refs;
+    }
+}
+
+if (!function_exists('nivasityRunSchoolPayableRepairSweep')) {
+    function nivasityRunSchoolPayableRepairSweep($conn, $options = []) {
+        $dryRun = !empty($options['dry_run']);
+        $refs = nivasityListMissingSchoolPayableRefs($conn, $options);
+        $summary = [
+            'refs_checked' => count($refs),
+            'repaired' => 0,
+            'already_present' => 0,
+            'unresolved' => 0,
+            'missing_transaction' => 0,
+            'failed' => 0,
+            'dry_run' => $dryRun ? 1 : 0,
+        ];
+        $results = [];
+
+        foreach ($refs as $row) {
+            $refId = trim((string)($row['ref_id'] ?? ''));
+            if ($refId === '') {
+                continue;
+            }
+
+            $result = [
+                'ref_id' => $refId,
+                'transaction_id' => (int)($row['transaction_id'] ?? 0),
+                'user_id' => (int)($row['user_id'] ?? 0),
+                'status' => 'pending',
+                'message' => '',
+            ];
+
+            if ($dryRun) {
+                $result['status'] = 'candidate';
+                $result['message'] = 'Missing school payable ledger candidate';
+                $results[] = $result;
+                continue;
+            }
+
+            try {
+                $repair = nivasityEnsureSchoolPayableForPurchase($conn, [
+                    'source_ref_id' => $refId,
+                    'payer_user_id' => (int)($row['user_id'] ?? 0),
+                    'source_medium' => (string)($row['medium'] ?? 'NIVASITY'),
+                    'source_channel' => 'ledger_repair_sweep',
+                    'metadata' => [
+                        'handler' => 'nivasityRunSchoolPayableRepairSweep',
+                        'repair_reason' => 'missing_school_payable_ledger',
+                        'transaction_id' => (int)($row['transaction_id'] ?? 0),
+                    ],
+                ]);
+
+                $repairStatus = (string)($repair['status'] ?? 'created');
+                $result['status'] = $repairStatus;
+                $result['payable_amount'] = (int)($repair['payable_amount'] ?? 0);
+                $result['message'] = $repairStatus === 'created'
+                    ? 'School payable ledger repaired'
+                    : ($repairStatus === 'exists'
+                        ? 'School payable ledger already present'
+                        : 'School payable ledger repair completed with non-create status');
+
+                if ($repairStatus === 'created') {
+                    $summary['repaired']++;
+                } elseif ($repairStatus === 'exists') {
+                    $summary['already_present']++;
+                } elseif ($repairStatus === 'unresolved') {
+                    $summary['unresolved']++;
+                } elseif ($repairStatus === 'missing_transaction') {
+                    $summary['missing_transaction']++;
+                } else {
+                    $summary['failed']++;
+                }
+            } catch (Throwable $e) {
+                $result['status'] = 'error';
+                $result['message'] = $e->getMessage();
+                $summary['failed']++;
+            }
+
+            $results[] = $result;
+        }
+
+        return [
+            'summary' => $summary,
+            'results' => $results,
+        ];
+    }
+}
+
 if (!function_exists('nivasityGetUserWallet')) {
     function nivasityGetUserWallet($conn, $userId) {
         $userId = (int)$userId;
