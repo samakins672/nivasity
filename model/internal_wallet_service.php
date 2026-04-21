@@ -702,11 +702,14 @@ if (!function_exists('nivasityListMissingSchoolPayableRefs')) {
         $limit = (int)($options['limit'] ?? 0);
         $refId = trim((string)($options['ref_id'] ?? ''));
         $schoolId = (int)($options['school_id'] ?? 0);
+        $trackedFrom = '2026-04-18 20:00:00';
+        $trackedFromSafe = mysqli_real_escape_string($conn, $trackedFrom);
 
         $where = [
             "t.status = 'successful'",
             "COALESCE(t.ref_id, '') <> ''",
             "l.id IS NULL",
+            "t.created_at >= '$trackedFromSafe'",
             "t.created_at <= DATE_SUB(NOW(), INTERVAL $olderThanMinutes MINUTE)",
             "COALESCE(t.transaction_context, '') <> 'wallet_funding'",
             "(
@@ -771,8 +774,10 @@ if (!function_exists('nivasityListMissingSchoolPayableRefs')) {
 if (!function_exists('nivasityRunSchoolPayableRepairSweep')) {
     function nivasityRunSchoolPayableRepairSweep($conn, $options = []) {
         $dryRun = !empty($options['dry_run']);
+        $trackedFrom = '2026-04-18 20:00:00';
         $refs = nivasityListMissingSchoolPayableRefs($conn, $options);
         $summary = [
+            'tracked_from' => $trackedFrom,
             'refs_checked' => count($refs),
             'repaired' => 0,
             'already_present' => 0,

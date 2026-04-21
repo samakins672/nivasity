@@ -1797,6 +1797,7 @@ This allows the payment gateway to redirect back to your mobile app after the us
 **Notes:**
 - Supports CLI execution for cron jobs
 - Default safety window is `10` minutes, so freshly written transactions are skipped
+- Only scans transactions created on or after `2026-04-18 20:00:00`
 - Repairs only purchase-like transactions and ignores wallet funding rows
 
 **Optional Parameters:**
@@ -1814,6 +1815,7 @@ This allows the payment gateway to redirect back to your mobile app after the us
   "message": "School ledger repair sweep completed",
   "data": {
     "summary": {
+      "tracked_from": "2026-04-18 20:00:00",
       "refs_checked": 4,
       "repaired": 2,
       "already_present": 0,
