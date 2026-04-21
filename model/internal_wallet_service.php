@@ -2214,6 +2214,114 @@ if (!function_exists('nivasitySyncWalletFundingFromPaystack')) {
     }
 }
 
+if (!function_exists('nivasityListWalletFundingSyncTargets')) {
+    function nivasityListWalletFundingSyncTargets($conn, $options = []) {
+        $userId = (int)($options['user_id'] ?? 0);
+        $limit = (int)($options['limit'] ?? 0);
+
+        $where = [
+            "LOWER(COALESCE(va.provider, '')) = 'paystack'",
+            "(COALESCE(va.provider_account_id, '') <> '' OR COALESCE(va.account_number, '') <> '')",
+        ];
+
+        if ($userId > 0) {
+            $where[] = "w.user_id = $userId";
+        }
+
+        $limitSql = $limit > 0 ? ' LIMIT ' . $limit : '';
+        $sql = "SELECT
+                    w.id AS wallet_id,
+                    w.user_id,
+                    MAX(NULLIF(va.provider_account_id, '')) AS provider_account_id,
+                    MAX(NULLIF(va.account_number, '')) AS account_number,
+                    MAX(NULLIF(va.provider_customer_code, '')) AS provider_customer_code,
+                    MAX(w.created_at) AS wallet_created_at
+                FROM user_wallets w
+                INNER JOIN wallet_virtual_accounts va ON va.wallet_id = w.id
+                WHERE " . implode(' AND ', $where) . "
+                GROUP BY w.id, w.user_id
+                ORDER BY w.id ASC" . $limitSql;
+        $rs = mysqli_query($conn, $sql);
+        if (!$rs) {
+            throw new Exception('Failed to load wallet funding sync targets: ' . mysqli_error($conn));
+        }
+
+        $targets = [];
+        while ($row = mysqli_fetch_assoc($rs)) {
+            $targets[] = $row;
+        }
+
+        return $targets;
+    }
+}
+
+if (!function_exists('nivasityRunWalletFundingSweep')) {
+    function nivasityRunWalletFundingSweep($conn, $options = []) {
+        $source = trim((string)($options['source'] ?? 'bulk_refresh'));
+        if ($source === '') {
+            $source = 'bulk_refresh';
+        }
+
+        $targets = nivasityListWalletFundingSyncTargets($conn, $options);
+        $summary = [
+            'wallets_checked' => 0,
+            'wallets_with_new_credits' => 0,
+            'processed_rows' => 0,
+            'posted_rows' => 0,
+            'failed_wallets' => 0,
+        ];
+        $results = [];
+
+        foreach ($targets as $target) {
+            $walletId = (int)($target['wallet_id'] ?? 0);
+            $userId = (int)($target['user_id'] ?? 0);
+            if ($walletId <= 0 || $userId <= 0) {
+                continue;
+            }
+
+            $summary['wallets_checked']++;
+            $result = [
+                'wallet_id' => $walletId,
+                'user_id' => $userId,
+                'status' => 'pending',
+                'processed' => 0,
+                'posted' => 0,
+                'message' => '',
+            ];
+
+            try {
+                $syncResult = nivasitySyncWalletFundingFromPaystack($conn, $userId, $source);
+                $result['status'] = (string)($syncResult['status'] ?? 'ok');
+                $result['processed'] = (int)($syncResult['processed'] ?? 0);
+                $result['posted'] = (int)($syncResult['posted'] ?? 0);
+                $result['message'] = trim((string)($syncResult['message'] ?? ''));
+
+                $summary['processed_rows'] += $result['processed'];
+                $summary['posted_rows'] += $result['posted'];
+                if ($result['posted'] > 0) {
+                    $summary['wallets_with_new_credits']++;
+                }
+            } catch (Throwable $e) {
+                $result['status'] = 'error';
+                $result['message'] = $e->getMessage();
+                $summary['failed_wallets']++;
+                nivasityWalletLog('Wallet funding bulk sweep failed', [
+                    'wallet_id' => $walletId,
+                    'user_id' => $userId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            $results[] = $result;
+        }
+
+        return [
+            'summary' => $summary,
+            'results' => $results,
+        ];
+    }
+}
+
 if (!function_exists('nivasityDeterminePaystackWebhookIntent')) {
     function nivasityDeterminePaystackWebhookIntent($conn, $payload) {
         $data = $payload['data'] ?? [];

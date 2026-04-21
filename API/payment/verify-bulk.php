@@ -11,6 +11,7 @@ require_once __DIR__ . '/../../model/PaymentGatewayFactory.php';
 require_once __DIR__ . '/../../config/fw.php';
 require_once __DIR__ . '/../../model/mail.php';
 require_once __DIR__ . '/../../model/refund_engine.php';
+require_once __DIR__ . '/../../model/internal_wallet_service.php';
 
 // Initialize log file path
 $logFile = __DIR__ . '/verify-bulk-cron.log';
@@ -20,6 +21,50 @@ function logMessage($message, $logFile) {
     $timestamp = date('Y-m-d H:i:s');
     $logEntry = "[$timestamp] $message\n";
     @file_put_contents($logFile, $logEntry, FILE_APPEND);
+}
+
+function verifyBulkDeleteOrphanedPurchaseRows($conn, $refId, $userId) {
+    $refIdSafe = mysqli_real_escape_string($conn, (string)$refId);
+    $userId = (int)$userId;
+
+    mysqli_begin_transaction($conn);
+    try {
+        if (!mysqli_query($conn, "DELETE FROM manuals_bought WHERE ref_id = '$refIdSafe' AND buyer = $userId")) {
+            throw new Exception('Failed to delete orphaned manual purchases: ' . mysqli_error($conn));
+        }
+        $manualsDeleted = max(0, mysqli_affected_rows($conn));
+
+        if (!mysqli_query($conn, "DELETE FROM event_tickets WHERE ref_id = '$refIdSafe' AND buyer = $userId")) {
+            throw new Exception('Failed to delete orphaned event tickets: ' . mysqli_error($conn));
+        }
+        $eventsDeleted = max(0, mysqli_affected_rows($conn));
+
+        mysqli_commit($conn);
+
+        return [
+            'manuals_bought_deleted' => $manualsDeleted,
+            'event_tickets_deleted' => $eventsDeleted,
+            'total_deleted' => $manualsDeleted + $eventsDeleted,
+        ];
+    } catch (Throwable $e) {
+        mysqli_rollback($conn);
+        throw $e;
+    }
+}
+
+function verifyBulkResolveUserSchoolId($conn, $userId) {
+    $userId = (int)$userId;
+    if ($userId <= 0) {
+        return 0;
+    }
+
+    $rs = mysqli_query($conn, "SELECT school FROM users WHERE id = $userId LIMIT 1");
+    if ($rs && mysqli_num_rows($rs) > 0) {
+        $row = mysqli_fetch_assoc($rs);
+        return (int)($row['school'] ?? 0);
+    }
+
+    return 0;
 }
 
 // Method validation (only for web requests)
@@ -222,12 +267,67 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
     $has_processed_transaction = !empty($processed_tx_row) && isset($processed_tx_row['id']) && (int)$processed_tx_row['id'] > 0;
     $dupe = ($delivery_count > 0) && ($cart_count <= 0 || $delivery_count >= $cart_count);
     $already_processed = $has_processed_transaction && ($dupe || $confirmed_cart_count > 0);
+    $repair_reset_applied = false;
+
+    if (!$has_processed_transaction && $confirmed_cart_count === 0 && $cart_count > 0 && $delivery_count > 0) {
+        try {
+            $repairRows = [
+                'manuals_bought_deleted' => (int)($mb_count_row['c'] ?? 0),
+                'event_tickets_deleted' => (int)($et_count_row['c'] ?? 0),
+                'total_deleted' => $delivery_count,
+            ];
+            if (!$dry_run) {
+                $repairRows = verifyBulkDeleteOrphanedPurchaseRows($conn, $current_ref, $cart_user_id);
+            }
+
+            $repair_reset_applied = true;
+            $delivery_count = 0;
+            $dupe = false;
+            $result['repair_action'] = 'orphaned_delivery_reset';
+            $result['repair_details'] = $repairRows;
+
+            if ($isCli) {
+                echo "  -> Repair: reset orphaned delivery rows before retrying processing\n";
+            }
+        } catch (Throwable $e) {
+            $result['status'] = 'error';
+            $result['reason'] = 'orphaned_delivery_reset_failed';
+            $result['message'] = 'Failed to reset orphaned delivered rows: ' . $e->getMessage();
+            $failed_count++;
+            $error_count++;
+            $results[] = $result;
+
+            if ($isCli) {
+                echo "  -> ERROR: Failed orphaned delivery reset: " . $e->getMessage() . "\n";
+            }
+            continue;
+        }
+    }
     
     if ($already_processed) {
         // Already processed - mark as confirmed
         if (!$dry_run) {
             mysqli_query($conn, "UPDATE cart SET status = 'confirmed' WHERE ref_id = '$current_ref'");
             $result['refund_applied'] = (int)consumeReservationsForSettledTx($conn, $current_ref);
+            $schoolId = verifyBulkResolveUserSchoolId($conn, $cart_user_id);
+            if ($schoolId > 0) {
+                try {
+                    $result['ledger_repair'] = nivasityEnsureSchoolPayableForPurchase($conn, [
+                        'school_id' => $schoolId,
+                        'source_ref_id' => $current_ref,
+                        'payer_user_id' => $cart_user_id,
+                        'source_medium' => strtoupper((string)$cart_gateway),
+                        'source_channel' => 'api_bulk',
+                        'refund_amount' => (int)($result['refund_applied'] ?? 0),
+                        'metadata' => [
+                            'handler' => 'API/payment/verify-bulk.php',
+                            'repair_reason' => 'already_processed',
+                        ],
+                    ]);
+                } catch (Throwable $repairError) {
+                    $result['ledger_repair_error'] = $repairError->getMessage();
+                }
+            }
 
             // Re-trigger congratulatory email for already-processed refs to avoid missed receipts
             $manual_ids = array();
@@ -373,8 +473,12 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
                 $sum_amount += $price;
                 
                 // Check for duplicate
-                $exists = mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE ref_id = '$current_ref' AND manual_id = $item_id LIMIT 1");
-                if (mysqli_num_rows($exists) === 0) {
+                $existsCount = 0;
+                if (!$repair_reset_applied) {
+                    $exists = mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE ref_id = '$current_ref' AND manual_id = $item_id LIMIT 1");
+                    $existsCount = $exists ? mysqli_num_rows($exists) : 0;
+                }
+                if ($repair_reset_applied || $existsCount === 0) {
                     if (!$dry_run) {
                         $insert = mysqli_query($conn, "INSERT INTO manuals_bought (manual_id, price, seller, buyer, ref_id, status, school_id) 
                                                         VALUES ($item_id, $price, $seller, $cart_user_id, '$current_ref', '$status', $school_id)");
@@ -396,8 +500,12 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
                 $sum_amount += $price;
                 
                 // Check for duplicate
-                $exists = mysqli_query($conn, "SELECT 1 FROM event_tickets WHERE ref_id = '$current_ref' AND event_id = $item_id LIMIT 1");
-                if (mysqli_num_rows($exists) === 0) {
+                $existsCount = 0;
+                if (!$repair_reset_applied) {
+                    $exists = mysqli_query($conn, "SELECT 1 FROM event_tickets WHERE ref_id = '$current_ref' AND event_id = $item_id LIMIT 1");
+                    $existsCount = $exists ? mysqli_num_rows($exists) : 0;
+                }
+                if ($repair_reset_applied || $existsCount === 0) {
                     if (!$dry_run) {
                         $insert = mysqli_query($conn, "INSERT INTO event_tickets (event_id, price, seller, buyer, ref_id, status) 
                                                         VALUES ($item_id, $price, $seller, $cart_user_id, '$current_ref', '$status')");
@@ -438,23 +546,49 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
     $refund_applied = 0;
     if (!$dry_run) {
         try {
-            $refund_applied = withTxProcessingLock($conn, $current_ref, function() use ($conn, $current_ref, $cart_user_id, $total_amount, $charge, $profit, $status, $medium) {
-                $alreadyTx = mysqli_query($conn, "SELECT id FROM transactions WHERE ref_id = '$current_ref' ORDER BY id DESC LIMIT 1");
-                if ($alreadyTx && mysqli_num_rows($alreadyTx) > 0) {
-                    $refund = consumeReservationsForSettledTx($conn, $current_ref);
-                    $updTxSql = "UPDATE transactions SET amount = $total_amount, charge = $charge, profit = $profit, refund = $refund, status = '$status', medium = '$medium' WHERE ref_id = '$current_ref'";
-                    mysqli_query($conn, $updTxSql);
-                    return (int)$refund;
-                }
-                $refund = 0;
+            $refund_applied = withTxProcessingLock($conn, $current_ref, function() use ($conn, $current_ref, $cart_user_id, $sum_amount, $school_id, $total_amount, $charge, $profit, $status, $medium) {
                 mysqli_begin_transaction($conn);
                 try {
                     $refund = consumeReservationsCore($conn, $current_ref);
-                    $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium)
-                                    VALUES ('$current_ref', $cart_user_id, $total_amount, $charge, $profit, $refund, '$status', '$medium')";
-                    if (!mysqli_query($conn, $insertTxSql)) {
-                        throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
+                    $alreadyTx = mysqli_query($conn, "SELECT id FROM transactions WHERE ref_id = '$current_ref' ORDER BY id DESC LIMIT 1 FOR UPDATE");
+                    if ($alreadyTx && mysqli_num_rows($alreadyTx) > 0) {
+                        $updTxSql = "UPDATE transactions
+                                     SET user_id = $cart_user_id,
+                                         amount = $total_amount,
+                                         charge = $charge,
+                                         profit = $profit,
+                                         refund = $refund,
+                                         status = '$status',
+                                         medium = '$medium',
+                                         payment_channel = 'gateway',
+                                         transaction_context = 'purchase'
+                                     WHERE ref_id = '$current_ref'";
+                        if (!mysqli_query($conn, $updTxSql)) {
+                            throw new Exception('Failed to repair transaction: ' . mysqli_error($conn));
+                        }
+                    } else {
+                        $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium, payment_channel, transaction_context)
+                                        VALUES ('$current_ref', $cart_user_id, $total_amount, $charge, $profit, $refund, '$status', '$medium', 'gateway', 'purchase')";
+                        if (!mysqli_query($conn, $insertTxSql)) {
+                            throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
+                        }
                     }
+
+                    nivasityRecordSchoolPayable($conn, [
+                        'school_id' => $school_id,
+                        'source_ref_id' => $current_ref,
+                        'payer_user_id' => $cart_user_id,
+                        'source_medium' => $medium,
+                        'source_channel' => 'api_bulk',
+                        'item_subtotal' => $sum_amount,
+                        'collected_total' => $total_amount,
+                        'charge_amount' => $charge,
+                        'refund_amount' => $refund,
+                        'metadata' => [
+                            'handler' => 'API/payment/verify-bulk.php',
+                        ],
+                    ]);
+
                     mysqli_commit($conn);
                 } catch (Throwable $e) {
                     mysqli_rollback($conn);
@@ -636,8 +770,8 @@ if ($isCli) {
     }
 } else {
     // Web output - JSON response
-    sendApiSuccess([
+    sendApiSuccess('Bulk verification completed', [
         'summary' => $summary,
         'results' => $results
-    ], 'Bulk verification completed');
+    ]);
 }

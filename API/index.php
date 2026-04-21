@@ -46,7 +46,9 @@ $response = [
             'GET /wallet/summary.php' => 'Get wallet summary without auto-provisioning',
             'GET /wallet/transactions.php' => 'List wallet credit and debit ledger entries (20 per page)',
             'POST /wallet/pin.php' => 'Send Wallet PIN code, verify it, and save/update 4-digit Wallet PIN',
-            'POST /wallet/refresh-credits.php' => 'Refresh missed DVA wallet credits from Paystack'
+            'POST /wallet/refresh-credits.php' => 'Refresh missed DVA wallet credits from Paystack',
+            'GET /wallet/refresh-credits-bulk.php' => 'Run bulk DVA wallet credit reconciliation sweep',
+            'POST /wallet/refresh-credits-bulk.php' => 'Run bulk DVA wallet credit reconciliation sweep'
         ],
         'support' => [
             'POST /support/create-ticket.php' => 'Create support ticket',

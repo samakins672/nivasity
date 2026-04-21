@@ -1527,6 +1527,51 @@ This allows the payment gateway to redirect back to your mobile app after the us
 - `processed`: Number of provider funding rows inspected
 - `posted`: Number of new wallet credits actually applied during this refresh
 
+#### Bulk Refresh Wallet Credits
+**Endpoint:** `GET /wallet/refresh-credits-bulk.php`
+**Endpoint:** `POST /wallet/refresh-credits-bulk.php`
+
+**Description:** Runs a Paystack DVA reconciliation sweep for all known wallet virtual accounts, or for a specific user when filtered. Intended for cron recovery of missed wallet-credit webhooks.
+
+**Authentication:** Not required by default. If `NIVASITY_WALLET_CREDIT_CRON_TOKEN` is configured, pass `token` with the request.
+
+**Optional Parameters:**
+- `user_id`: Limit the sweep to one user
+- `limit`: Limit how many wallets are checked in one run
+- `token`: Optional cron token for protected HTTP runs
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Bulk wallet credit refresh completed",
+  "data": {
+    "summary": {
+      "wallets_checked": 12,
+      "wallets_with_new_credits": 3,
+      "processed_rows": 14,
+      "posted_rows": 3,
+      "failed_wallets": 0
+    },
+    "results": [
+      {
+        "wallet_id": 15,
+        "user_id": 11988,
+        "status": "ok",
+        "processed": 2,
+        "posted": 1,
+        "message": "Wallet funding sync completed successfully."
+      }
+    ]
+  }
+}
+```
+
+**Notes:**
+- Supports CLI execution for cron jobs
+- Uses the same idempotent wallet funding posting flow as the webhook path
+- Filters out purchase references so checkout payments are not misclassified as wallet credits
+
 ---
 
 ### Support Endpoints
