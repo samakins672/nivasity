@@ -18,6 +18,29 @@ if (!function_exists('refundEngineLog')) {
 
 require_once __DIR__ . '/internal_wallet_service.php';
 
+if (!function_exists('getLegacyReservationCutoff')) {
+    function getLegacyReservationCutoff() {
+        return '2026-04-18 20:00:00';
+    }
+}
+
+if (!function_exists('isLegacyReservationEligibleTransaction')) {
+    function isLegacyReservationEligibleTransaction($createdAt) {
+        $createdAt = trim((string)$createdAt);
+        if ($createdAt === '') {
+            return false;
+        }
+
+        $createdAtTs = strtotime($createdAt);
+        $cutoffTs = strtotime(getLegacyReservationCutoff());
+        if ($createdAtTs === false || $cutoffTs === false) {
+            return false;
+        }
+
+        return $createdAtTs < $cutoffTs;
+    }
+}
+
 if (!function_exists('getSchoolSettlementSubaccount')) {
     function getSchoolSettlementSubaccount($conn, $schoolId, $gatewayName) {
         $schoolId = (int)$schoolId;
@@ -125,6 +148,27 @@ if (!function_exists('reserveRefundForSchoolShare')) {
         $remainingNeed = max(0, (int)round((float)$schoolShare));
 
         if ($remainingNeed <= 0 || $schoolId <= 0 || $refIdSafe === '') {
+            return 0;
+        }
+
+        $txMetaSql = "SELECT created_at FROM transactions WHERE ref_id = '$refIdSafe' LIMIT 1";
+        $txMetaRs = mysqli_query($conn, $txMetaSql);
+        if (!$txMetaRs) {
+            refundEngineLog('reserveRefundForSchoolShare could not inspect transaction timestamp', [
+                'ref_id' => $refId,
+                'school_id' => $schoolId,
+                'error' => mysqli_error($conn),
+            ]);
+            return 0;
+        }
+        $txMetaRow = mysqli_fetch_assoc($txMetaRs);
+        if (!$txMetaRow || !isLegacyReservationEligibleTransaction($txMetaRow['created_at'] ?? null)) {
+            refundEngineLog('Skipped legacy reservation allocation for post-cutoff or unknown transaction', [
+                'ref_id' => $refId,
+                'school_id' => $schoolId,
+                'cutoff' => getLegacyReservationCutoff(),
+                'created_at' => $txMetaRow['created_at'] ?? null,
+            ]);
             return 0;
         }
 
@@ -554,54 +598,108 @@ if (!function_exists('createMaterialRefund')) {
             }
 
             $refundId = (int)mysqli_insert_id($conn);
-            $reallocatedOverly = reallocateOverlyReleasedToRefundCore($conn, $refundId, null, 'overly_reallocated');
 
-            $refundMode = 'settlement_offset';
-            $sourceTxSql = "SELECT payment_channel FROM transactions WHERE ref_id = '$sourceRefSafe' LIMIT 1 FOR UPDATE";
+            $sourceTxSql = "SELECT payment_channel, created_at FROM transactions WHERE ref_id = '$sourceRefSafe' LIMIT 1 FOR UPDATE";
             $sourceTxRs = mysqli_query($conn, $sourceTxSql);
             if (!$sourceTxRs) {
                 throw new Exception('Failed to inspect source transaction payment channel: ' . mysqli_error($conn));
             }
             $sourceTxRow = mysqli_fetch_assoc($sourceTxRs);
             $paymentChannel = strtolower(trim((string)($sourceTxRow['payment_channel'] ?? 'gateway')));
+            $refundMode = 'settlement_offset';
+            $reallocatedOverly = 0;
 
-            if ($paymentChannel === 'wallet') {
-                $walletRefund = nivasityCreditWalletRefund($conn, [
-                    'user_id' => (int)$resolvedStudentId,
-                    'refund_id' => $refundId,
-                    'source_ref_id' => $sourceRefId,
-                    'amount' => $refundAmount,
-                    'description' => 'Refund for wallet purchase',
-                    'metadata' => [
-                        'reason' => $reason,
-                        'materials' => array_values($cleanMaterialIds),
-                    ],
-                ]);
+            $directLedgerRefund = nivasityAdjustSchoolPayableForRefund($conn, $sourceRefId, $refundAmount, [
+                'refund_id' => $refundId,
+                'reason' => $reason,
+                'student_id' => (int)$resolvedStudentId,
+                'materials' => array_values($cleanMaterialIds),
+                'source' => 'direct_ledger_refund',
+            ]);
 
-                if (($walletRefund['status'] ?? '') === 'credited') {
-                    $splitSeqSql = "SELECT COALESCE(MAX(split_sequence), 0) + 1 AS next_split FROM refund_reservations WHERE refund_id = $refundId FOR UPDATE";
-                    $splitSeqRs = mysqli_query($conn, $splitSeqSql);
-                    if (!$splitSeqRs) {
-                        throw new Exception('Failed to compute wallet refund split sequence: ' . mysqli_error($conn));
-                    }
-                    $splitSeqRow = mysqli_fetch_assoc($splitSeqRs);
-                    $splitSequence = $splitSeqRow && isset($splitSeqRow['next_split']) ? (int)$splitSeqRow['next_split'] : 1;
-                    $gatewaySafe = mysqli_real_escape_string($conn, 'NIVASITY');
-                    $channelSafe = mysqli_real_escape_string($conn, 'wallet_refund');
-
-                    $insertReservationSql = "INSERT INTO refund_reservations (refund_id, ref_id, split_sequence, school_id, payer_user_id, gateway, amount, channel, status, reserved_at, consumed_at)
-                                             VALUES ($refundId, '$sourceRefSafe', $splitSequence, $resolvedSchoolId, " . (int)$resolvedStudentId . ", '$gatewaySafe', $refundAmount, '$channelSafe', 'consumed', NOW(), NOW())";
-                    if (!mysqli_query($conn, $insertReservationSql)) {
-                        throw new Exception('Failed to record wallet refund consumption: ' . mysqli_error($conn));
-                    }
-
-                    finalizeConsumedRefundsForTx($conn, $sourceRefId);
-                    nivasityAdjustSchoolPayableForRefund($conn, $sourceRefId, $refundAmount, [
+            if (($directLedgerRefund['status'] ?? '') === 'adjusted') {
+                if ($paymentChannel === 'wallet') {
+                    $walletRefund = nivasityCreditWalletRefund($conn, [
+                        'user_id' => (int)$resolvedStudentId,
                         'refund_id' => $refundId,
-                        'reason' => $reason,
+                        'source_ref_id' => $sourceRefId,
+                        'amount' => $refundAmount,
+                        'description' => 'Refund for wallet purchase',
+                        'metadata' => [
+                            'reason' => $reason,
+                            'materials' => array_values($cleanMaterialIds),
+                        ],
                     ]);
+
+                    if (($walletRefund['status'] ?? '') !== 'credited') {
+                        throw new Exception('Failed to credit wallet refund.');
+                    }
+
                     $refundMode = 'wallet_credit';
                 }
+
+                $updateRefundSql = "UPDATE refunds
+                                    SET remaining_amount = 0,
+                                        status = 'applied',
+                                        updated_at = NOW()
+                                    WHERE id = $refundId";
+                if (!mysqli_query($conn, $updateRefundSql)) {
+                    throw new Exception('Failed to finalize direct ledger refund: ' . mysqli_error($conn));
+                }
+
+                syncSourceTransactionRefundProgress($conn, $sourceRefId);
+            } else {
+                if (!isLegacyReservationEligibleTransaction($sourceTxRow['created_at'] ?? null)) {
+                    throw new Exception(
+                        'This transaction is not eligible for legacy reservation fallback. Transactions created on or after '
+                        . getLegacyReservationCutoff()
+                        . ' must have a school ledger row before refund processing.'
+                    );
+                }
+
+                $reallocatedOverly = reallocateOverlyReleasedToRefundCore($conn, $refundId, null, 'overly_reallocated');
+
+                if ($paymentChannel === 'wallet') {
+                    $walletRefund = nivasityCreditWalletRefund($conn, [
+                        'user_id' => (int)$resolvedStudentId,
+                        'refund_id' => $refundId,
+                        'source_ref_id' => $sourceRefId,
+                        'amount' => $refundAmount,
+                        'description' => 'Refund for wallet purchase',
+                        'metadata' => [
+                            'reason' => $reason,
+                            'materials' => array_values($cleanMaterialIds),
+                        ],
+                    ]);
+
+                    if (($walletRefund['status'] ?? '') === 'credited') {
+                        $splitSeqSql = "SELECT COALESCE(MAX(split_sequence), 0) + 1 AS next_split FROM refund_reservations WHERE refund_id = $refundId FOR UPDATE";
+                        $splitSeqRs = mysqli_query($conn, $splitSeqSql);
+                        if (!$splitSeqRs) {
+                            throw new Exception('Failed to compute wallet refund split sequence: ' . mysqli_error($conn));
+                        }
+                        $splitSeqRow = mysqli_fetch_assoc($splitSeqRs);
+                        $splitSequence = $splitSeqRow && isset($splitSeqRow['next_split']) ? (int)$splitSeqRow['next_split'] : 1;
+                        $gatewaySafe = mysqli_real_escape_string($conn, 'NIVASITY');
+                        $channelSafe = mysqli_real_escape_string($conn, 'wallet_refund');
+
+                        $insertReservationSql = "INSERT INTO refund_reservations (refund_id, ref_id, split_sequence, school_id, payer_user_id, gateway, amount, channel, status, reserved_at, consumed_at)
+                                                 VALUES ($refundId, '$sourceRefSafe', $splitSequence, $resolvedSchoolId, " . (int)$resolvedStudentId . ", '$gatewaySafe', $refundAmount, '$channelSafe', 'consumed', NOW(), NOW())";
+                        if (!mysqli_query($conn, $insertReservationSql)) {
+                            throw new Exception('Failed to record wallet refund consumption: ' . mysqli_error($conn));
+                        }
+
+                        finalizeConsumedRefundsForTx($conn, $sourceRefId);
+                        nivasityAdjustSchoolPayableForRefund($conn, $sourceRefId, $refundAmount, [
+                            'refund_id' => $refundId,
+                            'reason' => $reason,
+                            'source' => 'wallet_refund',
+                        ]);
+                        $refundMode = 'wallet_credit';
+                    }
+                }
+
+                syncSourceTransactionRefundProgress($conn, $sourceRefId);
             }
 
             mysqli_commit($conn);
@@ -670,39 +768,51 @@ if (!function_exists('syncSourceTransactionRefundProgress')) {
             return 0;
         }
 
-        $refundSql = "SELECT id, amount FROM refunds WHERE ref_id = '$sourceRefSafe' FOR UPDATE";
+        $refundSql = "SELECT COALESCE(SUM(amount), 0) AS expected_refund
+                      FROM refunds
+                      WHERE ref_id = '$sourceRefSafe'
+                        AND COALESCE(status, '') <> 'cancelled'
+                      FOR UPDATE";
         $refundRs = mysqli_query($conn, $refundSql);
         if (!$refundRs) {
             throw new Exception('Failed to fetch source refunds for progress sync: ' . mysqli_error($conn));
         }
 
-        $totalConsumed = 0;
-        while ($refundRow = mysqli_fetch_assoc($refundRs)) {
-            $refundId = (int)$refundRow['id'];
-            $refundAmount = (int)$refundRow['amount'];
-            if ($refundId <= 0 || $refundAmount <= 0) {
+        $refundRow = mysqli_fetch_assoc($refundRs);
+        $expectedRefund = $refundRow && isset($refundRow['expected_refund'])
+            ? round((float)$refundRow['expected_refund'], 2)
+            : 0.0;
+        if ($expectedRefund < 0) {
+            $expectedRefund = 0.0;
+        }
+
+        $transactionSql = "SELECT id, COALESCE(refund, 0) AS refund
+                           FROM transactions
+                           WHERE ref_id = '$sourceRefSafe'
+                           FOR UPDATE";
+        $transactionRs = mysqli_query($conn, $transactionSql);
+        if (!$transactionRs) {
+            throw new Exception('Failed to fetch source transactions for refund sync: ' . mysqli_error($conn));
+        }
+
+        while ($transactionRow = mysqli_fetch_assoc($transactionRs)) {
+            $transactionId = (int)($transactionRow['id'] ?? 0);
+            if ($transactionId <= 0) {
                 continue;
             }
 
-            $consumedSql = "SELECT COALESCE(SUM(amount), 0) AS total_consumed
-                            FROM refund_reservations
-                            WHERE refund_id = $refundId AND status = 'consumed'
-                            FOR UPDATE";
-            $consumedRs = mysqli_query($conn, $consumedSql);
-            if (!$consumedRs) {
-                throw new Exception('Failed to compute consumed total for source refund progress: ' . mysqli_error($conn));
+            $currentRefund = round((float)($transactionRow['refund'] ?? 0), 2);
+            if (abs($expectedRefund - $currentRefund) <= 0.00001) {
+                continue;
             }
-            $consumedRow = mysqli_fetch_assoc($consumedRs);
-            $consumedAmount = $consumedRow && isset($consumedRow['total_consumed']) ? (int)$consumedRow['total_consumed'] : 0;
-            $totalConsumed += min($refundAmount, max(0, $consumedAmount));
+
+            $updateSql = "UPDATE transactions SET refund = $expectedRefund WHERE id = $transactionId";
+            if (!mysqli_query($conn, $updateSql)) {
+                throw new Exception('Failed to sync source transaction refund progress: ' . mysqli_error($conn));
+            }
         }
 
-        $updTxSql = "UPDATE transactions SET refund = $totalConsumed WHERE ref_id = '$sourceRefSafe'";
-        if (!mysqli_query($conn, $updTxSql)) {
-            throw new Exception('Failed to update source transaction refund progress: ' . mysqli_error($conn));
-        }
-
-        return $totalConsumed;
+        return $expectedRefund;
     }
 }
 
@@ -998,10 +1108,6 @@ if (!function_exists('consumeReservationsForSettledTx')) {
         mysqli_begin_transaction($conn);
         try {
             $refundApplied = consumeReservationsCore($conn, $refIdSafe);
-            $syncSql = "UPDATE transactions SET refund = $refundApplied WHERE ref_id = '$refIdSafe'";
-            if (!mysqli_query($conn, $syncSql)) {
-                throw new Exception('Failed to sync transaction refund amount: ' . mysqli_error($conn));
-            }
             mysqli_commit($conn);
             return (int)$refundApplied;
         } catch (Throwable $e) {

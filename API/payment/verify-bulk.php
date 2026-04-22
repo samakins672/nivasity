@@ -557,7 +557,7 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
                                          amount = $total_amount,
                                          charge = $charge,
                                          profit = $profit,
-                                         refund = $refund,
+                                         refund = 0,
                                          status = '$status',
                                          medium = '$medium',
                                          payment_channel = 'gateway',
@@ -568,7 +568,7 @@ while ($cart_row = mysqli_fetch_assoc($cart_query)) {
                         }
                     } else {
                         $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium, payment_channel, transaction_context)
-                                        VALUES ('$current_ref', $cart_user_id, $total_amount, $charge, $profit, $refund, '$status', '$medium', 'gateway', 'purchase')";
+                                        VALUES ('$current_ref', $cart_user_id, $total_amount, $charge, $profit, 0, '$status', '$medium', 'gateway', 'purchase')";
                         if (!mysqli_query($conn, $insertTxSql)) {
                             throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
                         }

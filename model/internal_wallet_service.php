@@ -2663,10 +2663,16 @@ if (!function_exists('nivasityAdjustSchoolPayableForRefund')) {
         if (is_array($existingMetadata)) {
             $mergedMetadata = $existingMetadata;
         }
+        $metadataPayload = is_array($metadata) ? $metadata : [];
+        $adjustmentSource = trim((string)($metadataPayload['source'] ?? 'wallet_refund'));
+        if ($adjustmentSource === '') {
+            $adjustmentSource = 'wallet_refund';
+        }
+        unset($metadataPayload['source']);
         $mergedMetadata['refund_adjustment'] = array_merge([
-            'source' => 'wallet_refund',
+            'source' => $adjustmentSource,
             'refund_amount_delta' => $effectiveDelta,
-        ], is_array($metadata) ? $metadata : []);
+        ], $metadataPayload);
         $metadataSafe = mysqli_real_escape_string($conn, json_encode($mergedMetadata));
         $newCarryForwardAmount = $existingCarryForward + $carryForwardDelta;
 
@@ -2899,14 +2905,14 @@ if (!function_exists('nivasityProcessWalletCheckout')) {
                 }
                 if (mysqli_num_rows($existingTxRs) > 0) {
                     $updateTxSql = "UPDATE transactions
-                                    SET user_id = $userId, amount = $totalAmount, charge = $charge, profit = $profit, refund = $refundApplied, status = 'successful', medium = 'NIVASITY', payment_channel = 'wallet', transaction_context = 'purchase'
+                                    SET user_id = $userId, amount = $totalAmount, charge = $charge, profit = $profit, refund = 0, status = 'successful', medium = 'NIVASITY', payment_channel = 'wallet', transaction_context = 'purchase'
                                     WHERE ref_id = '$refIdSafe'";
                     if (!mysqli_query($conn, $updateTxSql)) {
                         throw new Exception('Failed to update wallet purchase transaction: ' . mysqli_error($conn));
                     }
                 } else {
                     $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium, payment_channel, transaction_context)
-                                    VALUES ('$refIdSafe', $userId, $totalAmount, $charge, $profit, $refundApplied, 'successful', 'NIVASITY', 'wallet', 'purchase')";
+                                    VALUES ('$refIdSafe', $userId, $totalAmount, $charge, $profit, 0, 'successful', 'NIVASITY', 'wallet', 'purchase')";
                     if (!mysqli_query($conn, $insertTxSql)) {
                         throw new Exception('Failed to record wallet purchase transaction: ' . mysqli_error($conn));
                     }

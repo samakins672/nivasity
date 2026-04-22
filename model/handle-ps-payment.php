@@ -178,13 +178,13 @@ if (isset($_POST['nivas_ref'])) {
       $existingTx = mysqli_query($conn, "SELECT id FROM transactions WHERE ref_id = '$tx_ref' ORDER BY id DESC LIMIT 1");
       if ($existingTx && mysqli_num_rows($existingTx) > 0) {
         $updateTxSql = "UPDATE transactions
-                        SET user_id = $user_id, amount = $total_amount, charge = $charge, profit = $profit, refund = $refund_applied, status = '$status', medium = 'PAYSTACK', payment_channel = 'gateway', transaction_context = 'purchase'
+                        SET user_id = $user_id, amount = $total_amount, charge = $charge, profit = $profit, refund = 0, status = '$status', medium = 'PAYSTACK', payment_channel = 'gateway', transaction_context = 'purchase'
                         WHERE ref_id = '$tx_ref'";
         if (!mysqli_query($conn, $updateTxSql)) {
           throw new Exception('Failed to repair transaction: ' . mysqli_error($conn));
         }
       } else {
-        $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium, payment_channel, transaction_context) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, $refund_applied, '$status', 'PAYSTACK', 'gateway', 'purchase')";
+        $insertTxSql = "INSERT INTO transactions (ref_id, user_id, amount, charge, profit, refund, status, medium, payment_channel, transaction_context) VALUES ('$tx_ref', $user_id, $total_amount, $charge, $profit, 0, '$status', 'PAYSTACK', 'gateway', 'purchase')";
         if (!mysqli_query($conn, $insertTxSql)) {
           throw new Exception('Failed to record transaction: ' . mysqli_error($conn));
         }

@@ -1,6 +1,5 @@
 -- Material-level refunds migration
--- Adds refunds.materials (JSON array of manual IDs) and
--- backfills transactions.refund to source-transaction progress semantics.
+-- Adds refunds.materials (JSON array of manual IDs).
 
 -- 1) Add materials column to refunds table (idempotent)
 SET @has_refunds_materials := (
@@ -36,21 +35,6 @@ PREPARE stmt_add_transactions_refund_column FROM @add_transactions_refund_column
 EXECUTE stmt_add_transactions_refund_column;
 DEALLOCATE PREPARE stmt_add_transactions_refund_column;
 
--- 3) Reset transactions.refund and recompute as source transaction refund progress
---    (sum of consumed reservation amounts across refunds mapped by refunds.ref_id)
-UPDATE `transactions` SET `refund` = 0;
-
-UPDATE `transactions` t
-INNER JOIN (
-  SELECT
-    r.ref_id AS source_ref_id,
-    COALESCE(SUM(rr.amount), 0) AS refunded_total
-  FROM `refunds` r
-  LEFT JOIN `refund_reservations` rr
-    ON rr.refund_id = r.id
-   AND rr.status = 'consumed'
-  WHERE r.ref_id IS NOT NULL
-    AND r.ref_id <> ''
-  GROUP BY r.ref_id
-) src ON src.source_ref_id = t.ref_id
-SET t.refund = src.refunded_total;
+-- 3) Do not backfill transactions.refund from refund reservation consumption.
+--    That column belongs to the actual refunded transaction row, not the
+--    source transaction whose purchase is being offset by refund reservations.
