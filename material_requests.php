@@ -268,18 +268,6 @@ foreach ($materialRequests as $requestRow) {
                       Create Material Request
                     </button>
                   </div>
-
-                  <?php if (!$materialRequestTableReady): ?>
-                    <div class="alert alert-warning mb-0">Material requests are not available yet in this environment. Run the latest SQL update first.</div>
-                  <?php elseif ($user_status !== 'verified'): ?>
-                    <div class="alert alert-warning mb-0">Verify your account before creating or upvoting material requests.</div>
-                  <?php elseif ((int)$user_dept <= 0): ?>
-                    <div class="alert alert-warning mb-0">Complete your academic information before creating or upvoting material requests.</div>
-                  <?php else: ?>
-                    <div class="material-request-note">
-                      When a request reaches <strong>40%</strong> of the expected buyers, Nivasity admin will move quickly to help get it sorted. Once the material is posted, the request will be marked as resolved.
-                    </div>
-                  <?php endif; ?>
                 </div>
               </div>
             </div>
@@ -350,7 +338,9 @@ foreach ($materialRequests as $requestRow) {
                           <div class="progress-bar" role="progressbar" style="width: <?php echo min(100, max(0, (float)$requestRow['progress_percent'])); ?>%"></div>
                         </div>
                         <div class="request-meta mt-2">
-                          <?php if ($requestRow['threshold_met']): ?>
+                          <?php if ($requestRow['status'] === 'resolved'): ?>
+                            Resolved at <?php echo htmlspecialchars(date('d M Y', strtotime((string)($requestRow['updated_at'] ?? $requestRow['created_at'])))); ?>.
+                          <?php elseif ($requestRow['threshold_met']): ?>
                             This request has crossed the 40% threshold and is now on the admin radar.
                           <?php else: ?>
                             It needs <?php echo htmlspecialchars(number_format(max(0, (float)$requestRow['threshold_percent'] - (float)$requestRow['progress_percent']), 1)); ?>% more support to hit the 40% review threshold.
@@ -364,19 +354,21 @@ foreach ($materialRequests as $requestRow) {
                         </div>
                       <?php endif; ?>
 
-                      <div class="d-flex flex-column flex-md-row gap-2 mt-4">
-                        <button
-                          type="button"
-                          class="btn btn-primary request-action-btn request-upvote-btn js-upvote-request"
-                          data-request-id="<?php echo (int)$requestRow['id']; ?>"
-                          <?php echo ($requestRow['viewer_has_upvoted'] || $requestRow['status'] === 'resolved') ? 'disabled' : ''; ?>>
-                          <i class="mdi mdi-thumb-up"></i>
-                          <?php echo $requestRow['viewer_has_upvoted'] ? 'Upvoted' : ($requestRow['status'] === 'resolved' ? 'Resolved' : 'Upvote Request'); ?>
-                        </button>
-                        <button type="button" class="btn btn-outline-primary request-action-btn request-share-link js-copy-request-link" data-share-url="<?php echo htmlspecialchars($shareUrl, ENT_QUOTES, 'UTF-8'); ?>">
-                          Copy Share Link
-                        </button>
-                      </div>
+                      <?php if ($requestRow['status'] !== 'resolved'): ?>
+                        <div class="d-flex flex-column flex-md-row gap-2 mt-4">
+                          <button
+                            type="button"
+                            class="btn btn-primary request-action-btn request-upvote-btn js-upvote-request"
+                            data-request-id="<?php echo (int)$requestRow['id']; ?>"
+                            <?php echo $requestRow['viewer_has_upvoted'] ? 'disabled' : ''; ?>>
+                            <i class="mdi mdi-thumb-up"></i>
+                            <?php echo $requestRow['viewer_has_upvoted'] ? 'Upvoted' : 'Upvote Request'; ?>
+                          </button>
+                          <button type="button" class="btn btn-outline-primary request-action-btn request-share-link js-copy-request-link" data-share-url="<?php echo htmlspecialchars($shareUrl, ENT_QUOTES, 'UTF-8'); ?>">
+                            Copy Share Link
+                          </button>
+                        </div>
+                      <?php endif; ?>
                     </div>
                   </div>
                 <?php endforeach; ?>

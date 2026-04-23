@@ -158,9 +158,6 @@ if ($manuals_bought_has_id) {
                                     <a href="model/receipt.php?action=download&format=pdf&ref=<?php echo urlencode($manual['ref_id']); ?>&kind=manual&item_id=<?php echo (int)$manual['manual_id']; ?>" class="btn btn-sm btn-outline-primary" title="Download receipt as PDF">
                                       Download
                                     </a>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary js-email-receipt" data-ref="<?php echo htmlspecialchars($manual['ref_id']); ?>" data-kind="manual" data-item-id="<?php echo (int)$manual['manual_id']; ?>" title="Email receipt">
-                                      Email
-                                    </button>
                                     <?php if ($is_within_change_window): ?>
                                       <button
                                         type="button"
@@ -339,27 +336,6 @@ if ($manuals_bought_has_id) {
 
         $select.html(options.join('')).prop('disabled', false);
       }
-
-      $(document).on('click', '.js-email-receipt', function() {
-        var ref = $(this).data('ref');
-        var kind = $(this).data('kind');
-        var itemId = $(this).data('item-id');
-        var $btn = $(this);
-        $btn.prop('disabled', true).text('Sending...');
-        $.ajax({
-          url: 'model/receipt.php',
-          method: 'GET',
-          data: { action: 'email', ref: ref, kind: kind, item_id: itemId },
-          dataType: 'json'
-        }).done(function(resp) {
-          var msg = (resp && resp.status === 'success') ? 'Receipt sent to your email.' : (resp && resp.message ? resp.message : 'Failed to send receipt.');
-          showBanner(msg, (resp && resp.status === 'success') ? 'info' : 'danger');
-        }).fail(function() {
-          showBanner('An error occurred while sending receipt.', 'danger');
-        }).always(function() {
-          $btn.prop('disabled', false).text('Email');
-        });
-      });
 
       $(document).on('click', '.js-open-material-change', function() {
         var oldManualId = $(this).data('old-manual-id');
