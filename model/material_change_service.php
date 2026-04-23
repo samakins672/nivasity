@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/material_copy_status.php';
+
 if (!function_exists('material_change_has_column')) {
   function material_change_has_column(mysqli $conn, string $table, string $column): bool
   {
@@ -214,6 +216,8 @@ if (!function_exists('material_change_get_order_context')) {
     $hasExportId = material_change_has_column($conn, 'manuals_bought', 'export_id');
     $hasDepts = material_change_has_column($conn, 'manuals', 'depts');
     $hasCoverage = material_change_has_column($conn, 'manuals', 'coverage');
+    $selectCopyStatus = material_copy_status_select_sql($conn, 'mb');
+    $selectLostAt = material_copy_lost_at_select_sql($conn, 'mb');
 
     $buyerId = (int) $buyerId;
     $schoolId = (int) $schoolId;
@@ -240,6 +244,8 @@ if (!function_exists('material_change_get_order_context')) {
         mb.created_at,
         {$selectGrantStatus},
         {$selectExportId},
+        {$selectCopyStatus},
+        {$selectLostAt},
         m.title,
         m.course_code,
         m.code,
@@ -310,6 +316,14 @@ if (!function_exists('material_change_get_order_context')) {
       ];
     }
 
+    if (material_copy_is_lost_row($order)) {
+      return [
+        'ok' => false,
+        'status_code' => 409,
+        'message' => 'Lost material purchases stay in your history and cannot be changed. Buy a replacement copy instead.',
+      ];
+    }
+
     if (!material_change_is_within_window((string) ($order['created_at'] ?? ''), 72)) {
       return [
         'ok' => false,
@@ -356,6 +370,7 @@ if (!function_exists('material_change_get_candidate_materials')) {
     $order = $context['order'];
     $price = (int) ($order['price'] ?? 0);
     $visibilityWhere = material_change_build_visibility_where($conn, 'm', $userDeptId, $schoolId);
+    $nonLostBoughtCondition = material_copy_non_lost_condition($conn, 'mb2');
     $hasDepts = material_change_has_column($conn, 'manuals', 'depts');
     $selectDepts = $hasDepts ? 'm.depts' : 'NULL AS depts';
 
@@ -385,6 +400,7 @@ if (!function_exists('material_change_get_candidate_materials')) {
           FROM manuals_bought AS mb2
           WHERE mb2.buyer = {$buyerId}
             AND mb2.manual_id = m.id
+            AND {$nonLostBoughtCondition}
         )
       ORDER BY m.due_date ASC, m.title ASC"
     );
@@ -504,9 +520,10 @@ if (!function_exists('material_change_validate_target_manual')) {
       ];
     }
 
+    $nonLostBoughtCondition = material_copy_non_lost_condition($conn, 'mb');
     $alreadyBought = mysqli_query(
       $conn,
-      "SELECT 1 FROM manuals_bought WHERE buyer = {$buyerId} AND manual_id = {$newManualId} LIMIT 1"
+      "SELECT 1 FROM manuals_bought AS mb WHERE mb.buyer = {$buyerId} AND mb.manual_id = {$newManualId} AND {$nonLostBoughtCondition} LIMIT 1"
     );
     if ($alreadyBought && mysqli_num_rows($alreadyBought) > 0) {
       return [

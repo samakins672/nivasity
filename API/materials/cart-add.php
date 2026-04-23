@@ -2,6 +2,7 @@
 // API: Add Material to Cart
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../auth.php';
+require_once __DIR__ . '/../../model/material_copy_status.php';
 
 // Only accept POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -41,8 +42,9 @@ if ($now > $due_date) {
     sendApiError('Cannot add material to cart - due date has passed', 400);
 }
 
-// Check if already purchased
-$bought_query = mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE manual_id = $material_id AND buyer = $user_id");
+// Check if already purchased and still active
+$non_lost_condition = material_copy_non_lost_condition($conn, 'mb');
+$bought_query = mysqli_query($conn, "SELECT 1 FROM manuals_bought AS mb WHERE mb.manual_id = $material_id AND mb.buyer = $user_id AND {$non_lost_condition} LIMIT 1");
 if (mysqli_num_rows($bought_query) > 0) {
     sendApiError('You have already purchased this material', 400);
 }

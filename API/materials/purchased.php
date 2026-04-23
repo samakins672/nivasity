@@ -2,6 +2,7 @@
 // API: List Purchased Materials
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../auth.php';
+require_once __DIR__ . '/../../model/material_copy_status.php';
 
 // Only accept GET requests
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
@@ -38,7 +39,9 @@ $result = mysqli_query($conn, $query);
 $purchased = [];
 
 while ($row = mysqli_fetch_assoc($result)) {
+    $copy_status = isset($row['copy_status']) && trim((string)$row['copy_status']) !== '' ? (string)$row['copy_status'] : 'active';
     $purchased[] = [
+        'bought_id' => isset($row['id']) ? (int)$row['id'] : 0,
         'id' => $row['manual_id'],
         'title' => $row['title'],
         'course_code' => $row['course_code'],
@@ -50,7 +53,10 @@ while ($row = mysqli_fetch_assoc($result)) {
         'level' => $row['level'] ? (string)$row['level'] : null,
         'seller_name' => $row['first_name'] . ' ' . $row['last_name'],
         'ref_id' => $row['ref_id'],
-        'purchased_at' => $row['created_at']
+        'purchased_at' => $row['created_at'],
+        'copy_status' => $copy_status,
+        'is_lost' => material_copy_is_lost_value($copy_status),
+        'lost_at' => $row['lost_at'] ?? null
     ];
 }
 

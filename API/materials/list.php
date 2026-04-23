@@ -2,6 +2,7 @@
 // API: List Materials/Manuals
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../auth.php';
+require_once __DIR__ . '/../../model/material_copy_status.php';
 
 // Only accept GET requests
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
@@ -108,7 +109,8 @@ $dept_name_cache = [];
 
 while ($row = mysqli_fetch_assoc($result)) {
     // Check if user already bought this material
-    $bought_query = mysqli_query($conn, "SELECT 1 FROM manuals_bought WHERE manual_id = {$row['id']} AND buyer = $user_id LIMIT 1");
+    $non_lost_condition = material_copy_non_lost_condition($conn, 'mb');
+    $bought_query = mysqli_query($conn, "SELECT 1 FROM manuals_bought AS mb WHERE mb.manual_id = {$row['id']} AND mb.buyer = $user_id AND {$non_lost_condition} LIMIT 1");
     $is_purchased = mysqli_num_rows($bought_query) > 0;
     
     // Check if due date has passed (within 24 hours)

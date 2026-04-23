@@ -2,6 +2,7 @@
 session_start();
 include('config.php');
 include('functions.php');
+require_once __DIR__ . '/material_copy_status.php';
 require_once __DIR__ . '/export_pdf.php';
 $statusRes = $schools = 'failed';
 
@@ -276,6 +277,7 @@ if (isset($_POST['manual_id'])) {
       $fromWhereParts = [
         "mb.manual_id = $manualId",
         "mb.status = 'successful'",
+        material_copy_non_lost_condition($conn, 'mb'),
       ];
       $fromJoinSql = "";
       if ($applyHocDeptFilter) {
@@ -302,6 +304,7 @@ if (isset($_POST['manual_id'])) {
       $toWhereParts = [
         "mb.manual_id = $manualId",
         "mb.status = 'successful'",
+        material_copy_non_lost_condition($conn, 'mb'),
       ];
       $toJoinSql = "";
       if ($applyHocDeptFilter) {
@@ -327,6 +330,7 @@ if (isset($_POST['manual_id'])) {
     $manualBuyerFilters = [
       "mb.manual_id = $manualId",
       "mb.status = 'successful'",
+      material_copy_non_lost_condition($conn, 'mb'),
     ];
     if ($manualsBoughtHasGrantStatus) {
       // Only export students still pending in manuals_bought.

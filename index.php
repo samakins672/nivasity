@@ -5,6 +5,7 @@ include('model/page_config.php');
 include('model/system_alerts.php');
 include('model/payment_freeze.php');
 require_once 'model/internal_wallet_service.php';
+require_once 'model/material_copy_status.php';
 
 // Fetch active system alerts
 $system_alerts = get_active_system_alerts($conn);
@@ -575,7 +576,8 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                               $manual_id = $manual['id'];
 
                               // Check if the manual has been bought by the current user
-                              $is_bought_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM manuals_bought WHERE manual_id = $manual_id AND buyer = $user_id AND school_id = $school_id");
+                              $non_lost_condition = material_copy_non_lost_condition($conn, 'mb');
+                              $is_bought_query = mysqli_query($conn, "SELECT COUNT(*) AS count FROM manuals_bought AS mb WHERE mb.manual_id = $manual_id AND mb.buyer = $user_id AND mb.school_id = $school_id AND {$non_lost_condition}");
                               $is_bought_result = mysqli_fetch_assoc($is_bought_query);
 
                               // If the manual has been bought, skip it

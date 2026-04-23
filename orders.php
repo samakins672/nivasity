@@ -3,11 +3,13 @@ session_start();
 include('model/config.php');
 include('model/page_config.php');
 require_once 'model/material_change_service.php';
+require_once 'model/material_copy_status.php';
 
 $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = $user_id AND school_id = $school_id ORDER BY created_at DESC");
 $manuals_bought_has_id = material_change_has_column($conn, 'manuals_bought', 'id');
 $manuals_bought_has_grant_status = material_change_has_column($conn, 'manuals_bought', 'grant_status');
 $manuals_bought_has_export_id = material_change_has_column($conn, 'manuals_bought', 'export_id');
+$manuals_bought_has_copy_status = material_copy_has_column($conn, 'manuals_bought', 'copy_status');
 
 $changed_bought_ids = [];
 if ($manuals_bought_has_id) {
@@ -104,12 +106,16 @@ if ($manuals_bought_has_id) {
                                 $event_price = number_format($manuals['price']);
                                 $event_price = $event_price > 0 ? "₦ $event_price" : 'FREE';
                                 $is_within_change_window = material_change_is_within_window((string) ($manual['created_at'] ?? ''), 72);
+                                $is_lost = material_copy_is_lost_row($manual);
                                 $is_granted = ($manuals_bought_has_grant_status && material_change_boolish_is_true($manual['grant_status'] ?? '0'))
                                   || ($manuals_bought_has_export_id && (int) ($manual['export_id'] ?? 0) > 0);
                                 $was_changed = $manuals_bought_has_id && isset($changed_bought_ids[(int) ($manual['id'] ?? 0)]);
-                                $can_change_material = $is_within_change_window && strtolower((string) $status) === 'successful' && !$is_granted && !$was_changed;
+                                $can_change_material = $is_within_change_window && strtolower((string) $status) === 'successful' && !$is_lost && !$is_granted && !$was_changed;
+                                $can_mark_lost = $manuals_bought_has_id && $manuals_bought_has_copy_status && strtolower((string) $status) === 'successful' && !$is_lost;
                                 $change_material_reason = '';
-                                if (!$is_within_change_window) {
+                                if ($is_lost) {
+                                  $change_material_reason = 'This material copy has already been marked as lost. Buy another copy from the store when needed.';
+                                } elseif (!$is_within_change_window) {
                                   $change_material_reason = 'Material change is only available within 72 hours of purchase.';
                                 } elseif (strtolower((string) $status) !== 'successful') {
                                   $change_material_reason = 'Only successful purchases can be changed.';
@@ -140,7 +146,12 @@ if ($manuals_bought_has_id) {
                                   <p class="fw-bold"><?php echo $created_time ?></p>
                                 </td>
                                 <td class="order-mobile-hidden">
-                                  <div class="badge <?php echo ($status == 'successful') ? 'bg-success' : 'bg-danger'; ?>"><?php echo $status; ?></div>
+                                  <div class="d-flex flex-wrap gap-2">
+                                    <div class="badge <?php echo ($status == 'successful') ? 'bg-success' : 'bg-danger'; ?>"><?php echo $status; ?></div>
+                                    <?php if ($is_lost): ?>
+                                      <div class="badge bg-warning text-dark">lost</div>
+                                    <?php endif; ?>
+                                  </div>
                                 </td>
                                 <td>
                                   <div class="d-flex flex-wrap gap-2">
@@ -162,6 +173,16 @@ if ($manuals_bought_has_id) {
                                         <?php echo $can_change_material ? '' : 'disabled'; ?>
                                         title="<?php echo htmlspecialchars($can_change_material ? 'Choose another material with the same price.' : $change_material_reason, ENT_QUOTES, 'UTF-8'); ?>">
                                         Change Material
+                                      </button>
+                                    <?php endif; ?>
+                                    <?php if ($can_mark_lost): ?>
+                                      <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-warning js-mark-material-lost"
+                                        data-bought-id="<?php echo (int) ($manual['id'] ?? 0); ?>"
+                                        data-item-title="<?php echo htmlspecialchars((string) ($manuals['title'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-course-code="<?php echo htmlspecialchars((string) ($manuals['course_code'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                                        Mark Lost
                                       </button>
                                     <?php endif; ?>
                                   </div>
@@ -417,6 +438,47 @@ if ($manuals_bought_has_id) {
           setChangeMaterialFeedback('danger', message);
           showBanner(message, 'danger');
           $submit.prop('disabled', false).text('Change Material');
+        });
+      });
+
+      $(document).on('click', '.js-mark-material-lost', function() {
+        var boughtId = Number($(this).data('bought-id') || 0);
+        var itemTitle = $(this).data('item-title') || 'this material';
+        var courseCode = $(this).data('course-code') ? ' - ' + $(this).data('course-code') : '';
+        var $btn = $(this);
+
+        if (!boughtId) {
+          showBanner('Unable to identify the selected purchased material.', 'danger');
+          return;
+        }
+
+        if (!window.confirm('Mark ' + itemTitle + courseCode + ' as lost? It will stay in your history, but you can buy another copy afterward.')) {
+          return;
+        }
+
+        $btn.prop('disabled', true).text('Marking...');
+        $.ajax({
+          url: 'model/mark-material-lost.php',
+          method: 'POST',
+          data: { bought_id: boughtId },
+          dataType: 'json'
+        }).done(function(resp) {
+          var success = resp && resp.status === 'success';
+          var message = resp && resp.message ? resp.message : 'Unable to update the selected material.';
+          showBanner(message, success ? 'success' : 'danger');
+          if (success) {
+            setTimeout(function() {
+              window.location.reload();
+            }, 900);
+            return;
+          }
+          $btn.prop('disabled', false).text('Mark Lost');
+        }).fail(function(xhr) {
+          var message = xhr.responseJSON && xhr.responseJSON.message
+            ? xhr.responseJSON.message
+            : 'Unable to mark this material copy as lost right now.';
+          showBanner(message, 'danger');
+          $btn.prop('disabled', false).text('Mark Lost');
         });
       });
     });

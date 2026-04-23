@@ -2,6 +2,7 @@
 // API: Get Material Details
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../auth.php';
+require_once __DIR__ . '/../../model/material_copy_status.php';
 
 // Only accept GET requests
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
@@ -55,8 +56,9 @@ $material = mysqli_fetch_assoc($result);
 // Use the actual material ID from the result for further queries
 $material_id = $material['id'];
 
-// Check if user already bought this material
-$bought_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE manual_id = $material_id AND buyer = $user_id LIMIT 1");
+// Check if user already bought this material and still has an active copy
+$non_lost_condition = material_copy_non_lost_condition($conn, 'mb');
+$bought_query = mysqli_query($conn, "SELECT * FROM manuals_bought AS mb WHERE mb.manual_id = $material_id AND mb.buyer = $user_id AND {$non_lost_condition} ORDER BY mb.created_at DESC LIMIT 1");
 $is_purchased = mysqli_num_rows($bought_query) > 0;
 
 $purchase_info = null;
