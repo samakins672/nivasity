@@ -44,7 +44,7 @@ if (isset($_GET['product_id'])) {
         if ($active == 1) {
             header('Location: /?cart=1');
         } else {
-            header('Location: ../signin.html');
+            header('Location: ' . nivasity_signin_url_with_redirect([], '/?cart=1'));
         }
     }
     // Set the appropriate headers for JSON response

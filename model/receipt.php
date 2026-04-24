@@ -18,7 +18,7 @@ if (!isset($_SESSION['nivas_userId'])) {
   // Not logged in
   if (isset($_GET['action']) && strtolower($_GET['action']) === 'download') {
     http_response_code(302);
-    header('Location: ../signin.html');
+    header('Location: ' . nivasity_signin_url_with_redirect());
     exit;
   }
   respond_json('error', 'Not authenticated', 401);

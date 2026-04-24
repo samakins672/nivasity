@@ -292,6 +292,7 @@
   <!-- Initialize Bootstrap tooltips -->
   <script>
     const urlParams = new URLSearchParams(window.location.search);
+    const requestedRedirect = urlParams.get('redirect');
     // Get the logout parameter from the URL
     const logout = urlParams.get('logout');
     const not_allowed = urlParams.get('not_allowed');
@@ -300,6 +301,44 @@
       logout: 'logout',
       not_allowed: not_allowed ? not_allowed : ''
     };
+
+    function getSafeRedirectTarget() {
+      if (!requestedRedirect) {
+        return '';
+      }
+
+      let target = requestedRedirect.trim();
+      if (target === '' || /^([a-z][a-z0-9+.-]*:|\/\/)/i.test(target)) {
+        return '';
+      }
+
+      if (!target.startsWith('/')) {
+        target = '/' + target.replace(/^\.?\//, '');
+      }
+
+      return target;
+    }
+
+    function getPostLoginRedirectUrl(role) {
+      const defaultTarget = role === 'admin' ? 'admin/?loggedin' : '/?loggedin';
+      const safeTarget = getSafeRedirectTarget();
+
+      if (!safeTarget) {
+        return defaultTarget;
+      }
+
+      try {
+        const redirectUrl = new URL(safeTarget, window.location.origin);
+        if (redirectUrl.pathname === '/signin.html') {
+          return defaultTarget;
+        }
+
+        redirectUrl.searchParams.set('loggedin', '1');
+        return redirectUrl.pathname + redirectUrl.search + redirectUrl.hash;
+      } catch (error) {
+        return defaultTarget;
+      }
+    }
 
     function showAlertBanner(status, message) {
       $('#alertBanner').html(message);
@@ -464,7 +503,7 @@
             $('#alertBanner').removeClass('alert-warning');
             $('#alertBanner').addClass('alert-success');
 
-            window.location.href = "/?loggedin";
+            window.location.href = getPostLoginRedirectUrl(data.role);
           } else if (data.status == 'unverified') {
             $('#alertBanner').removeClass('alert-danger');
             $('#alertBanner').removeClass('alert-success');
@@ -544,11 +583,7 @@
                 $('#alertBanner').addClass('alert-success');
                 setTimeout(function () {
                   // Redirect the browser to the specified page
-                  if (data.role == 'admin') {
-                    window.location.href = "admin/?loggedin";
-                  } else {
-                    window.location.href = "/?loggedin";
-                  }
+                  window.location.href = getPostLoginRedirectUrl(data.role);
                 }, 1000); // 1000 milliseconds (1 second) delay
               } else if (data.status == 'unverified') {
                 $('#alertBanner').removeClass('alert-danger');

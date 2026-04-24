@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/tenant.php';
+require_once __DIR__ . '/auth_redirect.php';
 
 if (isset($conn)) {
   nivasity_resolve_tenant_from_request($conn);
@@ -16,7 +17,7 @@ $__stagingGate = defined('STAGING_GATE') && STAGING_GATE === true;
 
 if (!isset($_SESSION['nivas_userId'])) {
   if ($__stagingGate || $url !== 'event_details.php') {
-    header('Location: ../signin.html');
+    header('Location: ' . nivasity_signin_url_with_redirect());
     exit();
   }
 }
@@ -56,13 +57,13 @@ if (isset($_SESSION['nivas_userId'])) {
     if (strtolower($user_email) !== strtolower(STAGING_ALLOWED_EMAIL)) {
       session_unset();
       session_destroy();
-      header('Location: ' . nivasity_app_url('signin.html?logout=1&not_allowed=1'));
+      header('Location: ' . nivasity_signin_url_with_redirect(['logout' => 1, 'not_allowed' => 1]));
       exit();
     }
   }
   
   if (!$allow_all_roles_wallet_page && ($_SESSION['nivas_userRole'] == 'org_admin' || $_SESSION['nivas_userRole'] == 'visitor')) {
-    header('Location: ' . nivasity_app_url('signin.html?logout=1&not_allowed=1'));
+    header('Location: ' . nivasity_signin_url_with_redirect(['logout' => 1, 'not_allowed' => 1]));
     exit();
   }
   if ($_SESSION['nivas_userRole'] !== 'student' && $_SESSION['nivas_userRole'] !== 'visitor') {
@@ -72,7 +73,7 @@ if (isset($_SESSION['nivas_userId'])) {
   if (nivasity_school_id() > 0 && (int) $school_id !== nivasity_school_id()) {
     session_unset();
     session_destroy();
-    header('Location: ' . nivasity_app_url('signin.html?logout=1&wrong_school=1'));
+    header('Location: ' . nivasity_signin_url_with_redirect(['logout' => 1, 'wrong_school' => 1]));
     exit();
   }
 

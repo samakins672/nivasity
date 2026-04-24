@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/tenant.php';
+require_once __DIR__ . '/auth_redirect.php';
 
 $conn = mysqli_connect("localhost", DB_USERNAME, DB_PASSWORD, "niverpay_db");
 
