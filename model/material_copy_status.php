@@ -54,6 +54,19 @@ if (!function_exists('material_copy_is_lost_row')) {
   }
 }
 
+if (!function_exists('material_copy_is_after_lost_wait_period')) {
+  function material_copy_is_after_lost_wait_period(string $createdAt, int $hours = 48): bool
+  {
+    $timestamp = strtotime($createdAt);
+    if ($timestamp === false) {
+      return false;
+    }
+
+    $hours = max(1, $hours);
+    return $timestamp <= strtotime('-' . $hours . ' hours');
+  }
+}
+
 if (!function_exists('material_copy_non_lost_condition')) {
   function material_copy_non_lost_condition(mysqli $conn, string $alias = 'mb'): string
   {
@@ -148,6 +161,14 @@ if (!function_exists('material_copy_mark_lost')) {
           'ref_id' => (string) ($order['ref_id'] ?? ''),
           'copy_status' => 'lost',
         ],
+      ];
+    }
+
+    if (!material_copy_is_after_lost_wait_period((string) ($order['created_at'] ?? ''), 48)) {
+      return [
+        'ok' => false,
+        'status_code' => 409,
+        'message' => 'Material copies can only be marked as lost after 48 hours of purchase.',
       ];
     }
 

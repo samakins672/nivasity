@@ -106,12 +106,13 @@ if ($manuals_bought_has_id) {
                                 $event_price = number_format($manuals['price']);
                                 $event_price = $event_price > 0 ? "₦ $event_price" : 'FREE';
                                 $is_within_change_window = material_change_is_within_window((string) ($manual['created_at'] ?? ''), 72);
+                                $is_after_lost_wait_period = material_copy_is_after_lost_wait_period((string) ($manual['created_at'] ?? ''), 48);
                                 $is_lost = material_copy_is_lost_row($manual);
                                 $is_granted = ($manuals_bought_has_grant_status && material_change_boolish_is_true($manual['grant_status'] ?? '0'))
                                   || ($manuals_bought_has_export_id && (int) ($manual['export_id'] ?? 0) > 0);
                                 $was_changed = $manuals_bought_has_id && isset($changed_bought_ids[(int) ($manual['id'] ?? 0)]);
                                 $can_change_material = $is_within_change_window && strtolower((string) $status) === 'successful' && !$is_lost && !$is_granted && !$was_changed;
-                                $can_mark_lost = $manuals_bought_has_id && $manuals_bought_has_copy_status && strtolower((string) $status) === 'successful' && !$is_lost;
+                                $can_mark_lost = $manuals_bought_has_id && $manuals_bought_has_copy_status && strtolower((string) $status) === 'successful' && !$is_lost && $is_after_lost_wait_period;
                                 $change_material_reason = '';
                                 if ($is_lost) {
                                   $change_material_reason = 'This material copy has already been marked as lost. Buy another copy from the store when needed.';
