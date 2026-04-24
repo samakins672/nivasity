@@ -239,6 +239,17 @@ $manual = null;
 $pageError = '';
 $pageWarnings = [];
 $previewResult = null;
+$previewRows = [];
+$paymentSuccess = null;
+$previewSessionKey = 'bulk_material_payment_preview_' . (int) $user_id . '_' . $manualId;
+
+if (isset($_SESSION['bulk_material_payment_flash']) && is_array($_SESSION['bulk_material_payment_flash'])) {
+  $flash = $_SESSION['bulk_material_payment_flash'];
+  if ((int) ($flash['manual_id'] ?? 0) === $manualId && (int) ($flash['user_id'] ?? 0) === (int) $user_id) {
+    $paymentSuccess = $flash;
+    unset($_SESSION['bulk_material_payment_flash']);
+  }
+}
 
 if (!$isStudentType) {
   $pageError = 'Only student and HOC accounts can start a bulk material payment.';
@@ -278,15 +289,83 @@ if (!$hasWalletPin) {
   $pageWarnings[] = 'Create your Wallet PIN before wallet payment is enabled.';
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['preview_bulk_payment']) && $pageError === '') {
-  $parsedUpload = bulk_material_payment_preview_parse_upload($_FILES['bulk_csv'] ?? []);
-  if (!$parsedUpload['ok']) {
-    $pageError = (string) ($parsedUpload['message'] ?? 'Unable to preview the uploaded CSV right now.');
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_bulk_payment']) && $pageError === '') {
+  $previewState = $_SESSION[$previewSessionKey] ?? null;
+  if (!is_array($previewState) || (int) ($previewState['manual_id'] ?? 0) !== $manualId || (int) ($previewState['user_id'] ?? 0) !== (int) $user_id) {
+    $pageError = 'Preview the CSV again before paying from your wallet.';
   } else {
-    $previewResult = bulk_material_payment_preview_analyze_rows($conn, $parsedUpload['rows'] ?? [], $manual ?: [], [
+    $previewRows = $previewState['rows'] ?? [];
+    $previewResult = bulk_material_payment_preview_analyze_rows($conn, $previewRows, $manual ?: [], [
       'school' => $school_id,
       'dept' => $user_dept,
     ]);
+
+    if (((int) ($previewResult['invalid_count'] ?? 0)) > 0 || ((int) ($previewResult['valid_count'] ?? 0)) < 1) {
+      $pageError = 'Fix the CSV preview errors before paying from your wallet.';
+      unset($_SESSION[$previewSessionKey]);
+    } elseif (!$walletReady) {
+      $pageError = 'Complete the wallet prerequisites before paying for this batch.';
+    } else {
+      try {
+        $paymentResult = bulk_material_payment_process_wallet_batch(
+          $conn,
+          [
+            'id' => $user_id,
+            'school' => $school_id,
+            'dept' => $user_dept,
+          ],
+          $manual ?: [],
+          $previewRows,
+          trim((string) ($_POST['wallet_pin'] ?? '')),
+          'web'
+        );
+        unset($_SESSION[$previewSessionKey]);
+        $_SESSION['bulk_material_payment_flash'] = array_merge($paymentResult, [
+          'manual_id' => $manualId,
+          'user_id' => (int) $user_id,
+        ]);
+        header('Location: bulk_material_payment.php?manual_id=' . $manualId . '&paid=1');
+        exit;
+      } catch (Throwable $e) {
+        $pageError = $e->getMessage();
+      }
+    }
+  }
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['preview_bulk_payment']) && $pageError === '') {
+  $parsedUpload = bulk_material_payment_preview_parse_upload($_FILES['bulk_csv'] ?? []);
+  if (!$parsedUpload['ok']) {
+    $pageError = (string) ($parsedUpload['message'] ?? 'Unable to preview the uploaded CSV right now.');
+    unset($_SESSION[$previewSessionKey]);
+  } else {
+    $previewRows = $parsedUpload['rows'] ?? [];
+    $previewResult = bulk_material_payment_preview_analyze_rows($conn, $previewRows, $manual ?: [], [
+      'school' => $school_id,
+      'dept' => $user_dept,
+    ]);
+    if (((int) ($previewResult['invalid_count'] ?? 0)) === 0 && ((int) ($previewResult['valid_count'] ?? 0)) > 0) {
+      $_SESSION[$previewSessionKey] = [
+        'manual_id' => $manualId,
+        'user_id' => (int) $user_id,
+        'rows' => $previewRows,
+        'created_at' => time(),
+      ];
+    } else {
+      unset($_SESSION[$previewSessionKey]);
+    }
+  }
+} elseif ($pageError === '') {
+  $previewState = $_SESSION[$previewSessionKey] ?? null;
+  if (is_array($previewState) && (int) ($previewState['manual_id'] ?? 0) === $manualId && (int) ($previewState['user_id'] ?? 0) === (int) $user_id) {
+    $previewRows = $previewState['rows'] ?? [];
+    if (!empty($previewRows)) {
+      $previewResult = bulk_material_payment_preview_analyze_rows($conn, $previewRows, $manual ?: [], [
+        'school' => $school_id,
+        'dept' => $user_dept,
+      ]);
+      if (((int) ($previewResult['invalid_count'] ?? 0)) > 0 || ((int) ($previewResult['valid_count'] ?? 0)) < 1) {
+        unset($_SESSION[$previewSessionKey]);
+      }
+    }
   }
 }
 
@@ -297,6 +376,12 @@ $manualCode = (string) ($manual['course_code'] ?? '');
 $manualPrice = (int) round((float) ($manual['price'] ?? 0));
 $walletBalance = (int) ($wallet['balance'] ?? 0);
 $walletReady = $wallet !== null && $hasWalletPin && (int) $user_dept > 0 && (string) $user_status === 'verified';
+$previewTotalAmount = (int) (($previewResult['breakdown']['total_amount'] ?? 0));
+$canSubmitPayment = is_array($previewResult)
+  && ((int) ($previewResult['invalid_count'] ?? 0)) === 0
+  && ((int) ($previewResult['valid_count'] ?? 0)) > 0
+  && $walletReady;
+$hasEnoughWalletBalance = $walletBalance >= $previewTotalAmount;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -384,6 +469,16 @@ $walletReady = $wallet !== null && $hasWalletPin && (int) $user_dept > 0 && (str
                               <div class="alert alert-danger"><?php echo htmlspecialchars($pageError, ENT_QUOTES, 'UTF-8'); ?></div>
                             <?php endif; ?>
 
+                            <?php if (is_array($paymentSuccess)): ?>
+                              <div class="alert alert-success">
+                                <div class="fw-bold mb-2">Bulk payment completed successfully.</div>
+                                <div>Reference: <strong><?php echo htmlspecialchars((string) ($paymentSuccess['ref_id'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></strong></div>
+                                <div>Students queued: <strong><?php echo number_format((int) ($paymentSuccess['student_count'] ?? 0)); ?></strong></div>
+                                <div>Total debited: <strong>₦ <?php echo number_format((int) ($paymentSuccess['total_amount'] ?? 0)); ?></strong></div>
+                                <div>Wallet balance after payment: <strong>₦ <?php echo number_format((int) ($paymentSuccess['wallet_balance_after'] ?? 0)); ?></strong></div>
+                              </div>
+                            <?php endif; ?>
+
                             <?php foreach ($pageWarnings as $warning): ?>
                               <div class="alert alert-warning mb-2"><?php echo htmlspecialchars($warning, ENT_QUOTES, 'UTF-8'); ?></div>
                             <?php endforeach; ?>
@@ -459,12 +554,36 @@ $walletReady = $wallet !== null && $hasWalletPin && (int) $user_dept > 0 && (str
                               </div>
 
                               <div class="alert alert-info mt-3 mb-0">
-                                <?php if ($walletReady): ?>
-                                  Wallet payment checks passed for this account. The next implementation slice will turn this validated preview into a saved batch and wallet debit.
+                                <?php if ($canSubmitPayment && $hasEnoughWalletBalance): ?>
+                                  This batch is ready for wallet payment. Enter your Wallet PIN below to save the batch and debit your wallet.
+                                <?php elseif ($canSubmitPayment): ?>
+                                  Your CSV is valid, but your current wallet balance is lower than the batch total.
                                 <?php else: ?>
                                   Complete the wallet prerequisites above before wallet payment can be enabled for this batch.
                                 <?php endif; ?>
                               </div>
+
+                              <?php if ($canSubmitPayment): ?>
+                                <form method="post" class="border rounded-3 p-3 mt-3 bg-light">
+                                  <input type="hidden" name="submit_bulk_payment" value="1">
+                                  <div class="row g-3 align-items-end">
+                                    <div class="col-md-6">
+                                      <label for="wallet_pin" class="form-label fw-bold">Wallet PIN</label>
+                                      <input type="password" class="form-control" id="wallet_pin" name="wallet_pin" maxlength="4" inputmode="numeric" pattern="\d{4}" placeholder="4-digit PIN" required>
+                                    </div>
+                                    <div class="col-md-6 d-grid">
+                                      <button type="submit" class="btn btn-success fw-bold" <?php echo $hasEnoughWalletBalance ? '' : 'disabled'; ?>>
+                                        Pay ₦ <?php echo number_format($previewTotalAmount); ?> from Wallet
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <?php if (!$hasEnoughWalletBalance): ?>
+                                    <div class="small text-danger mt-2">Fund your wallet first. Current balance: ₦ <?php echo number_format($walletBalance); ?>.</div>
+                                  <?php else: ?>
+                                    <div class="small text-muted mt-2">Your wallet will be debited immediately and the student claims will be queued for confirmation.</div>
+                                  <?php endif; ?>
+                                </form>
+                              <?php endif; ?>
                             <?php endif; ?>
                           </div>
                         </div>

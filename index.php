@@ -6,6 +6,7 @@ include('model/system_alerts.php');
 include('model/payment_freeze.php');
 require_once 'model/internal_wallet_service.php';
 require_once 'model/material_copy_status.php';
+require_once 'model/bulk_material_payment_service.php';
 
 // Fetch active system alerts
 $system_alerts = get_active_system_alerts($conn);
@@ -16,6 +17,17 @@ $play_store_url = 'https://play.google.com/store/apps/details?id=com.nivasity.ap
 $mobile_prompt_captured = !empty($mobile_experience_prompt_state['captured']);
 $mobile_prompt_should_show = !empty($mobile_experience_prompt_state['should_show']);
 $wallet_pin_configured = function_exists('nivasityUserHasWalletPin') ? nivasityUserHasWalletPin($conn, (int)$user_id) : false;
+$pending_bulk_claims = [];
+if ((string) ($user_status ?? '') === 'verified' && in_array((string) ($_SESSION['nivas_userRole'] ?? ''), ['student', 'hoc'], true)) {
+  $pending_bulk_claims = bulk_material_payment_get_pending_claims_for_user($conn, [
+    'id' => $user_id,
+    'school' => $school_id,
+    'dept' => $user_dept,
+    'matric_no' => $user_matric_no,
+    'first_name' => $f_name,
+    'last_name' => $l_name,
+  ], 5);
+}
 
 // Simulate adding/removing the product to/from the cart
 if (!isset($_SESSION["nivas_cart$user_id"])) {
@@ -1056,6 +1068,102 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
       initMobileAppPromptModal();
 
+      function initBulkMaterialClaimModal() {
+        var pendingClaims = <?php echo json_encode(array_values($pending_bulk_claims), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+        if (!Array.isArray(pendingClaims) || pendingClaims.length < 1) return;
+
+        var modalEl = document.getElementById('bulkMaterialClaimModal');
+        if (!modalEl || !window.bootstrap || !bootstrap.Modal) return;
+
+        var titleEl = document.getElementById('bulkMaterialClaimTitle');
+        var metaEl = document.getElementById('bulkMaterialClaimMeta');
+        var messageEl = document.getElementById('bulkMaterialClaimMessage');
+        var errorEl = document.getElementById('bulkMaterialClaimError');
+        var confirmBtn = document.getElementById('bulkMaterialClaimConfirm');
+        var rejectBtn = document.getElementById('bulkMaterialClaimReject');
+        if (!titleEl || !metaEl || !messageEl || !errorEl || !confirmBtn || !rejectBtn) return;
+
+        var modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+        var isSubmitting = false;
+
+        function setButtonsDisabled(disabled) {
+          confirmBtn.disabled = disabled;
+          rejectBtn.disabled = disabled;
+        }
+
+        function renderCurrentClaim() {
+          var claim = pendingClaims[0];
+          if (!claim) {
+            modalInstance.hide();
+            return;
+          }
+
+          titleEl.textContent = claim.title + (claim.course_code ? ' - ' + claim.course_code : '');
+          metaEl.textContent = 'Paid by ' + (claim.payer_name || 'another student') + (claim.paid_at ? ' on ' + claim.paid_at : '');
+          messageEl.innerHTML = 'We found a pending bulk material payment for <strong>'
+            + (claim.student_name || 'this student')
+            + '</strong> with matric number <strong>'
+            + (claim.student_matric_no || 'N/A')
+            + '</strong>. Confirm only if this payment was truly intended for you.';
+          errorEl.classList.add('d-none');
+          errorEl.textContent = '';
+          setButtonsDisabled(false);
+        }
+
+        function handleClaimAction(action) {
+          if (isSubmitting || pendingClaims.length < 1) return;
+          var claim = pendingClaims[0];
+          isSubmitting = true;
+          setButtonsDisabled(true);
+          errorEl.classList.add('d-none');
+          errorEl.textContent = '';
+
+          $.ajax({
+            url: 'model/bulk_material_payment_claim.php',
+            type: 'POST',
+            dataType: 'json',
+            data: {
+              student_row_id: claim.id,
+              action: action
+            }
+          }).done(function(response) {
+            if (response && response.status === 'success') {
+              pendingClaims = response.data && Array.isArray(response.data.remaining_claims) ? response.data.remaining_claims : [];
+              if (pendingClaims.length < 1) {
+                modalInstance.hide();
+                if (action === 'confirm') {
+                  window.location.reload();
+                }
+                return;
+              }
+              renderCurrentClaim();
+              return;
+            }
+            errorEl.textContent = (response && response.message) ? response.message : 'Unable to update this bulk claim right now.';
+            errorEl.classList.remove('d-none');
+          }).fail(function(xhr) {
+            var message = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Unable to update this bulk claim right now.';
+            errorEl.textContent = message;
+            errorEl.classList.remove('d-none');
+          }).always(function() {
+            isSubmitting = false;
+            setButtonsDisabled(false);
+          });
+        }
+
+        confirmBtn.addEventListener('click', function() {
+          handleClaimAction('confirm');
+        });
+        rejectBtn.addEventListener('click', function() {
+          handleClaimAction('reject');
+        });
+
+        renderCurrentClaim();
+        modalInstance.show();
+      }
+
+      initBulkMaterialClaimModal();
+
       $(document).on('change', '#store-level-filter', function () {
         applyStoreLevelFilter();
       });
@@ -1753,6 +1861,26 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           <p class="mb-0" id="mobileAppPromoBody"></p>
         </div>
         <div class="modal-footer" id="mobileAppPromoActions">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="bulkMaterialClaimModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="bulkMaterialClaimHeading" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold" id="bulkMaterialClaimHeading">Confirm Bulk Material Payment</h5>
+        </div>
+        <div class="modal-body">
+          <h6 class="fw-bold mb-1" id="bulkMaterialClaimTitle"></h6>
+          <p class="text-muted mb-3" id="bulkMaterialClaimMeta"></p>
+          <div class="alert alert-danger d-none" id="bulkMaterialClaimError"></div>
+          <p class="mb-0" id="bulkMaterialClaimMessage"></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" id="bulkMaterialClaimReject">No, this is not mine</button>
+          <button type="button" class="btn btn-primary fw-bold" id="bulkMaterialClaimConfirm">Yes, this is mine</button>
         </div>
       </div>
     </div>
