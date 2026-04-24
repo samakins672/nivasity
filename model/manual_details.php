@@ -31,6 +31,9 @@ $due_date2 = date('Y-m-d', strtotime($manual['due_date']));
 $status = $manual['status'];
 $material_scope_label = ((int)$manual['dept'] === 0 && (int)$manual['faculty'] > 0) ? 'Faculty' : 'Department';
 $is_overdue = (date('Y-m-d') > $due_date2) || ($status === 'closed');
+$can_bulk_pay = isset($_SESSION['nivas_userId'])
+  && in_array((string) ($_SESSION['nivas_userRole'] ?? ''), ['student', 'hoc'], true)
+  && !$is_overdue;
 
 // Determine cart status
 $in_cart = false;
@@ -78,5 +81,8 @@ $is_public = isset($_GET['public']) || isset($_POST['public']);
 </div>
 <div class="modal-footer">
   <button type="button" class="btn btn-light" data-bs-dismiss="modal"><?php echo $is_public ? 'Cancel' : 'Close'; ?></button>
+  <?php if ($can_bulk_pay): ?>
+    <a href="bulk_material_payment.php?manual_id=<?php echo $manual_id; ?>" class="btn btn-outline-success">Bulk Pay via CSV</a>
+  <?php endif; ?>
   <button type="button" class="btn <?php echo $btn_class; ?> cart-button" <?php echo $btn_disabled; ?> data-product-id="<?php echo $manual_id; ?>"><?php echo $btn_text; ?></button>
 </div>
