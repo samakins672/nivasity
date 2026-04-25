@@ -603,7 +603,7 @@ $storeUrl = nivasity_app_url();
 
     @media (min-width: 992px) {
       .bulk-summary-metrics {
-        width: 280px;
+        width: 320px;
       }
     }
 
@@ -738,7 +738,7 @@ $storeUrl = nivasity_app_url();
                                 <div class="col-12 col-lg-8">
                                   <label for="bulk_csv" class="form-label fw-bold">Upload CSV</label>
                                   <input type="file" class="form-control" id="bulk_csv" name="bulk_csv" accept=".csv,text/csv" required>
-                                  <div class="small text-muted mt-2" id="bulkCsvHelper">Upload the filled template from your phone files or computer. Only `.csv` files are accepted.</div>
+                                  <div class="small text-muted mt-2" id="bulkCsvHelper">Only `.csv` files are accepted.</div>
                                   <div class="small text-primary fw-semibold mt-1 d-none" id="bulkCsvFileName"></div>
                                 </div>
                                 <div class="col-12 col-lg-4 d-grid">
