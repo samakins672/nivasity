@@ -927,7 +927,6 @@ $storeUrl = nivasity_app_url();
               '<div>' +
                 '<div class="bulk-inline-label mb-2">Ready To Pay</div>' +
                 '<h5 class="fw-bold mb-1">Pay this batch from your wallet</h5>' +
-                '<p class="text-muted mb-0">Use the same wallet confirmation flow as the rest of the app. Your PIN will be entered in the next popup.</p>' +
               '</div>' +
               '<div class="text-md-end">' +
                 '<div class="small text-muted mb-1">Total debit</div>' +
