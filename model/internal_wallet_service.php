@@ -1005,8 +1005,9 @@ if (!function_exists('nivasityRecordSchoolPayable')) {
         $collectedTotal = (int)round((float)($payload['collected_total'] ?? $itemSubtotal));
         $chargeAmount = (int)round((float)($payload['charge_amount'] ?? 0));
         $refundAmount = (int)round((float)($payload['refund_amount'] ?? 0));
+        $refundConsumedAmount = (int)round((float)($payload['refund_consumed_amount'] ?? 0));
         $metadata = $payload['metadata'] ?? [];
-        $payableAmount = max(0, $itemSubtotal - $refundAmount);
+        $payableAmount = max(0, $itemSubtotal - $refundAmount - $refundConsumedAmount);
 
         if ($schoolId <= 0 || $payerUserId <= 0 || $sourceRefId === '') {
             return [
@@ -1048,7 +1049,6 @@ if (!function_exists('nivasityRecordSchoolPayable')) {
         }
 
         if (nivasitySchoolPayableLedgerHasColumn($conn, 'refund_consumed_amount')) {
-            $refundConsumedAmount = (int)round((float)($payload['refund_consumed_amount'] ?? 0));
             $extraColumns[] = 'refund_consumed_amount';
             $extraValues[] = (string)$refundConsumedAmount;
         }
@@ -1226,9 +1226,6 @@ if (!function_exists('nivasityEnsureSchoolPayableForPurchase')) {
 
                 if (!array_key_exists('refund_consumed_amount', $payload)) {
                     $refundConsumedAmount = $derivedRefundConsumedAmount;
-                }
-                if (!array_key_exists('refund_amount', $payload) && $derivedRefundConsumedAmount > 0) {
-                    $refundAmount = $derivedRefundConsumedAmount;
                 }
                 if ($refundConsumptionSourceRefId === '' && $refundConsumptionSourceCount === 1 && $derivedRefundSourceRefId !== '') {
                     $refundConsumptionSourceRefId = $derivedRefundSourceRefId;
@@ -3212,11 +3209,13 @@ if (!function_exists('nivasityAdjustSchoolPayableForRefund')) {
         $schoolId = (int)($ledgerRow['school_id'] ?? 0);
         $itemSubtotal = (int)($ledgerRow['item_subtotal'] ?? 0);
         $existingRefundAmount = (int)($ledgerRow['refund_amount'] ?? 0);
+        $existingConsumedAmount = (int)($ledgerRow['refund_consumed_amount'] ?? 0);
         $existingPayableAmount = (int)($ledgerRow['payable_amount'] ?? 0);
         $settledAmount = (int)($ledgerRow['settled_amount'] ?? 0);
         $existingCarryForward = (int)($ledgerRow['carry_forward_amount'] ?? 0);
 
-        $newRefundAmount = min($itemSubtotal, $existingRefundAmount + $refundAmount);
+        $maxNativeRefundAmount = max(0, $itemSubtotal - $existingConsumedAmount);
+        $newRefundAmount = min($maxNativeRefundAmount, $existingRefundAmount + $refundAmount);
         $effectiveDelta = max(0, $newRefundAmount - $existingRefundAmount);
         if ($effectiveDelta <= 0) {
             return [
@@ -3225,7 +3224,7 @@ if (!function_exists('nivasityAdjustSchoolPayableForRefund')) {
             ];
         }
 
-        $newPayableAmount = max(0, $itemSubtotal - $newRefundAmount);
+        $newPayableAmount = max(0, $itemSubtotal - $newRefundAmount - $existingConsumedAmount);
         $payableReduction = max(0, $existingPayableAmount - $newPayableAmount);
         $carryForwardDelta = max(0, $settledAmount - $newPayableAmount);
         $pendingReduction = max(0, $payableReduction - $carryForwardDelta);
