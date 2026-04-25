@@ -243,6 +243,32 @@ if (!function_exists('bulk_material_payment_json_response')) {
   }
 }
 
+if (!function_exists('bulk_material_payment_build_preview_payload')) {
+  function bulk_material_payment_build_preview_payload(array $previewResult, array $manual, array $pageWarnings, bool $walletReady, int $walletBalance): array
+  {
+    $previewTotalAmount = (int) ($previewResult['breakdown']['total_amount'] ?? 0);
+    $canSubmitPayment = ((int) ($previewResult['invalid_count'] ?? 0)) === 0
+      && ((int) ($previewResult['valid_count'] ?? 0)) > 0
+      && $walletReady;
+
+    return [
+      'manual' => [
+        'title' => (string) ($manual['title'] ?? ''),
+        'course_code' => (string) ($manual['course_code'] ?? ''),
+      ],
+      'preview' => $previewResult,
+      'wallet' => [
+        'ready' => $walletReady,
+        'balance' => $walletBalance,
+        'has_enough_balance' => $walletBalance >= $previewTotalAmount,
+      ],
+      'page_warnings' => array_values($pageWarnings),
+      'can_submit_payment' => $canSubmitPayment,
+      'wallet_page_url' => nivasity_app_url('wallet.php'),
+    ];
+  }
+}
+
 $currentUserRole = (string) ($_SESSION['nivas_userRole'] ?? '');
 $isStudentType = in_array($currentUserRole, ['student', 'hoc'], true);
 $schemaReady = bulk_material_payment_ensure_schema($conn);
@@ -323,7 +349,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_preview_bulk_pay
     'dept' => $user_dept,
   ]);
 
-  if (((int) ($previewResult['invalid_count'] ?? 0)) === 0 && ((int) ($previewResult['valid_count'] ?? 0)) > 0) {
+  if (!empty($previewRows)) {
     $_SESSION[$previewSessionKey] = [
       'manual_id' => $manualId,
       'user_id' => (int) $user_id,
@@ -334,31 +360,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_preview_bulk_pay
     unset($_SESSION[$previewSessionKey]);
   }
 
-  $previewTotalAmount = (int) ($previewResult['breakdown']['total_amount'] ?? 0);
-  $canSubmitPayment = ((int) ($previewResult['invalid_count'] ?? 0)) === 0
-    && ((int) ($previewResult['valid_count'] ?? 0)) > 0
-    && $walletReady;
-
   bulk_material_payment_json_response(
     'success',
     ((int) ($previewResult['invalid_count'] ?? 0)) > 0
       ? 'Preview loaded. Fix the highlighted rows before payment.'
       : 'Preview loaded successfully.',
-    [
-      'manual' => [
-        'title' => (string) ($manual['title'] ?? ''),
-        'course_code' => (string) ($manual['course_code'] ?? ''),
-      ],
-      'preview' => $previewResult,
-      'wallet' => [
-        'ready' => $walletReady,
-        'balance' => $walletBalance,
-        'has_enough_balance' => $walletBalance >= $previewTotalAmount,
-      ],
-      'page_warnings' => array_values($pageWarnings),
-      'can_submit_payment' => $canSubmitPayment,
-      'wallet_page_url' => nivasity_app_url('wallet.php'),
-    ]
+    bulk_material_payment_build_preview_payload($previewResult, $manual ?: [], $pageWarnings, $walletReady, $walletBalance)
   );
 }
 
@@ -415,7 +422,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_bulk_payment']
       'school' => $school_id,
       'dept' => $user_dept,
     ]);
-    if (((int) ($previewResult['invalid_count'] ?? 0)) === 0 && ((int) ($previewResult['valid_count'] ?? 0)) > 0) {
+    if (!empty($previewRows)) {
       $_SESSION[$previewSessionKey] = [
         'manual_id' => $manualId,
         'user_id' => (int) $user_id,
@@ -435,8 +442,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_bulk_payment']
         'school' => $school_id,
         'dept' => $user_dept,
       ]);
-      if (((int) ($previewResult['invalid_count'] ?? 0)) > 0 || ((int) ($previewResult['valid_count'] ?? 0)) < 1) {
+      if (count((array) ($previewResult['rows'] ?? [])) < 1) {
         unset($_SESSION[$previewSessionKey]);
+        $previewResult = null;
       }
     }
   }
@@ -461,6 +469,14 @@ $previewFeeAmount = (int) ($previewResult['breakdown']['fee_amount'] ?? 0);
 $previewHasErrors = $previewInvalidCount > 0;
 $shouldAutoScrollPreview = $_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['preview_bulk_payment']) || isset($_POST['submit_bulk_payment']));
 $storeUrl = nivasity_app_url();
+$hasSavedPreview = is_array($previewResult) && count((array) ($previewResult['rows'] ?? [])) > 0;
+$savedPreviewResponse = $hasSavedPreview
+  ? [
+      'status' => 'success',
+      'message' => $canSubmitPayment ? 'Former upload restored.' : 'Former upload restored. Review the rows before paying.',
+      'data' => bulk_material_payment_build_preview_payload($previewResult, $manual ?: [], $pageWarnings, $walletReady, $walletBalance),
+    ]
+  : null;
 $prerequisiteItems = [
   [
     'label' => 'Verified student account',
@@ -830,100 +846,16 @@ $prerequisiteItems = [
                               </div>
                             </form>
 
-                            <?php if (is_array($previewResult)): ?>
-                              <div class="row g-3 mt-1">
-                                <div class="col-6 col-lg-3">
-                                  <div class="bulk-kpi-card">
-                                    <p class="text-muted mb-1">Rows uploaded</p>
-                                    <h4 class="fw-bold mb-0"><?php echo number_format($previewRowCount); ?></h4>
-                                  </div>
+                            <?php if ($hasSavedPreview): ?>
+                              <div class="bulk-empty-state mt-4">
+                                <?php if ($canSubmitPayment): ?>
+                                  A former upload is saved for this material. Reuse it to review the batch and continue payment.
+                                <?php else: ?>
+                                  A former upload is saved for this material. Reuse it to review the rows and see what still needs attention.
+                                <?php endif; ?>
+                                <div class="d-grid d-sm-flex gap-2 mt-3">
+                                  <button type="button" class="btn btn-outline-primary fw-bold" id="reuseFormerUploadBtn">Reuse Former Upload</button>
                                 </div>
-                                <div class="col-6 col-lg-3">
-                                  <div class="bulk-kpi-card">
-                                    <p class="text-muted mb-1">Ready rows</p>
-                                    <h4 class="fw-bold mb-0"><?php echo number_format($previewValidCount); ?></h4>
-                                  </div>
-                                </div>
-                                <div class="col-6 col-lg-3">
-                                  <div class="bulk-kpi-card">
-                                    <p class="text-muted mb-1">Need fixes</p>
-                                    <h4 class="fw-bold mb-0"><?php echo number_format($previewInvalidCount); ?></h4>
-                                  </div>
-                                </div>
-                                <div class="col-6 col-lg-3">
-                                  <div class="bulk-kpi-card">
-                                    <p class="text-muted mb-1">Total to debit</p>
-                                    <h4 class="fw-bold mb-0">₦ <?php echo number_format($previewTotalAmount); ?></h4>
-                                  </div>
-                                </div>
-                                <div class="col-6 col-lg-6">
-                                  <div class="bulk-kpi-card">
-                                    <p class="text-muted mb-1">Subtotal</p>
-                                    <h4 class="fw-bold mb-0">₦ <?php echo number_format($previewSubtotal); ?></h4>
-                                  </div>
-                                </div>
-                                <div class="col-6 col-lg-6">
-                                  <div class="bulk-kpi-card">
-                                    <p class="text-muted mb-1">Fee included</p>
-                                    <h4 class="fw-bold mb-0">₦ <?php echo number_format($previewFeeAmount); ?></h4>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <?php if ($previewHasErrors): ?>
-                                <div class="alert alert-warning mt-3 mb-0">
-                                  <div class="fw-bold mb-2">Rows that need attention</div>
-                                  <ul class="mb-0 ps-3">
-                                    <?php foreach (($previewResult['errors'] ?? []) as $error): ?>
-                                      <li><?php echo htmlspecialchars((string) $error, ENT_QUOTES, 'UTF-8'); ?></li>
-                                    <?php endforeach; ?>
-                                  </ul>
-                                </div>
-                              <?php endif; ?>
-
-                              <div class="d-grid gap-3 mt-3 d-lg-none">
-                                <?php foreach (($previewResult['rows'] ?? []) as $row): ?>
-                                  <div class="bulk-result-card">
-                                    <div class="d-flex justify-content-between align-items-start gap-2">
-                                      <div>
-                                        <div class="fw-bold"><?php echo htmlspecialchars(trim(((string) ($row['first_name'] ?? '')) . ' ' . ((string) ($row['last_name'] ?? ''))), ENT_QUOTES, 'UTF-8'); ?></div>
-                                        <div class="text-muted small">Matric: <?php echo htmlspecialchars((string) ($row['matric_no'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
-                                        <div class="text-muted small">Line <?php echo (int) ($row['line_number'] ?? 0); ?></div>
-                                      </div>
-                                      <span class="bulk-status-pill <?php echo (($row['status'] ?? '') === 'valid') ? 'bulk-status-pill-ready' : 'bulk-status-pill-fix'; ?>">
-                                        <?php echo (($row['status'] ?? '') === 'valid') ? 'Ready' : 'Fix row'; ?>
-                                      </span>
-                                    </div>
-                                    <p class="bulk-result-message mb-0 mt-3"><?php echo htmlspecialchars((string) ($row['message'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></p>
-                                  </div>
-                                <?php endforeach; ?>
-                              </div>
-
-                              <div class="table-responsive mt-3 d-none d-lg-block">
-                                <table class="table table-striped align-middle">
-                                  <thead>
-                                    <tr>
-                                      <th>Line</th>
-                                      <th>Student</th>
-                                      <th>Matric No.</th>
-                                      <th>Resolution</th>
-                                      <th>Status</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    <?php foreach (($previewResult['rows'] ?? []) as $row): ?>
-                                      <tr>
-                                        <td><?php echo (int) ($row['line_number'] ?? 0); ?></td>
-                                        <td><?php echo htmlspecialchars(trim(((string) ($row['first_name'] ?? '')) . ' ' . ((string) ($row['last_name'] ?? ''))), ENT_QUOTES, 'UTF-8'); ?></td>
-                                        <td><?php echo htmlspecialchars((string) ($row['matric_no'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
-                                        <td><?php echo htmlspecialchars((string) ($row['message'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
-                                        <td class="<?php echo (($row['status'] ?? '') === 'valid') ? 'bulk-table-status-ok' : 'bulk-table-status-error'; ?>">
-                                          <?php echo (($row['status'] ?? '') === 'valid') ? 'Ready' : 'Fix row'; ?>
-                                        </td>
-                                      </tr>
-                                    <?php endforeach; ?>
-                                  </tbody>
-                                </table>
                               </div>
                             <?php endif; ?>
 
@@ -932,43 +864,25 @@ $prerequisiteItems = [
                                 <div>
                                   <div class="bulk-inline-label mb-2">Wallet Payment</div>
                                   <h5 class="fw-bold mb-1">Pay once after your preview is clean</h5>
-                                  <?php if (!is_array($previewResult)): ?>
-                                    <p class="text-muted mb-0">Upload a CSV first. The payment action appears here after the batch has been reviewed.</p>
-                                  <?php elseif ($canSubmitPayment && $hasEnoughWalletBalance): ?>
-                                    <p class="text-muted mb-0">Everything is ready. Continue to wallet confirmation and enter your Wallet PIN in the next popup.</p>
+                                  <?php if (!$hasSavedPreview): ?>
+                                    <p class="text-muted mb-0">Upload a CSV first. The preview and payment actions will open in a modal after upload.</p>
                                   <?php elseif ($canSubmitPayment): ?>
-                                    <p class="text-muted mb-0">Your batch is valid, but your wallet balance is still below the total debit.</p>
+                                    <p class="text-muted mb-0">Your last upload is still saved. Open it again from the button above whenever you want to continue checkout.</p>
                                   <?php else: ?>
-                                    <p class="text-muted mb-0">Fix the rows marked <strong>Fix row</strong> and complete the checklist on the left before payment unlocks.</p>
+                                    <p class="text-muted mb-0">Your last upload is saved, but it still needs attention before payment can continue. Reopen it from the button above.</p>
                                   <?php endif; ?>
                                 </div>
                                 <div class="text-md-end">
-                                  <div class="small text-muted mb-1">Total debit</div>
-                                  <h3 class="fw-bold mb-0">₦ <?php echo number_format($previewTotalAmount); ?></h3>
-                                  <div class="small text-muted">Includes 5% fee</div>
+                                  <div class="small text-muted mb-1">Checkout</div>
+                                  <h3 class="fw-bold mb-0"><?php echo $hasSavedPreview ? 'Saved' : 'Waiting'; ?></h3>
+                                  <div class="small text-muted"><?php echo $hasSavedPreview ? 'Open your saved upload to continue' : 'Upload a CSV to begin' ?></div>
                                 </div>
                               </div>
 
-                              <?php if (!is_array($previewResult)): ?>
+                              <?php if (!$hasSavedPreview): ?>
                                 <div class="bulk-empty-state mt-3">No preview yet. Upload your CSV above and this section will show whether payment is ready.</div>
-                              <?php elseif (!$canSubmitPayment): ?>
-                                <div class="bulk-empty-state mt-3">Payment is locked until all rows are valid and your wallet checklist is complete.</div>
-                              <?php elseif (!$hasEnoughWalletBalance): ?>
-                                <div class="bulk-empty-state mt-3">
-                                  Your current wallet balance is <strong>₦ <?php echo number_format($walletBalance); ?></strong>, which is lower than the required <strong>₦ <?php echo number_format($previewTotalAmount); ?></strong>.
-                                  <div class="d-grid d-sm-flex gap-2 mt-3">
-                                    <a href="<?php echo htmlspecialchars($walletPageUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-outline-success fw-bold">Fund Wallet</a>
-                                  </div>
-                                </div>
-                              <?php endif; ?>
-
-                              <?php if ($canSubmitPayment): ?>
-                                <div class="d-grid d-md-flex gap-2 mt-4">
-                                  <button type="button" class="btn btn-success btn-lg fw-bold bulk-open-wallet-pin-modal" data-payment-total="<?php echo $previewTotalAmount; ?>" <?php echo $hasEnoughWalletBalance ? '' : 'disabled'; ?>>
-                                    Pay ₦ <?php echo number_format($previewTotalAmount); ?> From Wallet
-                                  </button>
-                                </div>
-                                <div class="small text-muted mt-2">Your wallet will be debited immediately after you confirm the PIN in the next popup.</div>
+                              <?php else: ?>
+                                <div class="bulk-empty-state mt-3">Preview stays inside the modal now. Use <strong>Reuse Former Upload</strong> to review rows and continue checkout without showing the preview on this page.</div>
                               <?php endif; ?>
                             </div>
                           </div>
@@ -1057,9 +971,11 @@ $prerequisiteItems = [
       var walletPinMessage = $('#bulkWalletPinModalMessage');
       var walletPaymentForm = $('#bulkWalletPaymentForm');
       var walletPaymentHiddenPin = $('#bulkWalletPaymentHiddenPin');
+      var reuseFormerUploadBtn = $('#reuseFormerUploadBtn');
       var pendingPaymentTotal = 0;
       var reopenPreviewAfterPin = false;
       var walletPaymentSubmitting = false;
+      var savedPreviewResponse = <?php echo json_encode($savedPreviewResponse, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 
       function escapeHtml(value) {
         return String(value == null ? '' : value)
@@ -1093,21 +1009,31 @@ $prerequisiteItems = [
           return '<div class="bulk-empty-state">No student rows were found in this CSV.</div>';
         }
 
-        return rows.map(function (row) {
-          var isReady = row && row.status === 'valid';
-          return '' +
-            '<div class="bulk-result-card mb-3">' +
-              '<div class="d-flex justify-content-between align-items-start gap-2">' +
-                '<div>' +
-                  '<div class="fw-bold">' + escapeHtml(((row.first_name || '') + ' ' + (row.last_name || '')).trim()) + '</div>' +
-                  '<div class="text-muted small">Matric: ' + escapeHtml(row.matric_no || '') + '</div>' +
-                  '<div class="text-muted small">Line ' + Number(row.line_number || 0) + '</div>' +
-                '</div>' +
-                '<span class="bulk-status-pill ' + (isReady ? 'bulk-status-pill-ready' : 'bulk-status-pill-fix') + '">' + (isReady ? 'Ready' : 'Fix row') + '</span>' +
-              '</div>' +
-              '<p class="bulk-result-message mb-0 mt-3">' + escapeHtml(row.message || '') + '</p>' +
-            '</div>';
-        }).join('');
+        return '' +
+          '<div class="table-responsive">' +
+            '<table class="table table-striped align-middle">' +
+              '<thead>' +
+                '<tr>' +
+                  '<th>Line</th>' +
+                  '<th>Student</th>' +
+                  '<th>Matric No.</th>' +
+                  '<th>Resolution</th>' +
+                  '<th>Status</th>' +
+                '</tr>' +
+              '</thead>' +
+              '<tbody>' + rows.map(function (row) {
+                var isReady = row && row.status === 'valid';
+                return '' +
+                  '<tr>' +
+                    '<td>' + Number(row.line_number || 0) + '</td>' +
+                    '<td>' + escapeHtml(((row.first_name || '') + ' ' + (row.last_name || '')).trim()) + '</td>' +
+                    '<td>' + escapeHtml(row.matric_no || '') + '</td>' +
+                    '<td>' + escapeHtml(row.message || '') + '</td>' +
+                    '<td><span class="bulk-status-pill ' + (isReady ? 'bulk-status-pill-ready' : 'bulk-status-pill-fix') + '">' + (isReady ? 'Ready' : 'Fix row') + '</span></td>' +
+                  '</tr>';
+              }).join('') + '</tbody>' +
+            '</table>' +
+          '</div>';
       }
 
       function renderPaymentBlock(payload) {
@@ -1232,6 +1158,7 @@ $prerequisiteItems = [
           dataType: 'json'
         }).done(function (response) {
           if (response && response.status === 'success') {
+            savedPreviewResponse = response;
             renderPreviewModal(response);
             return;
           }
@@ -1243,6 +1170,12 @@ $prerequisiteItems = [
         }).always(function () {
           previewSubmitBtn.prop('disabled', false).html(originalText);
         });
+      });
+
+      reuseFormerUploadBtn.on('click', function () {
+        if (savedPreviewResponse) {
+          renderPreviewModal(savedPreviewResponse);
+        }
       });
 
       $(document).on('click', '.bulk-open-wallet-pin-modal', function () {
