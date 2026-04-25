@@ -83,6 +83,9 @@ function walletEntryBadgeClass($entryType) {
     .wallet-card-topbar-copy {
       min-width: 0;
       flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
     }
 
     .wallet-card-actions {
@@ -252,6 +255,13 @@ function walletEntryBadgeClass($entryType) {
       border-bottom-right-radius: 0;
     }
 
+    .wallet-transfer-detail-row {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      width: 100%;
+    }
+
     .wallet-transfer-detail-field {
       width: 100%;
     }
@@ -339,11 +349,26 @@ function walletEntryBadgeClass($entryType) {
         border-top-right-radius: 0.85rem;
         border-bottom-right-radius: 0.85rem;
       }
+
+      .wallet-transfer-detail-row {
+        width: 100%;
+      }
+
+      .wallet-transfer-detail-field {
+        width: 100%;
+      }
     }
 
     @media (min-width: 768px) {
-      .wallet-transfer-detail-field {
+      .wallet-transfer-detail-row {
+        flex-direction: row;
+        align-items: flex-start;
         width: 70%;
+      }
+
+      .wallet-transfer-detail-field {
+        flex: 1 1 0;
+        width: auto;
       }
     }
 
@@ -370,6 +395,8 @@ function walletEntryBadgeClass($entryType) {
                               <div class="wallet-card-topbar">
                                 <div class="wallet-card-topbar-copy">
                                   <p class="wallet-meta-label mb-0">Nivasity Wallet</p>
+                                  <h2 class="wallet-balance mt-2 mb-2" id="wallet-balance-value">₦ <?php echo number_format((int)($wallet['balance'] ?? 0)); ?></h2>
+                                  <p class="mb-0"><?php echo $wallet ? 'Fund this wallet with your dedicated account below.' : 'Request wallet access from this page before it can be created.'; ?></p>
                                 </div>
                                 <div class="wallet-card-actions">
                                   <?php if ($wallet): ?>
@@ -381,8 +408,6 @@ function walletEntryBadgeClass($entryType) {
                                   <?php endif; ?>
                                 </div>
                               </div>
-                                <h2 class="wallet-balance mb-2" id="wallet-balance-value">₦ <?php echo number_format((int)($wallet['balance'] ?? 0)); ?></h2>
-                                <p class="mb-0"><?php echo $wallet ? 'Fund this wallet with your dedicated account below.' : 'Request wallet access from this page before it can be created.'; ?></p>
                             </div>
                           </div>
                         </div>
@@ -624,7 +649,7 @@ function walletEntryBadgeClass($entryType) {
                 <div>
                   <label for="wallet-transfer-recipient" class="form-label fw-bold">Recipient email or matric number</label>
                   <div class="wallet-transfer-lookup-row">
-                    <input type="text" class="form-control wallet-transfer-modal-input" id="wallet-transfer-recipient" maxlength="120" placeholder="Enter verified student email or matric number" autocomplete="off">
+                    <input type="text" class="form-control wallet-transfer-modal-input" id="wallet-transfer-recipient" maxlength="120" placeholder="Enter verified student email or matric number" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
                     <button type="button" class="btn btn-outline-primary wallet-transfer-check-btn" id="lookup-wallet-transfer-recipient-btn">Check Recipient</button>
                   </div>
                   <div class="wallet-transfer-hint mt-2">Recipient lookup must succeed before you can proceed.</div>
@@ -638,13 +663,15 @@ function walletEntryBadgeClass($entryType) {
               </div>
 
               <div class="wallet-transfer-step d-none mt-3" id="wallet-transfer-details-step">
-                <div class="wallet-transfer-detail-field">
-                  <label for="wallet-transfer-amount" class="form-label fw-bold">Amount</label>
-                  <input type="number" class="form-control wallet-transfer-modal-input wallet-transfer-detail-input" id="wallet-transfer-amount" min="1" step="1" placeholder="Enter transfer amount">
-                </div>
-                <div class="wallet-transfer-detail-field">
-                  <label for="wallet-transfer-description" class="form-label fw-bold">Narration</label>
-                  <input type="text" class="form-control wallet-transfer-modal-input wallet-transfer-detail-input" id="wallet-transfer-description" maxlength="160" placeholder="Add a short narration for this transfer">
+                <div class="wallet-transfer-detail-row">
+                  <div class="wallet-transfer-detail-field">
+                    <label for="wallet-transfer-amount" class="form-label fw-bold">Amount</label>
+                    <input type="number" class="form-control wallet-transfer-modal-input wallet-transfer-detail-input" id="wallet-transfer-amount" min="1" step="1" placeholder="Enter transfer amount">
+                  </div>
+                  <div class="wallet-transfer-detail-field">
+                    <label for="wallet-transfer-description" class="form-label fw-bold">Narration (optional)</label>
+                    <input type="text" class="form-control wallet-transfer-modal-input wallet-transfer-detail-input" id="wallet-transfer-description" maxlength="160" placeholder="Add a short narration for this transfer">
+                  </div>
                 </div>
                 <div>
                   <input type="hidden" id="wallet-transfer-request-token" value="">
