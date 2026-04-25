@@ -24,6 +24,14 @@
         <span class="menu-title <?php echo ($url == 'index.php') ? 'text-white fw-bold' : ''; ?>">Store</span>
       </a>
     </li>
+    <?php if ($url == 'index.php' && in_array((string) ($_SESSION['nivas_userRole'] ?? ''), ['student', 'hoc'], true)): ?>
+    <li class="nav-item">
+      <a class="nav-link" href="javascript:;" data-bs-toggle="modal" data-bs-target="#bulkPaymentManualPickerModal">
+        <i class="mdi mdi-file-document-multiple-outline menu-icon"></i>
+        <span class="menu-title">Make a Bulk Payment</span>
+      </a>
+    </li>
+    <?php endif; ?>
     <li class="nav-item <?php echo ($url == 'wallet.php') ? 'active' : ''; ?>">
       <a class="nav-link" href="wallet.php">
         <i class="mdi mdi-wallet menu-icon"></i>

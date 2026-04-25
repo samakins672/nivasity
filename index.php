@@ -39,6 +39,8 @@ if (!isset($_SESSION["nivas_cart_event$user_id"])) {
 $total_cart_items = count($_SESSION["nivas_cart$user_id"]) + count($_SESSION["nivas_cart_event$user_id"]);
 $total_cart_price = 0;
 $store_level_options = [];
+$bulk_payment_manual_options = [];
+$manual_query_sql = '';
 
 $user_dept_int = (int) $user_dept;
 $school_id_int = (int) $school_id;
@@ -92,7 +94,8 @@ try {
 
 try {
   $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(m.id) FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int"))[0];
-  $manual_query = mysqli_query($conn, "SELECT * FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int ORDER BY m.id DESC");
+  $manual_query_sql = "SELECT * FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int ORDER BY m.id DESC";
+  $manual_query = mysqli_query($conn, $manual_query_sql);
 
   $level_query = mysqli_query($conn, "SELECT DISTINCT m.level FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int AND m.level IS NOT NULL AND TRIM(m.level) <> '' ORDER BY m.level ASC");
   if ($level_query) {
@@ -107,7 +110,37 @@ try {
 } catch (Throwable $e) {
   error_log('[index] manual query failed, falling back: ' . $e->getMessage());
   $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int"))[0];
-  $manual_query = mysqli_query($conn, "SELECT * FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int ORDER BY id DESC");
+  $manual_query_sql = "SELECT * FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int ORDER BY id DESC";
+  $manual_query = mysqli_query($conn, $manual_query_sql);
+}
+
+$can_open_bulk_payment_picker = in_array((string) ($_SESSION['nivas_userRole'] ?? ''), ['student', 'hoc'], true);
+if ($can_open_bulk_payment_picker && $manual_query_sql !== '') {
+  $bulk_payment_manual_query = mysqli_query($conn, $manual_query_sql);
+  if ($bulk_payment_manual_query) {
+    $todayYmd = date('Y-m-d');
+    while ($bulk_payment_manual = mysqli_fetch_assoc($bulk_payment_manual_query)) {
+      $bulk_due_date = trim((string) ($bulk_payment_manual['due_date'] ?? ''));
+      $bulk_due_date_ymd = $bulk_due_date !== '' ? date('Y-m-d', strtotime($bulk_due_date)) : '';
+      if ($bulk_due_date_ymd !== '' && $todayYmd > $bulk_due_date_ymd) {
+        continue;
+      }
+
+      $bulk_title = trim((string) ($bulk_payment_manual['title'] ?? 'Selected Material'));
+      $bulk_course_code = trim((string) ($bulk_payment_manual['course_code'] ?? ''));
+      $bulk_price = (int) round((float) ($bulk_payment_manual['price'] ?? 0));
+      $bulk_label = $bulk_title;
+      if ($bulk_course_code !== '') {
+        $bulk_label .= ' - ' . $bulk_course_code;
+      }
+      $bulk_label .= ' (₦ ' . number_format($bulk_price) . ')';
+
+      $bulk_payment_manual_options[] = [
+        'id' => (int) ($bulk_payment_manual['id'] ?? 0),
+        'label' => $bulk_label,
+      ];
+    }
+  }
 }
 
 $event_query = mysqli_query($conn, "SELECT * FROM events WHERE status = 'open' ORDER BY `id` DESC");
@@ -1846,6 +1879,42 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <!-- dynamic content loads here via AJAX -->
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="bulkPaymentManualPickerModal" tabindex="-1" aria-labelledby="bulkPaymentManualPickerLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form method="get" action="<?php echo htmlspecialchars(nivasity_app_url('bulk_material_payment.php'), ENT_QUOTES, 'UTF-8'); ?>">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold" id="bulkPaymentManualPickerLabel">Make a Bulk Payment</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="text-muted mb-3">Select the material you want to pay for in bulk.</p>
+            <?php if (!empty($bulk_payment_manual_options)): ?>
+              <div class="mb-0">
+                <label for="bulkPaymentManualSelect" class="form-label fw-bold">Material</label>
+                <select class="form-select" id="bulkPaymentManualSelect" name="manual_id" required>
+                  <option value="" selected disabled>Select a material</option>
+                  <?php foreach ($bulk_payment_manual_options as $bulk_payment_manual_option): ?>
+                    <option value="<?php echo (int) ($bulk_payment_manual_option['id'] ?? 0); ?>"><?php echo htmlspecialchars((string) ($bulk_payment_manual_option['label'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></option>
+                  <?php endforeach; ?>
+                </select>
+                <div class="form-text">This list includes materials that are still open for your department, even if you already bought your own copy.</div>
+              </div>
+            <?php else: ?>
+              <div class="alert alert-warning mb-0">No materials are currently available for bulk payment.</div>
+            <?php endif; ?>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+            <?php if (!empty($bulk_payment_manual_options)): ?>
+              <button type="submit" class="btn btn-primary fw-bold">Proceed to Bulk Payment</button>
+            <?php endif; ?>
+          </div>
+        </form>
       </div>
     </div>
   </div>

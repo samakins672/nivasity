@@ -159,6 +159,27 @@ if (!function_exists('bulk_material_payment_preview_analyze_rows')) {
 
       if ($status === 'valid') {
         $matricSafe = mysqli_real_escape_string($conn, $normalizedMatricNo);
+        $activeCopyQuery = mysqli_query(
+          $conn,
+          "SELECT mb.id
+           FROM manuals_bought AS mb
+           INNER JOIN users AS u ON u.id = mb.buyer
+           WHERE mb.manual_id = {$manualId}
+             AND mb.school_id = {$schoolId}
+             AND {$nonLostCondition}
+             AND u.school = {$schoolId}
+             AND u.dept = {$payerDeptId}
+             AND LOWER(TRIM(u.matric_no)) = '{$matricSafe}'
+           LIMIT 1"
+        );
+        if ($activeCopyQuery && mysqli_num_rows($activeCopyQuery) > 0) {
+          $status = 'error';
+          $message = 'This matric number already has an active copy of the selected material.';
+        }
+      }
+
+      if ($status === 'valid') {
+        $matricSafe = mysqli_real_escape_string($conn, $normalizedMatricNo);
         $userQuery = mysqli_query(
           $conn,
           "SELECT id, first_name, last_name, dept, status
