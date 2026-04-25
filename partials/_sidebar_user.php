@@ -28,7 +28,7 @@
     <li class="nav-item">
       <a class="nav-link" href="javascript:;" data-bs-toggle="modal" data-bs-target="#bulkPaymentManualPickerModal">
         <i class="mdi mdi-file-document-multiple-outline menu-icon"></i>
-        <span class="menu-title">Make a Bulk Payment</span>
+        <span class="menu-title">Bulk Payment</span>
       </a>
     </li>
     <?php endif; ?>

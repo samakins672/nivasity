@@ -1888,7 +1888,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       <div class="modal-content">
         <form method="get" action="<?php echo htmlspecialchars(nivasity_app_url('bulk_material_payment.php'), ENT_QUOTES, 'UTF-8'); ?>">
           <div class="modal-header">
-            <h5 class="modal-title fw-bold" id="bulkPaymentManualPickerLabel">Make a Bulk Payment</h5>
+            <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="bulkPaymentManualPickerLabel"><i class="mdi mdi-file-document-multiple-outline"></i><span>Bulk Payment</span></h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
