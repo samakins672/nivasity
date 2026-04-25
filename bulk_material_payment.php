@@ -742,7 +742,7 @@ $storeUrl = nivasity_app_url();
                                   <div class="small text-primary fw-semibold mt-1 d-none" id="bulkCsvFileName"></div>
                                 </div>
                                 <div class="col-12 col-lg-4 d-grid">
-                                  <button type="submit" class="btn btn-primary fw-bold" id="bulkPreviewSubmitBtn">Proceed to preview & pay</button>
+                                  <button type="submit" class="btn btn-primary fw-bold" id="bulkPreviewSubmitBtn">Proceed to Preview & Pay</button>
                                 </div>
                               </div>
                             </form>
