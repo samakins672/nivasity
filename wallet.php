@@ -363,7 +363,7 @@ function walletEntryBadgeClass($entryType) {
       .wallet-transfer-detail-row {
         flex-direction: row;
         align-items: flex-start;
-        width: 70%;
+        width: 100%;
       }
 
       .wallet-transfer-detail-field {
@@ -396,7 +396,6 @@ function walletEntryBadgeClass($entryType) {
                                 <div class="wallet-card-topbar-copy">
                                   <p class="wallet-meta-label mb-0">Nivasity Wallet</p>
                                   <h2 class="wallet-balance mt-2 mb-2" id="wallet-balance-value">₦ <?php echo number_format((int)($wallet['balance'] ?? 0)); ?></h2>
-                                  <p class="mb-0"><?php echo $wallet ? 'Fund this wallet with your dedicated account below.' : 'Request wallet access from this page before it can be created.'; ?></p>
                                 </div>
                                 <div class="wallet-card-actions">
                                   <?php if ($wallet): ?>
@@ -408,6 +407,7 @@ function walletEntryBadgeClass($entryType) {
                                   <?php endif; ?>
                                 </div>
                               </div>
+                              <p class="mb-0"><?php echo $wallet ? 'Fund this wallet with your dedicated account below.' : 'Request wallet access from this page before it can be created.'; ?></p>
                             </div>
                           </div>
                         </div>
