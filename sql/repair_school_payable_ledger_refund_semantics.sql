@@ -232,6 +232,16 @@ WHERE rr.`status` = 'consumed';
 
 SELECT ROW_COUNT() AS `reallocated_consumed_rows`;
 
+UPDATE `refund_reservations` AS rr
+INNER JOIN `school_payable_ledger` AS spl
+  ON CONVERT(spl.`source_ref_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(rr.`ref_id` USING utf8mb4) COLLATE utf8mb4_unicode_ci
+SET rr.`school_payable_ledger_id` = spl.`id`
+WHERE rr.`status` = 'consumed'
+  AND COALESCE(rr.`school_payable_ledger_id`, 0) <= 0
+  AND COALESCE(spl.`status`, '') <> 'reversed';
+
+SELECT ROW_COUNT() AS `backfilled_consumed_row_ledger_links`;
+
 DROP TEMPORARY TABLE IF EXISTS `tmp_consumed_refund_by_ledger_source`;
 CREATE TEMPORARY TABLE `tmp_consumed_refund_by_ledger_source` AS
 SELECT
