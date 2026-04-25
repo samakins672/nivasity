@@ -94,7 +94,219 @@ function nivasity_get_support_whatsapp_link() {
     return $resolvedLink;
 }
 
-function getReceiptDataFromRef($conn, $user_id, $tx_ref, $filterType = null, $filterId = null) {
+function receiptTableExists(mysqli $conn, $tableName) {
+    static $cache = [];
+    $key = strtolower((string)$tableName);
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+
+    $safeTable = mysqli_real_escape_string($conn, (string)$tableName);
+    $res = mysqli_query($conn, "SHOW TABLES LIKE '$safeTable'");
+    $cache[$key] = ($res && mysqli_num_rows($res) > 0);
+    return $cache[$key];
+}
+
+function receiptTableHasColumn(mysqli $conn, $tableName, $columnName) {
+    static $cache = [];
+    $key = strtolower((string)$tableName . '.' . (string)$columnName);
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+
+    $safeTable = mysqli_real_escape_string($conn, (string)$tableName);
+    $safeColumn = mysqli_real_escape_string($conn, (string)$columnName);
+    $res = mysqli_query($conn, "SHOW COLUMNS FROM `$safeTable` LIKE '$safeColumn'");
+    $cache[$key] = ($res && mysqli_num_rows($res) > 0);
+    return $cache[$key];
+}
+
+function receiptResolveAuditStatusColumn(mysqli $conn) {
+    if (receiptTableHasColumn($conn, 'manual_export_audits', 'grant_status')) {
+        return 'grant_status';
+    }
+    if (receiptTableHasColumn($conn, 'manual_export_audits', 'status')) {
+        return 'status';
+    }
+
+    return '';
+}
+
+function receiptGenerateManualExportCode(mysqli $conn, $length = 10) {
+    $alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    $maxIndex = strlen($alphabet) - 1;
+    $attempts = 0;
+
+    do {
+        $code = '';
+        for ($i = 0; $i < $length; $i++) {
+            $code .= $alphabet[random_int(0, $maxIndex)];
+        }
+        $safeCode = mysqli_real_escape_string($conn, $code);
+        $exists = mysqli_query($conn, "SELECT 1 FROM manual_export_audits WHERE code = '$safeCode' LIMIT 1");
+        $attempts++;
+    } while ($exists && mysqli_num_rows($exists) > 0 && $attempts < 10);
+
+    return $code;
+}
+
+function createBulkReceiptExportAudit(mysqli $conn, $payerUserId, $batchRefId) {
+    $payerUserId = (int)$payerUserId;
+    $batchRefId = trim((string)$batchRefId);
+    if ($payerUserId <= 0 || $batchRefId === '') {
+        return null;
+    }
+
+    if (
+        !receiptTableExists($conn, 'manual_bulk_payment_batches')
+        || !receiptTableExists($conn, 'manual_bulk_payment_students')
+        || !receiptTableExists($conn, 'manual_export_audits')
+        || !receiptTableExists($conn, 'manuals_bought')
+    ) {
+        return null;
+    }
+
+    $safeRef = mysqli_real_escape_string($conn, $batchRefId);
+    $batchRs = mysqli_query(
+        $conn,
+        "SELECT id, manual_id, student_count
+         FROM manual_bulk_payment_batches
+         WHERE ref_id = '$safeRef'
+           AND payer_user_id = $payerUserId
+           AND payment_status = 'successful'
+         LIMIT 1"
+    );
+    if (!$batchRs || mysqli_num_rows($batchRs) < 1) {
+        return null;
+    }
+
+    $batchRow = mysqli_fetch_assoc($batchRs) ?: [];
+    $batchId = (int)($batchRow['id'] ?? 0);
+    $manualId = (int)($batchRow['manual_id'] ?? 0);
+    if ($batchId <= 0 || $manualId <= 0) {
+        return null;
+    }
+
+    $studentRs = mysqli_query(
+        $conn,
+        "SELECT manuals_bought_id
+         FROM manual_bulk_payment_students
+         WHERE batch_id = $batchId
+         ORDER BY id ASC"
+    );
+    if (!$studentRs) {
+        throw new RuntimeException('Failed to load bulk payment students for export audit: ' . mysqli_error($conn));
+    }
+
+    $boughtIdsMap = [];
+    while ($studentRow = mysqli_fetch_assoc($studentRs)) {
+        $manualsBoughtId = (int)($studentRow['manuals_bought_id'] ?? 0);
+        if ($manualsBoughtId > 0) {
+            $boughtIdsMap[$manualsBoughtId] = true;
+        }
+    }
+
+    $boughtIds = array_map('intval', array_keys($boughtIdsMap));
+    sort($boughtIds);
+    if (count($boughtIds) < 1) {
+        return null;
+    }
+
+    $boughtIdsCsv = implode(',', $boughtIds);
+    $summaryRs = mysqli_query(
+        $conn,
+        "SELECT
+            MIN(id) AS from_bought_id,
+            MAX(id) AS to_bought_id,
+            COALESCE(SUM(price), 0) AS total_amount
+         FROM manuals_bought
+         WHERE status = 'successful'
+           AND manual_id = $manualId
+           AND id IN ($boughtIdsCsv)"
+    );
+    if (!$summaryRs || mysqli_num_rows($summaryRs) < 1) {
+        throw new RuntimeException('Failed to summarize bulk export audit purchases: ' . mysqli_error($conn));
+    }
+
+    $summaryRow = mysqli_fetch_assoc($summaryRs) ?: [];
+    $fromBoughtId = isset($summaryRow['from_bought_id']) ? (int)$summaryRow['from_bought_id'] : 0;
+    $toBoughtId = isset($summaryRow['to_bought_id']) ? (int)$summaryRow['to_bought_id'] : 0;
+    $exportTotalAmount = isset($summaryRow['total_amount']) ? (int)$summaryRow['total_amount'] : 0;
+    $readyStudentsCount = count($boughtIds);
+    $totalStudentsCount = max($readyStudentsCount, (int)($batchRow['student_count'] ?? 0));
+    $lastStudentId = 0;
+
+    if ($toBoughtId > 0) {
+        $lastStudentRs = mysqli_query($conn, "SELECT buyer FROM manuals_bought WHERE id = $toBoughtId LIMIT 1");
+        if ($lastStudentRs && mysqli_num_rows($lastStudentRs) > 0) {
+            $lastStudentRow = mysqli_fetch_assoc($lastStudentRs) ?: [];
+            $lastStudentId = (int)($lastStudentRow['buyer'] ?? 0);
+        }
+    }
+
+    $verificationCode = receiptGenerateManualExportCode($conn);
+    $safeCode = mysqli_real_escape_string($conn, $verificationCode);
+    $downloadedAt = date('Y-m-d H:i:s');
+    $safeDownloadedAt = mysqli_real_escape_string($conn, $downloadedAt);
+    $boughtIdsJson = json_encode(array_values($boughtIds), JSON_UNESCAPED_SLASHES);
+    if ($boughtIdsJson === false) {
+        $boughtIdsJson = '[]';
+    }
+    $safeBoughtIdsJson = mysqli_real_escape_string($conn, $boughtIdsJson);
+    $auditStatusColumn = receiptResolveAuditStatusColumn($conn);
+
+    $insertColumns = ['code', 'manual_id', 'hoc_user_id', 'students_count', 'total_amount', 'downloaded_at'];
+    $insertValues = [
+        "'$safeCode'",
+        (string)$manualId,
+        (string)$payerUserId,
+        (string)$readyStudentsCount,
+        (string)$exportTotalAmount,
+        "'$safeDownloadedAt'"
+    ];
+
+    if (receiptTableHasColumn($conn, 'manual_export_audits', 'last_student_id')) {
+        $insertColumns[] = 'last_student_id';
+        $insertValues[] = $lastStudentId > 0 ? (string)$lastStudentId : 'NULL';
+    }
+    if (receiptTableHasColumn($conn, 'manual_export_audits', 'from_bought_id')) {
+        $insertColumns[] = 'from_bought_id';
+        $insertValues[] = $fromBoughtId > 0 ? (string)$fromBoughtId : 'NULL';
+    }
+    if (receiptTableHasColumn($conn, 'manual_export_audits', 'to_bought_id')) {
+        $insertColumns[] = 'to_bought_id';
+        $insertValues[] = $toBoughtId > 0 ? (string)$toBoughtId : 'NULL';
+    }
+    if (receiptTableHasColumn($conn, 'manual_export_audits', 'bought_ids_json')) {
+        $insertColumns[] = 'bought_ids_json';
+        $insertValues[] = "'$safeBoughtIdsJson'";
+    }
+    if ($auditStatusColumn !== '') {
+        $insertColumns[] = $auditStatusColumn;
+        $insertValues[] = "'pending'";
+    }
+
+    $insertColumnSql = implode(', ', array_map(function ($column) {
+        return "`$column`";
+    }, $insertColumns));
+    $insertValueSql = implode(', ', $insertValues);
+    $insertSql = "INSERT INTO manual_export_audits ($insertColumnSql) VALUES ($insertValueSql)";
+    if (!mysqli_query($conn, $insertSql)) {
+        throw new RuntimeException('Failed to create bulk export audit row: ' . mysqli_error($conn));
+    }
+
+    $verificationUrl = nivasity_app_url('manual-export-verify.php?code=' . urlencode($verificationCode));
+    return [
+        'code' => $verificationCode,
+        'verification_url' => $verificationUrl,
+        'downloaded_at' => $downloadedAt,
+        'students_count' => $readyStudentsCount,
+        'total_students_count' => $totalStudentsCount,
+        'total_amount' => $exportTotalAmount,
+    ];
+}
+
+function getReceiptDataFromRef($conn, $user_id, $tx_ref, $filterType = null, $filterId = null, array $options = []) {
     // Fetch user details
     $user_q = mysqli_query($conn, "SELECT * FROM users WHERE id = " . (int)$user_id);
     $user = $user_q ? mysqli_fetch_array($user_q) : null;
@@ -109,6 +321,8 @@ function getReceiptDataFromRef($conn, $user_id, $tx_ref, $filterType = null, $fi
     $total_amount = 0.0;
     $tx_safe = mysqli_real_escape_string($conn, $tx_ref);
     $filtered = ($filterType !== null && $filterId !== null);
+    $shouldCreateBulkExportAudit = !empty($options['create_bulk_export_audit']);
+    $exportAudit = null;
     $receiptDate = '';
     $tx_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT amount, created_at FROM transactions WHERE ref_id = '$tx_safe' AND user_id = " . (int)$user_id . " LIMIT 1"));
     if ($tx_row && !empty($tx_row['created_at'])) {
@@ -259,6 +473,10 @@ function getReceiptDataFromRef($conn, $user_id, $tx_ref, $filterType = null, $fi
                     }
                 }
 
+                if ($shouldCreateBulkExportAudit) {
+                    $exportAudit = createBulkReceiptExportAudit($conn, (int)$user_id, (string)$tx_ref);
+                }
+
                 if (!empty($batchRow['fee_amount']) && (float) $batchRow['fee_amount'] > 0) {
                     $bulkItems[] = [
                         'name' => 'Bulk payment fee',
@@ -301,6 +519,7 @@ function getReceiptDataFromRef($conn, $user_id, $tx_ref, $filterType = null, $fi
         'reference' => $tx_ref,
         'receipt_date' => $receiptDateFormatted,
         'total_amount' => (float) $total_amount,
+        'export_audit' => $exportAudit,
         'items' => $items,
     ];
 }
@@ -308,8 +527,28 @@ function getReceiptDataFromRef($conn, $user_id, $tx_ref, $filterType = null, $fi
 function buildReceiptHtmlFromData(array $receiptData) {
     // Build receipt HTML (same visual style as original)
     $currency = '&#8358;';
+    $exportAudit = isset($receiptData['export_audit']) && is_array($receiptData['export_audit']) ? $receiptData['export_audit'] : [];
+    $exportCode = trim((string)($exportAudit['code'] ?? ''));
+    $verificationUrl = trim((string)($exportAudit['verification_url'] ?? ''));
+    $exportStudentsCount = (int)($exportAudit['students_count'] ?? 0);
+    $exportTotalStudentsCount = (int)($exportAudit['total_students_count'] ?? 0);
     $message = '';
     $message .= '<h2 style="margin:0;color:#7a3b73">Payment Receipt</h2>';
+    if ($exportCode !== '') {
+        $message .= '<div style="background:#fff6db;border:1px solid #f2d58a;border-radius:6px;padding:12px;margin:12px 0 16px">'
+                  . '<div style="margin:0 0 6px"><strong>Export Code:</strong> ' . htmlspecialchars($exportCode) . '</div>';
+        if ($verificationUrl !== '') {
+            $message .= '<div style="margin:0 0 6px"><strong>Verify Link:</strong> <a href="' . htmlspecialchars($verificationUrl, ENT_QUOTES, 'UTF-8') . '" style="color:#7a3b73;word-break:break-all">' . htmlspecialchars($verificationUrl) . '</a></div>';
+        }
+        if ($exportStudentsCount > 0) {
+            $message .= '<div style="margin:0;color:#6b5b2a;font-size:13px"><strong>Students In Export:</strong> ' . number_format($exportStudentsCount);
+            if ($exportTotalStudentsCount > $exportStudentsCount) {
+                $message .= ' of ' . number_format($exportTotalStudentsCount) . ' currently ready for grant';
+            }
+            $message .= '</div>';
+        }
+        $message .= '</div>';
+    }
     $message .= '<p style="margin:6px 0 18px">Thank you for your purchase!</p>';
 
     $message .= '<div style="background:#f9f4ff;border:1px solid #e8d7f0;border-radius:6px;padding:12px;margin-bottom:16px">'

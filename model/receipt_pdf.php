@@ -141,10 +141,49 @@ if (!class_exists('NivasityReceiptPdfComposer')) {
       $purple = [0.478, 0.231, 0.451];
       $muted = [0.333, 0.333, 0.333];
       $soft = [0.973, 0.957, 1.000];
+      $exportAudit = isset($receiptData['export_audit']) && is_array($receiptData['export_audit']) ? $receiptData['export_audit'] : [];
+      $exportCode = trim((string) ($exportAudit['code'] ?? ''));
+      $verificationUrl = trim((string) ($exportAudit['verification_url'] ?? ''));
+      $exportStudentsCount = (int) ($exportAudit['students_count'] ?? 0);
+      $exportTotalStudentsCount = (int) ($exportAudit['total_students_count'] ?? 0);
 
       $this->text(42, 98, 'Payment Receipt', 'F2', 19, $purple);
       $this->text(42, 120, 'Thank you for your purchase!', 'F1', 11, $muted);
       $this->cursorY = 142;
+
+      if ($exportCode !== '') {
+        $urlLines = $verificationUrl !== '' ? $this->wrapText($verificationUrl, 380, 8.5) : [];
+        $summaryLine = '';
+        if ($exportStudentsCount > 0) {
+          $summaryLine = 'Students In Export: ' . number_format($exportStudentsCount);
+          if ($exportTotalStudentsCount > $exportStudentsCount) {
+            $summaryLine .= ' of ' . number_format($exportTotalStudentsCount) . ' currently ready for grant';
+          }
+        }
+        $summaryLines = $summaryLine !== '' ? $this->wrapText($summaryLine, 455, 8.5) : [];
+        $exportHeight = 38 + (count($urlLines) * 10) + (count($summaryLines) * 10);
+        $this->ensureSpace($exportHeight + 10);
+        $this->fillRect(42, $this->cursorY, 511.28, $exportHeight, [1.000, 0.965, 0.859]);
+        $this->strokeRect(42, $this->cursorY, 511.28, $exportHeight, [0.949, 0.835, 0.541], 1.0);
+        $lineY = $this->cursorY + 16;
+        $this->text(58, $lineY, 'Export Code:', 'F2', 10.0, [0.247, 0.192, 0.102]);
+        $this->text(142, $lineY, $exportCode, 'F2', 10.4, $purple);
+
+        if (!empty($urlLines)) {
+          $lineY += 16;
+          $this->text(58, $lineY, 'Verify Link:', 'F2', 9.0, [0.247, 0.192, 0.102]);
+          foreach ($urlLines as $index => $urlLine) {
+            $this->text($index === 0 ? 128 : 128, $lineY + ($index * 10), $urlLine, 'F1', 8.5, [0.200, 0.200, 0.200]);
+          }
+          $lineY += count($urlLines) * 10;
+        }
+
+        foreach ($summaryLines as $index => $summaryText) {
+          $this->text(58, $lineY + 8 + ($index * 10), $summaryText, 'F1', 8.5, [0.333, 0.333, 0.333]);
+        }
+
+        $this->cursorY += $exportHeight + 16;
+      }
 
       $infoHeight = 94;
       $this->ensureSpace($infoHeight + 10);

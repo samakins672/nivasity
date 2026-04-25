@@ -82,7 +82,16 @@ if ($kind && $itemId) {
 }
 
 // Build receipt body and data
-$receiptData = getReceiptDataFromRef($conn, $user_id, $ref, $kind, $itemId);
+$receiptData = getReceiptDataFromRef(
+  $conn,
+  $user_id,
+  $ref,
+  $kind,
+  $itemId,
+  [
+    'create_bulk_export_audit' => ($action === 'download' && $format === 'pdf' && !$pdfInline),
+  ]
+);
 $body = buildReceiptHtmlFromData($receiptData);
 
 if ($action === 'email') {
