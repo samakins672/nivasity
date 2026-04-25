@@ -191,18 +191,6 @@
   
   <!-- main js -->
   <script src="assets/js/script.js"></script>
-  <?php
-    $__tawk = __DIR__ . '/config/tawk.php';
-    if (!file_exists($__tawk)) { $__tawk = __DIR__ . '/config/tawk.example.php'; }
-    require_once $__tawk;
-  ?>
-  <script>
-    window.NIVASITY_ENV = window.NIVASITY_ENV || {};
-    window.NIVASITY_ENV.tawk = Object.assign({}, window.NIVASITY_ENV.tawk, {
-      enabled: <?php echo (defined('TAWK_ENABLED') && TAWK_ENABLED) ? 'true' : 'false'; ?>
-    });
-  </script>
-  <script src="assets/js/tawk-widget.js"></script>
 
 </body>
 

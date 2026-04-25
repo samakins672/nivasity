@@ -30,8 +30,4 @@ $whatsAppLink = nivasity_get_support_whatsapp_link();
   window.NIVASITY_ENV = Object.assign({}, window.NIVASITY_ENV, {
     supportWhatsAppLink: <?php echo json_encode($whatsAppLink); ?>
   });
-  window.NIVASITY_ENV.tawk = Object.assign({}, window.NIVASITY_ENV.tawk, {
-    enabled: <?php echo (defined('TAWK_ENABLED') && TAWK_ENABLED) ? 'true' : 'false'; ?>
-  });
 </script>
-<script src="<?php echo $asset_prefix; ?>assets/js/tawk-widget.js"></script>

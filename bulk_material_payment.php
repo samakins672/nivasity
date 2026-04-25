@@ -667,7 +667,7 @@ $storeUrl = nivasity_app_url();
                           </div>
                         </div>
                       </div>
-                      <div class="col-12 col-lg-4">
+                      <div class="col-12 col-lg-6">
                         <div class="card card-rounded shadow-sm bulk-section-card h-100">
                           <div class="card-body p-4">
                             <div class="bulk-inline-label mb-3">Simple Flow</div>
@@ -698,16 +698,16 @@ $storeUrl = nivasity_app_url();
                           </div>
                         </div>
                       </div>
-                      <div class="col-12 col-lg-8">
+                      <div class="col-12 col-lg-6">
                         <div class="card card-rounded shadow-sm bulk-section-card h-100" id="bulkPreviewSection">
                           <div class="card-body p-4">
-                            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3 mb-4">
+                            <div class="d-flex flex-column justify-content-between align-items-start gap-3 mb-4">
                               <div>
                                 <div class="bulk-inline-label mb-2">Upload And Review</div>
                                 <h4 class="fw-bold mb-1">Preview your batch before paying</h4>
                                 <p class="text-muted mb-0">The page will only unlock wallet payment after every row is ready.</p>
                               </div>
-                              <div class="bulk-upload-note w-100 w-lg-auto">
+                              <div class="bulk-upload-note w-100">
                                 <div class="small text-muted mb-1">Expected columns</div>
                                 <div class="fw-semibold">first_name, last_name, matric_no</div>
                               </div>
