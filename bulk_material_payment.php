@@ -1058,6 +1058,8 @@ $prerequisiteItems = [
       var walletPaymentForm = $('#bulkWalletPaymentForm');
       var walletPaymentHiddenPin = $('#bulkWalletPaymentHiddenPin');
       var pendingPaymentTotal = 0;
+      var reopenPreviewAfterPin = false;
+      var walletPaymentSubmitting = false;
 
       function escapeHtml(value) {
         return String(value == null ? '' : value)
@@ -1150,13 +1152,20 @@ $prerequisiteItems = [
           '</div>';
       }
 
-      function openWalletPinModal(totalAmount) {
+      function openWalletPinModal(totalAmount, shouldReturnToPreview) {
         pendingPaymentTotal = Number(totalAmount || 0);
+        reopenPreviewAfterPin = !!shouldReturnToPreview;
         walletPinInput.val('');
         walletPinError.addClass('d-none').text('');
         walletPinMessage.text('Enter your 4-digit Wallet PIN to authorize this bulk payment of ' + formatNaira(pendingPaymentTotal) + '.');
         if (previewModalElement && previewModalElement.classList.contains('show') && previewModal) {
+          $('#bulkPreviewModal').one('hidden.bs.modal', function () {
+            if (walletPinModal) {
+              walletPinModal.show();
+            }
+          });
           previewModal.hide();
+          return;
         }
         if (walletPinModal) {
           walletPinModal.show();
@@ -1237,7 +1246,7 @@ $prerequisiteItems = [
       });
 
       $(document).on('click', '.bulk-open-wallet-pin-modal', function () {
-        openWalletPinModal($(this).data('paymentTotal'));
+        openWalletPinModal($(this).data('paymentTotal'), $(this).closest('#bulkPreviewModal').length > 0);
       });
 
       walletPinConfirmBtn.on('click', function () {
@@ -1249,14 +1258,20 @@ $prerequisiteItems = [
 
         walletPinError.addClass('d-none').text('');
         walletPaymentHiddenPin.val(pin);
+        walletPaymentSubmitting = true;
         walletPinConfirmBtn.prop('disabled', true).text('Confirming...');
-        walletPaymentForm.trigger('submit');
+        walletPaymentForm.get(0).submit();
       });
 
       $('#bulkWalletPinModal').on('hidden.bs.modal', function () {
         walletPinInput.val('');
         walletPinError.addClass('d-none').text('');
         walletPinConfirmBtn.prop('disabled', false).text('Confirm & Pay');
+        if (!walletPaymentSubmitting && reopenPreviewAfterPin && previewModal) {
+          previewModal.show();
+        }
+        reopenPreviewAfterPin = false;
+        walletPaymentSubmitting = false;
       });
 
       var previewSection = document.getElementById('bulkPreviewSection');
