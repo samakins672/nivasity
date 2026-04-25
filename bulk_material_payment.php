@@ -262,10 +262,48 @@ if (!function_exists('bulk_material_payment_build_preview_payload')) {
         'balance' => $walletBalance,
         'has_enough_balance' => $walletBalance >= $previewTotalAmount,
       ],
+      'preview_rows' => array_values($previewResult['source_rows'] ?? []),
       'page_warnings' => array_values($pageWarnings),
       'can_submit_payment' => $canSubmitPayment,
       'wallet_page_url' => nivasity_app_url('wallet.php'),
     ];
+  }
+}
+
+if (!function_exists('bulk_material_payment_decode_preview_rows')) {
+  function bulk_material_payment_decode_preview_rows(string $payload): array
+  {
+    $decoded = json_decode($payload, true);
+    if (!is_array($decoded)) {
+      return [];
+    }
+
+    $rows = [];
+    foreach ($decoded as $row) {
+      if (!is_array($row)) {
+        continue;
+      }
+
+      $firstName = trim((string) ($row['first_name'] ?? ''));
+      $lastName = trim((string) ($row['last_name'] ?? ''));
+      $matricNo = trim((string) ($row['matric_no'] ?? ''));
+
+      if ($firstName === '' && $lastName === '' && $matricNo === '') {
+        continue;
+      }
+
+      $rows[] = [
+        'line_number' => (int) ($row['line_number'] ?? 0),
+        'first_name' => $firstName,
+        'last_name' => $lastName,
+        'matric_no' => $matricNo,
+        'normalized_first_name' => bulk_material_payment_normalize_text((string) ($row['normalized_first_name'] ?? $firstName)),
+        'normalized_last_name' => bulk_material_payment_normalize_text((string) ($row['normalized_last_name'] ?? $lastName)),
+        'normalized_matric_no' => bulk_material_payment_normalize_text((string) ($row['normalized_matric_no'] ?? $matricNo)),
+      ];
+    }
+
+    return $rows;
   }
 }
 
@@ -281,7 +319,7 @@ $pageWarnings = [];
 $previewResult = null;
 $previewRows = [];
 $paymentSuccess = null;
-$previewSessionKey = 'bulk_material_payment_preview_' . (int) $user_id . '_' . $manualId;
+$initialPreviewResponse = null;
 
 if (isset($_SESSION['bulk_material_payment_flash']) && is_array($_SESSION['bulk_material_payment_flash'])) {
   $flash = $_SESSION['bulk_material_payment_flash'];
@@ -339,7 +377,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_preview_bulk_pay
 
   $parsedUpload = bulk_material_payment_preview_parse_upload($_FILES['bulk_csv'] ?? []);
   if (!$parsedUpload['ok']) {
-    unset($_SESSION[$previewSessionKey]);
     bulk_material_payment_json_response('error', (string) ($parsedUpload['message'] ?? 'Unable to preview the uploaded CSV right now.'), [], 422);
   }
 
@@ -348,17 +385,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_preview_bulk_pay
     'school' => $school_id,
     'dept' => $user_dept,
   ]);
-
-  if (!empty($previewRows)) {
-    $_SESSION[$previewSessionKey] = [
-      'manual_id' => $manualId,
-      'user_id' => (int) $user_id,
-      'rows' => $previewRows,
-      'created_at' => time(),
-    ];
-  } else {
-    unset($_SESSION[$previewSessionKey]);
-  }
+  $previewResult['source_rows'] = $previewRows;
 
   bulk_material_payment_json_response(
     'success',
@@ -370,19 +397,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_preview_bulk_pay
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_bulk_payment']) && $pageError === '') {
-  $previewState = $_SESSION[$previewSessionKey] ?? null;
-  if (!is_array($previewState) || (int) ($previewState['manual_id'] ?? 0) !== $manualId || (int) ($previewState['user_id'] ?? 0) !== (int) $user_id) {
+  $previewRows = bulk_material_payment_decode_preview_rows((string) ($_POST['preview_payload'] ?? ''));
+  if (empty($previewRows)) {
     $pageError = 'Preview the CSV again before paying from your wallet.';
   } else {
-    $previewRows = $previewState['rows'] ?? [];
     $previewResult = bulk_material_payment_preview_analyze_rows($conn, $previewRows, $manual ?: [], [
       'school' => $school_id,
       'dept' => $user_dept,
     ]);
+    $previewResult['source_rows'] = $previewRows;
+    $initialPreviewResponse = [
+      'status' => 'success',
+      'message' => 'Preview restored for checkout.',
+      'data' => bulk_material_payment_build_preview_payload($previewResult, $manual ?: [], $pageWarnings, $walletReady, $walletBalance),
+    ];
 
     if (((int) ($previewResult['invalid_count'] ?? 0)) > 0 || ((int) ($previewResult['valid_count'] ?? 0)) < 1) {
       $pageError = 'Fix the CSV preview errors before paying from your wallet.';
-      unset($_SESSION[$previewSessionKey]);
     } elseif (!$walletReady) {
       $pageError = 'Complete the wallet prerequisites before paying for this batch.';
     } else {
@@ -399,7 +430,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_bulk_payment']
           trim((string) ($_POST['wallet_pin'] ?? '')),
           'web'
         );
-        unset($_SESSION[$previewSessionKey]);
         $_SESSION['bulk_material_payment_flash'] = array_merge($paymentResult, [
           'manual_id' => $manualId,
           'user_id' => (int) $user_id,
@@ -411,43 +441,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_bulk_payment']
       }
     }
   }
-} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['preview_bulk_payment']) && $pageError === '') {
-  $parsedUpload = bulk_material_payment_preview_parse_upload($_FILES['bulk_csv'] ?? []);
-  if (!$parsedUpload['ok']) {
-    $pageError = (string) ($parsedUpload['message'] ?? 'Unable to preview the uploaded CSV right now.');
-    unset($_SESSION[$previewSessionKey]);
-  } else {
-    $previewRows = $parsedUpload['rows'] ?? [];
-    $previewResult = bulk_material_payment_preview_analyze_rows($conn, $previewRows, $manual ?: [], [
-      'school' => $school_id,
-      'dept' => $user_dept,
-    ]);
-    if (!empty($previewRows)) {
-      $_SESSION[$previewSessionKey] = [
-        'manual_id' => $manualId,
-        'user_id' => (int) $user_id,
-        'rows' => $previewRows,
-        'created_at' => time(),
-      ];
-    } else {
-      unset($_SESSION[$previewSessionKey]);
-    }
-  }
-} elseif ($pageError === '') {
-  $previewState = $_SESSION[$previewSessionKey] ?? null;
-  if (is_array($previewState) && (int) ($previewState['manual_id'] ?? 0) === $manualId && (int) ($previewState['user_id'] ?? 0) === (int) $user_id) {
-    $previewRows = $previewState['rows'] ?? [];
-    if (!empty($previewRows)) {
-      $previewResult = bulk_material_payment_preview_analyze_rows($conn, $previewRows, $manual ?: [], [
-        'school' => $school_id,
-        'dept' => $user_dept,
-      ]);
-      if (count((array) ($previewResult['rows'] ?? [])) < 1) {
-        unset($_SESSION[$previewSessionKey]);
-        $previewResult = null;
-      }
-    }
-  }
 }
 
 $templateUrl = nivasity_asset_url('assets/templates/manual-bulk-payment-template.csv');
@@ -455,50 +448,7 @@ $walletPageUrl = nivasity_app_url('wallet.php');
 $manualTitle = (string) ($manual['title'] ?? 'Selected Material');
 $manualCode = (string) ($manual['course_code'] ?? '');
 $manualPrice = (int) round((float) ($manual['price'] ?? 0));
-$previewTotalAmount = (int) (($previewResult['breakdown']['total_amount'] ?? 0));
-$canSubmitPayment = is_array($previewResult)
-  && ((int) ($previewResult['invalid_count'] ?? 0)) === 0
-  && ((int) ($previewResult['valid_count'] ?? 0)) > 0
-  && $walletReady;
-$hasEnoughWalletBalance = $walletBalance >= $previewTotalAmount;
-$previewRowCount = is_array($previewResult) ? count((array) ($previewResult['rows'] ?? [])) : 0;
-$previewValidCount = (int) ($previewResult['valid_count'] ?? 0);
-$previewInvalidCount = (int) ($previewResult['invalid_count'] ?? 0);
-$previewSubtotal = (int) ($previewResult['breakdown']['subtotal'] ?? 0);
-$previewFeeAmount = (int) ($previewResult['breakdown']['fee_amount'] ?? 0);
-$previewHasErrors = $previewInvalidCount > 0;
-$shouldAutoScrollPreview = $_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['preview_bulk_payment']) || isset($_POST['submit_bulk_payment']));
 $storeUrl = nivasity_app_url();
-$hasSavedPreview = is_array($previewResult) && count((array) ($previewResult['rows'] ?? [])) > 0;
-$savedPreviewResponse = $hasSavedPreview
-  ? [
-      'status' => 'success',
-      'message' => $canSubmitPayment ? 'Former upload restored.' : 'Former upload restored. Review the rows before paying.',
-      'data' => bulk_material_payment_build_preview_payload($previewResult, $manual ?: [], $pageWarnings, $walletReady, $walletBalance),
-    ]
-  : null;
-$prerequisiteItems = [
-  [
-    'label' => 'Verified student account',
-    'ready' => ((string) $user_status === 'verified'),
-    'hint' => 'Only verified student-type accounts can submit bulk payments.',
-  ],
-  [
-    'label' => 'Department is set',
-    'ready' => ((int) $user_dept > 0),
-    'hint' => 'Student matching is restricted to your department.',
-  ],
-  [
-    'label' => 'Wallet is active',
-    'ready' => ($wallet !== null),
-    'hint' => 'Bulk payment is wallet-only for now.',
-  ],
-  [
-    'label' => 'Wallet PIN is ready',
-    'ready' => $hasWalletPin,
-    'hint' => 'Your 4-digit PIN is required for the final debit.',
-  ],
-];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -518,6 +468,7 @@ $prerequisiteItems = [
       display: grid;
       gap: 0.75rem;
       width: 100%;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .bulk-summary-metric {
@@ -526,6 +477,10 @@ $prerequisiteItems = [
       background: rgba(255, 255, 255, 0.8);
       border: 1px solid rgba(13, 110, 253, 0.12);
       min-width: 0;
+    }
+
+    .bulk-summary-metric-wide {
+      grid-column: 1 / -1;
     }
 
     .bulk-section-card {
@@ -565,40 +520,6 @@ $prerequisiteItems = [
       background: rgba(13, 110, 253, 0.12);
       color: #0d6efd;
       font-weight: 700;
-    }
-
-    .bulk-prerequisite-item {
-      display: flex;
-      gap: 0.85rem;
-      align-items: flex-start;
-      padding: 0.85rem 0;
-      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-    }
-
-    .bulk-prerequisite-item:last-child {
-      border-bottom: 0;
-      padding-bottom: 0;
-    }
-
-    .bulk-prerequisite-icon {
-      width: 2rem;
-      height: 2rem;
-      border-radius: 999px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      font-size: 1rem;
-    }
-
-    .bulk-prerequisite-ready {
-      background: rgba(25, 135, 84, 0.12);
-      color: #198754;
-    }
-
-    .bulk-prerequisite-pending {
-      background: rgba(255, 193, 7, 0.18);
-      color: #9a6700;
     }
 
     .bulk-dropzone {
@@ -737,7 +658,7 @@ $prerequisiteItems = [
                                   <div class="small text-muted mb-1">Bulk fee</div>
                                   <div class="fw-bold h5 mb-0">5%</div>
                                 </div>
-                                <div class="bulk-summary-metric">
+                                <div class="bulk-summary-metric bulk-summary-metric-wide">
                                   <div class="small text-muted mb-1">Wallet balance</div>
                                   <div class="fw-bold h5 mb-0">₦ <?php echo number_format($walletBalance); ?></div>
                                 </div>
@@ -774,30 +695,11 @@ $prerequisiteItems = [
                                 </div>
                               </div>
                             </div>
-
-                            <hr class="my-4">
-
-                            <h5 class="fw-bold mb-2">Before payment</h5>
-                            <p class="text-muted small mb-0">These checks make sure the batch can be paid successfully.</p>
-
-                            <div class="mt-3">
-                              <?php foreach ($prerequisiteItems as $item): ?>
-                                <div class="bulk-prerequisite-item">
-                                  <span class="bulk-prerequisite-icon <?php echo $item['ready'] ? 'bulk-prerequisite-ready' : 'bulk-prerequisite-pending'; ?>">
-                                    <i class="mdi <?php echo $item['ready'] ? 'mdi-check' : 'mdi-alert'; ?>"></i>
-                                  </span>
-                                  <div>
-                                    <div class="fw-semibold"><?php echo htmlspecialchars((string) $item['label'], ENT_QUOTES, 'UTF-8'); ?></div>
-                                    <div class="text-muted small"><?php echo htmlspecialchars((string) $item['hint'], ENT_QUOTES, 'UTF-8'); ?></div>
-                                  </div>
-                                </div>
-                              <?php endforeach; ?>
-                            </div>
                           </div>
                         </div>
                       </div>
                       <div class="col-12 col-lg-8">
-                        <div class="card card-rounded shadow-sm bulk-section-card h-100" id="bulkPreviewSection" data-bulk-autoscroll="<?php echo $shouldAutoScrollPreview ? '1' : '0'; ?>">
+                        <div class="card card-rounded shadow-sm bulk-section-card h-100" id="bulkPreviewSection">
                           <div class="card-body p-4">
                             <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3 mb-4">
                               <div>
@@ -832,7 +734,6 @@ $prerequisiteItems = [
                             <div class="alert d-none" id="bulkPreviewAjaxAlert"></div>
 
                             <form method="post" enctype="multipart/form-data" class="bulk-dropzone" id="bulkPreviewForm" action="bulk_material_payment.php?manual_id=<?php echo $manualId; ?>">
-                              <input type="hidden" name="preview_bulk_payment" value="1">
                               <div class="row g-3 align-items-end">
                                 <div class="col-12 col-lg-8">
                                   <label for="bulk_csv" class="form-label fw-bold">Upload CSV</label>
@@ -846,45 +747,6 @@ $prerequisiteItems = [
                               </div>
                             </form>
 
-                            <div class="bulk-empty-state mt-4 <?php echo $hasSavedPreview ? '' : 'd-none'; ?>" id="reuseFormerUploadWrap">
-                              <span id="reuseFormerUploadText">
-                                <?php if ($hasSavedPreview && $canSubmitPayment): ?>
-                                  A former upload is saved for this material. Reuse it to review the batch and continue payment.
-                                <?php elseif ($hasSavedPreview): ?>
-                                  A former upload is saved for this material. Reuse it to review the rows and see what still needs attention.
-                                <?php endif; ?>
-                              </span>
-                              <div class="d-grid d-sm-flex gap-2 mt-3">
-                                <button type="button" class="btn btn-outline-primary fw-bold" id="reuseFormerUploadBtn">Reuse Former Upload</button>
-                              </div>
-                            </div>
-
-                            <div class="bulk-pay-card mt-4" id="bulkPaymentCard">
-                              <div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-start">
-                                <div>
-                                  <div class="bulk-inline-label mb-2">Wallet Payment</div>
-                                  <h5 class="fw-bold mb-1">Pay once after your preview is clean</h5>
-                                  <?php if (!$hasSavedPreview): ?>
-                                    <p class="text-muted mb-0">Upload a CSV first. The preview and payment actions will open in a modal after upload.</p>
-                                  <?php elseif ($canSubmitPayment): ?>
-                                    <p class="text-muted mb-0">Your last upload is still saved. Open it again from the button above whenever you want to continue checkout.</p>
-                                  <?php else: ?>
-                                    <p class="text-muted mb-0">Your last upload is saved, but it still needs attention before payment can continue. Reopen it from the button above.</p>
-                                  <?php endif; ?>
-                                </div>
-                                <div class="text-md-end">
-                                  <div class="small text-muted mb-1">Checkout</div>
-                                  <h3 class="fw-bold mb-0"><?php echo $hasSavedPreview ? 'Saved' : 'Waiting'; ?></h3>
-                                  <div class="small text-muted"><?php echo $hasSavedPreview ? 'Open your saved upload to continue' : 'Upload a CSV to begin' ?></div>
-                                </div>
-                              </div>
-
-                              <?php if (!$hasSavedPreview): ?>
-                                <div class="bulk-empty-state mt-3">No preview yet. Upload your CSV above and this section will show whether payment is ready.</div>
-                              <?php else: ?>
-                                <div class="bulk-empty-state mt-3">Preview stays inside the modal now. Use <strong>Reuse Former Upload</strong> to review rows and continue checkout without showing the preview on this page.</div>
-                              <?php endif; ?>
-                            </div>
                           </div>
                         </div>
                       </div>
@@ -946,6 +808,7 @@ $prerequisiteItems = [
   <form method="post" id="bulkWalletPaymentForm" class="d-none">
     <input type="hidden" name="submit_bulk_payment" value="1">
     <input type="hidden" name="wallet_pin" id="bulkWalletPaymentHiddenPin" value="">
+    <input type="hidden" name="preview_payload" id="bulkWalletPaymentPreviewPayload" value="">
   </form>
 
   <script src="assets/vendors/js/vendor.bundle.base.js"></script>
@@ -971,13 +834,11 @@ $prerequisiteItems = [
       var walletPinMessage = $('#bulkWalletPinModalMessage');
       var walletPaymentForm = $('#bulkWalletPaymentForm');
       var walletPaymentHiddenPin = $('#bulkWalletPaymentHiddenPin');
-      var reuseFormerUploadBtn = $('#reuseFormerUploadBtn');
-      var reuseFormerUploadWrap = $('#reuseFormerUploadWrap');
-      var reuseFormerUploadText = $('#reuseFormerUploadText');
+      var walletPaymentPreviewPayload = $('#bulkWalletPaymentPreviewPayload');
       var pendingPaymentTotal = 0;
       var reopenPreviewAfterPin = false;
       var walletPaymentSubmitting = false;
-      var savedPreviewResponse = <?php echo json_encode($savedPreviewResponse, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+      var initialPreviewResponse = <?php echo json_encode($initialPreviewResponse, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 
       function escapeHtml(value) {
         return String(value == null ? '' : value)
@@ -994,23 +855,6 @@ $prerequisiteItems = [
 
       function showAjaxAlert(message, kind) {
         ajaxAlert.removeClass('d-none alert-danger alert-success alert-warning alert-info').addClass('alert-' + kind).html(message);
-      }
-
-      function syncSavedPreviewCta(response) {
-        var payload = response && response.data ? response.data : {};
-        if (!payload.preview || !Array.isArray(payload.preview.rows) || payload.preview.rows.length < 1) {
-          reuseFormerUploadWrap.addClass('d-none');
-          reuseFormerUploadText.text('');
-          return;
-        }
-
-        if (payload.can_submit_payment) {
-          reuseFormerUploadText.text('A former upload is saved for this material. Reuse it to review the batch and continue payment.');
-        } else {
-          reuseFormerUploadText.text('A former upload is saved for this material. Reuse it to review the rows and see what still needs attention.');
-        }
-
-        reuseFormerUploadWrap.removeClass('d-none');
       }
 
       function renderWarnings(warnings) {
@@ -1121,6 +965,7 @@ $prerequisiteItems = [
         var payload = response && response.data ? response.data : {};
         var preview = payload.preview || {};
         var manual = payload.manual || {};
+        walletPaymentPreviewPayload.val(JSON.stringify(Array.isArray(payload.preview_rows) ? payload.preview_rows : []));
         var summaryHtml = '' +
           '<div class="row g-3">' +
             '<div class="col-6 col-md-3"><div class="bulk-kpi-card"><p class="text-muted mb-1">Rows uploaded</p><h4 class="fw-bold mb-0">' + Number((preview.rows || []).length) + '</h4></div></div>' +
@@ -1177,8 +1022,6 @@ $prerequisiteItems = [
           dataType: 'json'
         }).done(function (response) {
           if (response && response.status === 'success') {
-            savedPreviewResponse = response;
-            syncSavedPreviewCta(response);
             renderPreviewModal(response);
             return;
           }
@@ -1192,16 +1035,6 @@ $prerequisiteItems = [
         });
       });
 
-      reuseFormerUploadBtn.on('click', function () {
-        if (savedPreviewResponse) {
-          renderPreviewModal(savedPreviewResponse);
-        }
-      });
-
-      if (savedPreviewResponse) {
-        syncSavedPreviewCta(savedPreviewResponse);
-      }
-
       $(document).on('click', '.bulk-open-wallet-pin-modal', function () {
         openWalletPinModal($(this).data('paymentTotal'), $(this).closest('#bulkPreviewModal').length > 0);
       });
@@ -1212,6 +1045,10 @@ $prerequisiteItems = [
           walletPinError.removeClass('d-none').text('Enter a valid 4-digit Wallet PIN.');
           return;
         }
+        if (!walletPaymentPreviewPayload.val()) {
+          walletPinError.removeClass('d-none').text('Preview the CSV again before paying from your wallet.');
+          return;
+        }
 
         walletPinError.addClass('d-none').text('');
         walletPaymentHiddenPin.val(pin);
@@ -1219,6 +1056,10 @@ $prerequisiteItems = [
         walletPinConfirmBtn.prop('disabled', true).text('Confirming...');
         walletPaymentForm.get(0).submit();
       });
+
+      if (initialPreviewResponse) {
+        renderPreviewModal(initialPreviewResponse);
+      }
 
       $('#bulkWalletPinModal').on('hidden.bs.modal', function () {
         walletPinInput.val('');
@@ -1230,11 +1071,6 @@ $prerequisiteItems = [
         reopenPreviewAfterPin = false;
         walletPaymentSubmitting = false;
       });
-
-      var previewSection = document.getElementById('bulkPreviewSection');
-      if (previewSection && previewSection.getAttribute('data-bulk-autoscroll') === '1') {
-        previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
     });
   </script>
 </body>
