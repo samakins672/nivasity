@@ -159,6 +159,8 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
   <title>Store - Nivasity</title>
 
   <?php include('partials/_head.php') ?>
+  <link rel="stylesheet" href="assets/vendors/select2/select2.min.css">
+  <link rel="stylesheet" href="assets/vendors/select2-bootstrap-theme/select2-bootstrap.min.css">
   <style>
     .wallet-pin-input {
       height: 4.5rem;
@@ -913,6 +915,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.1/mdb.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
+  <script src="assets/vendors/select2/select2.min.js"></script>
   <!-- End plugin js for this page -->
   <!-- inject:js -->
   <script src="assets/js/js/off-canvas.js"></script>
@@ -969,6 +972,16 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
     $(document).ready(function () {
       $('.btn').attr('data-mdb-ripple-duration', '0ms');
+
+      if ($.fn.select2 && $('#bulkPaymentManualSelect').length) {
+        $('#bulkPaymentManualSelect').select2({
+          theme: 'bootstrap',
+          width: '100%',
+          placeholder: 'Select a material',
+          dropdownParent: $('#bulkPaymentManualPickerModal'),
+          minimumResultsForSearch: 0
+        });
+      }
 
       function initMobileAppPromptModal() {
         var modalEl = document.getElementById('mobileAppPromoModal');
