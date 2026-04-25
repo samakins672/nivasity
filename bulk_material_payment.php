@@ -703,7 +703,7 @@ $storeUrl = nivasity_app_url();
                           <div class="card-body p-4">
                             <div class="d-flex flex-column justify-content-between align-items-start gap-3 mb-4">
                               <div>
-                                <div class="bulk-inline-label mb-2">Proceed to payment</div>
+                                <div class="bulk-inline-label mb-2">Upload And Review</div>
                                 <h4 class="fw-bold mb-1">Preview your batch before paying</h4>
                                 <p class="text-muted mb-0">The page will only unlock wallet payment after every row is ready.</p>
                               </div>
@@ -742,7 +742,7 @@ $storeUrl = nivasity_app_url();
                                   <div class="small text-primary fw-semibold mt-1 d-none" id="bulkCsvFileName"></div>
                                 </div>
                                 <div class="col-12 col-lg-4 d-grid">
-                                  <button type="submit" class="btn btn-primary fw-bold" id="bulkPreviewSubmitBtn">Upload And Preview</button>
+                                  <button type="submit" class="btn btn-primary fw-bold" id="bulkPreviewSubmitBtn">Proceed to preview & pay</button>
                                 </div>
                               </div>
                             </form>
