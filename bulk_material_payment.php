@@ -461,7 +461,16 @@ $storeUrl = nivasity_app_url();
   <style>
     .bulk-summary-card {
       border: 0;
-      background: linear-gradient(135deg, rgba(13, 110, 253, 0.08) 0%, rgba(15, 118, 110, 0.08) 100%);
+      background: linear-gradient(135deg, #0b5ed7 0%, #0f766e 100%);
+      color: #fff;
+    }
+
+    .bulk-summary-copy .text-primary {
+      color: rgba(255, 255, 255, 0.82) !important;
+    }
+
+    .bulk-summary-copy .text-muted {
+      color: rgba(255, 255, 255, 0.82) !important;
     }
 
     .bulk-summary-metrics {
@@ -638,7 +647,7 @@ $storeUrl = nivasity_app_url();
                         <div class="card card-rounded shadow-sm bulk-summary-card">
                           <div class="card-body p-4 p-lg-5">
                             <div class="d-flex flex-column flex-lg-row justify-content-between gap-4 align-items-start">
-                              <div class="pe-lg-4">
+                              <div class="pe-lg-4 bulk-summary-copy">
                                 <a href="<?php echo htmlspecialchars($storeUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-light fw-bold btn-sm mb-3">
                                   <i class="mdi mdi-arrow-left"></i> Back to Store
                                 </a>
