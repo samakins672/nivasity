@@ -460,52 +460,17 @@ $storeUrl = nivasity_app_url();
   <?php include('partials/_head.php') ?>
   <style>
     .bulk-page {
-      --bulk-accent: #6f42c1;
-      --bulk-accent-dark: #5b35a0;
-      --bulk-accent-rgb: 111, 66, 193;
+      --bulk-accent: var(--bs-secondary, #7A3B73);
+      --bulk-accent-rgb: 122, 59, 115;
     }
 
     .bulk-page .text-primary {
       color: var(--bulk-accent) !important;
     }
 
-    .bulk-page .btn-primary {
-      background-color: var(--bulk-accent);
-      border-color: var(--bulk-accent);
-    }
-
-    .bulk-page .btn-primary:hover,
-    .bulk-page .btn-primary:focus,
-    .bulk-page .btn-primary:active,
-    .bulk-page .btn-primary.active,
-    .bulk-page .show > .btn-primary.dropdown-toggle {
-      background-color: var(--bulk-accent-dark);
-      border-color: var(--bulk-accent-dark);
-    }
-
-    .bulk-page .btn-primary:focus,
-    .bulk-page .btn-outline-primary:focus {
-      box-shadow: 0 0 0 0.25rem rgba(var(--bulk-accent-rgb), 0.2);
-    }
-
-    .bulk-page .btn-outline-primary {
-      color: var(--bulk-accent);
-      border-color: rgba(var(--bulk-accent-rgb), 0.42);
-    }
-
-    .bulk-page .btn-outline-primary:hover,
-    .bulk-page .btn-outline-primary:focus,
-    .bulk-page .btn-outline-primary:active,
-    .bulk-page .btn-outline-primary.active,
-    .bulk-page .show > .btn-outline-primary.dropdown-toggle {
-      background-color: var(--bulk-accent);
-      border-color: var(--bulk-accent);
-      color: #fff;
-    }
-
     .bulk-summary-card {
       border: 0;
-      background: linear-gradient(135deg, #6f42c1 0%, #0f766e 100%);
+      background: linear-gradient(135deg, var(--bulk-accent) 0%, #0f766e 100%);
       color: #fff;
     }
 
