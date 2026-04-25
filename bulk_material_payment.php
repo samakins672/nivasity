@@ -470,7 +470,7 @@ $storeUrl = nivasity_app_url();
 
     .bulk-summary-card {
       border: 0;
-      background: linear-gradient(135deg, var(--bulk-accent) 0%, #0f766e 100%);
+      background: linear-gradient(135deg, var(--bulk-accent) 60%, #ff9100 100%);
       color: #fff;
     }
 
@@ -626,6 +626,33 @@ $storeUrl = nivasity_app_url();
     .bulk-table-status-error {
       color: #dc3545;
       font-weight: 700;
+    }
+
+    .wallet-pin-input {
+      height: 4.5rem;
+      border-radius: 0.85rem;
+      font-size: 1.55rem;
+      font-weight: 700;
+      letter-spacing: 0.24em;
+      text-align: center;
+      padding: 0.75rem 1rem;
+    }
+
+    .wallet-pin-input::placeholder {
+      letter-spacing: 0.08em;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .wallet-pin-field {
+      max-width: 21rem;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .wallet-pin-field .form-label {
+      display: block;
+      text-align: center;
     }
 
     @media (min-width: 992px) {
