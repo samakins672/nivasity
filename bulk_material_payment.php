@@ -459,9 +459,53 @@ $storeUrl = nivasity_app_url();
   <title>Bulk Material Payment</title>
   <?php include('partials/_head.php') ?>
   <style>
+    .bulk-page {
+      --bulk-accent: #6f42c1;
+      --bulk-accent-dark: #5b35a0;
+      --bulk-accent-rgb: 111, 66, 193;
+    }
+
+    .bulk-page .text-primary {
+      color: var(--bulk-accent) !important;
+    }
+
+    .bulk-page .btn-primary {
+      background-color: var(--bulk-accent);
+      border-color: var(--bulk-accent);
+    }
+
+    .bulk-page .btn-primary:hover,
+    .bulk-page .btn-primary:focus,
+    .bulk-page .btn-primary:active,
+    .bulk-page .btn-primary.active,
+    .bulk-page .show > .btn-primary.dropdown-toggle {
+      background-color: var(--bulk-accent-dark);
+      border-color: var(--bulk-accent-dark);
+    }
+
+    .bulk-page .btn-primary:focus,
+    .bulk-page .btn-outline-primary:focus {
+      box-shadow: 0 0 0 0.25rem rgba(var(--bulk-accent-rgb), 0.2);
+    }
+
+    .bulk-page .btn-outline-primary {
+      color: var(--bulk-accent);
+      border-color: rgba(var(--bulk-accent-rgb), 0.42);
+    }
+
+    .bulk-page .btn-outline-primary:hover,
+    .bulk-page .btn-outline-primary:focus,
+    .bulk-page .btn-outline-primary:active,
+    .bulk-page .btn-outline-primary.active,
+    .bulk-page .show > .btn-outline-primary.dropdown-toggle {
+      background-color: var(--bulk-accent);
+      border-color: var(--bulk-accent);
+      color: #fff;
+    }
+
     .bulk-summary-card {
       border: 0;
-      background: linear-gradient(135deg, #0b5ed7 0%, #0f766e 100%);
+      background: linear-gradient(135deg, #6f42c1 0%, #0f766e 100%);
       color: #fff;
     }
 
@@ -484,7 +528,7 @@ $storeUrl = nivasity_app_url();
       border-radius: 1rem;
       padding: 1rem;
       background: rgba(255, 255, 255, 0.8);
-      border: 1px solid rgba(13, 110, 253, 0.12);
+      border: 1px solid rgba(var(--bulk-accent-rgb), 0.14);
       min-width: 0;
       color: #0f172a;
     }
@@ -514,7 +558,7 @@ $storeUrl = nivasity_app_url();
       font-weight: 700;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: #0d6efd;
+      color: var(--bulk-accent);
     }
 
     .bulk-step-card {
@@ -522,7 +566,7 @@ $storeUrl = nivasity_app_url();
       gap: 0.9rem;
       align-items: flex-start;
       padding: 1rem;
-      border: 1px solid rgba(13, 110, 253, 0.12);
+      border: 1px solid rgba(var(--bulk-accent-rgb), 0.14);
       border-radius: 1rem;
       background: #fff;
     }
@@ -535,21 +579,21 @@ $storeUrl = nivasity_app_url();
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      background: rgba(13, 110, 253, 0.12);
-      color: #0d6efd;
+      background: rgba(var(--bulk-accent-rgb), 0.14);
+      color: var(--bulk-accent);
       font-weight: 700;
     }
 
     .bulk-dropzone {
-      border: 1px dashed rgba(13, 110, 253, 0.45);
+      border: 1px dashed rgba(var(--bulk-accent-rgb), 0.45);
       border-radius: 1rem;
       padding: 1.25rem;
-      background: rgba(13, 110, 253, 0.03);
+      background: rgba(var(--bulk-accent-rgb), 0.03);
     }
 
     .bulk-upload-note {
       border-radius: 1rem;
-      background: rgba(13, 110, 253, 0.06);
+      background: rgba(var(--bulk-accent-rgb), 0.06);
       padding: 0.9rem 1rem;
     }
 
@@ -598,7 +642,7 @@ $storeUrl = nivasity_app_url();
       border: 1px solid rgba(25, 135, 84, 0.12);
       border-radius: 1.15rem;
       padding: 1.25rem;
-      background: linear-gradient(135deg, rgba(25, 135, 84, 0.06) 0%, rgba(13, 110, 253, 0.03) 100%);
+      background: linear-gradient(135deg, rgba(25, 135, 84, 0.06) 0%, rgba(var(--bulk-accent-rgb), 0.05) 100%);
     }
 
     .bulk-empty-state {
@@ -639,7 +683,7 @@ $storeUrl = nivasity_app_url();
   </style>
 </head>
 
-<body>
+<body class="bulk-page">
   <div class="container-scroller">
     <?php include('partials/_navbar.php') ?>
     <div class="container-fluid page-body-wrapper">
