@@ -2500,7 +2500,14 @@ if (!function_exists('nivasityGetWalletFundingChargeRecoveryState')) {
             $totalProviderCharge += max(0, $providerChargeAmount);
         }
 
-        $ledgerSql = "SELECT metadata FROM wallet_ledger_entries WHERE wallet_id = $walletId AND entry_type = 'debit' AND reference LIKE 'wallet_purchase:%'";
+                $ledgerSql = "SELECT metadata
+                                            FROM wallet_ledger_entries
+                                            WHERE wallet_id = $walletId
+                                                AND entry_type = 'debit'
+                                                AND (
+                                                    reference LIKE 'wallet_purchase:%'
+                                                    OR reference LIKE 'wallet_bulk_purchase:%'
+                                                )";
         $ledgerRs = mysqli_query($conn, $ledgerSql);
         if (!$ledgerRs) {
             throw new Exception('Failed to inspect wallet charge recovery history: ' . mysqli_error($conn));
@@ -2557,7 +2564,14 @@ if (!function_exists('nivasitySyncWalletFundingChargeTracking')) {
             $totalProviderCharge += (int)$fundingRow['provider_charge_amount'];
         }
 
-        $ledgerSql = "SELECT metadata FROM wallet_ledger_entries WHERE wallet_id = $walletId AND entry_type = 'debit' AND reference LIKE 'wallet_purchase:%'";
+                $ledgerSql = "SELECT metadata
+                                            FROM wallet_ledger_entries
+                                            WHERE wallet_id = $walletId
+                                                AND entry_type = 'debit'
+                                                AND (
+                                                    reference LIKE 'wallet_purchase:%'
+                                                    OR reference LIKE 'wallet_bulk_purchase:%'
+                                                )";
         $ledgerRs = mysqli_query($conn, $ledgerSql);
         if (!$ledgerRs) {
             throw new Exception('Failed to inspect wallet charge recovery history: ' . mysqli_error($conn));

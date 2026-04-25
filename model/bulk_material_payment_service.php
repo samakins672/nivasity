@@ -195,6 +195,13 @@ if (!function_exists('bulk_material_payment_transaction_context')) {
   }
 }
 
+if (!function_exists('bulk_material_payment_student_transaction_context')) {
+  function bulk_material_payment_student_transaction_context(): string
+  {
+    return 'bulk_material_purchase_student';
+  }
+}
+
 if (!function_exists('bulk_material_payment_generate_ref')) {
   function bulk_material_payment_generate_ref(int $payerUserId): string
   {
@@ -241,6 +248,59 @@ if (!function_exists('bulk_material_payment_create_manual_purchase')) {
                   VALUES ({$manualId}, {$price}, {$sellerId}, {$buyerId}, {$payerUserId}, '" . mysqli_real_escape_string($conn, $refId) . "', 'successful', {$schoolId})";
     if (!mysqli_query($conn, $insertSql)) {
       throw new Exception('Unable to create the bulk material purchase row: ' . mysqli_error($conn));
+    }
+
+    return (int) mysqli_insert_id($conn);
+  }
+}
+
+if (!function_exists('bulk_material_payment_upsert_student_transaction')) {
+  function bulk_material_payment_upsert_student_transaction(mysqli $conn, int $userId, string $refId, int $amount, string $transactionContext): int
+  {
+    $userId = (int) $userId;
+    $amount = max(0, (int) $amount);
+    $refId = trim($refId);
+    $transactionContext = trim($transactionContext);
+
+    if ($userId <= 0 || $refId === '' || $amount <= 0 || $transactionContext === '') {
+      throw new Exception('Incomplete bulk student transaction payload.');
+    }
+
+    $refIdSafe = mysqli_real_escape_string($conn, $refId);
+    $contextSafe = mysqli_real_escape_string($conn, $transactionContext);
+    $existingRs = mysqli_query($conn, "SELECT id FROM transactions WHERE ref_id = '{$refIdSafe}' ORDER BY id DESC LIMIT 1 FOR UPDATE");
+    if (!$existingRs) {
+      throw new Exception('Unable to inspect bulk student transaction state: ' . mysqli_error($conn));
+    }
+
+    if (mysqli_num_rows($existingRs) > 0) {
+      $existingRow = mysqli_fetch_assoc($existingRs) ?: [];
+      $transactionId = (int) ($existingRow['id'] ?? 0);
+      $updateSql = "UPDATE transactions
+                    SET user_id = {$userId},
+                        amount = {$amount},
+                        charge = 0,
+                        profit = 0,
+                        refund = 0,
+                        status = 'successful',
+                        medium = 'NIVASITY',
+                        payment_channel = 'wallet',
+                        transaction_context = '{$contextSafe}'
+                    WHERE id = {$transactionId} LIMIT 1";
+      if (!mysqli_query($conn, $updateSql)) {
+        throw new Exception('Unable to update the bulk student transaction: ' . mysqli_error($conn));
+      }
+
+      return $transactionId;
+    }
+
+    $insertSql = "INSERT INTO transactions (
+        ref_id, user_id, amount, charge, profit, refund, status, medium, payment_channel, transaction_context
+      ) VALUES (
+        '{$refIdSafe}', {$userId}, {$amount}, 0, 0, 0, 'successful', 'NIVASITY', 'wallet', '{$contextSafe}'
+      )";
+    if (!mysqli_query($conn, $insertSql)) {
+      throw new Exception('Unable to create the bulk student transaction: ' . mysqli_error($conn));
     }
 
     return (int) mysqli_insert_id($conn);
@@ -374,6 +434,7 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
     $pendingClaimStatus = bulk_material_payment_claim_status_awaiting_claim_confirmation();
     $pendingStudentStatus = bulk_material_payment_claim_status_awaiting_student_confirmation();
     $transactionContext = bulk_material_payment_transaction_context();
+    $studentTransactionContext = bulk_material_payment_student_transaction_context();
 
     mysqli_begin_transaction($conn);
     try {
@@ -393,6 +454,25 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
       if ($balanceBefore < $totalAmount) {
         throw new Exception('Insufficient wallet balance for this bulk payment.');
       }
+
+      $chargeRecoveryState = function_exists('nivasityGetWalletFundingChargeRecoveryState')
+        ? nivasityGetWalletFundingChargeRecoveryState($conn, $walletId, true)
+        : [
+            'total_provider_charge' => 0,
+            'recovered_provider_charge' => 0,
+            'outstanding_provider_charge' => 0,
+          ];
+      $fundingChargeOutstandingBefore = max(0, (int) ($chargeRecoveryState['outstanding_provider_charge'] ?? 0));
+      $fundingChargeRecovered = min($feeAmount, $fundingChargeOutstandingBefore);
+      if (
+        $fundingChargeRecovered > 0
+        && function_exists('nivasityWalletFundingChargeTrackingColumnsExist')
+        && function_exists('nivasityConsumeWalletFundingChargeTracking')
+        && nivasityWalletFundingChargeTrackingColumnsExist($conn)
+      ) {
+        $fundingChargeRecovered = nivasityConsumeWalletFundingChargeTracking($conn, $walletId, $fundingChargeRecovered);
+      }
+      $profitAmount = max(0, $feeAmount - $fundingChargeRecovered);
 
       $batchInsertSql = "INSERT INTO manual_bulk_payment_batches (
           ref_id, manual_id, school_id, payer_user_id, payer_dept_id, manual_seller_id,
@@ -423,6 +503,8 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
         $placeholderUserId = 0;
         $manualsBoughtId = 0;
         $claimStatus = $matchedUserId > 0 ? $pendingStudentStatus : $pendingClaimStatus;
+        $studentRefId = bulk_material_payment_generate_ref($payerUserId);
+        $studentRefIdSafe = mysqli_real_escape_string($conn, $studentRefId);
 
         $pendingMatric = bulk_material_payment_pending_lookup_matric($normalizedMatricNo);
         if ($matchedUserId <= 0) {
@@ -443,7 +525,7 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
             $manualSellerId,
             $placeholderUserId,
             $payerUserId,
-            $refId,
+            $studentRefId,
             $schoolId
           );
         }
@@ -465,13 +547,22 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
           throw new Exception('One of the selected students already has a pending bulk-payment claim for this material.');
         }
 
+        $studentTransactionUserId = $placeholderUserId > 0 ? $placeholderUserId : $payerUserId;
+        bulk_material_payment_upsert_student_transaction(
+          $conn,
+          $studentTransactionUserId,
+          $studentRefId,
+          $manualPrice,
+          $studentTransactionContext
+        );
+
         $studentInsertSql = "INSERT INTO manual_bulk_payment_students (
             batch_id, ref_id, manual_id, school_id, payer_user_id, payer_dept_id,
             placeholder_user_id, matched_user_id, manuals_bought_id, first_name, last_name,
             normalized_first_name, normalized_last_name, raw_matric_no, normalized_matric_no,
             pending_lookup_matric_no, claim_status
           ) VALUES (
-            {$batchId}, '{$refIdSafe}', {$manualId}, {$schoolId}, {$payerUserId}, {$payerDeptId},
+            {$batchId}, '{$studentRefIdSafe}', {$manualId}, {$schoolId}, {$payerUserId}, {$payerDeptId},
             " . ($placeholderUserId > 0 ? $placeholderUserId : 'NULL') . ", " . ($matchedUserId > 0 ? $matchedUserId : 'NULL') . ", " . ($manualsBoughtId > 0 ? $manualsBoughtId : 'NULL') . ",
             '" . mysqli_real_escape_string($conn, $firstName) . "',
             '" . mysqli_real_escape_string($conn, $lastName) . "',
@@ -494,6 +585,17 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
         'manual_id' => $manualId,
         'student_count' => $studentCount,
         'transaction_context' => $transactionContext,
+        'funding_charge_recovered' => $fundingChargeRecovered,
+        'funding_charge_recovery' => [
+          'outstanding_before' => $fundingChargeOutstandingBefore,
+          'recovered_amount' => $fundingChargeRecovered,
+          'outstanding_after' => max(0, $fundingChargeOutstandingBefore - $fundingChargeRecovered),
+          'charge_amount' => $feeAmount,
+          'profit_amount' => $profitAmount,
+          'total_provider_charge' => (int) ($chargeRecoveryState['total_provider_charge'] ?? 0),
+          'recovered_before' => (int) ($chargeRecoveryState['recovered_provider_charge'] ?? 0),
+          'recovered_after' => (int) ($chargeRecoveryState['recovered_provider_charge'] ?? 0) + $fundingChargeRecovered,
+        ],
       ]));
       $ledgerReference = mysqli_real_escape_string($conn, 'wallet_bulk_purchase:' . $refId);
       $descriptionSafe = mysqli_real_escape_string($conn, 'Bulk material wallet purchase');
@@ -517,7 +619,7 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
       $txInsertSql = "INSERT INTO transactions (
           ref_id, user_id, amount, charge, profit, refund, status, medium, payment_channel, transaction_context
         ) VALUES (
-          '{$refIdSafe}', {$payerUserId}, {$totalAmount}, {$feeAmount}, {$feeAmount}, 0,
+          '{$refIdSafe}', {$payerUserId}, {$totalAmount}, {$feeAmount}, {$profitAmount}, 0,
           'successful', 'NIVASITY', 'wallet', '" . mysqli_real_escape_string($conn, $transactionContext) . "'
         )";
       if (!mysqli_query($conn, $txInsertSql)) {
@@ -561,6 +663,8 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
         'student_count' => $studentCount,
         'subtotal' => $subtotal,
         'fee_amount' => $feeAmount,
+        'profit_amount' => $profitAmount,
+        'funding_charge_recovered' => $fundingChargeRecovered,
         'total_amount' => $totalAmount,
         'wallet_balance_after' => $balanceAfter,
       ];
@@ -690,6 +794,7 @@ if (!function_exists('bulk_material_payment_resolve_claim_for_user')) {
     $awaitingClaim = mysqli_real_escape_string($conn, bulk_material_payment_claim_status_awaiting_claim_confirmation());
     $confirmedStatus = mysqli_real_escape_string($conn, 'confirmed');
     $rejectedStatus = mysqli_real_escape_string($conn, 'student_rejected');
+    $studentTransactionContext = bulk_material_payment_student_transaction_context();
     $matricSafe = mysqli_real_escape_string($conn, $normalizedMatricNo);
     $firstSafe = mysqli_real_escape_string($conn, $normalizedFirstName);
     $lastSafe = mysqli_real_escape_string($conn, $normalizedLastName);
@@ -789,6 +894,14 @@ if (!function_exists('bulk_material_payment_resolve_claim_for_user')) {
           $schoolId
         );
       }
+
+      bulk_material_payment_upsert_student_transaction(
+        $conn,
+        $userId,
+        (string) ($row['ref_id'] ?? ''),
+        $unitPrice,
+        $studentTransactionContext
+      );
 
       $confirmSql = "UPDATE manual_bulk_payment_students
                      SET claim_status = '{$confirmedStatus}',
