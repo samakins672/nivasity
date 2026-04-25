@@ -27,7 +27,7 @@
     <?php if ($url == 'index.php' && in_array((string) ($_SESSION['nivas_userRole'] ?? ''), ['student', 'hoc'], true)): ?>
     <li class="nav-item">
       <a class="nav-link" href="javascript:;" data-bs-toggle="modal" data-bs-target="#bulkPaymentManualPickerModal">
-        <i class="mdi mdi-file-document-multiple-outline menu-icon"></i>
+        <i class="mdi mdi-cash-multiple menu-icon"></i>
         <span class="menu-title">Bulk Payment</span>
       </a>
     </li>
