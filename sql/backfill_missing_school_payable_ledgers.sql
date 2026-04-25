@@ -65,6 +65,19 @@ LEFT JOIN `users` AS u
   ON u.`id` = c.`user_id`
 GROUP BY c.`ref_id`;
 
+DROP TEMPORARY TABLE IF EXISTS `tmp_refund_consumption_by_ref`;
+CREATE TEMPORARY TABLE `tmp_refund_consumption_by_ref` AS
+SELECT
+  rr.`ref_id`,
+  ROUND(COALESCE(SUM(rr.`amount`), 0)) AS `refund_consumed_amount`,
+  COUNT(DISTINCT r.`ref_id`) AS `refund_source_count`,
+  MAX(r.`ref_id`) AS `refund_consumption_source_ref_id`
+FROM `refund_reservations` AS rr
+INNER JOIN `refunds` AS r
+  ON r.`id` = rr.`refund_id`
+WHERE rr.`status` = 'consumed'
+GROUP BY rr.`ref_id`;
+
 DROP TEMPORARY TABLE IF EXISTS `tmp_missing_school_payable_candidates`;
 CREATE TEMPORARY TABLE `tmp_missing_school_payable_candidates` AS
 SELECT
@@ -77,8 +90,11 @@ SELECT
   GREATEST(0, ROUND(COALESCE(tx.`amount`, 0) - COALESCE(tx.`charge`, 0))) AS `item_subtotal`,
   ROUND(COALESCE(tx.`amount`, 0)) AS `collected_total`,
   ROUND(COALESCE(tx.`charge`, 0)) AS `charge_amount`,
-  ROUND(COALESCE(tx.`refund`, 0)) AS `refund_amount`,
-  GREATEST(0, ROUND(COALESCE(tx.`amount`, 0) - COALESCE(tx.`charge`, 0) - COALESCE(tx.`refund`, 0))) AS `payable_amount`,
+  COALESCE(trc.`refund_consumption_source_ref_id`, '') AS `refund_consumption_source_ref_id`,
+  ROUND(COALESCE(trc.`refund_consumed_amount`, 0)) AS `refund_consumed_amount`,
+  ROUND(COALESCE(NULLIF(trc.`refund_consumed_amount`, 0), tx.`refund`, 0)) AS `refund_amount`,
+  GREATEST(0, ROUND(COALESCE(tx.`amount`, 0) - COALESCE(tx.`charge`, 0) - COALESCE(NULLIF(trc.`refund_consumed_amount`, 0), tx.`refund`, 0))) AS `payable_amount`,
+  COALESCE(trc.`refund_source_count`, 0) AS `refund_source_count`,
   COALESCE(tx.`payment_channel`, '') AS `payment_channel`,
   COALESCE(tx.`transaction_context`, '') AS `transaction_context`,
   tx.`created_at`
@@ -91,6 +107,8 @@ LEFT JOIN `tmp_events_by_ref` AS et
   ON et.`ref_id` = tx.`ref_id`
 LEFT JOIN `tmp_cart_by_ref` AS cb
   ON cb.`ref_id` = tx.`ref_id`
+LEFT JOIN `tmp_refund_consumption_by_ref` AS trc
+  ON trc.`ref_id` = tx.`ref_id`
 LEFT JOIN `users` AS u
   ON u.`id` = tx.`user_id`
 WHERE spl.`id` IS NULL
@@ -166,7 +184,8 @@ WHERE r.`school_id` > 0
 
 INSERT INTO `school_payable_ledger` (
   `school_id`, `source_ref_id`, `payer_user_id`, `source_medium`, `source_channel`,
-  `item_subtotal`, `collected_total`, `charge_amount`, `refund_amount`, `payable_amount`, `metadata`
+  `item_subtotal`, `collected_total`, `charge_amount`, `refund_consumption_source_ref_id`,
+  `refund_consumed_amount`, `refund_amount`, `payable_amount`, `metadata`
 )
 SELECT
   r.`school_id`,
@@ -177,6 +196,8 @@ SELECT
   r.`item_subtotal`,
   r.`collected_total`,
   r.`charge_amount`,
+  NULLIF(r.`refund_consumption_source_ref_id`, ''),
+  r.`refund_consumed_amount`,
   r.`refund_amount`,
   r.`payable_amount`,
   JSON_OBJECT(
@@ -185,6 +206,9 @@ SELECT
     'transaction_id', r.`transaction_id`,
     'payment_channel', r.`payment_channel`,
     'transaction_context', r.`transaction_context`,
+    'refund_consumption_source_ref_id', NULLIF(r.`refund_consumption_source_ref_id`, ''),
+    'refund_consumed_amount', r.`refund_consumed_amount`,
+    'refund_source_count', r.`refund_source_count`,
     'original_created_at', DATE_FORMAT(r.`created_at`, '%Y-%m-%d %H:%i:%s')
   )
 FROM `tmp_missing_school_payable_ready` AS r;

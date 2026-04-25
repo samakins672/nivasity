@@ -138,6 +138,49 @@ if (!function_exists('nivasityWalletTransfersHasColumn')) {
     }
 }
 
+if (!function_exists('nivasitySchoolPayableLedgerHasColumn')) {
+    function nivasitySchoolPayableLedgerHasColumn($conn, $columnName) {
+        static $columns = [];
+
+        if (array_key_exists($columnName, $columns)) {
+            return $columns[$columnName];
+        }
+
+        $columnNameSafe = mysqli_real_escape_string($conn, (string)$columnName);
+        $rs = mysqli_query($conn, "SHOW COLUMNS FROM school_payable_ledger LIKE '$columnNameSafe'");
+        $columns[$columnName] = $rs && mysqli_num_rows($rs) > 0;
+        return $columns[$columnName];
+    }
+}
+
+if (!function_exists('nivasityRefundReservationsTableExists')) {
+    function nivasityRefundReservationsTableExists($conn) {
+        static $exists = null;
+
+        if ($exists !== null) {
+            return $exists;
+        }
+
+        $rs = mysqli_query($conn, "SHOW TABLES LIKE 'refund_reservations'");
+        $exists = $rs && mysqli_num_rows($rs) > 0;
+        return $exists;
+    }
+}
+
+if (!function_exists('nivasityRefundsTableExists')) {
+    function nivasityRefundsTableExists($conn) {
+        static $exists = null;
+
+        if ($exists !== null) {
+            return $exists;
+        }
+
+        $rs = mysqli_query($conn, "SHOW TABLES LIKE 'refunds'");
+        $exists = $rs && mysqli_num_rows($rs) > 0;
+        return $exists;
+    }
+}
+
 if (!function_exists('nivasityRequireWalletPinInfrastructure')) {
     function nivasityRequireWalletPinInfrastructure($conn) {
         if (
@@ -989,13 +1032,36 @@ if (!function_exists('nivasityRecordSchoolPayable')) {
         $mediumSafe = mysqli_real_escape_string($conn, $sourceMedium);
         $channelSafe = mysqli_real_escape_string($conn, $sourceChannel);
         $metadataJson = mysqli_real_escape_string($conn, json_encode($metadata));
+        $extraColumns = [];
+        $extraValues = [];
+
+        if (nivasitySchoolPayableLedgerHasColumn($conn, 'refund_consumption_source_ref_id')) {
+            $refundConsumptionSourceRefId = trim((string)($payload['refund_consumption_source_ref_id'] ?? ''));
+            if ($refundConsumptionSourceRefId === '') {
+                $extraColumns[] = 'refund_consumption_source_ref_id';
+                $extraValues[] = 'NULL';
+            } else {
+                $refundConsumptionSourceRefSafe = mysqli_real_escape_string($conn, $refundConsumptionSourceRefId);
+                $extraColumns[] = 'refund_consumption_source_ref_id';
+                $extraValues[] = "'$refundConsumptionSourceRefSafe'";
+            }
+        }
+
+        if (nivasitySchoolPayableLedgerHasColumn($conn, 'refund_consumed_amount')) {
+            $refundConsumedAmount = (int)round((float)($payload['refund_consumed_amount'] ?? 0));
+            $extraColumns[] = 'refund_consumed_amount';
+            $extraValues[] = (string)$refundConsumedAmount;
+        }
+
+        $extraColumnsSql = $extraColumns !== [] ? ', ' . implode(', ', $extraColumns) : '';
+        $extraValuesSql = $extraValues !== [] ? ', ' . implode(', ', $extraValues) : '';
 
         $insertSql = "INSERT INTO school_payable_ledger (
                 school_id, source_ref_id, payer_user_id, source_medium, source_channel,
-                item_subtotal, collected_total, charge_amount, refund_amount, payable_amount, metadata
+                item_subtotal, collected_total, charge_amount, refund_amount, payable_amount, metadata{$extraColumnsSql}
             ) VALUES (
                 $schoolId, '$sourceRefSafe', $payerUserId, '$mediumSafe', '$channelSafe',
-                $itemSubtotal, $collectedTotal, $chargeAmount, $refundAmount, $payableAmount, '$metadataJson'
+                $itemSubtotal, $collectedTotal, $chargeAmount, $refundAmount, $payableAmount, '$metadataJson'{$extraValuesSql}
             )";
 
         if (!mysqli_query($conn, $insertSql)) {
@@ -1128,9 +1194,47 @@ if (!function_exists('nivasityEnsureSchoolPayableForPurchase')) {
         $refundAmount = array_key_exists('refund_amount', $payload)
             ? (int)round((float)$payload['refund_amount'])
             : (int)round((float)($transactionRow['refund'] ?? 0));
+        $refundConsumedAmount = array_key_exists('refund_consumed_amount', $payload)
+            ? (int)round((float)$payload['refund_consumed_amount'])
+            : 0;
+        $refundConsumptionSourceRefId = trim((string)($payload['refund_consumption_source_ref_id'] ?? ''));
+        $refundConsumptionSourceCount = 0;
         $itemSubtotal = array_key_exists('item_subtotal', $payload)
             ? (int)round((float)$payload['item_subtotal'])
             : max(0, $collectedTotal - $chargeAmount);
+
+        if ((!array_key_exists('refund_amount', $payload) || !array_key_exists('refund_consumed_amount', $payload) || $refundConsumptionSourceRefId === '')
+            && nivasityRefundReservationsTableExists($conn)
+            && nivasityRefundsTableExists($conn)) {
+            $reservationRefundRs = mysqli_query(
+                $conn,
+                "SELECT
+                    COALESCE(SUM(rr.amount), 0) AS refund_consumed_amount,
+                    COUNT(DISTINCT r.ref_id) AS refund_source_count,
+                    MAX(r.ref_id) AS refund_source_ref_id
+                 FROM refund_reservations rr
+                 INNER JOIN refunds r ON r.id = rr.refund_id
+                 WHERE rr.ref_id = '$sourceRefSafe'
+                   AND rr.status = 'consumed'"
+            );
+
+            if ($reservationRefundRs) {
+                $reservationRefundRow = mysqli_fetch_assoc($reservationRefundRs) ?: [];
+                $derivedRefundConsumedAmount = (int)round((float)($reservationRefundRow['refund_consumed_amount'] ?? 0));
+                $refundConsumptionSourceCount = (int)($reservationRefundRow['refund_source_count'] ?? 0);
+                $derivedRefundSourceRefId = trim((string)($reservationRefundRow['refund_source_ref_id'] ?? ''));
+
+                if (!array_key_exists('refund_consumed_amount', $payload)) {
+                    $refundConsumedAmount = $derivedRefundConsumedAmount;
+                }
+                if (!array_key_exists('refund_amount', $payload) && $derivedRefundConsumedAmount > 0) {
+                    $refundAmount = $derivedRefundConsumedAmount;
+                }
+                if ($refundConsumptionSourceRefId === '' && $refundConsumptionSourceCount === 1 && $derivedRefundSourceRefId !== '') {
+                    $refundConsumptionSourceRefId = $derivedRefundSourceRefId;
+                }
+            }
+        }
 
         if ($schoolId <= 0 || $payerUserId <= 0) {
             return [
@@ -1147,6 +1251,15 @@ if (!function_exists('nivasityEnsureSchoolPayableForPurchase')) {
         $metadata['repaired_from_transaction_id'] = (int)($transactionRow['id'] ?? 0);
         $metadata['repaired_transaction_medium'] = (string)($transactionRow['medium'] ?? '');
         $metadata['repaired_transaction_channel'] = (string)($transactionRow['payment_channel'] ?? '');
+        if ($refundConsumedAmount > 0) {
+            $metadata['repaired_refund_consumed_amount'] = $refundConsumedAmount;
+        }
+        if ($refundConsumptionSourceRefId !== '') {
+            $metadata['repaired_refund_consumption_source_ref_id'] = $refundConsumptionSourceRefId;
+        }
+        if ($refundConsumptionSourceCount > 1) {
+            $metadata['repaired_refund_consumption_source_count'] = $refundConsumptionSourceCount;
+        }
 
         return nivasityRecordSchoolPayable($conn, [
             'school_id' => $schoolId,
@@ -1158,6 +1271,8 @@ if (!function_exists('nivasityEnsureSchoolPayableForPurchase')) {
             'collected_total' => $collectedTotal,
             'charge_amount' => $chargeAmount,
             'refund_amount' => $refundAmount,
+            'refund_consumption_source_ref_id' => $refundConsumptionSourceRefId,
+            'refund_consumed_amount' => $refundConsumedAmount,
             'metadata' => $metadata,
         ]);
     }
