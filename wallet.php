@@ -11,6 +11,7 @@ $isWalletEligibleRole = in_array($currentUserRole, $walletEligibleRoles, true);
 $isVerifiedUser = ((string)$user_status === 'verified');
 $canRequestWallet = $wallet === null && $isWalletEligibleRole && $isVerifiedUser;
 $hasWalletPin = (bool)($walletDashboard['has_pin'] ?? false);
+$canTransferFromWallet = $wallet !== null && $hasWalletPin;
 $walletEntries = $walletDashboard['entries'] ?? [];
 $walletCreditsTotal = (int)($walletDashboard['credits_total'] ?? 0);
 $walletDebitsTotal = (int)($walletDashboard['debits_total'] ?? 0);
@@ -162,6 +163,22 @@ function walletEntryBadgeClass($entryType) {
       cursor: not-allowed;
     }
 
+    .wallet-transfer-preview {
+      border: 1px solid rgba(25, 135, 84, 0.25);
+      border-radius: 0.85rem;
+      background: rgba(25, 135, 84, 0.06);
+      padding: 1rem;
+    }
+
+    .wallet-transfer-preview p:last-child {
+      margin-bottom: 0;
+    }
+
+    .wallet-transfer-hint {
+      font-size: 0.9rem;
+      color: #6c757d;
+    }
+
     @media (max-width: 767.98px) {
       .wallet-balance {
         font-size: 1.85rem;
@@ -230,6 +247,75 @@ function walletEntryBadgeClass($entryType) {
                                   <h5 class="fw-bold mt-3">Wallet Not Yet Requested</h5>
                                   <p class="text-muted mb-0"><?php echo htmlspecialchars($walletAccessMessage); ?></p>
                                 </div>
+                              </div>
+                            <?php endif; ?>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="col-12">
+                        <div class="card card-rounded shadow-sm">
+                          <div class="card-header bg-white border-0 pt-4 px-4">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                              <h4 class="fw-bold mb-0">Transfer to Student</h4>
+                              <span class="badge bg-light text-dark border">Internal wallet transfer</span>
+                            </div>
+                          </div>
+                          <div class="card-body px-4 pb-4">
+                            <?php if ($wallet): ?>
+                              <div class="row g-4 align-items-start">
+                                <div class="col-12 col-lg-7">
+                                  <?php if ($canTransferFromWallet): ?>
+                                    <form id="wallet-transfer-form" novalidate>
+                                      <div class="row g-3">
+                                        <div class="col-12">
+                                          <label for="wallet-transfer-recipient" class="form-label fw-bold">Recipient email or matric number</label>
+                                          <div class="input-group">
+                                            <input type="text" class="form-control" id="wallet-transfer-recipient" maxlength="120" placeholder="Enter verified student email or matric number" autocomplete="off">
+                                            <button type="button" class="btn btn-outline-primary" id="lookup-wallet-transfer-recipient-btn">Check Recipient</button>
+                                          </div>
+                                          <div class="wallet-transfer-hint mt-2">Transfers are limited to verified students in your school who already have an active wallet.</div>
+                                        </div>
+                                        <div class="col-12">
+                                          <div class="alert alert-danger d-none" id="walletTransferError"></div>
+                                          <div class="wallet-transfer-preview d-none" id="wallet-transfer-recipient-card"></div>
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                          <label for="wallet-transfer-amount" class="form-label fw-bold">Amount</label>
+                                          <input type="number" class="form-control" id="wallet-transfer-amount" min="1" step="1" placeholder="0">
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                          <label for="wallet-transfer-pin" class="form-label fw-bold">Wallet PIN</label>
+                                          <input type="password" class="form-control" id="wallet-transfer-pin" maxlength="4" inputmode="numeric" pattern="\d{4}" placeholder="4-digit PIN">
+                                        </div>
+                                        <div class="col-12">
+                                          <label for="wallet-transfer-description" class="form-label fw-bold">Narration</label>
+                                          <input type="text" class="form-control" id="wallet-transfer-description" maxlength="160" placeholder="Optional note for this transfer">
+                                        </div>
+                                        <div class="col-12">
+                                          <input type="hidden" id="wallet-transfer-request-token" value="">
+                                          <button type="submit" class="btn btn-primary fw-bold" id="wallet-transfer-submit-btn" disabled>Send Transfer</button>
+                                        </div>
+                                      </div>
+                                    </form>
+                                  <?php else: ?>
+                                    <div class="alert alert-warning mb-0">
+                                      Create your Wallet PIN with the button above before you can transfer funds to another student.
+                                    </div>
+                                  <?php endif; ?>
+                                </div>
+                                <div class="col-12 col-lg-5">
+                                  <div class="wallet-data-box h-100">
+                                    <h6 class="fw-bold">Transfer rules</h6>
+                                    <p class="text-muted mb-2">Wallet transfers are posted instantly once your PIN is confirmed.</p>
+                                    <p class="text-muted mb-2">Recipient lookup must succeed before the transfer button is enabled.</p>
+                                    <p class="text-muted mb-0">Use the recipient&apos;s verified email or matric number. Each request also carries a unique transfer token to prevent accidental duplicate debits.</p>
+                                  </div>
+                                </div>
+                              </div>
+                            <?php else: ?>
+                              <div class="alert alert-warning mb-0">
+                                Request your wallet first before sending money to another student.
                               </div>
                             <?php endif; ?>
                           </div>
@@ -456,9 +542,23 @@ function walletEntryBadgeClass($entryType) {
       var walletPinVerificationToken = '';
       var walletPinModalElement = document.getElementById('walletPinModal');
       var walletPinModal = walletPinModalElement ? new bootstrap.Modal(walletPinModalElement) : null;
+      var walletTransferRecipient = null;
+      var walletTransferLookupValue = '';
 
       function formatNaira(value) {
         return '₦ ' + Number(value || 0).toLocaleString();
+      }
+
+      function generateWalletTransferRequestToken() {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+          return 'wallet-transfer-' + window.crypto.randomUUID();
+        }
+
+        return 'wallet-transfer-' + Date.now() + '-' + Math.random().toString(16).slice(2, 14);
+      }
+
+      function normalizeWalletTransferLookupValue(value) {
+        return String(value == null ? '' : value).trim().toLowerCase();
       }
 
       function escapeHtml(value) {
@@ -510,6 +610,39 @@ function walletEntryBadgeClass($entryType) {
         $('#wallet-provider-name').text(wallet.provider || 'paystack');
         $('#wallet-entries-count').text((dashboard.entries_count || entries.length || 0) + ' entries');
         $('#wallet-activity-content').html(renderWalletEntries(entries, true));
+      }
+
+      function setWalletTransferRequestToken() {
+        $('#wallet-transfer-request-token').val(generateWalletTransferRequestToken());
+      }
+
+      function clearWalletTransferError() {
+        $('#walletTransferError').addClass('d-none').text('');
+      }
+
+      function showWalletTransferError(message) {
+        $('#walletTransferError').removeClass('d-none').text(message);
+      }
+
+      function clearWalletTransferRecipient() {
+        walletTransferRecipient = null;
+        walletTransferLookupValue = '';
+        $('#wallet-transfer-recipient-card').addClass('d-none').html('');
+        $('#wallet-transfer-submit-btn').prop('disabled', true);
+      }
+
+      function renderWalletTransferRecipient(recipient) {
+        return '<div><p class="text-success fw-bold mb-2">Recipient confirmed</p>'
+          + '<p class="mb-1"><strong>' + escapeHtml(recipient.name || '') + '</strong></p>'
+          + '<p class="text-muted mb-1">Email: ' + escapeHtml(recipient.email || 'N/A') + '</p>'
+          + '<p class="text-muted">Matric No: ' + escapeHtml(recipient.matric_no || 'N/A') + '</p></div>';
+      }
+
+      function resetWalletTransferForm() {
+        clearWalletTransferError();
+        clearWalletTransferRecipient();
+        $('#wallet-transfer-form').trigger('reset');
+        setWalletTransferRequestToken();
       }
 
       function runWalletRefresh(options) {
@@ -741,8 +874,121 @@ function walletEntryBadgeClass($entryType) {
         runWalletRefresh({ button: this, loadingText: 'Refreshing...' });
       });
 
+      $('#wallet-transfer-recipient').on('input', function() {
+        clearWalletTransferError();
+        clearWalletTransferRecipient();
+      });
+
+      $('#lookup-wallet-transfer-recipient-btn').on('click', function() {
+        var button = $(this);
+        var originalText = button.text();
+        var recipientIdentifier = $('#wallet-transfer-recipient').val().trim();
+
+        clearWalletTransferError();
+        clearWalletTransferRecipient();
+
+        if (!recipientIdentifier) {
+          showWalletTransferError('Enter the recipient email or matric number first.');
+          return;
+        }
+
+        button.prop('disabled', true).text('Checking...');
+        $.ajax({
+          url: 'model/wallet-transfer.php',
+          type: 'POST',
+          dataType: 'json',
+          data: {
+            action: 'lookup',
+            recipient_identifier: recipientIdentifier
+          }
+        }).done(function(response) {
+          var recipient = response && response.data ? response.data.recipient : null;
+          if (response && response.status === 'success' && recipient) {
+            walletTransferRecipient = recipient;
+            walletTransferLookupValue = normalizeWalletTransferLookupValue(recipientIdentifier);
+            $('#wallet-transfer-recipient-card').removeClass('d-none').html(renderWalletTransferRecipient(recipient));
+            $('#wallet-transfer-submit-btn').prop('disabled', false);
+            return;
+          }
+
+          showWalletTransferError((response && response.message) ? response.message : 'Unable to confirm the recipient student.');
+        }).fail(function(xhr) {
+          var message = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Unable to confirm the recipient student.';
+          showWalletTransferError(message);
+        }).always(function() {
+          button.prop('disabled', false).text(originalText);
+        });
+      });
+
+      $('#wallet-transfer-form').on('submit', function(event) {
+        event.preventDefault();
+
+        var submitButton = $('#wallet-transfer-submit-btn');
+        var originalText = submitButton.text();
+        var recipientIdentifier = $('#wallet-transfer-recipient').val().trim();
+        var amount = $('#wallet-transfer-amount').val().trim();
+        var walletPin = $('#wallet-transfer-pin').val().trim();
+        var description = $('#wallet-transfer-description').val().trim();
+        var requestToken = $('#wallet-transfer-request-token').val().trim();
+        var normalizedLookupValue = normalizeWalletTransferLookupValue(recipientIdentifier);
+
+        clearWalletTransferError();
+
+        if (!walletTransferRecipient || walletTransferLookupValue !== normalizedLookupValue) {
+          showWalletTransferError('Check the recipient again before sending this transfer.');
+          return;
+        }
+        if (!/^\d+$/.test(amount) || Number(amount) <= 0) {
+          showWalletTransferError('Enter a valid transfer amount greater than zero.');
+          return;
+        }
+        if (!/^\d{4}$/.test(walletPin)) {
+          showWalletTransferError('Enter your 4-digit Wallet PIN to continue.');
+          return;
+        }
+        if (!requestToken) {
+          showWalletTransferError('Refresh the page and try again.');
+          return;
+        }
+
+        submitButton.prop('disabled', true).text('Sending...');
+        $.ajax({
+          url: 'model/wallet-transfer.php',
+          type: 'POST',
+          dataType: 'json',
+          data: {
+            action: 'transfer',
+            recipient_identifier: recipientIdentifier,
+            amount: amount,
+            description: description,
+            wallet_pin: walletPin,
+            request_token: requestToken
+          }
+        }).done(function(response) {
+          if (response && response.status === 'success') {
+            if (response.data && response.data.dashboard) {
+              applyWalletDashboard(response.data.dashboard);
+            }
+            showWalletBanner(response.message || 'Wallet transfer completed successfully.', 'success');
+            resetWalletTransferForm();
+            return;
+          }
+
+          showWalletTransferError((response && response.message) ? response.message : 'Wallet transfer failed.');
+        }).fail(function(xhr) {
+          var message = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Wallet transfer failed.';
+          showWalletTransferError(message);
+        }).always(function() {
+          submitButton.prop('disabled', !walletTransferRecipient).text(originalText);
+        });
+      });
+
       if (walletExists) {
         runWalletRefresh({ silent: true, button: '#refresh-wallet-btn', loadingText: 'Checking DVA...' });
+      }
+
+      if ($('#wallet-transfer-request-token').length) {
+        setWalletTransferRequestToken();
       }
 
       $(document).on('click', '.copy-wallet-value', async function() {

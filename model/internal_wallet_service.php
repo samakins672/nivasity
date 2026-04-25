@@ -109,6 +109,35 @@ if (!function_exists('nivasityWalletFundingTransactionsHasColumn')) {
     }
 }
 
+if (!function_exists('nivasityWalletTransfersTableExists')) {
+    function nivasityWalletTransfersTableExists($conn) {
+        static $exists = null;
+
+        if ($exists !== null) {
+            return $exists;
+        }
+
+        $rs = mysqli_query($conn, "SHOW TABLES LIKE 'wallet_transfers'");
+        $exists = $rs && mysqli_num_rows($rs) > 0;
+        return $exists;
+    }
+}
+
+if (!function_exists('nivasityWalletTransfersHasColumn')) {
+    function nivasityWalletTransfersHasColumn($conn, $columnName) {
+        static $columns = [];
+
+        if (array_key_exists($columnName, $columns)) {
+            return $columns[$columnName];
+        }
+
+        $columnNameSafe = mysqli_real_escape_string($conn, (string)$columnName);
+        $rs = mysqli_query($conn, "SHOW COLUMNS FROM wallet_transfers LIKE '$columnNameSafe'");
+        $columns[$columnName] = $rs && mysqli_num_rows($rs) > 0;
+        return $columns[$columnName];
+    }
+}
+
 if (!function_exists('nivasityRequireWalletPinInfrastructure')) {
     function nivasityRequireWalletPinInfrastructure($conn) {
         if (
@@ -120,6 +149,23 @@ if (!function_exists('nivasityRequireWalletPinInfrastructure')) {
             || !nivasityWalletPinTokensHasColumn($conn, 'verification_token_expires_at')
         ) {
             throw new Exception('Wallet PIN management is not available until the latest wallet PIN SQL update is applied.');
+        }
+    }
+}
+
+if (!function_exists('nivasityRequireWalletTransferInfrastructure')) {
+    function nivasityRequireWalletTransferInfrastructure($conn) {
+        if (
+            !nivasityWalletTransfersTableExists($conn)
+            || !nivasityWalletTransfersHasColumn($conn, 'transfer_reference')
+            || !nivasityWalletTransfersHasColumn($conn, 'request_token')
+            || !nivasityWalletTransfersHasColumn($conn, 'recipient_lookup_value')
+            || !nivasityWalletTransfersHasColumn($conn, 'sender_balance_after')
+            || !nivasityWalletTransfersHasColumn($conn, 'recipient_balance_after')
+            || !nivasityWalletTransfersHasColumn($conn, 'status')
+            || !nivasityWalletTransfersHasColumn($conn, 'completed_at')
+        ) {
+            throw new Exception('Wallet transfer is not available until the latest wallet transfer SQL update is applied.');
         }
     }
 }
@@ -364,6 +410,427 @@ if (!function_exists('nivasityVerifyWalletPin')) {
         }
 
         return true;
+    }
+}
+
+if (!function_exists('nivasityIsValidWalletTransferRequestToken')) {
+    function nivasityIsValidWalletTransferRequestToken($requestToken) {
+        return preg_match('/^[A-Za-z0-9][A-Za-z0-9:_-]{15,99}$/', (string)$requestToken) === 1;
+    }
+}
+
+if (!function_exists('nivasityGenerateWalletTransferReference')) {
+    function nivasityGenerateWalletTransferReference() {
+        try {
+            $suffix = strtoupper(bin2hex(random_bytes(5)));
+        } catch (Throwable $e) {
+            $suffix = strtoupper(substr(sha1(uniqid((string)mt_rand(), true)), 0, 10));
+        }
+
+        return 'nwt_' . date('YmdHis') . '_' . $suffix;
+    }
+}
+
+if (!function_exists('nivasityNormalizeWalletTransferLookupValue')) {
+    function nivasityNormalizeWalletTransferLookupValue($value) {
+        return strtolower(trim((string)$value));
+    }
+}
+
+if (!function_exists('nivasitySanitizeWalletTransferDescription')) {
+    function nivasitySanitizeWalletTransferDescription($description, $fallback = 'Wallet transfer') {
+        $description = preg_replace('/\s+/', ' ', trim((string)$description));
+        if ($description === '') {
+            $description = trim((string)$fallback);
+        }
+
+        if (strlen($description) > 160) {
+            $description = substr($description, 0, 160);
+        }
+
+        return $description !== '' ? $description : 'Wallet transfer';
+    }
+}
+
+if (!function_exists('nivasityResolveStudentWalletTransferRecipient')) {
+    function nivasityResolveStudentWalletTransferRecipient($conn, $schoolId, $recipientIdentifier, $excludeUserId = 0) {
+        $schoolId = (int)$schoolId;
+        $excludeUserId = (int)$excludeUserId;
+        $lookupValue = nivasityNormalizeWalletTransferLookupValue($recipientIdentifier);
+
+        if ($schoolId <= 0) {
+            throw new Exception('Unable to resolve the sender school for wallet transfer');
+        }
+        if ($lookupValue === '') {
+            throw new Exception('Enter the recipient email or matric number');
+        }
+
+        $lookupValueSafe = mysqli_real_escape_string($conn, $lookupValue);
+        $excludeSql = $excludeUserId > 0 ? "AND u.id <> $excludeUserId" : '';
+
+        $sql = "SELECT
+                    u.id AS user_id,
+                    u.first_name,
+                    u.last_name,
+                    u.email,
+                    u.matric_no,
+                    u.role,
+                    u.status AS user_status,
+                    w.id AS wallet_id,
+                    w.school_id,
+                    w.balance,
+                    w.status AS wallet_status
+                FROM users u
+                INNER JOIN user_wallets w ON w.user_id = u.id
+                WHERE u.school = $schoolId
+                  AND w.school_id = $schoolId
+                  AND u.role = 'student'
+                  AND u.status = 'verified'
+                  AND w.status = 'active'
+                  $excludeSql
+                  AND (
+                    LOWER(TRIM(u.email)) = '$lookupValueSafe'
+                    OR LOWER(TRIM(COALESCE(u.matric_no, ''))) = '$lookupValueSafe'
+                  )
+                LIMIT 2";
+
+        $rs = mysqli_query($conn, $sql);
+        if (!$rs) {
+            throw new Exception('Failed to search for recipient student: ' . mysqli_error($conn));
+        }
+
+        if (mysqli_num_rows($rs) < 1) {
+            throw new Exception('Recipient student was not found. Use the verified student email or matric number.');
+        }
+
+        if (mysqli_num_rows($rs) > 1) {
+            throw new Exception('More than one student matched that email or matric number. Use the student email instead.');
+        }
+
+        $recipient = mysqli_fetch_assoc($rs);
+        $displayName = trim((string)(($recipient['first_name'] ?? '') . ' ' . ($recipient['last_name'] ?? '')));
+        if ($displayName === '') {
+            $displayName = trim((string)($recipient['email'] ?? 'Student'));
+        }
+
+        $recipient['display_name'] = $displayName;
+        $recipient['lookup_value'] = $lookupValue;
+        return $recipient;
+    }
+}
+
+if (!function_exists('nivasityTransferWalletToStudent')) {
+    function nivasityTransferWalletToStudent($conn, $senderUserId, $recipientIdentifier, $amount, $walletPin, $description = '', $requestToken = '', $sourceChannel = 'web') {
+        $senderUserId = (int)$senderUserId;
+        $recipientIdentifier = trim((string)$recipientIdentifier);
+        $amount = (int)round((float)$amount);
+        $walletPin = trim((string)$walletPin);
+        $description = trim((string)$description);
+        $requestToken = trim((string)$requestToken);
+        $sourceChannel = strtolower(trim((string)$sourceChannel));
+        $sourceChannel = $sourceChannel !== '' ? $sourceChannel : 'web';
+
+        if ($senderUserId <= 0) {
+            throw new Exception('Authentication required');
+        }
+        if ($amount <= 0) {
+            throw new Exception('Transfer amount must be greater than zero');
+        }
+        if ($recipientIdentifier === '') {
+            throw new Exception('Enter the recipient email or matric number');
+        }
+        if (!nivasityIsValidWalletTransferRequestToken($requestToken)) {
+            throw new Exception('Refresh the wallet page and try the transfer again');
+        }
+
+        nivasityRequireWalletTransferInfrastructure($conn);
+        nivasityVerifyWalletPin($conn, $senderUserId, $walletPin);
+
+        $senderWallet = nivasityGetUserWallet($conn, $senderUserId);
+        if (!$senderWallet || (int)($senderWallet['id'] ?? 0) <= 0) {
+            throw new Exception('Create your wallet before sending funds');
+        }
+        if ((string)($senderWallet['status'] ?? 'active') !== 'active') {
+            throw new Exception('Your Nivasity Wallet is not active');
+        }
+
+        $senderWalletId = (int)($senderWallet['id'] ?? 0);
+        $senderSchoolId = (int)($senderWallet['school_id'] ?? 0);
+        $recipient = nivasityResolveStudentWalletTransferRecipient($conn, $senderSchoolId, $recipientIdentifier, $senderUserId);
+        $recipientUserId = (int)($recipient['user_id'] ?? 0);
+        $recipientWalletId = (int)($recipient['wallet_id'] ?? 0);
+        if ($recipientWalletId <= 0 || $recipientUserId <= 0) {
+            throw new Exception('Recipient student does not have an active wallet yet');
+        }
+        if ($senderWalletId === $recipientWalletId || $senderUserId === $recipientUserId) {
+            throw new Exception('You cannot transfer wallet funds to yourself');
+        }
+
+        $recipientDisplayName = trim((string)($recipient['display_name'] ?? 'Student'));
+        $senderProfile = nivasityGetWalletUserProfile($conn, $senderUserId) ?: [];
+        $senderDisplayName = trim((string)(($senderProfile['first_name'] ?? '') . ' ' . ($senderProfile['last_name'] ?? '')));
+        if ($senderDisplayName === '') {
+            $senderDisplayName = trim((string)($senderProfile['email'] ?? 'Nivasity user'));
+        }
+
+        $senderDescription = nivasitySanitizeWalletTransferDescription($description, 'Wallet transfer to ' . $recipientDisplayName);
+        $recipientDescription = nivasitySanitizeWalletTransferDescription('', 'Wallet transfer from ' . $senderDisplayName);
+        $lookupValue = nivasityNormalizeWalletTransferLookupValue($recipientIdentifier);
+        $transferReference = nivasityGenerateWalletTransferReference();
+
+        $requestTokenSafe = mysqli_real_escape_string($conn, $requestToken);
+        $transferReferenceSafe = mysqli_real_escape_string($conn, $transferReference);
+        $lookupValueSafe = mysqli_real_escape_string($conn, $lookupValue);
+        $recipientNameSafe = mysqli_real_escape_string($conn, $recipientDisplayName);
+        $recipientEmailSafe = mysqli_real_escape_string($conn, (string)($recipient['email'] ?? ''));
+        $recipientMatricSafe = mysqli_real_escape_string($conn, (string)($recipient['matric_no'] ?? ''));
+        $senderDescriptionSafe = mysqli_real_escape_string($conn, $senderDescription);
+        $sourceChannelSafe = mysqli_real_escape_string($conn, $sourceChannel);
+
+        mysqli_begin_transaction($conn);
+        try {
+            $initialMetadataSafe = mysqli_real_escape_string($conn, json_encode([
+                'sender_user_id' => $senderUserId,
+                'recipient_user_id' => $recipientUserId,
+                'recipient_lookup_value' => $lookupValue,
+                'recipient_lookup_type' => filter_var($lookupValue, FILTER_VALIDATE_EMAIL) ? 'email' : 'matric_no',
+                'initiated_via' => $sourceChannel,
+            ]));
+
+            $insertTransferSql = "INSERT INTO wallet_transfers (
+                    transfer_reference,
+                    request_token,
+                    sender_wallet_id,
+                    recipient_wallet_id,
+                    sender_user_id,
+                    recipient_user_id,
+                    recipient_lookup_value,
+                    recipient_name,
+                    recipient_email,
+                    recipient_matric_no,
+                    amount,
+                    currency,
+                    status,
+                    initiated_via,
+                    description,
+                    metadata
+                ) VALUES (
+                    '$transferReferenceSafe',
+                    '$requestTokenSafe',
+                    $senderWalletId,
+                    $recipientWalletId,
+                    $senderUserId,
+                    $recipientUserId,
+                    '$lookupValueSafe',
+                    '$recipientNameSafe',
+                    '$recipientEmailSafe',
+                    '$recipientMatricSafe',
+                    $amount,
+                    'NGN',
+                    'pending',
+                    '$sourceChannelSafe',
+                    '$senderDescriptionSafe',
+                    '$initialMetadataSafe'
+                )";
+
+            if (!mysqli_query($conn, $insertTransferSql)) {
+                if ((int)mysqli_errno($conn) === 1062) {
+                    $existingSql = "SELECT * FROM wallet_transfers WHERE request_token = '$requestTokenSafe' LIMIT 1 FOR UPDATE";
+                    $existingRs = mysqli_query($conn, $existingSql);
+                    if ($existingRs && mysqli_num_rows($existingRs) > 0) {
+                        $existing = mysqli_fetch_assoc($existingRs);
+                        if ((int)($existing['sender_user_id'] ?? 0) !== $senderUserId) {
+                            throw new Exception('Transfer request token could not be reused for this account');
+                        }
+                        if ((string)($existing['status'] ?? '') === 'completed') {
+                            mysqli_commit($conn);
+                            return [
+                                'status' => 'success',
+                                'already_processed' => true,
+                                'transfer_id' => (int)($existing['id'] ?? 0),
+                                'transfer_reference' => (string)($existing['transfer_reference'] ?? ''),
+                                'amount' => (int)($existing['amount'] ?? 0),
+                                'description' => (string)($existing['description'] ?? ''),
+                                'wallet_balance_after' => (int)($existing['sender_balance_after'] ?? 0),
+                                'recipient' => [
+                                    'user_id' => (int)($existing['recipient_user_id'] ?? 0),
+                                    'name' => (string)($existing['recipient_name'] ?? ''),
+                                    'email' => (string)($existing['recipient_email'] ?? ''),
+                                    'matric_no' => (string)($existing['recipient_matric_no'] ?? ''),
+                                ],
+                            ];
+                        }
+
+                        throw new Exception('This wallet transfer is already being processed. Wait a moment and refresh the page.');
+                    }
+                }
+
+                throw new Exception('Failed to create wallet transfer record: ' . mysqli_error($conn));
+            }
+
+            $transferId = (int)mysqli_insert_id($conn);
+            $walletIds = [$senderWalletId, $recipientWalletId];
+            sort($walletIds, SORT_NUMERIC);
+            $walletIdsSql = implode(',', array_map('intval', $walletIds));
+            $walletLockSql = "SELECT id, user_id, school_id, balance, status FROM user_wallets WHERE id IN ($walletIdsSql) ORDER BY id ASC FOR UPDATE";
+            $walletLockRs = mysqli_query($conn, $walletLockSql);
+            if (!$walletLockRs) {
+                throw new Exception('Failed to lock wallets for transfer: ' . mysqli_error($conn));
+            }
+
+            $lockedWallets = [];
+            while ($walletRow = mysqli_fetch_assoc($walletLockRs)) {
+                $lockedWallets[(int)($walletRow['id'] ?? 0)] = $walletRow;
+            }
+
+            if (!isset($lockedWallets[$senderWalletId]) || !isset($lockedWallets[$recipientWalletId])) {
+                throw new Exception('Unable to lock both wallets for transfer');
+            }
+
+            $senderWalletRow = $lockedWallets[$senderWalletId];
+            $recipientWalletRow = $lockedWallets[$recipientWalletId];
+
+            if ((string)($senderWalletRow['status'] ?? 'active') !== 'active') {
+                throw new Exception('Your Nivasity Wallet is not active');
+            }
+            if ((string)($recipientWalletRow['status'] ?? 'active') !== 'active') {
+                throw new Exception('Recipient student wallet is not active');
+            }
+
+            $senderBalanceBefore = (int)($senderWalletRow['balance'] ?? 0);
+            $recipientBalanceBefore = (int)($recipientWalletRow['balance'] ?? 0);
+            if ($senderBalanceBefore < $amount) {
+                throw new Exception('Insufficient wallet balance for this transfer');
+            }
+
+            $senderBalanceAfter = $senderBalanceBefore - $amount;
+            $recipientBalanceAfter = $recipientBalanceBefore + $amount;
+            $senderLedgerReference = mysqli_real_escape_string($conn, 'wallet_transfer_out:' . $transferReference);
+            $recipientLedgerReference = mysqli_real_escape_string($conn, 'wallet_transfer_in:' . $transferReference);
+            $senderLedgerMetadataSafe = mysqli_real_escape_string($conn, json_encode([
+                'wallet_transfer_id' => $transferId,
+                'transfer_reference' => $transferReference,
+                'direction' => 'outbound',
+                'counterparty_user_id' => $recipientUserId,
+                'counterparty_wallet_id' => $recipientWalletId,
+                'counterparty_name' => $recipientDisplayName,
+                'request_token' => $requestToken,
+                'initiated_via' => $sourceChannel,
+            ]));
+            $recipientLedgerMetadataSafe = mysqli_real_escape_string($conn, json_encode([
+                'wallet_transfer_id' => $transferId,
+                'transfer_reference' => $transferReference,
+                'direction' => 'inbound',
+                'counterparty_user_id' => $senderUserId,
+                'counterparty_wallet_id' => $senderWalletId,
+                'counterparty_name' => $senderDisplayName,
+                'request_token' => $requestToken,
+                'initiated_via' => $sourceChannel,
+            ]));
+            $recipientDescriptionSafe = mysqli_real_escape_string($conn, $recipientDescription);
+
+            $insertSenderLedgerSql = "INSERT INTO wallet_ledger_entries (
+                    wallet_id, entry_type, amount, balance_before, balance_after, status,
+                    reference, provider_reference, description, metadata
+                ) VALUES (
+                    $senderWalletId, 'debit', $amount, $senderBalanceBefore, $senderBalanceAfter, 'posted',
+                    '$senderLedgerReference', '$transferReferenceSafe', '$senderDescriptionSafe', '$senderLedgerMetadataSafe'
+                )";
+            if (!mysqli_query($conn, $insertSenderLedgerSql)) {
+                throw new Exception('Failed to record sender wallet transfer debit: ' . mysqli_error($conn));
+            }
+
+            $insertRecipientLedgerSql = "INSERT INTO wallet_ledger_entries (
+                    wallet_id, entry_type, amount, balance_before, balance_after, status,
+                    reference, provider_reference, description, metadata
+                ) VALUES (
+                    $recipientWalletId, 'credit', $amount, $recipientBalanceBefore, $recipientBalanceAfter, 'posted',
+                    '$recipientLedgerReference', '$transferReferenceSafe', '$recipientDescriptionSafe', '$recipientLedgerMetadataSafe'
+                )";
+            if (!mysqli_query($conn, $insertRecipientLedgerSql)) {
+                throw new Exception('Failed to record recipient wallet transfer credit: ' . mysqli_error($conn));
+            }
+
+            $updateSenderWalletSql = "UPDATE user_wallets SET balance = $senderBalanceAfter, updated_at = NOW() WHERE id = $senderWalletId";
+            if (!mysqli_query($conn, $updateSenderWalletSql)) {
+                throw new Exception('Failed to debit sender wallet balance: ' . mysqli_error($conn));
+            }
+
+            $updateRecipientWalletSql = "UPDATE user_wallets SET balance = $recipientBalanceAfter, updated_at = NOW() WHERE id = $recipientWalletId";
+            if (!mysqli_query($conn, $updateRecipientWalletSql)) {
+                throw new Exception('Failed to credit recipient wallet balance: ' . mysqli_error($conn));
+            }
+
+            $finalMetadataSafe = mysqli_real_escape_string($conn, json_encode([
+                'sender_user_id' => $senderUserId,
+                'recipient_user_id' => $recipientUserId,
+                'sender_name' => $senderDisplayName,
+                'recipient_name' => $recipientDisplayName,
+                'recipient_lookup_value' => $lookupValue,
+                'recipient_lookup_type' => filter_var($lookupValue, FILTER_VALIDATE_EMAIL) ? 'email' : 'matric_no',
+                'initiated_via' => $sourceChannel,
+                'sender_ledger_reference' => 'wallet_transfer_out:' . $transferReference,
+                'recipient_ledger_reference' => 'wallet_transfer_in:' . $transferReference,
+            ]));
+
+            $updateTransferSql = "UPDATE wallet_transfers
+                                  SET status = 'completed',
+                                      sender_balance_before = $senderBalanceBefore,
+                                      sender_balance_after = $senderBalanceAfter,
+                                      recipient_balance_before = $recipientBalanceBefore,
+                                      recipient_balance_after = $recipientBalanceAfter,
+                                      description = '$senderDescriptionSafe',
+                                      metadata = '$finalMetadataSafe',
+                                      completed_at = NOW(),
+                                      updated_at = NOW()
+                                  WHERE id = $transferId";
+            if (!mysqli_query($conn, $updateTransferSql)) {
+                throw new Exception('Failed to finalize wallet transfer record: ' . mysqli_error($conn));
+            }
+
+            mysqli_commit($conn);
+
+            nivasityWalletLog('Processed wallet transfer', [
+                'transfer_id' => $transferId,
+                'transfer_reference' => $transferReference,
+                'sender_user_id' => $senderUserId,
+                'recipient_user_id' => $recipientUserId,
+                'amount' => $amount,
+                'source_channel' => $sourceChannel,
+            ]);
+
+            nivasitySendWalletAlert($conn, $senderUserId, 'debit', [
+                'amount' => $amount,
+                'balance_after' => $senderBalanceAfter,
+                'reference' => $transferReference,
+                'description' => $senderDescription,
+            ]);
+            nivasitySendWalletAlert($conn, $recipientUserId, 'credit', [
+                'amount' => $amount,
+                'balance_after' => $recipientBalanceAfter,
+                'reference' => $transferReference,
+                'description' => $recipientDescription,
+            ]);
+
+            return [
+                'status' => 'success',
+                'already_processed' => false,
+                'transfer_id' => $transferId,
+                'transfer_reference' => $transferReference,
+                'amount' => $amount,
+                'description' => $senderDescription,
+                'wallet_balance_after' => $senderBalanceAfter,
+                'recipient' => [
+                    'user_id' => $recipientUserId,
+                    'name' => $recipientDisplayName,
+                    'email' => (string)($recipient['email'] ?? ''),
+                    'matric_no' => (string)($recipient['matric_no'] ?? ''),
+                ],
+            ];
+        } catch (Throwable $e) {
+            mysqli_rollback($conn);
+            throw $e;
+        }
     }
 }
 
