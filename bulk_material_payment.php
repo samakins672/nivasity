@@ -846,18 +846,18 @@ $prerequisiteItems = [
                               </div>
                             </form>
 
-                            <?php if ($hasSavedPreview): ?>
-                              <div class="bulk-empty-state mt-4">
-                                <?php if ($canSubmitPayment): ?>
+                            <div class="bulk-empty-state mt-4 <?php echo $hasSavedPreview ? '' : 'd-none'; ?>" id="reuseFormerUploadWrap">
+                              <span id="reuseFormerUploadText">
+                                <?php if ($hasSavedPreview && $canSubmitPayment): ?>
                                   A former upload is saved for this material. Reuse it to review the batch and continue payment.
-                                <?php else: ?>
+                                <?php elseif ($hasSavedPreview): ?>
                                   A former upload is saved for this material. Reuse it to review the rows and see what still needs attention.
                                 <?php endif; ?>
-                                <div class="d-grid d-sm-flex gap-2 mt-3">
-                                  <button type="button" class="btn btn-outline-primary fw-bold" id="reuseFormerUploadBtn">Reuse Former Upload</button>
-                                </div>
+                              </span>
+                              <div class="d-grid d-sm-flex gap-2 mt-3">
+                                <button type="button" class="btn btn-outline-primary fw-bold" id="reuseFormerUploadBtn">Reuse Former Upload</button>
                               </div>
-                            <?php endif; ?>
+                            </div>
 
                             <div class="bulk-pay-card mt-4" id="bulkPaymentCard">
                               <div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-start">
@@ -972,6 +972,8 @@ $prerequisiteItems = [
       var walletPaymentForm = $('#bulkWalletPaymentForm');
       var walletPaymentHiddenPin = $('#bulkWalletPaymentHiddenPin');
       var reuseFormerUploadBtn = $('#reuseFormerUploadBtn');
+      var reuseFormerUploadWrap = $('#reuseFormerUploadWrap');
+      var reuseFormerUploadText = $('#reuseFormerUploadText');
       var pendingPaymentTotal = 0;
       var reopenPreviewAfterPin = false;
       var walletPaymentSubmitting = false;
@@ -992,6 +994,23 @@ $prerequisiteItems = [
 
       function showAjaxAlert(message, kind) {
         ajaxAlert.removeClass('d-none alert-danger alert-success alert-warning alert-info').addClass('alert-' + kind).html(message);
+      }
+
+      function syncSavedPreviewCta(response) {
+        var payload = response && response.data ? response.data : {};
+        if (!payload.preview || !Array.isArray(payload.preview.rows) || payload.preview.rows.length < 1) {
+          reuseFormerUploadWrap.addClass('d-none');
+          reuseFormerUploadText.text('');
+          return;
+        }
+
+        if (payload.can_submit_payment) {
+          reuseFormerUploadText.text('A former upload is saved for this material. Reuse it to review the batch and continue payment.');
+        } else {
+          reuseFormerUploadText.text('A former upload is saved for this material. Reuse it to review the rows and see what still needs attention.');
+        }
+
+        reuseFormerUploadWrap.removeClass('d-none');
       }
 
       function renderWarnings(warnings) {
@@ -1159,6 +1178,7 @@ $prerequisiteItems = [
         }).done(function (response) {
           if (response && response.status === 'success') {
             savedPreviewResponse = response;
+            syncSavedPreviewCta(response);
             renderPreviewModal(response);
             return;
           }
@@ -1177,6 +1197,10 @@ $prerequisiteItems = [
           renderPreviewModal(savedPreviewResponse);
         }
       });
+
+      if (savedPreviewResponse) {
+        syncSavedPreviewCta(savedPreviewResponse);
+      }
 
       $(document).on('click', '.bulk-open-wallet-pin-modal', function () {
         openWalletPinModal($(this).data('paymentTotal'), $(this).closest('#bulkPreviewModal').length > 0);
