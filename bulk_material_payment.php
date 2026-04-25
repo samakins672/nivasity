@@ -486,6 +486,15 @@ $storeUrl = nivasity_app_url();
       background: rgba(255, 255, 255, 0.8);
       border: 1px solid rgba(13, 110, 253, 0.12);
       min-width: 0;
+      color: #0f172a;
+    }
+
+    .bulk-summary-metric .text-muted {
+      color: rgba(15, 23, 42, 0.72) !important;
+    }
+
+    .bulk-summary-metric .fw-bold {
+      color: #0f172a;
     }
 
     .bulk-summary-metric-wide {
