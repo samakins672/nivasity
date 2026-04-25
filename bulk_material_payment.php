@@ -8,6 +8,24 @@ require_once 'model/material_copy_status.php';
 if (!function_exists('bulk_material_payment_preview_parse_upload')) {
   function bulk_material_payment_preview_parse_upload(array $file): array
   {
+    $uploadError = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($uploadError !== UPLOAD_ERR_OK) {
+      $message = 'Upload a CSV file before previewing your batch.';
+
+      if ($uploadError === UPLOAD_ERR_INI_SIZE || $uploadError === UPLOAD_ERR_FORM_SIZE) {
+        $message = 'The uploaded CSV file is too large. Try a smaller CSV file.';
+      } elseif ($uploadError === UPLOAD_ERR_PARTIAL) {
+        $message = 'The CSV upload did not finish. Please try again.';
+      } elseif ($uploadError !== UPLOAD_ERR_NO_FILE) {
+        $message = 'We could not receive the uploaded CSV file. Please try again.';
+      }
+
+      return [
+        'ok' => false,
+        'message' => $message,
+      ];
+    }
+
     if (!isset($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
       return [
         'ok' => false,
@@ -932,6 +950,37 @@ $storeUrl = nivasity_app_url();
         ajaxAlert.removeClass('d-none alert-danger alert-success alert-warning alert-info').addClass('alert-' + kind).html(message);
       }
 
+      function resolvePreviewRequestError(xhr) {
+        var response = xhr && xhr.responseJSON ? xhr.responseJSON : null;
+
+        if (!response && xhr && xhr.responseText) {
+          try {
+            response = JSON.parse(xhr.responseText);
+          } catch (error) {
+            response = null;
+          }
+        }
+
+        if (response && response.message) {
+          return response.message;
+        }
+
+        var responseUrl = xhr && xhr.responseURL ? String(xhr.responseURL) : '';
+        if (responseUrl.indexOf('signin.html') !== -1) {
+          return 'Your session expired. Sign in again and retry the CSV preview.';
+        }
+
+        if (xhr && xhr.status === 413) {
+          return 'The uploaded CSV file is too large. Try a smaller CSV file.';
+        }
+
+        if (xhr && xhr.status === 422) {
+          return 'Check the uploaded CSV file and try again.';
+        }
+
+        return 'Unable to preview this CSV right now.';
+      }
+
       function renderWarnings(warnings) {
         if (!Array.isArray(warnings) || warnings.length < 1) {
           return '';
@@ -1102,8 +1151,7 @@ $storeUrl = nivasity_app_url();
 
           showAjaxAlert(response && response.message ? response.message : 'Unable to preview this CSV right now.', 'danger');
         }).fail(function (xhr) {
-          var response = xhr.responseJSON || {};
-          showAjaxAlert(response.message || 'Unable to preview this CSV right now.', 'danger');
+          showAjaxAlert(resolvePreviewRequestError(xhr), 'danger');
         }).always(function () {
           previewSubmitBtn.prop('disabled', false).html(originalText);
         });
