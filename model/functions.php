@@ -185,6 +185,96 @@ function getReceiptDataFromRef($conn, $user_id, $tx_ref, $filterType = null, $fi
     }
 
     // If transaction row not found, compute a fallback total using settlement helper
+    if (!$filtered) {
+        $bulkTablesReady = false;
+        static $receiptTableCache = [];
+        if (!array_key_exists('manual_bulk_payment_batches', $receiptTableCache)) {
+            $batchTableRs = mysqli_query($conn, "SHOW TABLES LIKE 'manual_bulk_payment_batches'");
+            $studentTableRs = mysqli_query($conn, "SHOW TABLES LIKE 'manual_bulk_payment_students'");
+            $receiptTableCache['manual_bulk_payment_batches'] = $batchTableRs && mysqli_num_rows($batchTableRs) > 0;
+            $receiptTableCache['manual_bulk_payment_students'] = $studentTableRs && mysqli_num_rows($studentTableRs) > 0;
+        }
+        $bulkTablesReady = !empty($receiptTableCache['manual_bulk_payment_batches']) && !empty($receiptTableCache['manual_bulk_payment_students']);
+
+        if ($bulkTablesReady) {
+            $batchRs = mysqli_query(
+                $conn,
+                "SELECT
+                    b.id,
+                    b.manual_id,
+                    b.student_count,
+                    b.subtotal,
+                    b.fee_amount,
+                    b.total_amount,
+                    COALESCE(b.paid_at, b.created_at) AS paid_at,
+                    m.title,
+                    m.course_code
+                 FROM manual_bulk_payment_batches AS b
+                 INNER JOIN manuals AS m ON m.id = b.manual_id
+                 WHERE b.ref_id = '$tx_safe'
+                   AND b.payer_user_id = " . (int) $user_id . "
+                 LIMIT 1"
+            );
+
+            if ($batchRs && mysqli_num_rows($batchRs) > 0) {
+                $batchRow = mysqli_fetch_assoc($batchRs) ?: [];
+                $batchId = (int) ($batchRow['id'] ?? 0);
+                $studentCount = max(1, (int) ($batchRow['student_count'] ?? 1));
+                $unitPrice = (int) round(((float) ($batchRow['subtotal'] ?? 0)) / $studentCount);
+                $bulkItems = [];
+
+                if ($receiptDate === '' && !empty($batchRow['paid_at'])) {
+                    $receiptDateFormatted = date('jS F, Y', strtotime((string) $batchRow['paid_at']));
+                }
+                if ($total_amount <= 0 && isset($batchRow['total_amount'])) {
+                    $total_amount = (float) $batchRow['total_amount'];
+                }
+
+                if ($batchId > 0) {
+                    $studentsRs = mysqli_query(
+                        $conn,
+                        "SELECT first_name, last_name, raw_matric_no, normalized_matric_no
+                         FROM manual_bulk_payment_students
+                         WHERE batch_id = {$batchId}
+                         ORDER BY id ASC"
+                    );
+                    if ($studentsRs) {
+                        while ($studentRow = mysqli_fetch_assoc($studentsRs)) {
+                            $studentName = trim((string) ($studentRow['first_name'] ?? '') . ' ' . (string) ($studentRow['last_name'] ?? ''));
+                            if ($studentName === '') {
+                                $studentName = 'Pending student';
+                            }
+                            $studentMatric = trim((string) ($studentRow['raw_matric_no'] ?? ''));
+                            if ($studentMatric === '') {
+                                $studentMatric = trim((string) ($studentRow['normalized_matric_no'] ?? ''));
+                            }
+
+                            $bulkItems[] = [
+                                'name' => trim((string) ($batchRow['title'] ?? '') . (!empty($batchRow['course_code']) ? ' (' . (string) $batchRow['course_code'] . ')' : '')),
+                                'type' => 'Bulk Payment',
+                                'price' => (float) $unitPrice,
+                                'meta' => 'Paid for: ' . $studentName . ($studentMatric !== '' ? ' (Matric No.: ' . $studentMatric . ')' : ''),
+                            ];
+                        }
+                    }
+                }
+
+                if (!empty($batchRow['fee_amount']) && (float) $batchRow['fee_amount'] > 0) {
+                    $bulkItems[] = [
+                        'name' => 'Bulk payment fee',
+                        'type' => 'Charge',
+                        'price' => (float) $batchRow['fee_amount'],
+                        'meta' => 'Handling fee applied to this bulk payment',
+                    ];
+                }
+
+                if (!empty($bulkItems)) {
+                    $items = $bulkItems;
+                }
+            }
+        }
+    }
+
     if ($filtered) {
         // For single-item receipts, total equals the sum of selected items only (no shared fees)
         $base = 0.0;

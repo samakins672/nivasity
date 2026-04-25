@@ -4,8 +4,43 @@ include('model/config.php');
 include('model/page_config.php');
 require_once 'model/material_change_service.php';
 require_once 'model/material_copy_status.php';
+require_once 'model/bulk_material_payment_service.php';
 
 $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = $user_id AND school_id = $school_id ORDER BY created_at DESC");
+$bulk_payment_rows = [];
+if (bulk_material_payment_has_table($conn, 'manual_bulk_payment_batches') && bulk_material_payment_has_table($conn, 'manual_bulk_payment_students')) {
+  $bulk_payment_query = mysqli_query(
+    $conn,
+    "SELECT
+        b.id,
+        b.ref_id,
+        b.manual_id,
+        b.student_count,
+        b.subtotal,
+        b.fee_amount,
+        b.total_amount,
+        b.payment_status,
+        COALESCE(b.paid_at, b.created_at) AS purchased_at,
+        m.title,
+        m.course_code,
+        COUNT(s.id) AS listed_students
+     FROM manual_bulk_payment_batches AS b
+     INNER JOIN manuals AS m ON m.id = b.manual_id
+     LEFT JOIN manual_bulk_payment_students AS s ON s.batch_id = b.id
+     WHERE b.payer_user_id = {$user_id}
+       AND b.school_id = {$school_id}
+       AND b.payment_status = 'successful'
+     GROUP BY
+       b.id, b.ref_id, b.manual_id, b.student_count, b.subtotal, b.fee_amount, b.total_amount,
+       b.payment_status, purchased_at, m.title, m.course_code
+     ORDER BY purchased_at DESC, b.id DESC"
+  );
+  if ($bulk_payment_query) {
+    while ($bulk_row = mysqli_fetch_assoc($bulk_payment_query)) {
+      $bulk_payment_rows[] = $bulk_row;
+    }
+  }
+}
 $manuals_bought_has_id = material_change_has_column($conn, 'manuals_bought', 'id');
 $manuals_bought_has_grant_status = material_change_has_column($conn, 'manuals_bought', 'grant_status');
 $manuals_bought_has_export_id = material_change_has_column($conn, 'manuals_bought', 'export_id');
@@ -194,6 +229,70 @@ if ($manuals_bought_has_id) {
                             </table>
                           </div>
 
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row flex-grow mt-4">
+                      <div class="col-12 card card-rounded shadow-sm px-2">
+                        <div class="card-header">
+                          <h4 class="fw-bold my-3">Bulk Payments Made</h4>
+                        </div>
+                        <div class="card-body">
+                          <div class="table-responsive mt-1">
+                            <table id="bulk_order_table" class="table table-striped table-hover select-table datatable-opt">
+                              <thead>
+                                <tr>
+                                  <th class="order-mobile-hidden">Trans. ID</th>
+                                  <th>Material</th>
+                                  <th>Students</th>
+                                  <th>Amount</th>
+                                  <th>Date Paid</th>
+                                  <th class="order-mobile-hidden">Status</th>
+                                  <th>Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <?php foreach ($bulk_payment_rows as $bulk_payment): ?>
+                                  <?php
+                                    $bulk_ref = (string) ($bulk_payment['ref_id'] ?? '');
+                                    $bulk_date_raw = (string) ($bulk_payment['purchased_at'] ?? '');
+                                    $bulk_date = $bulk_date_raw !== '' ? date('j M, Y', strtotime($bulk_date_raw)) : '-';
+                                    $bulk_time = $bulk_date_raw !== '' ? date('h:i a', strtotime($bulk_date_raw)) : '-';
+                                    $bulk_status = (string) ($bulk_payment['payment_status'] ?? 'successful');
+                                    $bulk_total = (int) ($bulk_payment['total_amount'] ?? 0);
+                                    $bulk_total_label = $bulk_total > 0 ? '₦ ' . number_format($bulk_total) : 'FREE';
+                                    $bulk_student_count = max((int) ($bulk_payment['student_count'] ?? 0), (int) ($bulk_payment['listed_students'] ?? 0));
+                                  ?>
+                                  <tr>
+                                    <td class="order-mobile-hidden">#<?php echo htmlspecialchars($bulk_ref, ENT_QUOTES, 'UTF-8'); ?></td>
+                                    <td>
+                                      <div>
+                                        <h6 class="mb-1"><?php echo htmlspecialchars((string) ($bulk_payment['title'] ?? 'Bulk material payment'), ENT_QUOTES, 'UTF-8'); ?></h6>
+                                        <p class="mb-0 text-muted"><?php echo htmlspecialchars((string) ($bulk_payment['course_code'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></p>
+                                      </div>
+                                    </td>
+                                    <td>
+                                      <h6 class="mb-0"><?php echo number_format($bulk_student_count); ?></h6>
+                                      <p class="mb-0 text-muted small">student<?php echo $bulk_student_count === 1 ? '' : 's'; ?></p>
+                                    </td>
+                                    <td><h6 class="text-success fw-bold mb-0"><?php echo $bulk_total_label; ?></h6></td>
+                                    <td>
+                                      <h6><?php echo htmlspecialchars($bulk_date, ENT_QUOTES, 'UTF-8'); ?></h6>
+                                      <p class="fw-bold"><?php echo htmlspecialchars($bulk_time, ENT_QUOTES, 'UTF-8'); ?></p>
+                                    </td>
+                                    <td class="order-mobile-hidden">
+                                      <div class="badge <?php echo strtolower($bulk_status) === 'successful' ? 'bg-success' : 'bg-danger'; ?>"><?php echo htmlspecialchars($bulk_status, ENT_QUOTES, 'UTF-8'); ?></div>
+                                    </td>
+                                    <td>
+                                      <a href="model/receipt.php?action=download&format=pdf&ref=<?php echo urlencode($bulk_ref); ?>" class="btn btn-sm btn-outline-primary" title="Download bulk payment receipt as PDF">
+                                        Download
+                                      </a>
+                                    </td>
+                                  </tr>
+                                <?php endforeach; ?>
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       </div>
                     </div>

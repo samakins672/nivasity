@@ -198,7 +198,7 @@ if (!function_exists('bulk_material_payment_transaction_context')) {
 if (!function_exists('bulk_material_payment_student_transaction_context')) {
   function bulk_material_payment_student_transaction_context(): string
   {
-    return 'bulk_material_purchase_student';
+    return 'purchase';
   }
 }
 
