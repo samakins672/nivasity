@@ -667,7 +667,7 @@ $storeUrl = nivasity_app_url();
                           </div>
                         </div>
                       </div>
-                      <div class="col-12 col-lg-6">
+                      <div class="col-12 col-lg-5">
                         <div class="card card-rounded shadow-sm bulk-section-card h-100">
                           <div class="card-body p-4">
                             <div class="bulk-inline-label mb-3">Simple Flow</div>
@@ -698,7 +698,7 @@ $storeUrl = nivasity_app_url();
                           </div>
                         </div>
                       </div>
-                      <div class="col-12 col-lg-6">
+                      <div class="col-12 col-lg-7">
                         <div class="card card-rounded shadow-sm bulk-section-card h-100" id="bulkPreviewSection">
                           <div class="card-body p-4">
                             <div class="d-flex flex-column justify-content-between align-items-start gap-3 mb-4">
