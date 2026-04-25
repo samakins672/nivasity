@@ -229,6 +229,20 @@ if (!function_exists('bulk_material_payment_preview_analyze_rows')) {
   }
 }
 
+if (!function_exists('bulk_material_payment_json_response')) {
+  function bulk_material_payment_json_response(string $status, string $message, array $data = [], int $httpStatus = 200): void
+  {
+    http_response_code($httpStatus);
+    header('Content-Type: application/json');
+    echo json_encode([
+      'status' => $status,
+      'message' => $message,
+      'data' => $data,
+    ]);
+    exit;
+  }
+}
+
 $currentUserRole = (string) ($_SESSION['nivas_userRole'] ?? '');
 $isStudentType = in_array($currentUserRole, ['student', 'hoc'], true);
 $schemaReady = bulk_material_payment_ensure_schema($conn);
@@ -287,6 +301,65 @@ if ($wallet === null) {
 }
 if (!$hasWalletPin) {
   $pageWarnings[] = 'Create your Wallet PIN before wallet payment is enabled.';
+}
+
+$walletBalance = (int) ($wallet['balance'] ?? 0);
+$walletReady = $wallet !== null && $hasWalletPin && (int) $user_dept > 0 && (string) $user_status === 'verified';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_preview_bulk_payment'])) {
+  if ($pageError !== '') {
+    bulk_material_payment_json_response('error', $pageError, [], 422);
+  }
+
+  $parsedUpload = bulk_material_payment_preview_parse_upload($_FILES['bulk_csv'] ?? []);
+  if (!$parsedUpload['ok']) {
+    unset($_SESSION[$previewSessionKey]);
+    bulk_material_payment_json_response('error', (string) ($parsedUpload['message'] ?? 'Unable to preview the uploaded CSV right now.'), [], 422);
+  }
+
+  $previewRows = $parsedUpload['rows'] ?? [];
+  $previewResult = bulk_material_payment_preview_analyze_rows($conn, $previewRows, $manual ?: [], [
+    'school' => $school_id,
+    'dept' => $user_dept,
+  ]);
+
+  if (((int) ($previewResult['invalid_count'] ?? 0)) === 0 && ((int) ($previewResult['valid_count'] ?? 0)) > 0) {
+    $_SESSION[$previewSessionKey] = [
+      'manual_id' => $manualId,
+      'user_id' => (int) $user_id,
+      'rows' => $previewRows,
+      'created_at' => time(),
+    ];
+  } else {
+    unset($_SESSION[$previewSessionKey]);
+  }
+
+  $previewTotalAmount = (int) ($previewResult['breakdown']['total_amount'] ?? 0);
+  $canSubmitPayment = ((int) ($previewResult['invalid_count'] ?? 0)) === 0
+    && ((int) ($previewResult['valid_count'] ?? 0)) > 0
+    && $walletReady;
+
+  bulk_material_payment_json_response(
+    'success',
+    ((int) ($previewResult['invalid_count'] ?? 0)) > 0
+      ? 'Preview loaded. Fix the highlighted rows before payment.'
+      : 'Preview loaded successfully.',
+    [
+      'manual' => [
+        'title' => (string) ($manual['title'] ?? ''),
+        'course_code' => (string) ($manual['course_code'] ?? ''),
+      ],
+      'preview' => $previewResult,
+      'wallet' => [
+        'ready' => $walletReady,
+        'balance' => $walletBalance,
+        'has_enough_balance' => $walletBalance >= $previewTotalAmount,
+      ],
+      'page_warnings' => array_values($pageWarnings),
+      'can_submit_payment' => $canSubmitPayment,
+      'wallet_page_url' => nivasity_app_url('wallet.php'),
+    ]
+  );
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_bulk_payment']) && $pageError === '') {
@@ -374,14 +447,42 @@ $walletPageUrl = nivasity_app_url('wallet.php');
 $manualTitle = (string) ($manual['title'] ?? 'Selected Material');
 $manualCode = (string) ($manual['course_code'] ?? '');
 $manualPrice = (int) round((float) ($manual['price'] ?? 0));
-$walletBalance = (int) ($wallet['balance'] ?? 0);
-$walletReady = $wallet !== null && $hasWalletPin && (int) $user_dept > 0 && (string) $user_status === 'verified';
 $previewTotalAmount = (int) (($previewResult['breakdown']['total_amount'] ?? 0));
 $canSubmitPayment = is_array($previewResult)
   && ((int) ($previewResult['invalid_count'] ?? 0)) === 0
   && ((int) ($previewResult['valid_count'] ?? 0)) > 0
   && $walletReady;
 $hasEnoughWalletBalance = $walletBalance >= $previewTotalAmount;
+$previewRowCount = is_array($previewResult) ? count((array) ($previewResult['rows'] ?? [])) : 0;
+$previewValidCount = (int) ($previewResult['valid_count'] ?? 0);
+$previewInvalidCount = (int) ($previewResult['invalid_count'] ?? 0);
+$previewSubtotal = (int) ($previewResult['breakdown']['subtotal'] ?? 0);
+$previewFeeAmount = (int) ($previewResult['breakdown']['fee_amount'] ?? 0);
+$previewHasErrors = $previewInvalidCount > 0;
+$shouldAutoScrollPreview = $_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['preview_bulk_payment']) || isset($_POST['submit_bulk_payment']));
+$storeUrl = nivasity_app_url();
+$prerequisiteItems = [
+  [
+    'label' => 'Verified student account',
+    'ready' => ((string) $user_status === 'verified'),
+    'hint' => 'Only verified student-type accounts can submit bulk payments.',
+  ],
+  [
+    'label' => 'Department is set',
+    'ready' => ((int) $user_dept > 0),
+    'hint' => 'Student matching is restricted to your department.',
+  ],
+  [
+    'label' => 'Wallet is active',
+    'ready' => ($wallet !== null),
+    'hint' => 'Bulk payment is wallet-only for now.',
+  ],
+  [
+    'label' => 'Wallet PIN is ready',
+    'ready' => $hasWalletPin,
+    'hint' => 'Your 4-digit PIN is required for the final debit.',
+  ],
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -397,11 +498,160 @@ $hasEnoughWalletBalance = $walletBalance >= $previewTotalAmount;
       background: linear-gradient(135deg, rgba(13, 110, 253, 0.08) 0%, rgba(15, 118, 110, 0.08) 100%);
     }
 
+    .bulk-summary-metrics {
+      display: grid;
+      gap: 0.75rem;
+      width: 100%;
+    }
+
+    .bulk-summary-metric {
+      border-radius: 1rem;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(13, 110, 253, 0.12);
+      min-width: 0;
+    }
+
+    .bulk-section-card {
+      border: 0;
+      border-radius: 1.25rem;
+    }
+
+    .bulk-inline-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #0d6efd;
+    }
+
+    .bulk-step-card {
+      display: flex;
+      gap: 0.9rem;
+      align-items: flex-start;
+      padding: 1rem;
+      border: 1px solid rgba(13, 110, 253, 0.12);
+      border-radius: 1rem;
+      background: #fff;
+    }
+
+    .bulk-step-index {
+      width: 2.15rem;
+      height: 2.15rem;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      background: rgba(13, 110, 253, 0.12);
+      color: #0d6efd;
+      font-weight: 700;
+    }
+
+    .bulk-prerequisite-item {
+      display: flex;
+      gap: 0.85rem;
+      align-items: flex-start;
+      padding: 0.85rem 0;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    }
+
+    .bulk-prerequisite-item:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .bulk-prerequisite-icon {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 1rem;
+    }
+
+    .bulk-prerequisite-ready {
+      background: rgba(25, 135, 84, 0.12);
+      color: #198754;
+    }
+
+    .bulk-prerequisite-pending {
+      background: rgba(255, 193, 7, 0.18);
+      color: #9a6700;
+    }
+
     .bulk-dropzone {
       border: 1px dashed rgba(13, 110, 253, 0.45);
       border-radius: 1rem;
       padding: 1.25rem;
       background: rgba(13, 110, 253, 0.03);
+    }
+
+    .bulk-upload-note {
+      border-radius: 1rem;
+      background: rgba(13, 110, 253, 0.06);
+      padding: 0.9rem 1rem;
+    }
+
+    .bulk-kpi-card {
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: 1rem;
+      padding: 1rem;
+      background: #fff;
+      height: 100%;
+    }
+
+    .bulk-result-card {
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: 1rem;
+      padding: 1rem;
+      background: #fff;
+    }
+
+    .bulk-status-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .bulk-status-pill-ready {
+      color: #198754;
+      background: rgba(25, 135, 84, 0.12);
+    }
+
+    .bulk-status-pill-fix {
+      color: #dc3545;
+      background: rgba(220, 53, 69, 0.12);
+    }
+
+    .bulk-result-message {
+      color: #475467;
+      font-size: 0.95rem;
+    }
+
+    .bulk-pay-card {
+      border: 1px solid rgba(25, 135, 84, 0.12);
+      border-radius: 1.15rem;
+      padding: 1.25rem;
+      background: linear-gradient(135deg, rgba(25, 135, 84, 0.06) 0%, rgba(13, 110, 253, 0.03) 100%);
+    }
+
+    .bulk-empty-state {
+      border: 1px dashed rgba(15, 23, 42, 0.14);
+      border-radius: 1rem;
+      padding: 1rem;
+      background: rgba(248, 250, 252, 0.9);
+      color: #475467;
     }
 
     .bulk-table-status-ok {
@@ -412,6 +662,24 @@ $hasEnoughWalletBalance = $walletBalance >= $previewTotalAmount;
     .bulk-table-status-error {
       color: #dc3545;
       font-weight: 700;
+    }
+
+    @media (min-width: 992px) {
+      .bulk-summary-metrics {
+        width: 280px;
+      }
+    }
+
+    @media (max-width: 991.98px) {
+      .bulk-summary-card .card-body,
+      .bulk-section-card .card-body {
+        padding: 1.1rem !important;
+      }
+
+      .bulk-dropzone,
+      .bulk-pay-card {
+        padding: 1rem;
+      }
     }
   </style>
 </head>
@@ -429,40 +697,102 @@ $hasEnoughWalletBalance = $walletBalance >= $previewTotalAmount;
                 <div class="tab-content tab-content-basic py-0">
                   <div class="tab-pane fade show active" role="tabpanel">
                     <div class="row g-3">
-                      <div class="col-12 col-xl-5">
-                        <div class="card card-rounded shadow-sm bulk-summary-card h-100">
-                          <div class="card-body p-4">
-                            <p class="text-uppercase text-primary fw-bold small mb-2">Bulk Material Payment</p>
-                            <h3 class="fw-bold mb-2"><?php echo htmlspecialchars($manualTitle, ENT_QUOTES, 'UTF-8'); ?></h3>
-                            <p class="text-muted mb-3"><?php echo htmlspecialchars($manualCode, ENT_QUOTES, 'UTF-8'); ?></p>
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                              <span class="text-muted">Single material price</span>
-                              <strong>₦ <?php echo number_format($manualPrice); ?></strong>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                              <span class="text-muted">Bulk fee</span>
-                              <strong>5%</strong>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                              <span class="text-muted">Wallet balance</span>
-                              <strong>₦ <?php echo number_format($walletBalance); ?></strong>
-                            </div>
-                            <a href="<?php echo htmlspecialchars($templateUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-outline-primary fw-bold w-100" download>Download CSV Template</a>
-                            <div class="mt-3 small text-muted">
-                              Upload the filled template with <strong>first name</strong>, <strong>last name</strong>, and <strong>matric number</strong> for each student.
+                      <div class="col-12">
+                        <div class="card card-rounded shadow-sm bulk-summary-card">
+                          <div class="card-body p-4 p-lg-5">
+                            <div class="d-flex flex-column flex-lg-row justify-content-between gap-4 align-items-start">
+                              <div class="pe-lg-4">
+                                <a href="<?php echo htmlspecialchars($storeUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-light fw-bold btn-sm mb-3">
+                                  <i class="mdi mdi-arrow-left"></i> Back to Store
+                                </a>
+                                <p class="text-uppercase text-primary fw-bold small mb-2">Bulk Material Payment</p>
+                                <h2 class="fw-bold mb-2"><?php echo htmlspecialchars($manualTitle, ENT_QUOTES, 'UTF-8'); ?></h2>
+                                <?php if ($manualCode !== ''): ?>
+                                  <p class="text-muted mb-3"><?php echo htmlspecialchars($manualCode, ENT_QUOTES, 'UTF-8'); ?></p>
+                                <?php endif; ?>
+                                <p class="text-muted mb-0">Upload one CSV, review which students are ready, then pay once from your wallet. Each student will confirm the claim on their own account before access is granted.</p>
+                              </div>
+                              <div class="bulk-summary-metrics">
+                                <div class="bulk-summary-metric">
+                                  <div class="small text-muted mb-1">Material price</div>
+                                  <div class="fw-bold h5 mb-0">₦ <?php echo number_format($manualPrice); ?></div>
+                                </div>
+                                <div class="bulk-summary-metric">
+                                  <div class="small text-muted mb-1">Bulk fee</div>
+                                  <div class="fw-bold h5 mb-0">5%</div>
+                                </div>
+                                <div class="bulk-summary-metric">
+                                  <div class="small text-muted mb-1">Wallet balance</div>
+                                  <div class="fw-bold h5 mb-0">₦ <?php echo number_format($walletBalance); ?></div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                      <div class="col-12 col-xl-7">
-                        <div class="card card-rounded shadow-sm h-100">
+                      <div class="col-12 col-lg-4">
+                        <div class="card card-rounded shadow-sm bulk-section-card h-100">
                           <div class="card-body p-4">
-                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
-                              <div>
-                                <h4 class="fw-bold mb-1">Preview Your Batch</h4>
-                                <p class="text-muted mb-0">Validate the CSV before wallet payment is enabled.</p>
+                            <div class="bulk-inline-label mb-3">Simple Flow</div>
+                            <div class="d-grid gap-3">
+                              <div class="bulk-step-card">
+                                <div class="bulk-step-index">1</div>
+                                <div>
+                                  <h6 class="fw-bold mb-1">Download the CSV template</h6>
+                                  <p class="text-muted mb-3">Use the official template so the upload works cleanly on your phone or laptop.</p>
+                                  <a href="<?php echo htmlspecialchars($templateUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-outline-primary fw-bold w-100" download>Download CSV Template</a>
+                                </div>
                               </div>
-                              <a href="<?php echo htmlspecialchars($walletPageUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-light fw-bold">Go to Wallet</a>
+                              <div class="bulk-step-card">
+                                <div class="bulk-step-index">2</div>
+                                <div>
+                                  <h6 class="fw-bold mb-1">Fill one row per student</h6>
+                                  <p class="text-muted mb-0">Each row must contain <strong>first name</strong>, <strong>last name</strong>, and <strong>matric number</strong>. Students are matched only inside your department.</p>
+                                </div>
+                              </div>
+                              <div class="bulk-step-card">
+                                <div class="bulk-step-index">3</div>
+                                <div>
+                                  <h6 class="fw-bold mb-1">Preview first, then pay once</h6>
+                                  <p class="text-muted mb-0">Your preview opens in a modal so you can review the batch quickly on mobile before entering your Wallet PIN.</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <h5 class="fw-bold mb-2">Before payment</h5>
+                            <p class="text-muted small mb-0">These checks make sure the batch can be paid successfully.</p>
+
+                            <div class="mt-3">
+                              <?php foreach ($prerequisiteItems as $item): ?>
+                                <div class="bulk-prerequisite-item">
+                                  <span class="bulk-prerequisite-icon <?php echo $item['ready'] ? 'bulk-prerequisite-ready' : 'bulk-prerequisite-pending'; ?>">
+                                    <i class="mdi <?php echo $item['ready'] ? 'mdi-check' : 'mdi-alert'; ?>"></i>
+                                  </span>
+                                  <div>
+                                    <div class="fw-semibold"><?php echo htmlspecialchars((string) $item['label'], ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <div class="text-muted small"><?php echo htmlspecialchars((string) $item['hint'], ENT_QUOTES, 'UTF-8'); ?></div>
+                                  </div>
+                                </div>
+                              <?php endforeach; ?>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-12 col-lg-8">
+                        <div class="card card-rounded shadow-sm bulk-section-card h-100" id="bulkPreviewSection" data-bulk-autoscroll="<?php echo $shouldAutoScrollPreview ? '1' : '0'; ?>">
+                          <div class="card-body p-4">
+                            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3 mb-4">
+                              <div>
+                                <div class="bulk-inline-label mb-2">Upload And Review</div>
+                                <h4 class="fw-bold mb-1">Preview your batch before paying</h4>
+                                <p class="text-muted mb-0">The page will only unlock wallet payment after every row is ready.</p>
+                              </div>
+                              <div class="bulk-upload-note w-100 w-lg-auto">
+                                <div class="small text-muted mb-1">Expected columns</div>
+                                <div class="fw-semibold">first_name, last_name, matric_no</div>
+                              </div>
                             </div>
 
                             <?php if ($pageError !== ''): ?>
@@ -483,39 +813,64 @@ $hasEnoughWalletBalance = $walletBalance >= $previewTotalAmount;
                               <div class="alert alert-warning mb-2"><?php echo htmlspecialchars($warning, ENT_QUOTES, 'UTF-8'); ?></div>
                             <?php endforeach; ?>
 
-                            <form method="post" enctype="multipart/form-data" class="bulk-dropzone">
+                            <div class="alert d-none" id="bulkPreviewAjaxAlert"></div>
+
+                            <form method="post" enctype="multipart/form-data" class="bulk-dropzone" id="bulkPreviewForm" action="bulk_material_payment.php?manual_id=<?php echo $manualId; ?>">
                               <input type="hidden" name="preview_bulk_payment" value="1">
-                              <div class="mb-3">
-                                <label for="bulk_csv" class="form-label fw-bold">Upload CSV</label>
-                                <input type="file" class="form-control" id="bulk_csv" name="bulk_csv" accept=".csv,text/csv" required>
+                              <div class="row g-3 align-items-end">
+                                <div class="col-12 col-lg-8">
+                                  <label for="bulk_csv" class="form-label fw-bold">Upload CSV</label>
+                                  <input type="file" class="form-control" id="bulk_csv" name="bulk_csv" accept=".csv,text/csv" required>
+                                  <div class="small text-muted mt-2" id="bulkCsvHelper">Upload the filled template from your phone files or computer. Only `.csv` files are accepted.</div>
+                                  <div class="small text-primary fw-semibold mt-1 d-none" id="bulkCsvFileName"></div>
+                                </div>
+                                <div class="col-12 col-lg-4 d-grid">
+                                  <button type="submit" class="btn btn-primary fw-bold" id="bulkPreviewSubmitBtn">Upload And Preview</button>
+                                </div>
                               </div>
-                              <button type="submit" class="btn btn-primary fw-bold">Preview Batch</button>
-                              <span class="ms-2 text-muted small">Wallet debit and batch saving will be wired after preview validation.</span>
                             </form>
 
                             <?php if (is_array($previewResult)): ?>
                               <div class="row g-3 mt-1">
-                                <div class="col-md-4">
-                                  <div class="border rounded-3 p-3 h-100">
-                                    <p class="text-muted mb-1">Valid students</p>
-                                    <h4 class="fw-bold mb-0"><?php echo number_format((int) ($previewResult['valid_count'] ?? 0)); ?></h4>
+                                <div class="col-6 col-lg-3">
+                                  <div class="bulk-kpi-card">
+                                    <p class="text-muted mb-1">Rows uploaded</p>
+                                    <h4 class="fw-bold mb-0"><?php echo number_format($previewRowCount); ?></h4>
                                   </div>
                                 </div>
-                                <div class="col-md-4">
-                                  <div class="border rounded-3 p-3 h-100">
+                                <div class="col-6 col-lg-3">
+                                  <div class="bulk-kpi-card">
+                                    <p class="text-muted mb-1">Ready rows</p>
+                                    <h4 class="fw-bold mb-0"><?php echo number_format($previewValidCount); ?></h4>
+                                  </div>
+                                </div>
+                                <div class="col-6 col-lg-3">
+                                  <div class="bulk-kpi-card">
+                                    <p class="text-muted mb-1">Need fixes</p>
+                                    <h4 class="fw-bold mb-0"><?php echo number_format($previewInvalidCount); ?></h4>
+                                  </div>
+                                </div>
+                                <div class="col-6 col-lg-3">
+                                  <div class="bulk-kpi-card">
+                                    <p class="text-muted mb-1">Total to debit</p>
+                                    <h4 class="fw-bold mb-0">₦ <?php echo number_format($previewTotalAmount); ?></h4>
+                                  </div>
+                                </div>
+                                <div class="col-6 col-lg-6">
+                                  <div class="bulk-kpi-card">
                                     <p class="text-muted mb-1">Subtotal</p>
-                                    <h4 class="fw-bold mb-0">₦ <?php echo number_format((int) ($previewResult['breakdown']['subtotal'] ?? 0)); ?></h4>
+                                    <h4 class="fw-bold mb-0">₦ <?php echo number_format($previewSubtotal); ?></h4>
                                   </div>
                                 </div>
-                                <div class="col-md-4">
-                                  <div class="border rounded-3 p-3 h-100">
-                                    <p class="text-muted mb-1">Total with fee</p>
-                                    <h4 class="fw-bold mb-0">₦ <?php echo number_format((int) ($previewResult['breakdown']['total_amount'] ?? 0)); ?></h4>
+                                <div class="col-6 col-lg-6">
+                                  <div class="bulk-kpi-card">
+                                    <p class="text-muted mb-1">Fee included</p>
+                                    <h4 class="fw-bold mb-0">₦ <?php echo number_format($previewFeeAmount); ?></h4>
                                   </div>
                                 </div>
                               </div>
 
-                              <?php if (!empty($previewResult['errors'])): ?>
+                              <?php if ($previewHasErrors): ?>
                                 <div class="alert alert-warning mt-3 mb-0">
                                   <div class="fw-bold mb-2">Rows that need attention</div>
                                   <ul class="mb-0 ps-3">
@@ -526,7 +881,25 @@ $hasEnoughWalletBalance = $walletBalance >= $previewTotalAmount;
                                 </div>
                               <?php endif; ?>
 
-                              <div class="table-responsive mt-3">
+                              <div class="d-grid gap-3 mt-3 d-lg-none">
+                                <?php foreach (($previewResult['rows'] ?? []) as $row): ?>
+                                  <div class="bulk-result-card">
+                                    <div class="d-flex justify-content-between align-items-start gap-2">
+                                      <div>
+                                        <div class="fw-bold"><?php echo htmlspecialchars(trim(((string) ($row['first_name'] ?? '')) . ' ' . ((string) ($row['last_name'] ?? ''))), ENT_QUOTES, 'UTF-8'); ?></div>
+                                        <div class="text-muted small">Matric: <?php echo htmlspecialchars((string) ($row['matric_no'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
+                                        <div class="text-muted small">Line <?php echo (int) ($row['line_number'] ?? 0); ?></div>
+                                      </div>
+                                      <span class="bulk-status-pill <?php echo (($row['status'] ?? '') === 'valid') ? 'bulk-status-pill-ready' : 'bulk-status-pill-fix'; ?>">
+                                        <?php echo (($row['status'] ?? '') === 'valid') ? 'Ready' : 'Fix row'; ?>
+                                      </span>
+                                    </div>
+                                    <p class="bulk-result-message mb-0 mt-3"><?php echo htmlspecialchars((string) ($row['message'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></p>
+                                  </div>
+                                <?php endforeach; ?>
+                              </div>
+
+                              <div class="table-responsive mt-3 d-none d-lg-block">
                                 <table class="table table-striped align-middle">
                                   <thead>
                                     <tr>
@@ -552,39 +925,52 @@ $hasEnoughWalletBalance = $walletBalance >= $previewTotalAmount;
                                   </tbody>
                                 </table>
                               </div>
+                            <?php endif; ?>
 
-                              <div class="alert alert-info mt-3 mb-0">
-                                <?php if ($canSubmitPayment && $hasEnoughWalletBalance): ?>
-                                  This batch is ready for wallet payment. Enter your Wallet PIN below to save the batch and debit your wallet.
-                                <?php elseif ($canSubmitPayment): ?>
-                                  Your CSV is valid, but your current wallet balance is lower than the batch total.
-                                <?php else: ?>
-                                  Complete the wallet prerequisites above before wallet payment can be enabled for this batch.
-                                <?php endif; ?>
+                            <div class="bulk-pay-card mt-4" id="bulkPaymentCard">
+                              <div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-start">
+                                <div>
+                                  <div class="bulk-inline-label mb-2">Wallet Payment</div>
+                                  <h5 class="fw-bold mb-1">Pay once after your preview is clean</h5>
+                                  <?php if (!is_array($previewResult)): ?>
+                                    <p class="text-muted mb-0">Upload a CSV first. The payment action appears here after the batch has been reviewed.</p>
+                                  <?php elseif ($canSubmitPayment && $hasEnoughWalletBalance): ?>
+                                    <p class="text-muted mb-0">Everything is ready. Continue to wallet confirmation and enter your Wallet PIN in the next popup.</p>
+                                  <?php elseif ($canSubmitPayment): ?>
+                                    <p class="text-muted mb-0">Your batch is valid, but your wallet balance is still below the total debit.</p>
+                                  <?php else: ?>
+                                    <p class="text-muted mb-0">Fix the rows marked <strong>Fix row</strong> and complete the checklist on the left before payment unlocks.</p>
+                                  <?php endif; ?>
+                                </div>
+                                <div class="text-md-end">
+                                  <div class="small text-muted mb-1">Total debit</div>
+                                  <h3 class="fw-bold mb-0">₦ <?php echo number_format($previewTotalAmount); ?></h3>
+                                  <div class="small text-muted">Includes 5% fee</div>
+                                </div>
                               </div>
 
-                              <?php if ($canSubmitPayment): ?>
-                                <form method="post" class="border rounded-3 p-3 mt-3 bg-light">
-                                  <input type="hidden" name="submit_bulk_payment" value="1">
-                                  <div class="row g-3 align-items-end">
-                                    <div class="col-md-6">
-                                      <label for="wallet_pin" class="form-label fw-bold">Wallet PIN</label>
-                                      <input type="password" class="form-control" id="wallet_pin" name="wallet_pin" maxlength="4" inputmode="numeric" pattern="\d{4}" placeholder="4-digit PIN" required>
-                                    </div>
-                                    <div class="col-md-6 d-grid">
-                                      <button type="submit" class="btn btn-success fw-bold" <?php echo $hasEnoughWalletBalance ? '' : 'disabled'; ?>>
-                                        Pay ₦ <?php echo number_format($previewTotalAmount); ?> from Wallet
-                                      </button>
-                                    </div>
+                              <?php if (!is_array($previewResult)): ?>
+                                <div class="bulk-empty-state mt-3">No preview yet. Upload your CSV above and this section will show whether payment is ready.</div>
+                              <?php elseif (!$canSubmitPayment): ?>
+                                <div class="bulk-empty-state mt-3">Payment is locked until all rows are valid and your wallet checklist is complete.</div>
+                              <?php elseif (!$hasEnoughWalletBalance): ?>
+                                <div class="bulk-empty-state mt-3">
+                                  Your current wallet balance is <strong>₦ <?php echo number_format($walletBalance); ?></strong>, which is lower than the required <strong>₦ <?php echo number_format($previewTotalAmount); ?></strong>.
+                                  <div class="d-grid d-sm-flex gap-2 mt-3">
+                                    <a href="<?php echo htmlspecialchars($walletPageUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-outline-success fw-bold">Fund Wallet</a>
                                   </div>
-                                  <?php if (!$hasEnoughWalletBalance): ?>
-                                    <div class="small text-danger mt-2">Fund your wallet first. Current balance: ₦ <?php echo number_format($walletBalance); ?>.</div>
-                                  <?php else: ?>
-                                    <div class="small text-muted mt-2">Your wallet will be debited immediately and the student claims will be queued for confirmation.</div>
-                                  <?php endif; ?>
-                                </form>
+                                </div>
                               <?php endif; ?>
-                            <?php endif; ?>
+
+                              <?php if ($canSubmitPayment): ?>
+                                <div class="d-grid d-md-flex gap-2 mt-4">
+                                  <button type="button" class="btn btn-success btn-lg fw-bold bulk-open-wallet-pin-modal" data-payment-total="<?php echo $previewTotalAmount; ?>" <?php echo $hasEnoughWalletBalance ? '' : 'disabled'; ?>>
+                                    Pay ₦ <?php echo number_format($previewTotalAmount); ?> From Wallet
+                                  </button>
+                                </div>
+                                <div class="small text-muted mt-2">Your wallet will be debited immediately after you confirm the PIN in the next popup.</div>
+                              <?php endif; ?>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -599,6 +985,286 @@ $hasEnoughWalletBalance = $walletBalance >= $previewTotalAmount;
       </div>
     </div>
   </div>
+  <div class="modal fade" id="bulkPreviewModal" tabindex="-1" aria-labelledby="bulkPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen-sm-down modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title fw-bold" id="bulkPreviewModalLabel">Batch Preview</h5>
+            <p class="text-muted mb-0" id="bulkPreviewModalSubtitle">Review your uploaded rows before payment.</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="bulkPreviewModalError"></div>
+          <div id="bulkPreviewModalWarnings" class="d-grid gap-2 mb-3"></div>
+          <div id="bulkPreviewModalSummary"></div>
+          <div id="bulkPreviewModalRows" class="mt-3"></div>
+          <div id="bulkPreviewModalPaymentWrap" class="mt-4"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="bulkWalletPinModal" tabindex="-1" aria-labelledby="bulkWalletPinModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold" id="bulkWalletPinModalLabel">Confirm Wallet Payment</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted text-center mb-3" id="bulkWalletPinModalMessage">Enter your 4-digit Wallet PIN to authorize this bulk payment.</p>
+          <div class="alert alert-danger d-none" id="bulkWalletPinError"></div>
+          <div class="wallet-pin-field">
+            <label for="bulkWalletPinInput" class="form-label fw-bold">Wallet PIN</label>
+            <input type="password" class="form-control wallet-pin-input" id="bulkWalletPinInput" maxlength="4" inputmode="numeric" placeholder="4-DIGIT PIN">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary fw-bold" id="bulkWalletPinConfirmBtn">Confirm & Pay</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <form method="post" id="bulkWalletPaymentForm" class="d-none">
+    <input type="hidden" name="submit_bulk_payment" value="1">
+    <input type="hidden" name="wallet_pin" id="bulkWalletPaymentHiddenPin" value="">
+  </form>
+
+  <script src="assets/vendors/js/vendor.bundle.base.js"></script>
+  <script src="assets/js/js/off-canvas.js"></script>
+  <script src="assets/js/js/hoverable-collapse.js"></script>
+  <script src="assets/js/js/template.js"></script>
+  <script src="assets/js/js/settings.js"></script>
+  <script src="assets/js/script.js"></script>
+  <script>
+    $(document).ready(function () {
+      var previewForm = $('#bulkPreviewForm');
+      var fileInput = $('#bulk_csv');
+      var fileNameNode = $('#bulkCsvFileName');
+      var previewSubmitBtn = $('#bulkPreviewSubmitBtn');
+      var ajaxAlert = $('#bulkPreviewAjaxAlert');
+      var previewModalElement = document.getElementById('bulkPreviewModal');
+      var previewModal = previewModalElement && window.bootstrap ? new bootstrap.Modal(previewModalElement) : null;
+      var walletPinModalElement = document.getElementById('bulkWalletPinModal');
+      var walletPinModal = walletPinModalElement && window.bootstrap ? new bootstrap.Modal(walletPinModalElement) : null;
+      var walletPinInput = $('#bulkWalletPinInput');
+      var walletPinError = $('#bulkWalletPinError');
+      var walletPinConfirmBtn = $('#bulkWalletPinConfirmBtn');
+      var walletPinMessage = $('#bulkWalletPinModalMessage');
+      var walletPaymentForm = $('#bulkWalletPaymentForm');
+      var walletPaymentHiddenPin = $('#bulkWalletPaymentHiddenPin');
+      var pendingPaymentTotal = 0;
+
+      function escapeHtml(value) {
+        return String(value == null ? '' : value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      function formatNaira(value) {
+        return '₦ ' + Number(value || 0).toLocaleString();
+      }
+
+      function showAjaxAlert(message, kind) {
+        ajaxAlert.removeClass('d-none alert-danger alert-success alert-warning alert-info').addClass('alert-' + kind).html(message);
+      }
+
+      function renderWarnings(warnings) {
+        if (!Array.isArray(warnings) || warnings.length < 1) {
+          return '';
+        }
+
+        return warnings.map(function (warning) {
+          return '<div class="alert alert-warning mb-0">' + escapeHtml(warning) + '</div>';
+        }).join('');
+      }
+
+      function renderPreviewRows(rows) {
+        if (!Array.isArray(rows) || rows.length < 1) {
+          return '<div class="bulk-empty-state">No student rows were found in this CSV.</div>';
+        }
+
+        return rows.map(function (row) {
+          var isReady = row && row.status === 'valid';
+          return '' +
+            '<div class="bulk-result-card mb-3">' +
+              '<div class="d-flex justify-content-between align-items-start gap-2">' +
+                '<div>' +
+                  '<div class="fw-bold">' + escapeHtml(((row.first_name || '') + ' ' + (row.last_name || '')).trim()) + '</div>' +
+                  '<div class="text-muted small">Matric: ' + escapeHtml(row.matric_no || '') + '</div>' +
+                  '<div class="text-muted small">Line ' + Number(row.line_number || 0) + '</div>' +
+                '</div>' +
+                '<span class="bulk-status-pill ' + (isReady ? 'bulk-status-pill-ready' : 'bulk-status-pill-fix') + '">' + (isReady ? 'Ready' : 'Fix row') + '</span>' +
+              '</div>' +
+              '<p class="bulk-result-message mb-0 mt-3">' + escapeHtml(row.message || '') + '</p>' +
+            '</div>';
+        }).join('');
+      }
+
+      function renderPaymentBlock(payload) {
+        var preview = payload.preview || {};
+        var wallet = payload.wallet || {};
+        var totalAmount = Number(preview.breakdown && preview.breakdown.total_amount ? preview.breakdown.total_amount : 0);
+        var walletPageUrl = payload.wallet_page_url || <?php echo json_encode($walletPageUrl); ?>;
+        var canSubmitPayment = !!payload.can_submit_payment;
+        var hasEnoughBalance = !!wallet.has_enough_balance;
+
+        if (!canSubmitPayment) {
+          return '<div class="bulk-empty-state">Fix the rows marked <strong>Fix row</strong> and complete the checklist on the page before payment will unlock.</div>';
+        }
+
+        if (!hasEnoughBalance) {
+          return '' +
+            '<div class="bulk-empty-state">' +
+              'Your wallet balance is <strong>' + formatNaira(wallet.balance || 0) + '</strong>, which is lower than the required <strong>' + formatNaira(totalAmount) + '</strong>.' +
+              '<div class="d-grid d-sm-flex gap-2 mt-3">' +
+                '<a href="' + escapeHtml(walletPageUrl) + '" class="btn btn-outline-success fw-bold">Fund Wallet</a>' +
+              '</div>' +
+            '</div>';
+        }
+
+        return '' +
+          '<div class="bulk-pay-card">' +
+            '<div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-start mb-3">' +
+              '<div>' +
+                '<div class="bulk-inline-label mb-2">Ready To Pay</div>' +
+                '<h5 class="fw-bold mb-1">Pay this batch from your wallet</h5>' +
+                '<p class="text-muted mb-0">Use the same wallet confirmation flow as the rest of the app. Your PIN will be entered in the next popup.</p>' +
+              '</div>' +
+              '<div class="text-md-end">' +
+                '<div class="small text-muted mb-1">Total debit</div>' +
+                '<div class="fw-bold h4 mb-0">' + formatNaira(totalAmount) + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="d-grid d-sm-flex gap-2 mt-4">' +
+              '<button type="button" class="btn btn-success btn-lg fw-bold bulk-open-wallet-pin-modal" data-payment-total="' + totalAmount + '">Pay ' + formatNaira(totalAmount) + ' From Wallet</button>' +
+            '</div>' +
+            '<div class="small text-muted mt-2">Your wallet will be debited immediately after you confirm the PIN.</div>' +
+          '</div>';
+      }
+
+      function openWalletPinModal(totalAmount) {
+        pendingPaymentTotal = Number(totalAmount || 0);
+        walletPinInput.val('');
+        walletPinError.addClass('d-none').text('');
+        walletPinMessage.text('Enter your 4-digit Wallet PIN to authorize this bulk payment of ' + formatNaira(pendingPaymentTotal) + '.');
+        if (previewModalElement && previewModalElement.classList.contains('show') && previewModal) {
+          previewModal.hide();
+        }
+        if (walletPinModal) {
+          walletPinModal.show();
+        }
+      }
+
+      function renderPreviewModal(response) {
+        var payload = response && response.data ? response.data : {};
+        var preview = payload.preview || {};
+        var manual = payload.manual || {};
+        var summaryHtml = '' +
+          '<div class="row g-3">' +
+            '<div class="col-6 col-md-3"><div class="bulk-kpi-card"><p class="text-muted mb-1">Rows uploaded</p><h4 class="fw-bold mb-0">' + Number((preview.rows || []).length) + '</h4></div></div>' +
+            '<div class="col-6 col-md-3"><div class="bulk-kpi-card"><p class="text-muted mb-1">Ready rows</p><h4 class="fw-bold mb-0">' + Number(preview.valid_count || 0) + '</h4></div></div>' +
+            '<div class="col-6 col-md-3"><div class="bulk-kpi-card"><p class="text-muted mb-1">Need fixes</p><h4 class="fw-bold mb-0">' + Number(preview.invalid_count || 0) + '</h4></div></div>' +
+            '<div class="col-6 col-md-3"><div class="bulk-kpi-card"><p class="text-muted mb-1">Total to debit</p><h4 class="fw-bold mb-0">' + formatNaira(preview.breakdown && preview.breakdown.total_amount ? preview.breakdown.total_amount : 0) + '</h4></div></div>' +
+          '</div>';
+
+        $('#bulkPreviewModalLabel').text('Batch Preview');
+        $('#bulkPreviewModalSubtitle').text((manual.title || 'Selected material') + ((manual.course_code || '') ? ' - ' + manual.course_code : ''));
+        $('#bulkPreviewModalError').addClass('d-none').text('');
+        $('#bulkPreviewModalWarnings').html(renderWarnings(payload.page_warnings || []));
+        $('#bulkPreviewModalSummary').html(summaryHtml);
+
+        var rowsHtml = '';
+        if (Array.isArray(preview.errors) && preview.errors.length > 0) {
+          rowsHtml += '<div class="alert alert-warning"><div class="fw-bold mb-2">Rows that need attention</div><ul class="mb-0 ps-3">' + preview.errors.map(function (error) {
+            return '<li>' + escapeHtml(error) + '</li>';
+          }).join('') + '</ul></div>';
+        }
+        rowsHtml += renderPreviewRows(preview.rows || []);
+        $('#bulkPreviewModalRows').html(rowsHtml);
+        $('#bulkPreviewModalPaymentWrap').html(renderPaymentBlock(payload));
+
+        if (previewModal) {
+          previewModal.show();
+        }
+      }
+
+      fileInput.on('change', function () {
+        var selectedFile = this.files && this.files.length > 0 ? this.files[0].name : '';
+        if (selectedFile) {
+          fileNameNode.text('Selected file: ' + selectedFile).removeClass('d-none');
+        } else {
+          fileNameNode.text('').addClass('d-none');
+        }
+      });
+
+      previewForm.on('submit', function (event) {
+        event.preventDefault();
+
+        var formData = new FormData(this);
+        formData.append('ajax_preview_bulk_payment', '1');
+        var originalText = previewSubmitBtn.html();
+        previewSubmitBtn.prop('disabled', true).html('Previewing...');
+        ajaxAlert.addClass('d-none').removeClass('alert-danger alert-success alert-warning alert-info').html('');
+
+        $.ajax({
+          type: 'POST',
+          url: previewForm.attr('action'),
+          data: formData,
+          processData: false,
+          contentType: false,
+          dataType: 'json'
+        }).done(function (response) {
+          if (response && response.status === 'success') {
+            renderPreviewModal(response);
+            return;
+          }
+
+          showAjaxAlert(response && response.message ? response.message : 'Unable to preview this CSV right now.', 'danger');
+        }).fail(function (xhr) {
+          var response = xhr.responseJSON || {};
+          showAjaxAlert(response.message || 'Unable to preview this CSV right now.', 'danger');
+        }).always(function () {
+          previewSubmitBtn.prop('disabled', false).html(originalText);
+        });
+      });
+
+      $(document).on('click', '.bulk-open-wallet-pin-modal', function () {
+        openWalletPinModal($(this).data('paymentTotal'));
+      });
+
+      walletPinConfirmBtn.on('click', function () {
+        var pin = String(walletPinInput.val() || '').trim();
+        if (!/^\d{4}$/.test(pin)) {
+          walletPinError.removeClass('d-none').text('Enter a valid 4-digit Wallet PIN.');
+          return;
+        }
+
+        walletPinError.addClass('d-none').text('');
+        walletPaymentHiddenPin.val(pin);
+        walletPinConfirmBtn.prop('disabled', true).text('Confirming...');
+        walletPaymentForm.trigger('submit');
+      });
+
+      $('#bulkWalletPinModal').on('hidden.bs.modal', function () {
+        walletPinInput.val('');
+        walletPinError.addClass('d-none').text('');
+        walletPinConfirmBtn.prop('disabled', false).text('Confirm & Pay');
+      });
+
+      var previewSection = document.getElementById('bulkPreviewSection');
+      if (previewSection && previewSection.getAttribute('data-bulk-autoscroll') === '1') {
+        previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  </script>
 </body>
 
 </html>
