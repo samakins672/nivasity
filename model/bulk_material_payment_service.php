@@ -216,6 +216,37 @@ if (!function_exists('bulk_material_payment_placeholder_email')) {
   }
 }
 
+if (!function_exists('bulk_material_payment_create_manual_purchase')) {
+  function bulk_material_payment_create_manual_purchase(mysqli $conn, int $manualId, int $price, int $sellerId, int $buyerId, int $payerUserId, string $refId, int $schoolId): int
+  {
+    if ($manualId <= 0 || $price < 0 || $buyerId <= 0 || $schoolId <= 0 || $refId === '') {
+      throw new Exception('Incomplete bulk material purchase payload.');
+    }
+
+    $existingRs = mysqli_query(
+      $conn,
+      "SELECT id
+       FROM manuals_bought
+       WHERE ref_id = '" . mysqli_real_escape_string($conn, $refId) . "'
+         AND manual_id = {$manualId}
+         AND buyer = {$buyerId}
+       LIMIT 1"
+    );
+    if ($existingRs && mysqli_num_rows($existingRs) > 0) {
+      $existingRow = mysqli_fetch_assoc($existingRs) ?: [];
+      return (int) ($existingRow['id'] ?? 0);
+    }
+
+    $insertSql = "INSERT INTO manuals_bought (manual_id, price, seller, buyer, payer_user_id, ref_id, status, school_id)
+                  VALUES ({$manualId}, {$price}, {$sellerId}, {$buyerId}, {$payerUserId}, '" . mysqli_real_escape_string($conn, $refId) . "', 'successful', {$schoolId})";
+    if (!mysqli_query($conn, $insertSql)) {
+      throw new Exception('Unable to create the bulk material purchase row: ' . mysqli_error($conn));
+    }
+
+    return (int) mysqli_insert_id($conn);
+  }
+}
+
 if (!function_exists('bulk_material_payment_find_matching_user')) {
   function bulk_material_payment_find_matching_user(mysqli $conn, int $schoolId, int $deptId, string $normalizedMatricNo, string $normalizedFirstName, string $normalizedLastName): ?array
   {
@@ -390,6 +421,7 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
         $matchedUser = bulk_material_payment_find_matching_user($conn, $schoolId, $payerDeptId, $normalizedMatricNo, $normalizedFirstName, $normalizedLastName);
         $matchedUserId = (int) ($matchedUser['id'] ?? 0);
         $placeholderUserId = 0;
+        $manualsBoughtId = 0;
         $claimStatus = $matchedUserId > 0 ? $pendingStudentStatus : $pendingClaimStatus;
 
         $pendingMatric = bulk_material_payment_pending_lookup_matric($normalizedMatricNo);
@@ -404,6 +436,16 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
             'normalized_matric_no' => $normalizedMatricNo,
             'pending_lookup_matric_no' => $pendingMatric,
           ]);
+          $manualsBoughtId = bulk_material_payment_create_manual_purchase(
+            $conn,
+            $manualId,
+            $manualPrice,
+            $manualSellerId,
+            $placeholderUserId,
+            $payerUserId,
+            $refId,
+            $schoolId
+          );
         }
 
         $studentExistsSql = "SELECT id FROM manual_bulk_payment_students
@@ -425,12 +467,12 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
 
         $studentInsertSql = "INSERT INTO manual_bulk_payment_students (
             batch_id, ref_id, manual_id, school_id, payer_user_id, payer_dept_id,
-            placeholder_user_id, matched_user_id, first_name, last_name,
+            placeholder_user_id, matched_user_id, manuals_bought_id, first_name, last_name,
             normalized_first_name, normalized_last_name, raw_matric_no, normalized_matric_no,
             pending_lookup_matric_no, claim_status
           ) VALUES (
             {$batchId}, '{$refIdSafe}', {$manualId}, {$schoolId}, {$payerUserId}, {$payerDeptId},
-            " . ($placeholderUserId > 0 ? $placeholderUserId : 'NULL') . ", " . ($matchedUserId > 0 ? $matchedUserId : 'NULL') . ",
+            " . ($placeholderUserId > 0 ? $placeholderUserId : 'NULL') . ", " . ($matchedUserId > 0 ? $matchedUserId : 'NULL') . ", " . ($manualsBoughtId > 0 ? $manualsBoughtId : 'NULL') . ",
             '" . mysqli_real_escape_string($conn, $firstName) . "',
             '" . mysqli_real_escape_string($conn, $lastName) . "',
             '" . mysqli_real_escape_string($conn, $normalizedFirstName) . "',
@@ -708,6 +750,7 @@ if (!function_exists('bulk_material_payment_resolve_claim_for_user')) {
 
       $manualId = (int) ($row['manual_id'] ?? 0);
       $payerUserId = (int) ($row['payer_user_id'] ?? 0);
+      $placeholderUserId = (int) ($row['placeholder_user_id'] ?? 0);
       $studentCount = max(1, (int) ($row['student_count'] ?? 1));
       $unitPrice = (int) round(((float) ($row['subtotal'] ?? 0)) / $studentCount);
       $existingBoughtId = (int) ($row['manuals_bought_id'] ?? 0);
@@ -722,13 +765,29 @@ if (!function_exists('bulk_material_payment_resolve_claim_for_user')) {
         }
       }
 
-      if ($existingBoughtId <= 0) {
-        $insertSql = "INSERT INTO manuals_bought (manual_id, price, seller, buyer, payer_user_id, ref_id, status, school_id)
-                      VALUES ({$manualId}, {$unitPrice}, " . (int) ($row['manual_seller_id'] ?? 0) . ", {$userId}, {$payerUserId}, '" . mysqli_real_escape_string($conn, (string) ($row['ref_id'] ?? '')) . "', 'successful', {$schoolId})";
-        if (!mysqli_query($conn, $insertSql)) {
-          throw new Exception('Unable to grant this material right now.');
+      if ($existingBoughtId > 0 && $placeholderUserId > 0 && $placeholderUserId !== $userId) {
+        $reassignSql = "UPDATE manuals_bought
+                        SET buyer = {$userId},
+                            payer_user_id = {$payerUserId}
+                        WHERE id = {$existingBoughtId}
+                          AND buyer = {$placeholderUserId}
+                        LIMIT 1";
+        if (!mysqli_query($conn, $reassignSql)) {
+          throw new Exception('Unable to attach this material purchase to your account right now.');
         }
-        $existingBoughtId = (int) mysqli_insert_id($conn);
+      }
+
+      if ($existingBoughtId <= 0) {
+        $existingBoughtId = bulk_material_payment_create_manual_purchase(
+          $conn,
+          $manualId,
+          $unitPrice,
+          (int) ($row['manual_seller_id'] ?? 0),
+          $userId,
+          $payerUserId,
+          (string) ($row['ref_id'] ?? ''),
+          $schoolId
+        );
       }
 
       $confirmSql = "UPDATE manual_bulk_payment_students
