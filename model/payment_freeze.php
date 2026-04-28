@@ -60,6 +60,23 @@ function get_payment_freeze_scope() {
 }
 
 /**
+ * Check whether the payment freeze should remain active until manually disabled.
+ *
+ * @return bool
+ */
+function payment_freeze_has_no_expiry() {
+    if (defined('PAYMENT_FREEZE_NO_EXPIRY') && PAYMENT_FREEZE_NO_EXPIRY) {
+        return true;
+    }
+
+    if (!defined('PAYMENT_FREEZE_EXPIRY')) {
+        return true;
+    }
+
+    return trim((string) PAYMENT_FREEZE_EXPIRY) === '';
+}
+
+/**
  * Check if the configured freeze is currently active.
  *
  * @return bool
@@ -72,6 +89,10 @@ function is_payment_freeze_active() {
     // Check if freeze is enabled
     if (!defined('PAYMENT_FREEZE_ENABLED') || !PAYMENT_FREEZE_ENABLED) {
         return false;
+    }
+
+    if (payment_freeze_has_no_expiry()) {
+        return true;
     }
     
     // Check if expiry date has passed
@@ -132,10 +153,11 @@ function get_payment_freeze_info($channel = null) {
     $expiryDate = defined('PAYMENT_FREEZE_EXPIRY') ? PAYMENT_FREEZE_EXPIRY : '';
     $customMessage = defined('PAYMENT_FREEZE_MESSAGE') ? PAYMENT_FREEZE_MESSAGE : '';
     $scope = get_payment_freeze_scope();
+    $noExpiry = payment_freeze_has_no_expiry();
     
     // Format the expiry date for display
     $formattedExpiry = '';
-    if ($expiryDate) {
+    if (!$noExpiry && $expiryDate) {
         $timestamp = strtotime($expiryDate);
         
         // Validate strtotime result
@@ -167,7 +189,8 @@ function get_payment_freeze_info($channel = null) {
     return [
         'enabled' => true,
         'scope' => $scope,
-        'expiry_date' => $expiryDate,
+        'expiry_date' => $noExpiry ? '' : $expiryDate,
+        'no_expiry' => $noExpiry,
         'formatted_expiry' => $formattedExpiry,
         'gateway_enabled' => !is_payment_frozen('gateway'),
         'wallet_enabled' => !is_payment_frozen('wallet'),
