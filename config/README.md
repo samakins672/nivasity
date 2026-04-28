@@ -165,14 +165,17 @@ The payment freeze system allows you to temporarily pause all payment operations
 - **Configuration File**
   - Create `config/payment_freeze.php` by copying `config/payment_freeze.example.php`
   - `config/payment_freeze.php` is ignored by git for per-environment configuration
-  - Three main settings:
+  - Four main settings:
     - `PAYMENT_FREEZE_ENABLED` — Set to `true` to freeze payments, `false` to allow normal operations
     - `PAYMENT_FREEZE_EXPIRY` — Date/time when the freeze will be lifted (format: `'YYYY-MM-DD HH:MM:SS'`)
     - `PAYMENT_FREEZE_MESSAGE` — Optional custom message to display (leave empty for default message)
+    - `PAYMENT_FREEZE_SCOPE` — Set to `'all'` to block every payment path, or `'gateway'` to block only hosted gateway checkout while keeping wallet/free checkout available
 
 - **How It Works**
-  - When `PAYMENT_FREEZE_ENABLED` is set to `true`, all checkout attempts are blocked
-  - Users clicking the checkout button will see a modal popup with the freeze message
+  - When `PAYMENT_FREEZE_ENABLED` is set to `true` and `PAYMENT_FREEZE_SCOPE = 'all'`, all checkout attempts are blocked
+  - When `PAYMENT_FREEZE_ENABLED` is set to `true` and `PAYMENT_FREEZE_SCOPE = 'gateway'`, only hosted gateway checkout is blocked while wallet and free checkout remain available
+  - The website disables the gateway checkout action in the cart and shows the freeze message if the user still reaches a blocked gateway path
+  - The API returns a `403` error for gateway checkout attempts when the freeze scope is `gateway`, which keeps older mobile app builds from using the gateway path
   - The modal displays when payments will resume based on `PAYMENT_FREEZE_EXPIRY`
   - Once the expiry date/time passes, payments automatically resume even if the config is not updated
   - The system checks the freeze status on every checkout attempt
@@ -183,21 +186,32 @@ The payment freeze system allows you to temporarily pause all payment operations
   define('PAYMENT_FREEZE_ENABLED', true);
   define('PAYMENT_FREEZE_EXPIRY', '2025-01-15 14:30:00');
   define('PAYMENT_FREEZE_MESSAGE', '');
+  define('PAYMENT_FREEZE_SCOPE', 'all');
 
   // Example 2: Custom message for system maintenance
   define('PAYMENT_FREEZE_ENABLED', true);
   define('PAYMENT_FREEZE_EXPIRY', '2025-01-20 09:00:00');
   define('PAYMENT_FREEZE_MESSAGE', 'We are performing system maintenance. Payment services will resume on January 20, 2025 at 9:00 AM.');
+  define('PAYMENT_FREEZE_SCOPE', 'all');
 
-  // Example 3: Disable freeze (normal operations)
+  // Example 3: Allow only wallet/free checkout while disabling hosted gateway checkout
+  define('PAYMENT_FREEZE_ENABLED', true);
+  define('PAYMENT_FREEZE_EXPIRY', '2025-01-20 09:00:00');
+  define('PAYMENT_FREEZE_MESSAGE', '');
+  define('PAYMENT_FREEZE_SCOPE', 'gateway');
+
+  // Example 4: Disable freeze (normal operations)
   define('PAYMENT_FREEZE_ENABLED', false);
   define('PAYMENT_FREEZE_EXPIRY', '2025-01-15 14:30:00');
   define('PAYMENT_FREEZE_MESSAGE', '');
+  define('PAYMENT_FREEZE_SCOPE', 'all');
   ```
 
 - **Default Message**
   - If `PAYMENT_FREEZE_MESSAGE` is empty, the system displays:
     - "Payments are currently paused until [formatted date/time]. You will be notified when we activate all operations again."
+  - When `PAYMENT_FREEZE_SCOPE = 'gateway'`, the default message becomes:
+    - "Gateway payments are currently paused until [formatted date/time]. Only wallet payments are allowed right now."
   - The date/time is automatically formatted for user-friendly display (e.g., "Monday, January 15, 2025 at 2:30 PM")
 
 - **Files Involved**

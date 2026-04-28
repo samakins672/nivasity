@@ -10,7 +10,7 @@
  * 
  * @return bool True if payments are frozen, false otherwise
  */
-function is_payment_frozen() {
+function payment_freeze_load_config() {
     // Try to load the payment freeze configuration
     $configFile = __DIR__ . '/../config/payment_freeze.php';
     
@@ -30,6 +30,42 @@ function is_payment_frozen() {
         }
     } else {
         // Invalid config path, payments are not frozen
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Get the configured payment freeze scope.
+ *
+ * Supported values:
+ * - all: block every checkout path
+ * - gateway: block only hosted gateway checkouts and leave wallet/free flows available
+ *
+ * @return string
+ */
+function get_payment_freeze_scope() {
+    if (!defined('PAYMENT_FREEZE_SCOPE')) {
+        return 'all';
+    }
+
+    $scope = strtolower(trim((string) PAYMENT_FREEZE_SCOPE));
+
+    if ($scope === 'gateway_only') {
+        return 'gateway';
+    }
+
+    return $scope === 'gateway' ? 'gateway' : 'all';
+}
+
+/**
+ * Check if the configured freeze is currently active.
+ *
+ * @return bool
+ */
+function is_payment_freeze_active() {
+    if (!payment_freeze_load_config()) {
         return false;
     }
     
@@ -60,17 +96,42 @@ function is_payment_frozen() {
 }
 
 /**
+ * Check if a payment operation is currently blocked by the freeze configuration.
+ *
+ * @param string|null $channel gateway, wallet, free, or null for any active freeze
+ * @return bool True if the specified operation is frozen, false otherwise
+ */
+function is_payment_frozen($channel = null) {
+    if (!is_payment_freeze_active()) {
+        return false;
+    }
+
+    $scope = get_payment_freeze_scope();
+    if ($scope === 'all') {
+        return true;
+    }
+
+    if ($channel === null || $channel === '') {
+        return true;
+    }
+
+    $normalizedChannel = strtolower(trim((string) $channel));
+    return $scope === 'gateway' && $normalizedChannel === 'gateway';
+}
+
+/**
  * Get the payment freeze information
  * 
  * @return array|null Array with freeze details or null if not frozen
  */
-function get_payment_freeze_info() {
-    if (!is_payment_frozen()) {
+function get_payment_freeze_info($channel = null) {
+    if (!is_payment_frozen($channel)) {
         return null;
     }
     
     $expiryDate = defined('PAYMENT_FREEZE_EXPIRY') ? PAYMENT_FREEZE_EXPIRY : '';
     $customMessage = defined('PAYMENT_FREEZE_MESSAGE') ? PAYMENT_FREEZE_MESSAGE : '';
+    $scope = get_payment_freeze_scope();
     
     // Format the expiry date for display
     $formattedExpiry = '';
@@ -88,17 +149,28 @@ function get_payment_freeze_info() {
     if (!empty($customMessage)) {
         $message = $customMessage;
     } else {
-        if ($formattedExpiry) {
-            $message = "Payments are currently paused until " . $formattedExpiry . ". You will be notified when we activate all operations again.";
+        if ($scope === 'gateway' && strtolower(trim((string) $channel)) === 'gateway') {
+            if ($formattedExpiry) {
+                $message = "Gateway payments are currently paused until " . $formattedExpiry . ". Only wallet payments are allowed right now.";
+            } else {
+                $message = "Gateway payments are currently paused. Only wallet payments are allowed right now.";
+            }
         } else {
-            $message = "Payments are currently paused. You will be notified when we activate all operations again.";
+            if ($formattedExpiry) {
+                $message = "Payments are currently paused until " . $formattedExpiry . ". You will be notified when we activate all operations again.";
+            } else {
+                $message = "Payments are currently paused. You will be notified when we activate all operations again.";
+            }
         }
     }
     
     return [
         'enabled' => true,
+        'scope' => $scope,
         'expiry_date' => $expiryDate,
         'formatted_expiry' => $formattedExpiry,
+        'gateway_enabled' => !is_payment_frozen('gateway'),
+        'wallet_enabled' => !is_payment_frozen('wallet'),
         'message' => $message
     ];
 }

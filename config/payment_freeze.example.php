@@ -34,6 +34,14 @@ define('PAYMENT_FREEZE_EXPIRY', 'YYYY-MM-DD HH:MM:SS');
  */
 define('PAYMENT_FREEZE_MESSAGE', '');
 
+/**
+ * Freeze scope
+ * Supported values:
+ * - 'all': block every payment path
+ * - 'gateway': block only gateway checkout and keep wallet/free checkout available
+ */
+define('PAYMENT_FREEZE_SCOPE', 'all');
+
 // Example custom messages:
 // define('PAYMENT_FREEZE_MESSAGE', 'We are performing system maintenance. Payment services will resume shortly.');
 // define('PAYMENT_FREEZE_MESSAGE', 'Payments are temporarily unavailable while we upgrade our systems.');

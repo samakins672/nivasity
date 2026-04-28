@@ -11,11 +11,11 @@ require_once __DIR__ . '/../config/fw.php';
 header('Content-Type: application/json');
 
 // Check if payments are frozen
-if (is_payment_frozen()) {
-    $freeze_info = get_payment_freeze_info();
+if (is_payment_frozen('gateway')) {
+    $freeze_info = get_payment_freeze_info('gateway');
     $message = ($freeze_info && isset($freeze_info['message'])) 
         ? $freeze_info['message'] 
-        : 'Payments are currently paused. Please try again later.';
+        : 'Gateway payments are currently paused. Only wallet payments are allowed right now.';
     echo json_encode([
         'status' => 'error', 
         'message' => $message

@@ -1042,7 +1042,7 @@ GET /materials/details.php?code=MAN-2024-001
 #### 18. Get Payment Gateway
 **Endpoint:** `GET /payment/gateway.php`
 
-**Description:** Get active payment gateway information.
+**Description:** Get active payment gateway information and the currently allowed checkout channels.
 
 **Authentication:** Not required (public endpoint)
 
@@ -1055,10 +1055,20 @@ GET /materials/details.php?code=MAN-2024-001
     "active": "paystack",
     "available": ["paystack", "flutterwave"],
     "status": true,
-    "message": ""
+    "message": "",
+    "gateway_enabled": true,
+    "wallet_enabled": true,
+    "allowed_payment_channels": ["gateway", "wallet"]
   }
 }
 ```
+
+**Response Fields:**
+- `status`: `true` when hosted gateway checkout is available.
+- `message`: Freeze message for the hosted gateway checkout path when gateway payments are paused.
+- `gateway_enabled`: Whether hosted gateway checkout is available.
+- `wallet_enabled`: Whether wallet checkout is available.
+- `allowed_payment_channels`: Checkout channels that can currently be used by clients.
 
 #### 19. Initialize Payment
 **Endpoint:** `POST /payment/init.php`
@@ -1079,6 +1089,10 @@ GET /materials/details.php?code=MAN-2024-001
 - `redirect_url` (optional): Custom URL where users will be redirected after payment verification. The gateway callback itself always points to `/payment/callback.php`, and this value is forwarded in payment metadata.
 - `payment_channel` (optional): `gateway` or `wallet`. Defaults to `gateway`.
 - `wallet_pin` (required when `payment_channel = wallet`): The user's 4-digit Wallet PIN used to authorize wallet checkout.
+
+**Gateway Freeze Behavior:**
+- If the payment freeze config is enabled with `PAYMENT_FREEZE_SCOPE = 'gateway'`, requests with `payment_channel = gateway` return `403` and wallet checkout remains available.
+- The default gateway-freeze error message is: `Gateway payments are currently paused. Only wallet payments are allowed right now.`
 
 **Current Payment Model:**
 - Gateway checkout still uses the active provider's hosted payment page
@@ -1140,6 +1154,14 @@ GET /materials/details.php?code=MAN-2024-001
       }
     ]
   }
+}
+```
+
+**Gateway Freeze Response (Error):**
+```json
+{
+  "status": "error",
+  "message": "Gateway payments are currently paused. Only wallet payments are allowed right now."
 }
 ```
 

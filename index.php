@@ -12,7 +12,9 @@ require_once 'model/bulk_material_payment_service.php';
 $system_alerts = get_active_system_alerts($conn);
 
 // Check payment freeze status
-$payment_freeze_info = get_payment_freeze_info();
+$gateway_payment_freeze_info = get_payment_freeze_info('gateway');
+$wallet_payment_freeze_info = get_payment_freeze_info('wallet');
+$free_payment_freeze_info = get_payment_freeze_info('free');
 $play_store_url = 'https://play.google.com/store/apps/details?id=com.nivasity.app';
 $mobile_prompt_captured = !empty($mobile_experience_prompt_state['captured']);
 $mobile_prompt_should_show = !empty($mobile_experience_prompt_state['should_show']);
@@ -1494,9 +1496,9 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         var triggerElement = this; // Store reference to the button that opened the modal
         
         // Check if payments are frozen
-        <?php if ($payment_freeze_info): ?>
+        <?php if ($gateway_payment_freeze_info): ?>
           // Show payment freeze modal
-          $('#paymentFreezeMessage').text(<?php echo json_encode($payment_freeze_info['message'] ?? 'Payments are currently paused.'); ?>);
+          $('#paymentFreezeMessage').text(<?php echo json_encode($gateway_payment_freeze_info['message'] ?? 'Gateway payments are currently paused. Only wallet payments are allowed right now.'); ?>);
           var modalElement = document.getElementById('paymentFreezeModal');
           var freezeModal = new bootstrap.Modal(modalElement);
           
@@ -1679,8 +1681,8 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       $('#cart').on('click', '.wallet-cart-checkout', function() {
         var triggerElement = this;
 
-        <?php if ($payment_freeze_info): ?>
-          $('#paymentFreezeMessage').text(<?php echo json_encode($payment_freeze_info['message'] ?? 'Payments are currently paused.'); ?>);
+        <?php if ($wallet_payment_freeze_info): ?>
+          $('#paymentFreezeMessage').text(<?php echo json_encode($wallet_payment_freeze_info['message'] ?? 'Payments are currently paused.'); ?>);
           var walletFreezeModalElement = document.getElementById('paymentFreezeModal');
           var walletFreezeModal = new bootstrap.Modal(walletFreezeModalElement);
           walletFreezeModalElement.addEventListener('hidden.bs.modal', function handleHidden() {
@@ -1804,9 +1806,9 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         var triggerElement = this; // Store reference to the button that opened the modal
         
         // Check if payments are frozen
-        <?php if ($payment_freeze_info): ?>
+        <?php if ($free_payment_freeze_info): ?>
           // Show payment freeze modal
-          $('#paymentFreezeMessage').text(<?php echo json_encode($payment_freeze_info['message'] ?? 'Payments are currently paused.'); ?>);
+          $('#paymentFreezeMessage').text(<?php echo json_encode($free_payment_freeze_info['message'] ?? 'Payments are currently paused.'); ?>);
           var modalElement = document.getElementById('paymentFreezeModal');
           var freezeModal = new bootstrap.Modal(modalElement);
           
@@ -1974,7 +1976,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
       <div class="modal-content">
         <div class="modal-header bg-warning text-dark">
           <h4 class="modal-title fw-bold" id="paymentFreezeLabel">
-            <i class="mdi mdi-alert-circle me-2"></i>Payments Currently Paused
+            <i class="mdi mdi-alert-circle me-2"></i>Payment Update
           </h4>
         </div>
         <div class="modal-body">

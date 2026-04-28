@@ -7,9 +7,9 @@ include('mail.php');
 include('functions.php');
 
 // Check if payments are frozen
-if (is_payment_frozen()) {
+if (is_payment_frozen('free')) {
     header('Content-Type: application/json');
-    $freeze_info = get_payment_freeze_info();
+    $freeze_info = get_payment_freeze_info('free');
     $message = ($freeze_info && isset($freeze_info['message'])) 
         ? $freeze_info['message'] 
         : 'Payments are currently paused. Please try again later.';

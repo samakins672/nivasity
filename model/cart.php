@@ -3,6 +3,7 @@ session_start();
 include('config.php');
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/internal_wallet_service.php';
+require_once __DIR__ . '/payment_freeze.php';
 
 $user_id = $_SESSION['nivas_userId'];
 $school_id = $_SESSION['nivas_userSch'];
@@ -11,6 +12,11 @@ $cart_2 = "nivas_cart_event$user_id";
 $date = date('Y-m-d');
 
 $_SESSION['cart_sellers'] = [];
+
+$gateway_payment_freeze_info = get_payment_freeze_info('gateway');
+$gateway_payment_freeze_message = $gateway_payment_freeze_info
+    ? htmlspecialchars((string) ($gateway_payment_freeze_info['message'] ?? 'Gateway payments are currently paused. Only wallet payments are allowed right now.'), ENT_QUOTES, 'UTF-8')
+    : '';
 
 
 if (isset($_SESSION["nivas_cart_event"])) {
@@ -290,8 +296,16 @@ if (isset($_POST['reload_cart'])) {
                                 <span>Final Total</span>
                                 <strong>' . $gatewayTotalLabel . '</strong>
                             </div>
-                        </div>
-                        <button class="btn w-100 cart-payment-action gateway-secondary checkout-cart" data-session_data="'.$sessionData.'" data-charge="'.$charge.'" data-transfer_amount="'.$transferAmount.'" data-mdb-ripple-duration="0ms">Pay ' . $gatewayTotalLabel . ' online</button>
+                        </div>';
+        if ($gateway_payment_freeze_info) {
+            echo '
+                        <button class="btn w-100 cart-payment-action wallet-disabled" disabled>Gateway temporarily unavailable</button>
+                        <p class="cart-payment-note mt-3 mb-0">' . $gateway_payment_freeze_message . '</p>';
+        } else {
+            echo '
+                        <button class="btn w-100 cart-payment-action gateway-secondary checkout-cart" data-session_data="'.$sessionData.'" data-charge="'.$charge.'" data-transfer_amount="'.$transferAmount.'" data-mdb-ripple-duration="0ms">Pay ' . $gatewayTotalLabel . ' online</button>';
+        }
+        echo '
                     </div>';
     } else if ($total_cart_price == 0 && $total_cart_event > 0) {
         echo '

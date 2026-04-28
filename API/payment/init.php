@@ -14,15 +14,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     sendApiError('Method not allowed', 405);
 }
 
-// Check if payments are frozen
-if (is_payment_frozen()) {
-    $freeze_info = get_payment_freeze_info();
-    $message = ($freeze_info && isset($freeze_info['message'])) 
-        ? $freeze_info['message'] 
-        : 'Payments are currently paused. Please try again later.';
-    sendApiError($message, 403);
-}
-
 // Authenticate user
 $user = authenticateApiRequest($conn);
 requireStudentRole($user);
@@ -32,10 +23,22 @@ $school_id = $user['school'];
 
 // Get optional redirect URL from request body
 $input = json_decode(file_get_contents('php://input'), true);
+$input = is_array($input) ? $input : [];
 $redirect_url = isset($input['redirect_url']) ? trim($input['redirect_url']) : null;
 $payment_channel = isset($input['payment_channel']) ? strtolower(trim((string)$input['payment_channel'])) : 'gateway';
 $payment_channel = $payment_channel === 'wallet' ? 'wallet' : 'gateway';
 $wallet_pin = isset($input['wallet_pin']) ? trim((string)$input['wallet_pin']) : '';
+
+// Check if the selected payment channel is frozen
+if (is_payment_frozen($payment_channel)) {
+    $freeze_info = get_payment_freeze_info($payment_channel);
+    $message = ($freeze_info && isset($freeze_info['message']))
+        ? $freeze_info['message']
+        : ($payment_channel === 'gateway'
+            ? 'Gateway payments are currently paused. Only wallet payments are allowed right now.'
+            : 'Payments are currently paused. Please try again later.');
+    sendApiError($message, 403);
+}
 
 // Log redirect URL if provided
 if ($redirect_url) {

@@ -5,6 +5,7 @@ require_once 'functions.php';
 require_once 'mail.php';
 require_once 'notifications.php';
 require_once 'refund_engine.php';
+require_once 'payment_freeze.php';
 require_once 'internal_wallet_service.php';
 
 header('Content-Type: application/json');
@@ -19,6 +20,16 @@ $userId = isset($_SESSION['nivas_userId']) ? (int)$_SESSION['nivas_userId'] : 0;
 if ($userId <= 0) {
     http_response_code(401);
     echo json_encode(['status' => 'error', 'message' => 'Authentication required']);
+    exit;
+}
+
+if (is_payment_frozen('wallet')) {
+    $freezeInfo = get_payment_freeze_info('wallet');
+    http_response_code(403);
+    echo json_encode([
+        'status' => 'error',
+        'message' => $freezeInfo ? $freezeInfo['message'] : 'Payments are currently paused. Please try again later.',
+    ]);
     exit;
 }
 

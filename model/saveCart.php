@@ -7,17 +7,6 @@ require_once 'refund_engine.php';
 
 header('Content-Type: application/json');
 
-// Check if payments are frozen
-if (is_payment_frozen()) {
-    $freeze_info = get_payment_freeze_info();
-    echo json_encode([
-        'success' => false, 
-        'message' => $freeze_info ? $freeze_info['message'] : 'Payments are currently paused. Please try again later.',
-        'payment_frozen' => true
-    ]);
-    exit;
-}
-
 // Read the JSON data from the request body
 $data = json_decode(file_get_contents('php://input'), true);
 
@@ -35,6 +24,17 @@ $gateway = isset($data['gateway']) ? mysqli_real_escape_string($conn, strtoupper
 $payment_channel = isset($data['payment_channel']) ? strtolower(trim((string)$data['payment_channel'])) : 'gateway';
 $payment_channel = $payment_channel === 'wallet' ? 'wallet' : 'gateway';
 $gateway_slug = strtolower($gateway);
+
+// Check if the requested payment path is frozen
+if (is_payment_frozen($payment_channel)) {
+    $freeze_info = get_payment_freeze_info($payment_channel);
+    echo json_encode([
+        'success' => false,
+        'message' => $freeze_info ? $freeze_info['message'] : ($payment_channel === 'gateway' ? 'Gateway payments are currently paused. Only wallet payments are allowed right now.' : 'Payments are currently paused. Please try again later.'),
+        'payment_frozen' => true
+    ]);
+    exit;
+}
 
 if ($ref_id === '' || $user_id <= 0 || empty($items)) {
     echo json_encode(['success' => false, 'message' => 'Missing required fields']);
