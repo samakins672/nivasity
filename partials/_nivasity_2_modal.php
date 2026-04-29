@@ -66,7 +66,7 @@ $nivasity_intro_is_student_type = in_array($nivasity_intro_role, ['student', 'ho
 
   .nivasity-2-modal__grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1rem;
     margin-bottom: 1.25rem;
   }
