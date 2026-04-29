@@ -24,7 +24,7 @@
         <span class="menu-title <?php echo ($url == 'index.php') ? 'text-white fw-bold' : ''; ?>">Store</span>
       </a>
     </li>
-    <?php if ($url == 'index.php' && in_array((string) ($_SESSION['nivas_userRole'] ?? ''), ['student', 'hoc'], true)): ?>
+    <?php if (in_array((string) ($_SESSION['nivas_userRole'] ?? ''), ['student', 'hoc'], true)): ?>
     <li class="nav-item">
       <a class="nav-link" href="javascript:;" data-bs-toggle="modal" data-bs-target="#bulkPaymentManualPickerModal">
         <i class="mdi mdi-cash-multiple menu-icon"></i>
@@ -46,6 +46,14 @@
         <span class="menu-title">Order History</span>
       </a>
     </li>
+    <?php if (($_SESSION['nivas_userRole'] ?? '') === 'hoc'): ?>
+    <li class="nav-item <?php echo ($url == 'material_exports.php') ? 'active' : ''; ?>">
+      <a class="nav-link <?php echo ($url == 'material_exports.php') ? 'bg-primary' : ''; ?>" href="material_exports.php">
+        <i class="mdi mdi-export-variant menu-icon <?php echo ($url == 'material_exports.php') ? 'text-white' : ''; ?>"></i>
+        <span class="menu-title <?php echo ($url == 'material_exports.php') ? 'text-white fw-bold' : ''; ?>">Material Exports</span>
+      </a>
+    </li>
+    <?php endif; ?>
     <li class="nav-item <?php echo ($url == 'material_requests.php') ? 'active' : ''; ?>">
       <a class="nav-link <?php echo ($url == 'material_requests.php') ? 'bg-primary' : ''; ?>" href="material_requests.php">
         <i class="mdi mdi-file-document-edit-outline menu-icon <?php echo ($url == 'material_requests.php') ? 'text-white' : ''; ?>"></i>
@@ -66,7 +74,7 @@
       </a>
     </li>
 
-    <?php if(!$is_admin_role):?>      
+    <?php if ($_SESSION['nivas_userRole'] !== 'org_admin'): ?>
     <li class="nav-item nav-category">My Settings</li>
     <li class="nav-item">
       <a class="nav-link" href="user.php">
@@ -81,11 +89,7 @@
     <li class="nav-item">
       <a class="nav-link" href="admin/">
         <i class="mdi mdi-view-dashboard-outline menu-icon"></i>
-        <?php if ($_SESSION['nivas_userRole'] !== 'org_admin'): ?>
-          <span class="menu-title">Manage Materials</span>
-        <?php else: ?>
-          <span class="menu-title">Manage Events</span>
-        <?php endif; ?>
+        <span class="menu-title">Manage Events</span>
       </a>
     </li>
     <?php endif;?>

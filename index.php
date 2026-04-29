@@ -975,7 +975,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
     $(document).ready(function () {
       $('.btn').attr('data-mdb-ripple-duration', '0ms');
 
-      if ($.fn.select2 && $('#bulkPaymentManualSelect').length) {
+      if ($.fn.select2 && $('#bulkPaymentManualSelect').length && !$('#bulkPaymentManualSelect').hasClass('select2-hidden-accessible')) {
         $('#bulkPaymentManualSelect').select2({
           theme: 'bootstrap',
           width: '100%',
@@ -1898,41 +1898,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
     </div>
   </div>
 
-  <div class="modal fade" id="bulkPaymentManualPickerModal" tabindex="-1" aria-labelledby="bulkPaymentManualPickerLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <form method="get" action="<?php echo htmlspecialchars(nivasity_app_url('bulk_material_payment.php'), ENT_QUOTES, 'UTF-8'); ?>">
-          <div class="modal-header">
-            <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="bulkPaymentManualPickerLabel"><i class="mdi mdi-cash-multiple"></i><span>Bulk Payment</span></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <p class="text-muted mb-3">Select the material you want to pay for in bulk.</p>
-            <?php if (!empty($bulk_payment_manual_options)): ?>
-              <div class="mb-0">
-                <label for="bulkPaymentManualSelect" class="form-label fw-bold">Material</label>
-                <select class="form-select" id="bulkPaymentManualSelect" name="manual_id" required>
-                  <option value="" selected disabled>Select a material</option>
-                  <?php foreach ($bulk_payment_manual_options as $bulk_payment_manual_option): ?>
-                    <option value="<?php echo (int) ($bulk_payment_manual_option['id'] ?? 0); ?>"><?php echo htmlspecialchars((string) ($bulk_payment_manual_option['label'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></option>
-                  <?php endforeach; ?>
-                </select>
-                <div class="form-text">This list includes materials that are still open for your department, even if you already bought your own copy.</div>
-              </div>
-            <?php else: ?>
-              <div class="alert alert-warning mb-0">No materials are currently available for bulk payment.</div>
-            <?php endif; ?>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-            <?php if (!empty($bulk_payment_manual_options)): ?>
-              <button type="submit" class="btn btn-primary fw-bold">Proceed to Bulk Payment</button>
-            <?php endif; ?>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
+  <?php include('partials/_bulk_payment_modal.php') ?>
 
   <!-- Mobile App Promo Modal -->
   <div class="modal fade" id="mobileAppPromoModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="mobileAppPromoTitle" aria-hidden="true">

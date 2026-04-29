@@ -50,6 +50,9 @@ if (isset($_SESSION['nivas_userId'])) {
     $nivasity_2_intro_seen = !empty($user_['nivasity_2_intro_seen_at']);
   }
   
+  $current_user_role = isset($_SESSION['nivas_userRole']) ? (string) $_SESSION['nivas_userRole'] : '';
+  $is_hoc_role = ($current_user_role === 'hoc');
+  $is_student_type_role = in_array($current_user_role, ['student', 'hoc'], true);
   $is_admin_role = False;
 
   // Staging: restrict access to a single tester account
@@ -62,11 +65,11 @@ if (isset($_SESSION['nivas_userId'])) {
     }
   }
   
-  if (!$allow_all_roles_wallet_page && ($_SESSION['nivas_userRole'] == 'org_admin' || $_SESSION['nivas_userRole'] == 'visitor')) {
+  if (!$allow_all_roles_wallet_page && ($current_user_role === 'org_admin' || $current_user_role === 'visitor')) {
     header('Location: ' . nivasity_signin_url_with_redirect(['logout' => 1, 'not_allowed' => 1]));
     exit();
   }
-  if ($_SESSION['nivas_userRole'] !== 'student' && $_SESSION['nivas_userRole'] !== 'visitor') {
+  if ($current_user_role === 'org_admin') {
     $is_admin_role = True;
   }
 

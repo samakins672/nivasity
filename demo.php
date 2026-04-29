@@ -217,11 +217,11 @@ $_SESSION['nivas_userSch'] = $login_data['school'];
 // Update last login timestamp
 mysqli_query($conn, "UPDATE users SET last_login = '$now' WHERE id = " . $login_data['user_id']);
 
-// Redirect to the appropriate dashboard based on user role
-// Students go to store.php, others go to their respective dashboards
-if ($login_data['role'] === 'student') {
+// Redirect to the appropriate dashboard based on user role.
+// Student-type users stay in the root app, while event hosts use /admin.
+if ($login_data['role'] === 'student' || $login_data['role'] === 'hoc') {
     header('Location: /?loggedin');
-} elseif ($login_data['role'] === 'hoc' || $login_data['role'] === 'org_admin') {
+} elseif ($login_data['role'] === 'org_admin') {
     header('Location: /admin?loggedin');
 } else {
     // Fallback to store page

@@ -305,6 +305,7 @@ if ($manuals_bought_has_id) {
         <!-- content-wrapper ends -->
         <!-- partial:partials/_footer.html -->
         <?php include('partials/_footer.php') ?>
+          <?php include('partials/_bulk_payment_modal.php') ?>
         <!-- partial -->
       </div>
       <!-- Bootstrap alert container -->
@@ -384,6 +385,27 @@ if ($manuals_bought_has_id) {
         $banner.removeClass('alert-info alert-danger alert-success').addClass('alert-' + type);
         $banner.text(text).fadeIn(150);
         setTimeout(function(){ $banner.fadeOut(300); }, 3000);
+      }
+
+      var orderUrlParams = new URLSearchParams(window.location.search);
+      if (orderUrlParams.get('lost_material_guide') === '1') {
+        orderUrlParams.delete('lost_material_guide');
+        if (window.history && typeof window.history.replaceState === 'function') {
+          var nextOrderQuery = orderUrlParams.toString();
+          var nextOrderUrl = window.location.pathname + (nextOrderQuery ? '?' + nextOrderQuery : '') + window.location.hash;
+          window.history.replaceState({}, document.title, nextOrderUrl);
+        }
+
+        if ($('.js-mark-material-lost').length) {
+          showBanner('Find the affected material in Order History, click Mark Lost, then return to Store to buy another copy.', 'info');
+        } else {
+          showBanner('Lost-material replacement starts here. If you do not yet see a Mark Lost button, the purchase may still be within the 48-hour wait window.', 'info');
+        }
+
+        var orderTable = document.getElementById('order_table');
+        if (orderTable && typeof orderTable.scrollIntoView === 'function') {
+          orderTable.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       }
 
       function setChangeMaterialFeedback(type, text) {

@@ -234,6 +234,7 @@ $support_query = mysqli_query($conn, "SELECT * FROM support_tickets_v2 WHERE use
         <!-- content-wrapper ends -->
         <!-- partial:partials/_footer.html -->
         <?php include('partials/_footer.php') ?>
+        <?php include('partials/_bulk_payment_modal.php') ?>
         <!-- partial -->
       </div>
       <!-- Bootstrap alert container -->

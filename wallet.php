@@ -579,6 +579,7 @@ function walletEntryBadgeClass($entryType) {
         </div>
 
         <?php include('partials/_footer.php') ?>
+        <?php include('partials/_bulk_payment_modal.php') ?>
       </div>
 
       <div id="alertBanner" class="alert alert-info text-center fw-bold alert-dismissible end-2 top-2 fade show position-fixed w-auto p-2 px-4" role="alert" style="z-index: 5000; display: none;">
@@ -1273,6 +1274,28 @@ function walletEntryBadgeClass($entryType) {
 
       if ($('#wallet-transfer-request-token').length) {
         setWalletTransferRequestToken();
+      }
+
+      var walletUrlParams = new URLSearchParams(window.location.search);
+      if (walletUrlParams.get('open_transfer') === '1') {
+        walletUrlParams.delete('open_transfer');
+        if (window.history && typeof window.history.replaceState === 'function') {
+          var nextWalletQuery = walletUrlParams.toString();
+          var nextWalletUrl = window.location.pathname + (nextWalletQuery ? '?' + nextWalletQuery : '') + window.location.hash;
+          window.history.replaceState({}, document.title, nextWalletUrl);
+        }
+
+        if (!walletExists) {
+          showWalletBanner('Request your wallet first before transferring to another student.', 'danger');
+        } else if ($('#open-wallet-transfer-btn').is(':disabled')) {
+          showWalletBanner('Create your Wallet PIN first before transferring to another student.', 'danger');
+        } else if (walletTransferModal) {
+          resetWalletTransferForm();
+          walletTransferModal.show();
+          setTimeout(function() {
+            $('#wallet-transfer-recipient').trigger('focus');
+          }, 150);
+        }
       }
 
       $(document).on('click', '.copy-wallet-value', async function() {

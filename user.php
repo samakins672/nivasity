@@ -538,6 +538,7 @@ if ($_SESSION['nivas_userRole'] !== 'org_admin' && $_SESSION['nivas_userRole'] !
         <!-- content-wrapper ends -->
         <!-- partial:partials/_footer.html -->
         <?php include('partials/_footer.php') ?>
+        <?php include('partials/_bulk_payment_modal.php') ?>
         <!-- partial -->
       </div>
       <!-- Bootstrap alert container -->

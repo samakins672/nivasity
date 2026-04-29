@@ -2,6 +2,8 @@
 $nivasity_intro_seen = isset($nivasity_2_intro_seen) ? (bool) $nivasity_2_intro_seen : false;
 $nivasity_intro_mark_seen_url = isset($nivasity_intro_mark_seen_url) ? (string) $nivasity_intro_mark_seen_url : 'model/user.php';
 $nivasity_intro_cta_label = isset($nivasity_intro_cta_label) ? (string) $nivasity_intro_cta_label : 'Continue';
+$nivasity_intro_role = isset($_SESSION['nivas_userRole']) ? (string) $_SESSION['nivas_userRole'] : '';
+$nivasity_intro_is_student_type = in_array($nivasity_intro_role, ['student', 'hoc'], true);
 ?>
 
 <style>
@@ -104,6 +106,30 @@ $nivasity_intro_cta_label = isset($nivasity_intro_cta_label) ? (string) $nivasit
     line-height: 1.55;
   }
 
+  .nivasity-2-modal__card-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 0.9rem;
+    padding: 0.7rem 1rem;
+    border: 1px solid rgba(255, 145, 0, 0.24);
+    border-radius: 999px;
+    color: #a95a00;
+    font-size: 0.88rem;
+    font-weight: 800;
+    text-decoration: none;
+    background: #fff7ec;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  }
+
+  .nivasity-2-modal__card-action:hover,
+  .nivasity-2-modal__card-action:focus {
+    color: #8c4a00;
+    background: #fff1db;
+    box-shadow: 0 10px 22px rgba(216, 116, 0, 0.15);
+    transform: translateY(-1px);
+  }
+
   .nivasity-2-modal__footer {
     display: flex;
     align-items: center;
@@ -183,6 +209,35 @@ $nivasity_intro_cta_label = isset($nivasity_intro_cta_label) ? (string) $nivasit
       <div class="modal-body">
         <div class="nivasity-2-modal__content">
           <div class="nivasity-2-modal__grid">
+            <?php if ($nivasity_intro_is_student_type): ?>
+            <article class="nivasity-2-modal__card">
+              <div class="nivasity-2-modal__icon"><i class="mdi mdi-cash-multiple"></i></div>
+              <h5>Bulk payments</h5>
+              <p>Open the bulk payment picker directly from here and pay for multiple students under one material.</p>
+              <a href="javascript:;" class="nivasity-2-modal__card-action" data-nivasity-action="modal" data-nivasity-open-modal="#bulkPaymentManualPickerModal">
+                <i class="mdi mdi-arrow-top-right"></i>
+                Open bulk payment
+              </a>
+            </article>
+            <article class="nivasity-2-modal__card">
+              <div class="nivasity-2-modal__icon"><i class="mdi mdi-bank-transfer"></i></div>
+              <h5>Transfer to other students</h5>
+              <p>Jump into the wallet transfer flow and send funds to another verified student in your school.</p>
+              <a href="<?php echo htmlspecialchars(nivasity_app_url('wallet.php?open_transfer=1'), ENT_QUOTES, 'UTF-8'); ?>" class="nivasity-2-modal__card-action" data-nivasity-action="navigate">
+                <i class="mdi mdi-arrow-top-right"></i>
+                Open wallet transfer
+              </a>
+            </article>
+            <article class="nivasity-2-modal__card">
+              <div class="nivasity-2-modal__icon"><i class="mdi mdi-book-refresh-outline"></i></div>
+              <h5>Repay for a material when lost</h5>
+              <p>We now guide you through the approved flow: mark the old copy as lost, then return to store and buy another one.</p>
+              <a href="<?php echo htmlspecialchars(nivasity_app_url('orders.php?lost_material_guide=1'), ENT_QUOTES, 'UTF-8'); ?>" class="nivasity-2-modal__card-action" data-nivasity-action="navigate">
+                <i class="mdi mdi-arrow-top-right"></i>
+                Start lost-material guide
+              </a>
+            </article>
+            <?php endif; ?>
             <article class="nivasity-2-modal__card">
               <div class="nivasity-2-modal__icon"><i class="mdi mdi-email-edit-outline"></i></div>
               <h5>Update your email</h5>
@@ -245,8 +300,30 @@ $nivasity_intro_cta_label = isset($nivasity_intro_cta_label) ? (string) $nivasit
         backdrop: 'static',
         keyboard: false
       });
+      var actionButtons = modalElement.querySelectorAll('[data-nivasity-action]');
+      var isSaving = false;
 
-      confirmButton.addEventListener('click', function () {
+      function resetConfirmState() {
+        isSaving = false;
+        confirmButton.disabled = false;
+        confirmButton.textContent = <?php echo json_encode($nivasity_intro_cta_label); ?>;
+      }
+
+      function showError(message) {
+        if (!errorElement) {
+          return;
+        }
+
+        errorElement.textContent = message || 'We could not save this update right now. Please try again.';
+        errorElement.style.display = 'block';
+      }
+
+      function markIntroSeen(onSuccess) {
+        if (isSaving) {
+          return;
+        }
+
+        isSaving = true;
         confirmButton.disabled = true;
         confirmButton.textContent = 'Saving...';
         if (errorElement) {
@@ -262,24 +339,67 @@ $nivasity_intro_cta_label = isset($nivasity_intro_cta_label) ? (string) $nivasit
           },
           success: function (response) {
             if (response && response.status === 'success') {
+              isSaving = false;
+              if (typeof onSuccess === 'function') {
+                onSuccess();
+                return;
+              }
+
               modalInstance.hide();
               return;
             }
 
-            confirmButton.disabled = false;
-            confirmButton.textContent = <?php echo json_encode($nivasity_intro_cta_label); ?>;
-            if (errorElement) {
-              errorElement.textContent = (response && response.message) ? response.message : 'We could not save this update right now. Please try again.';
-              errorElement.style.display = 'block';
-            }
+            resetConfirmState();
+            showError((response && response.message) ? response.message : 'We could not save this update right now. Please try again.');
           },
           error: function () {
-            confirmButton.disabled = false;
-            confirmButton.textContent = <?php echo json_encode($nivasity_intro_cta_label); ?>;
-            if (errorElement) {
-              errorElement.style.display = 'block';
-            }
+            resetConfirmState();
+            showError('We could not save this update right now. Please try again.');
           }
+        });
+      }
+
+      confirmButton.addEventListener('click', function () {
+        markIntroSeen(function () {
+          modalInstance.hide();
+        });
+      });
+
+      actionButtons.forEach(function (actionButton) {
+        actionButton.addEventListener('click', function (event) {
+          event.preventDefault();
+
+          var navigateHref = actionButton.getAttribute('href');
+          var modalTargetSelector = actionButton.getAttribute('data-nivasity-open-modal');
+
+          markIntroSeen(function () {
+            if (modalTargetSelector) {
+              var modalTarget = document.querySelector(modalTargetSelector);
+              if (!modalTarget) {
+                modalInstance.hide();
+                return;
+              }
+
+              var hiddenHandler = function () {
+                modalElement.removeEventListener('hidden.bs.modal', hiddenHandler);
+                var targetInstance = (typeof bootstrap.Modal.getOrCreateInstance === 'function')
+                  ? bootstrap.Modal.getOrCreateInstance(modalTarget)
+                  : new bootstrap.Modal(modalTarget);
+                targetInstance.show();
+              };
+
+              modalElement.addEventListener('hidden.bs.modal', hiddenHandler);
+              modalInstance.hide();
+              return;
+            }
+
+            if (navigateHref && navigateHref !== 'javascript:;') {
+              window.location.href = navigateHref;
+              return;
+            }
+
+            modalInstance.hide();
+          });
         });
       });
 

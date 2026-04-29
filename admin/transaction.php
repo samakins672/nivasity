@@ -3,13 +3,9 @@ session_start();
 include('../model/config.php');
 include('../model/page_config.php');
 
-if ($_SESSION['nivas_userRole'] == 'student') {
+if ($_SESSION['nivas_userRole'] !== 'org_admin') {
   header('Location: /');
   exit();
-} elseif ($_SESSION['nivas_userRole'] == 'hoc') {
-  $item_table = "manuals";
-  $item_table2 = "manuals_bought";
-  $column_id = "manual_id";
 } else {
   $item_table = "events";
   $item_table2 = "event_tickets";

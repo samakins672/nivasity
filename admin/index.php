@@ -20,13 +20,9 @@ if (file_exists('../config/material_management.php')) {
 // Fetch active system alerts
 $system_alerts = get_active_system_alerts($conn);
 
-if ($_SESSION['nivas_userRole'] == 'student' || $_SESSION['nivas_userRole'] == 'visitor') {
+if ($_SESSION['nivas_userRole'] !== 'org_admin') {
   header('Location: /');
   exit();
-} elseif ($_SESSION['nivas_userRole'] == 'hoc') {
-  $item_table = "manuals";
-  $item_table2 = "manuals_bought";
-  $column_id = "manual_id";
 } else {
   $item_table = "events";
   $item_table2 = "event_tickets";

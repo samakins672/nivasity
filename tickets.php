@@ -122,6 +122,7 @@ $event_query = mysqli_query($conn, "SELECT * FROM event_tickets WHERE buyer = $u
         <!-- content-wrapper ends -->
         <!-- partial:partials/_footer.html -->
         <?php include('partials/_footer.php') ?>
+        <?php include('partials/_bulk_payment_modal.php') ?>
         <!-- partial -->
       </div>
       <!-- Bootstrap alert container -->

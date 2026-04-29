@@ -347,7 +347,7 @@ if (isset($_POST['switch_academic_role'])) {
       $messageRes = "Internal Server Error. Please try again later!";
     } else {
       $_SESSION['nivas_userRole'] = $target_role;
-      $roleRes = ($target_role === 'hoc') ? 'admin' : 'failed';
+      $roleRes = 'root';
       $role_label = $target_role === 'hoc' ? 'HOC/Lecturer' : 'Student';
       $statusRes = "success";
       $messageRes = "Academic role changed to $role_label. Your UI will refresh now to match the new role.";
@@ -582,8 +582,10 @@ Best regards,<br><b>Nivasity Team</b>";
       $_SESSION['nivas_userRole'] = $user['role'];
       $_SESSION['nivas_userSch'] = $user['school'];
 
-      if ($_SESSION['nivas_userRole'] !== 'student' && $_SESSION['nivas_userRole'] !== 'visitor') {
+      if ($_SESSION['nivas_userRole'] === 'org_admin') {
         $roleRes = 'admin';
+      } else {
+        $roleRes = 'root';
       }
 
       $statusRes = "success";

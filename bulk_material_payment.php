@@ -851,6 +851,7 @@ $storeUrl = nivasity_app_url();
           </div>
         </div>
         <?php include('partials/_footer.php') ?>
+        <?php include('partials/_bulk_payment_modal.php') ?>
       </div>
     </div>
   </div>

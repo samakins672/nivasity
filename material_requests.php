@@ -378,6 +378,7 @@ foreach ($materialRequests as $requestRow) {
         </div>
 
         <?php include('partials/_footer.php') ?>
+        <?php include('partials/_bulk_payment_modal.php') ?>
       </div>
 
       <?php if ($materialRequestTableReady && $user_status === 'verified' && (int)$user_dept > 0): ?>
