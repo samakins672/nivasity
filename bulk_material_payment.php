@@ -104,6 +104,20 @@ if (!function_exists('bulk_material_payment_preview_parse_upload')) {
   }
 }
 
+if (!function_exists('bulk_material_payment_preview_validation_unavailable_message')) {
+  function bulk_material_payment_preview_validation_unavailable_message(): string
+  {
+    return 'Could not validate this row against student records right now.';
+  }
+}
+
+if (!function_exists('bulk_material_payment_preview_validation_warning')) {
+  function bulk_material_payment_preview_validation_warning(): string
+  {
+    return 'Student-record validation is temporarily unavailable. The CSV was loaded, but payment is disabled until validation can complete.';
+  }
+}
+
 if (!function_exists('bulk_material_payment_preview_analyze_rows')) {
   function bulk_material_payment_preview_analyze_rows(mysqli $conn, array $rows, array $manual, array $payer): array
   {
@@ -111,7 +125,14 @@ if (!function_exists('bulk_material_payment_preview_analyze_rows')) {
     $schoolId = (int) ($payer['school'] ?? 0);
     $payerDeptId = (int) ($payer['dept'] ?? 0);
     $manualPrice = (int) round((float) ($manual['price'] ?? 0));
-    $nonLostCondition = material_copy_non_lost_condition($conn, 'mb');
+    $nonLostCondition = '1 = 1';
+    $validationWarning = '';
+
+    try {
+      $nonLostCondition = material_copy_non_lost_condition($conn, 'mb');
+    } catch (Throwable $e) {
+      $validationWarning = bulk_material_payment_preview_validation_warning();
+    }
 
     $results = [];
     $errors = [];
@@ -153,90 +174,103 @@ if (!function_exists('bulk_material_payment_preview_analyze_rows')) {
         }
       }
 
-      if ($status === 'valid' && bulk_material_payment_has_table($conn, 'manual_bulk_payment_students')) {
-        $matricSafe = mysqli_real_escape_string($conn, $normalizedMatricNo);
-        $firstSafe = mysqli_real_escape_string($conn, $normalizedFirstName);
-        $lastSafe = mysqli_real_escape_string($conn, $normalizedLastName);
-        $pendingQuery = mysqli_query(
-          $conn,
-          "SELECT id FROM manual_bulk_payment_students
-           WHERE manual_id = {$manualId}
-             AND school_id = {$schoolId}
-             AND payer_dept_id = {$payerDeptId}
-             AND normalized_matric_no = '{$matricSafe}'
-             AND normalized_first_name = '{$firstSafe}'
-             AND normalized_last_name = '{$lastSafe}'
-             AND claim_status IN ('pending', 'awaiting_claim_confirmation', 'awaiting_student_confirmation')
-           LIMIT 1"
-        );
-        if ($pendingQuery && mysqli_num_rows($pendingQuery) > 0) {
-          $status = 'error';
-          $message = 'This student already has a pending bulk-payment claim for the selected material.';
-        }
-      }
-
-      if ($status === 'valid') {
-        $matricSafe = mysqli_real_escape_string($conn, $normalizedMatricNo);
-        $activeCopyQuery = mysqli_query(
-          $conn,
-          "SELECT mb.id
-           FROM manuals_bought AS mb
-           INNER JOIN users AS u ON u.id = mb.buyer
-           WHERE mb.manual_id = {$manualId}
-             AND mb.school_id = {$schoolId}
-             AND {$nonLostCondition}
-             AND u.school = {$schoolId}
-             AND u.dept = {$payerDeptId}
-             AND LOWER(TRIM(u.matric_no)) = '{$matricSafe}'
-           LIMIT 1"
-        );
-        if ($activeCopyQuery && mysqli_num_rows($activeCopyQuery) > 0) {
-          $status = 'error';
-          $message = 'This matric number already has an active copy of the selected material.';
-        }
-      }
-
-      if ($status === 'valid') {
-        $matricSafe = mysqli_real_escape_string($conn, $normalizedMatricNo);
-        $userQuery = mysqli_query(
-          $conn,
-          "SELECT id, first_name, last_name, dept, status
-           FROM users
-           WHERE school = {$schoolId}
-             AND dept = {$payerDeptId}
-             AND LOWER(TRIM(matric_no)) = '{$matricSafe}'
-             AND status <> '" . mysqli_real_escape_string($conn, bulk_material_payment_placeholder_status()) . "'
-           ORDER BY CASE WHEN status = 'verified' THEN 0 ELSE 1 END, id DESC
-           LIMIT 1"
-        );
-        if ($userQuery && mysqli_num_rows($userQuery) > 0) {
-          $user = mysqli_fetch_assoc($userQuery) ?: [];
-          $matchedFirstName = bulk_material_payment_normalize_text((string) ($user['first_name'] ?? ''));
-          $matchedLastName = bulk_material_payment_normalize_text((string) ($user['last_name'] ?? ''));
-          if ($matchedFirstName !== $normalizedFirstName || $matchedLastName !== $normalizedLastName) {
-            $status = 'error';
-            $message = 'Matric number matched an existing student, but the first or last name did not match.';
-          } else {
-            $matchedUserId = (int) ($user['id'] ?? 0);
-            $resolution = 'existing_student';
-            $message = 'Matches an existing student profile in your department.';
+      if ($status === 'valid' && $validationWarning === '') {
+        try {
+          if (bulk_material_payment_has_table($conn, 'manual_bulk_payment_students')) {
+            $matricSafe = mysqli_real_escape_string($conn, $normalizedMatricNo);
+            $firstSafe = mysqli_real_escape_string($conn, $normalizedFirstName);
+            $lastSafe = mysqli_real_escape_string($conn, $normalizedLastName);
+            $pendingQuery = mysqli_query(
+              $conn,
+              "SELECT id FROM manual_bulk_payment_students
+               WHERE manual_id = {$manualId}
+                 AND school_id = {$schoolId}
+                 AND payer_dept_id = {$payerDeptId}
+                 AND normalized_matric_no = '{$matricSafe}'
+                 AND normalized_first_name = '{$firstSafe}'
+                 AND normalized_last_name = '{$lastSafe}'
+                 AND claim_status IN ('pending', 'awaiting_claim_confirmation', 'awaiting_student_confirmation')
+               LIMIT 1"
+            );
+            if ($pendingQuery && mysqli_num_rows($pendingQuery) > 0) {
+              $status = 'error';
+              $message = 'This student already has a pending bulk-payment claim for the selected material.';
+            }
           }
-        }
-      }
 
-      if ($status === 'valid' && $matchedUserId > 0) {
-        $ownershipQuery = mysqli_query(
-          $conn,
-          "SELECT 1 FROM manuals_bought AS mb
-           WHERE mb.manual_id = {$manualId}
-             AND mb.buyer = {$matchedUserId}
-             AND {$nonLostCondition}
-           LIMIT 1"
-        );
-        if ($ownershipQuery && mysqli_num_rows($ownershipQuery) > 0) {
+          if ($status === 'valid') {
+            $matricSafe = mysqli_real_escape_string($conn, $normalizedMatricNo);
+            $activeCopyQuery = mysqli_query(
+              $conn,
+              "SELECT mb.id
+               FROM manuals_bought AS mb
+               INNER JOIN users AS u ON u.id = mb.buyer
+               WHERE mb.manual_id = {$manualId}
+                 AND mb.school_id = {$schoolId}
+                 AND {$nonLostCondition}
+                 AND u.school = {$schoolId}
+                 AND u.dept = {$payerDeptId}
+                 AND LOWER(TRIM(u.matric_no)) = '{$matricSafe}'
+               LIMIT 1"
+            );
+            if ($activeCopyQuery && mysqli_num_rows($activeCopyQuery) > 0) {
+              $status = 'error';
+              $message = 'This matric number already has an active copy of the selected material.';
+            }
+          }
+
+          if ($status === 'valid') {
+            $matricSafe = mysqli_real_escape_string($conn, $normalizedMatricNo);
+            $userQuery = mysqli_query(
+              $conn,
+              "SELECT id, first_name, last_name, dept, status
+               FROM users
+               WHERE school = {$schoolId}
+                 AND dept = {$payerDeptId}
+                 AND LOWER(TRIM(matric_no)) = '{$matricSafe}'
+                 AND status <> '" . mysqli_real_escape_string($conn, bulk_material_payment_placeholder_status()) . "'
+               ORDER BY CASE WHEN status = 'verified' THEN 0 ELSE 1 END, id DESC
+               LIMIT 1"
+            );
+            if ($userQuery && mysqli_num_rows($userQuery) > 0) {
+              $user = mysqli_fetch_assoc($userQuery) ?: [];
+              $matchedFirstName = bulk_material_payment_normalize_text((string) ($user['first_name'] ?? ''));
+              $matchedLastName = bulk_material_payment_normalize_text((string) ($user['last_name'] ?? ''));
+              if ($matchedFirstName !== $normalizedFirstName || $matchedLastName !== $normalizedLastName) {
+                $status = 'error';
+                $message = 'Matric number matched an existing student, but the first or last name did not match.';
+              } else {
+                $matchedUserId = (int) ($user['id'] ?? 0);
+                $resolution = 'existing_student';
+                $message = 'Matches an existing student profile in your department.';
+              }
+            }
+          }
+
+          if ($status === 'valid' && $matchedUserId > 0) {
+            $ownershipQuery = mysqli_query(
+              $conn,
+              "SELECT 1 FROM manuals_bought AS mb
+               WHERE mb.manual_id = {$manualId}
+                 AND mb.buyer = {$matchedUserId}
+                 AND {$nonLostCondition}
+               LIMIT 1"
+            );
+            if ($ownershipQuery && mysqli_num_rows($ownershipQuery) > 0) {
+              $status = 'error';
+              $message = 'This student already owns an active copy of the selected material.';
+            }
+          }
+        } catch (Throwable $e) {
+          $validationWarning = bulk_material_payment_preview_validation_warning();
           $status = 'error';
-          $message = 'This student already owns an active copy of the selected material.';
+          $resolution = 'validation_unavailable';
+          $message = bulk_material_payment_preview_validation_unavailable_message();
         }
+      } elseif ($status === 'valid') {
+        $status = 'error';
+        $resolution = 'validation_unavailable';
+        $message = bulk_material_payment_preview_validation_unavailable_message();
       }
 
       if ($status === 'valid') {
@@ -264,6 +298,7 @@ if (!function_exists('bulk_material_payment_preview_analyze_rows')) {
       'valid_count' => $validCount,
       'invalid_count' => count($results) - $validCount,
       'breakdown' => $breakdown,
+      'validation_warning' => $validationWarning,
     ];
   }
 }
@@ -286,6 +321,11 @@ if (!function_exists('bulk_material_payment_build_preview_payload')) {
   function bulk_material_payment_build_preview_payload(array $previewResult, array $manual, array $pageWarnings, bool $walletReady, int $walletBalance): array
   {
     $previewTotalAmount = (int) ($previewResult['breakdown']['total_amount'] ?? 0);
+    $previewWarnings = array_values($pageWarnings);
+    $validationWarning = trim((string) ($previewResult['validation_warning'] ?? ''));
+    if ($validationWarning !== '') {
+      $previewWarnings[] = $validationWarning;
+    }
     $canSubmitPayment = ((int) ($previewResult['invalid_count'] ?? 0)) === 0
       && ((int) ($previewResult['valid_count'] ?? 0)) > 0
       && $walletReady;
@@ -302,7 +342,7 @@ if (!function_exists('bulk_material_payment_build_preview_payload')) {
         'has_enough_balance' => $walletBalance >= $previewTotalAmount,
       ],
       'preview_rows' => array_values($previewResult['source_rows'] ?? []),
-      'page_warnings' => array_values($pageWarnings),
+      'page_warnings' => $previewWarnings,
       'can_submit_payment' => $canSubmitPayment,
       'wallet_page_url' => nivasity_app_url('wallet.php'),
     ];
@@ -425,12 +465,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_preview_bulk_pay
     'dept' => $user_dept,
   ]);
   $previewResult['source_rows'] = $previewRows;
+  $validationWarning = trim((string) ($previewResult['validation_warning'] ?? ''));
+  $previewMessage = $validationWarning !== ''
+    ? 'Preview loaded, but student-record validation is temporarily unavailable.'
+    : (((int) ($previewResult['invalid_count'] ?? 0)) > 0
+      ? 'Preview loaded. Fix the highlighted rows before payment.'
+      : 'Preview loaded successfully.');
 
   bulk_material_payment_json_response(
     'success',
-    ((int) ($previewResult['invalid_count'] ?? 0)) > 0
-      ? 'Preview loaded. Fix the highlighted rows before payment.'
-      : 'Preview loaded successfully.',
+    $previewMessage,
     bulk_material_payment_build_preview_payload($previewResult, $manual ?: [], $pageWarnings, $walletReady, $walletBalance)
   );
 }
@@ -451,7 +495,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_bulk_payment']
       'data' => bulk_material_payment_build_preview_payload($previewResult, $manual ?: [], $pageWarnings, $walletReady, $walletBalance),
     ];
 
-    if (((int) ($previewResult['invalid_count'] ?? 0)) > 0 || ((int) ($previewResult['valid_count'] ?? 0)) < 1) {
+    $validationWarning = trim((string) ($previewResult['validation_warning'] ?? ''));
+    if ($validationWarning !== '') {
+      $pageError = $validationWarning;
+    } elseif (((int) ($previewResult['invalid_count'] ?? 0)) > 0 || ((int) ($previewResult['valid_count'] ?? 0)) < 1) {
       $pageError = 'Fix the CSV preview errors before paying from your wallet.';
     } elseif (!$walletReady) {
       $pageError = 'Complete the wallet prerequisites before paying for this batch.';
@@ -958,12 +1005,27 @@ $storeUrl = nivasity_app_url();
           try {
             response = JSON.parse(xhr.responseText);
           } catch (error) {
-            response = null;
+            var responseText = String(xhr.responseText || '');
+            var jsonStart = responseText.indexOf('{');
+            if (jsonStart !== -1) {
+              try {
+                response = JSON.parse(responseText.slice(jsonStart));
+              } catch (nestedError) {
+                response = null;
+              }
+            } else {
+              response = null;
+            }
           }
         }
 
         if (response && response.message) {
           return response.message;
+        }
+
+        var responseText = xhr && xhr.responseText ? String(xhr.responseText) : '';
+        if (/mysqli_sql_exception|MySQL server has gone away|No connection could be made because the target machine actively refused it/i.test(responseText)) {
+          return 'Student-record validation is temporarily unavailable. The CSV could not be verified against the database right now.';
         }
 
         var responseUrl = xhr && xhr.responseURL ? String(xhr.responseURL) : '';
