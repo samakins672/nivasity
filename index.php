@@ -1131,7 +1131,12 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
         var rejectBtn = document.getElementById('bulkMaterialClaimReject');
         if (!titleEl || !metaEl || !messageEl || !errorEl || !confirmBtn || !rejectBtn) return;
 
-        var modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+        var modalInstance;
+        if (typeof bootstrap.Modal.getOrCreateInstance === 'function') {
+          modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+        } else {
+          modalInstance = new bootstrap.Modal(modalEl);
+        }
         var isSubmitting = false;
 
         function setButtonsDisabled(disabled) {
