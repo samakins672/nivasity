@@ -755,6 +755,25 @@ $storeUrl = nivasity_app_url();
       padding: 0.9rem 1rem;
     }
 
+    .bulk-alt-entry-card {
+      display: grid;
+      gap: 0.75rem;
+      align-items: start;
+    }
+
+    .bulk-alt-entry-card .btn {
+      justify-self: start;
+    }
+
+    .bulk-text-records-input {
+      display: block;
+      width: 100% !important;
+      min-height: 20rem !important;
+      height: 20rem !important;
+      line-height: 1.5;
+      resize: vertical;
+    }
+
     .bulk-kpi-card {
       border: 1px solid rgba(15, 23, 42, 0.08);
       border-radius: 1rem;
@@ -991,14 +1010,17 @@ $storeUrl = nivasity_app_url();
                                 <div class="col-12 col-lg-4 d-grid">
                                   <button type="submit" class="btn btn-primary fw-bold" id="bulkPreviewSubmitBtn">Proceed to Preview & Pay</button>
                                 </div>
-                                <div class="col-12">
-                                  <div class="d-flex flex-column flex-md-row gap-2 align-items-md-center">
-                                    <button type="button" class="btn btn-outline-secondary fw-bold" id="bulkOpenTextEntryModalBtn">Paste Records In A Modal</button>
-                                    <div class="small text-muted" id="bulkTextDraftStatus">Paste rows in a modal if you do not want to upload a CSV file.</div>
-                                  </div>
-                                </div>
                               </div>
                             </form>
+
+                            <div class="bulk-dropzone bulk-alt-entry-card mt-3">
+                              <div>
+                                <label class="form-label fw-bold mb-1">Paste Records</label>
+                                <div class="small text-muted">Open a modal and paste one comma-separated row per student if you do not want to upload a CSV file.</div>
+                              </div>
+                              <button type="button" class="btn btn-secondary fw-bold" id="bulkOpenTextEntryModalBtn">Paste Records</button>
+                              <div class="small text-muted" id="bulkTextDraftStatus">Paste rows in a modal if you do not want to upload a CSV file.</div>
+                            </div>
 
                           </div>
                         </div>
@@ -1049,7 +1071,7 @@ $storeUrl = nivasity_app_url();
         <div class="modal-body">
           <div class="alert alert-danger d-none" id="bulkTextEntryAlert"></div>
           <label for="bulkTextRecordsInput" class="form-label fw-bold">Student rows</label>
-          <textarea class="form-control" id="bulkTextRecordsInput" rows="14" placeholder="first_name,last_name,matric_no&#10;Ada,Okafor,CSC/2022/001&#10;John,Balogun,CSC/2022/002"></textarea>
+          <textarea class="form-control bulk-text-records-input" id="bulkTextRecordsInput" rows="14" placeholder="first_name,last_name,matric_no&#10;Ada,Okafor,CSC/2022/001&#10;John,Balogun,CSC/2022/002"></textarea>
           <div class="small text-muted mt-2">The first row can be the column header or the first student record. Drafts stay on this device until payment succeeds.</div>
         </div>
         <div class="modal-footer">
