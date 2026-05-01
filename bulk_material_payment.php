@@ -1236,7 +1236,7 @@ $storeUrl = nivasity_app_url();
         var hasDraft = String(textRecordsInput.val() || '').trim() !== '';
         textDraftStatus.text(
           hasDraft
-            ? 'Pasted records are saved on this device.'
+            ? ''
             : 'Paste rows in a modal if you do not want to upload a CSV file.'
         );
       }
