@@ -315,8 +315,6 @@ if (!function_exists('bulk_material_payment_find_matching_user')) {
     }
 
     $matricSafe = mysqli_real_escape_string($conn, $normalizedMatricNo);
-    $firstSafe = mysqli_real_escape_string($conn, $normalizedFirstName);
-    $lastSafe = mysqli_real_escape_string($conn, $normalizedLastName);
     $placeholderStatusSafe = mysqli_real_escape_string($conn, bulk_material_payment_placeholder_status());
 
     $query = mysqli_query(
@@ -324,17 +322,32 @@ if (!function_exists('bulk_material_payment_find_matching_user')) {
       "SELECT *
        FROM users
        WHERE school = {$schoolId}
-         AND dept = {$deptId}
          AND LOWER(TRIM(matric_no)) = '{$matricSafe}'
-         AND LOWER(TRIM(first_name)) = '{$firstSafe}'
-         AND LOWER(TRIM(last_name)) = '{$lastSafe}'
          AND status <> '{$placeholderStatusSafe}'
        ORDER BY CASE WHEN status = 'verified' THEN 0 ELSE 1 END, id DESC
        LIMIT 1"
     );
 
     if ($query && mysqli_num_rows($query) > 0) {
-      return mysqli_fetch_assoc($query) ?: null;
+      $row = mysqli_fetch_assoc($query) ?: null;
+      if (!is_array($row)) {
+        return null;
+      }
+
+      $row['match_status'] = 'matched';
+      $matchedDeptId = (int) ($row['dept'] ?? 0);
+      if ($matchedDeptId !== $deptId) {
+        $row['match_status'] = 'department_mismatch';
+        return $row;
+      }
+
+      $matchedFirstName = bulk_material_payment_normalize_text((string) ($row['first_name'] ?? ''));
+      $matchedLastName = bulk_material_payment_normalize_text((string) ($row['last_name'] ?? ''));
+      if ($matchedFirstName !== $normalizedFirstName && $matchedLastName !== $normalizedLastName) {
+        $row['match_status'] = 'name_mismatch';
+      }
+
+      return $row;
     }
 
     return null;
@@ -499,7 +512,12 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
         }
 
         $matchedUser = bulk_material_payment_find_matching_user($conn, $schoolId, $payerDeptId, $normalizedMatricNo, $normalizedFirstName, $normalizedLastName);
-        $matchedUserId = (int) ($matchedUser['id'] ?? 0);
+        $matchStatus = (string) ($matchedUser['match_status'] ?? 'not_found');
+        if ($matchStatus === 'name_mismatch') {
+          throw new Exception('Matric number matched an existing student, but at least one of first name or last name must match.');
+        }
+
+        $matchedUserId = $matchStatus === 'matched' ? (int) ($matchedUser['id'] ?? 0) : 0;
         $placeholderUserId = 0;
         $manualsBoughtId = 0;
         $claimStatus = $matchedUserId > 0 ? $pendingStudentStatus : $pendingClaimStatus;

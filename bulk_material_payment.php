@@ -325,29 +325,19 @@ if (!function_exists('bulk_material_payment_preview_analyze_rows')) {
 
           if ($status === 'valid') {
             $matricSafe = mysqli_real_escape_string($conn, $normalizedMatricNo);
-            $userQuery = mysqli_query(
-              $conn,
-              "SELECT id, first_name, last_name, dept, status
-               FROM users
-               WHERE school = {$schoolId}
-                 AND dept = {$payerDeptId}
-                 AND LOWER(TRIM(matric_no)) = '{$matricSafe}'
-                 AND status <> '" . mysqli_real_escape_string($conn, bulk_material_payment_placeholder_status()) . "'
-               ORDER BY CASE WHEN status = 'verified' THEN 0 ELSE 1 END, id DESC
-               LIMIT 1"
-            );
-            if ($userQuery && mysqli_num_rows($userQuery) > 0) {
-              $user = mysqli_fetch_assoc($userQuery) ?: [];
-              $matchedFirstName = bulk_material_payment_normalize_text((string) ($user['first_name'] ?? ''));
-              $matchedLastName = bulk_material_payment_normalize_text((string) ($user['last_name'] ?? ''));
-              if ($matchedFirstName !== $normalizedFirstName || $matchedLastName !== $normalizedLastName) {
-                $status = 'error';
-                $message = 'Matric number matched an existing student, but the first or last name did not match.';
-              } else {
-                $matchedUserId = (int) ($user['id'] ?? 0);
-                $resolution = 'existing_student';
-                $message = 'Matches an existing student profile in your department.';
-              }
+            $matchedUser = bulk_material_payment_find_matching_user($conn, $schoolId, $payerDeptId, $normalizedMatricNo, $normalizedFirstName, $normalizedLastName);
+            $matchStatus = (string) ($matchedUser['match_status'] ?? 'not_found');
+
+            if ($matchStatus === 'name_mismatch') {
+              $status = 'error';
+              $message = 'Matric number matched an existing student, but at least one of first name or last name must match.';
+            } elseif ($matchStatus === 'department_mismatch') {
+              $resolution = 'department_mismatch_note';
+              $message = 'Matric number exists in a different department. This batch will continue as a pending placeholder.';
+            } elseif ($matchStatus === 'matched') {
+              $matchedUserId = (int) ($matchedUser['id'] ?? 0);
+              $resolution = 'existing_student';
+              $message = 'Matches an existing student profile in your department.';
             }
           }
 
