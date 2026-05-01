@@ -211,14 +211,14 @@ if (!function_exists('bulk_material_payment_preview_parse_request')) {
 if (!function_exists('bulk_material_payment_preview_validation_unavailable_message')) {
   function bulk_material_payment_preview_validation_unavailable_message(): string
   {
-    return 'Could not validate this row against student records right now.';
+    return 'Validation unavailable.';
   }
 }
 
 if (!function_exists('bulk_material_payment_preview_validation_warning')) {
   function bulk_material_payment_preview_validation_warning(): string
   {
-    return 'Student-record validation is temporarily unavailable. The CSV was loaded, but payment is disabled until validation can complete.';
+    return 'Validation unavailable. Payment locked.';
   }
 }
 
@@ -254,25 +254,25 @@ if (!function_exists('bulk_material_payment_preview_analyze_rows')) {
       $normalizedMatricNo = (string) ($row['normalized_matric_no'] ?? '');
       $status = 'valid';
       $resolution = 'pending_placeholder';
-      $message = 'Will create a pending placeholder until the student confirms the claim.';
+      $message = 'Pending placeholder.';
       $matchedUserId = 0;
 
       if ($normalizedFirstName === '' || $normalizedLastName === '' || $normalizedMatricNo === '') {
         $status = 'error';
-        $message = 'First name, last name, and matric number are required.';
+        $message = 'Missing name or matric no.';
       }
 
       $namePairSignature = bulk_material_payment_name_pair_signature($normalizedFirstName, $normalizedLastName);
       $identityKey = $normalizedMatricNo . '|' . $namePairSignature;
       if ($status === 'valid' && isset($seenIdentities[$identityKey])) {
         $status = 'error';
-        $message = 'This student appears more than once in the uploaded CSV.';
+        $message = 'Duplicate row.';
       }
 
       if ($status === 'valid') {
         if (isset($seenMatricNames[$normalizedMatricNo]) && $seenMatricNames[$normalizedMatricNo] !== $namePairSignature) {
           $status = 'error';
-          $message = 'The same matric number is paired with different names in this CSV.';
+          $message = 'Same matric, different names.';
         } else {
           $seenIdentities[$identityKey] = true;
           $seenMatricNames[$normalizedMatricNo] = $namePairSignature;
@@ -299,7 +299,7 @@ if (!function_exists('bulk_material_payment_preview_analyze_rows')) {
             );
             if ($pendingQuery && mysqli_num_rows($pendingQuery) > 0) {
               $status = 'error';
-              $message = 'This student already has a pending bulk-payment claim for the selected material.';
+              $message = 'Pending claim exists.';
             }
           }
 
@@ -320,7 +320,7 @@ if (!function_exists('bulk_material_payment_preview_analyze_rows')) {
             );
             if ($activeCopyQuery && mysqli_num_rows($activeCopyQuery) > 0) {
               $status = 'error';
-              $message = 'This matric number already has an active copy of the selected material.';
+              $message = 'Active copy exists.';
             }
           }
 
@@ -331,14 +331,14 @@ if (!function_exists('bulk_material_payment_preview_analyze_rows')) {
 
             if ($matchStatus === 'name_mismatch') {
               $status = 'error';
-              $message = bulk_material_payment_name_mismatch_message();
+              $message = bulk_material_payment_name_mismatch_message($matchedUser);
             } elseif ($matchStatus === 'department_mismatch') {
               $resolution = 'department_mismatch_note';
-              $message = 'Matric number exists in a different department. This batch will continue as a pending placeholder.';
+              $message = bulk_material_payment_department_mismatch_message($matchedUser);
             } elseif ($matchStatus === 'matched') {
               $matchedUserId = (int) ($matchedUser['id'] ?? 0);
               $resolution = 'existing_student';
-              $message = 'Matches an existing student profile in your department.';
+              $message = 'Matched in your dept.';
             }
           }
 
@@ -353,7 +353,7 @@ if (!function_exists('bulk_material_payment_preview_analyze_rows')) {
             );
             if ($ownershipQuery && mysqli_num_rows($ownershipQuery) > 0) {
               $status = 'error';
-              $message = 'This student already owns an active copy of the selected material.';
+              $message = 'Already owns this material.';
             }
           }
         } catch (Throwable $e) {

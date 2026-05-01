@@ -155,10 +155,61 @@ if (!function_exists('bulk_material_payment_names_overlap')) {
   }
 }
 
-if (!function_exists('bulk_material_payment_name_mismatch_message')) {
-  function bulk_material_payment_name_mismatch_message(): string
+if (!function_exists('bulk_material_payment_matched_user_label')) {
+  function bulk_material_payment_matched_user_label(?array $matchedUser): string
   {
-    return 'Matric number matched an existing student, but at least one of first name or last name must match, including reversed first and last names.';
+    if (!is_array($matchedUser)) {
+      return 'student record';
+    }
+
+    $firstName = trim((string) ($matchedUser['first_name'] ?? ''));
+    $lastName = trim((string) ($matchedUser['last_name'] ?? ''));
+    $matricNo = trim((string) ($matchedUser['matric_no'] ?? ''));
+    $name = trim($firstName . ' ' . $lastName);
+
+    if ($name !== '') {
+      return $matricNo !== '' ? $name . ' (' . $matricNo . ')' : $name;
+    }
+
+    return $matricNo !== '' ? $matricNo : 'student record';
+  }
+}
+
+if (!function_exists('bulk_material_payment_matched_user_department_label')) {
+  function bulk_material_payment_matched_user_department_label(?array $matchedUser): string
+  {
+    if (!is_array($matchedUser)) {
+      return '';
+    }
+
+    $deptName = trim((string) ($matchedUser['dept_name'] ?? ''));
+    if ($deptName !== '') {
+      return $deptName;
+    }
+
+    $deptId = (int) ($matchedUser['dept'] ?? 0);
+    return $deptId > 0 ? 'department #' . $deptId : '';
+  }
+}
+
+if (!function_exists('bulk_material_payment_name_mismatch_message')) {
+  function bulk_material_payment_name_mismatch_message(?array $matchedUser = null): string
+  {
+    return 'Name mismatch. Existing: ' . bulk_material_payment_matched_user_label($matchedUser) . '.';
+  }
+}
+
+if (!function_exists('bulk_material_payment_department_mismatch_message')) {
+  function bulk_material_payment_department_mismatch_message(?array $matchedUser = null): string
+  {
+    $label = bulk_material_payment_matched_user_label($matchedUser);
+    $departmentLabel = bulk_material_payment_matched_user_department_label($matchedUser);
+
+    if ($departmentLabel !== '') {
+      return 'Dept mismatch. ' . $label . ' is in ' . $departmentLabel . '.';
+    }
+
+    return 'Dept mismatch. Existing: ' . $label . '.';
   }
 }
 
@@ -344,12 +395,13 @@ if (!function_exists('bulk_material_payment_find_matching_user')) {
 
     $query = mysqli_query(
       $conn,
-      "SELECT *
-       FROM users
-       WHERE school = {$schoolId}
-         AND LOWER(TRIM(matric_no)) = '{$matricSafe}'
-         AND status <> '{$placeholderStatusSafe}'
-       ORDER BY CASE WHEN status = 'verified' THEN 0 ELSE 1 END, id DESC
+      "SELECT u.*, d.name AS dept_name
+       FROM users AS u
+       LEFT JOIN depts AS d ON d.id = u.dept AND d.school_id = {$schoolId}
+       WHERE u.school = {$schoolId}
+         AND LOWER(TRIM(u.matric_no)) = '{$matricSafe}'
+         AND u.status <> '{$placeholderStatusSafe}'
+       ORDER BY CASE WHEN u.status = 'verified' THEN 0 ELSE 1 END, u.id DESC
        LIMIT 1"
     );
 
@@ -539,7 +591,7 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
         $matchedUser = bulk_material_payment_find_matching_user($conn, $schoolId, $payerDeptId, $normalizedMatricNo, $normalizedFirstName, $normalizedLastName);
         $matchStatus = (string) ($matchedUser['match_status'] ?? 'not_found');
         if ($matchStatus === 'name_mismatch') {
-          throw new Exception(bulk_material_payment_name_mismatch_message());
+          throw new Exception(bulk_material_payment_name_mismatch_message($matchedUser));
         }
 
         $matchedUserId = $matchStatus === 'matched' ? (int) ($matchedUser['id'] ?? 0) : 0;
