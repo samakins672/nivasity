@@ -602,7 +602,18 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
         $studentRefIdSafe = mysqli_real_escape_string($conn, $studentRefId);
 
         $pendingMatric = bulk_material_payment_pending_lookup_matric($normalizedMatricNo);
-        if ($matchedUserId <= 0) {
+        if ($matchedUserId > 0) {
+          $manualsBoughtId = bulk_material_payment_create_manual_purchase(
+            $conn,
+            $manualId,
+            $manualPrice,
+            $manualSellerId,
+            $matchedUserId,
+            $payerUserId,
+            $studentRefId,
+            $schoolId
+          );
+        } else {
           $placeholderUserId = bulk_material_payment_find_or_create_placeholder_user($conn, [
             'school_id' => $schoolId,
             'dept_id' => $payerDeptId,
@@ -642,7 +653,9 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
           throw new Exception('One of the selected students already has a pending bulk-payment claim for this material.');
         }
 
-        $studentTransactionUserId = $placeholderUserId > 0 ? $placeholderUserId : $payerUserId;
+        $studentTransactionUserId = $matchedUserId > 0
+          ? $matchedUserId
+          : ($placeholderUserId > 0 ? $placeholderUserId : $payerUserId);
         bulk_material_payment_upsert_student_transaction(
           $conn,
           $studentTransactionUserId,
@@ -932,9 +945,23 @@ if (!function_exists('bulk_material_payment_resolve_claim_for_user')) {
       }
 
       if ($decision === 'reject') {
+        $existingBoughtId = (int) ($row['manuals_bought_id'] ?? 0);
+        $placeholderUserId = (int) ($row['placeholder_user_id'] ?? 0);
+        if ($existingBoughtId > 0 && $placeholderUserId <= 0) {
+          $deleteBoughtSql = "DELETE FROM manuals_bought
+                              WHERE id = {$existingBoughtId}
+                                AND buyer = {$userId}
+                                AND ref_id = '" . mysqli_real_escape_string($conn, (string) ($row['ref_id'] ?? '')) . "'
+                              LIMIT 1";
+          if (!mysqli_query($conn, $deleteBoughtSql)) {
+            throw new Exception('Unable to remove this material purchase right now.');
+          }
+        }
+
         $rejectSql = "UPDATE manual_bulk_payment_students
                       SET claim_status = '{$rejectedStatus}',
                           matched_user_id = {$userId},
+                          manuals_bought_id = NULL,
                           updated_at = NOW()
                       WHERE id = {$studentRowId} LIMIT 1";
         if (!mysqli_query($conn, $rejectSql)) {
