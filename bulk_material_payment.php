@@ -262,19 +262,20 @@ if (!function_exists('bulk_material_payment_preview_analyze_rows')) {
         $message = 'First name, last name, and matric number are required.';
       }
 
-      $identityKey = $normalizedMatricNo . '|' . $normalizedFirstName . '|' . $normalizedLastName;
+      $namePairSignature = bulk_material_payment_name_pair_signature($normalizedFirstName, $normalizedLastName);
+      $identityKey = $normalizedMatricNo . '|' . $namePairSignature;
       if ($status === 'valid' && isset($seenIdentities[$identityKey])) {
         $status = 'error';
         $message = 'This student appears more than once in the uploaded CSV.';
       }
 
       if ($status === 'valid') {
-        if (isset($seenMatricNames[$normalizedMatricNo]) && $seenMatricNames[$normalizedMatricNo] !== ($normalizedFirstName . '|' . $normalizedLastName)) {
+        if (isset($seenMatricNames[$normalizedMatricNo]) && $seenMatricNames[$normalizedMatricNo] !== $namePairSignature) {
           $status = 'error';
           $message = 'The same matric number is paired with different names in this CSV.';
         } else {
           $seenIdentities[$identityKey] = true;
-          $seenMatricNames[$normalizedMatricNo] = $normalizedFirstName . '|' . $normalizedLastName;
+          $seenMatricNames[$normalizedMatricNo] = $namePairSignature;
         }
       }
 
@@ -330,7 +331,7 @@ if (!function_exists('bulk_material_payment_preview_analyze_rows')) {
 
             if ($matchStatus === 'name_mismatch') {
               $status = 'error';
-              $message = 'Matric number matched an existing student, but at least one of first name or last name must match.';
+              $message = bulk_material_payment_name_mismatch_message();
             } elseif ($matchStatus === 'department_mismatch') {
               $resolution = 'department_mismatch_note';
               $message = 'Matric number exists in a different department. This batch will continue as a pending placeholder.';

@@ -137,6 +137,31 @@ if (!function_exists('bulk_material_payment_pending_lookup_matric')) {
   }
 }
 
+if (!function_exists('bulk_material_payment_name_pair_signature')) {
+  function bulk_material_payment_name_pair_signature(string $normalizedFirstName, string $normalizedLastName): string
+  {
+    $parts = [trim($normalizedFirstName), trim($normalizedLastName)];
+    sort($parts, SORT_STRING);
+
+    return implode('|', $parts);
+  }
+}
+
+if (!function_exists('bulk_material_payment_names_overlap')) {
+  function bulk_material_payment_names_overlap(string $normalizedFirstName, string $normalizedLastName, string $matchedFirstName, string $matchedLastName): bool
+  {
+    return in_array($normalizedFirstName, [$matchedFirstName, $matchedLastName], true)
+      || in_array($normalizedLastName, [$matchedFirstName, $matchedLastName], true);
+  }
+}
+
+if (!function_exists('bulk_material_payment_name_mismatch_message')) {
+  function bulk_material_payment_name_mismatch_message(): string
+  {
+    return 'Matric number matched an existing student, but at least one of first name or last name must match, including reversed first and last names.';
+  }
+}
+
 if (!function_exists('bulk_material_payment_fee_breakdown')) {
   function bulk_material_payment_fee_breakdown(int $subtotal, float $feePercent = 5.0): array
   {
@@ -343,7 +368,7 @@ if (!function_exists('bulk_material_payment_find_matching_user')) {
 
       $matchedFirstName = bulk_material_payment_normalize_text((string) ($row['first_name'] ?? ''));
       $matchedLastName = bulk_material_payment_normalize_text((string) ($row['last_name'] ?? ''));
-      if ($matchedFirstName !== $normalizedFirstName && $matchedLastName !== $normalizedLastName) {
+      if (!bulk_material_payment_names_overlap($normalizedFirstName, $normalizedLastName, $matchedFirstName, $matchedLastName)) {
         $row['match_status'] = 'name_mismatch';
       }
 
@@ -514,7 +539,7 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
         $matchedUser = bulk_material_payment_find_matching_user($conn, $schoolId, $payerDeptId, $normalizedMatricNo, $normalizedFirstName, $normalizedLastName);
         $matchStatus = (string) ($matchedUser['match_status'] ?? 'not_found');
         if ($matchStatus === 'name_mismatch') {
-          throw new Exception('Matric number matched an existing student, but at least one of first name or last name must match.');
+          throw new Exception(bulk_material_payment_name_mismatch_message());
         }
 
         $matchedUserId = $matchStatus === 'matched' ? (int) ($matchedUser['id'] ?? 0) : 0;
