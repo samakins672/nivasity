@@ -765,6 +765,25 @@ $storeUrl = nivasity_app_url();
       justify-self: start;
     }
 
+    .bulk-option-divider {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      margin: 0.95rem 0;
+      color: rgba(15, 23, 42, 0.62);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .bulk-option-divider::before,
+    .bulk-option-divider::after {
+      content: '';
+      flex: 1;
+      border-top: 1px dashed rgba(var(--bulk-accent-rgb), 0.3);
+    }
+
     .bulk-text-records-input {
       display: block;
       width: 100% !important;
@@ -913,7 +932,6 @@ $storeUrl = nivasity_app_url();
                                 <?php if ($manualCode !== ''): ?>
                                   <p class="text-muted mb-3"><?php echo htmlspecialchars($manualCode, ENT_QUOTES, 'UTF-8'); ?></p>
                                 <?php endif; ?>
-                                <p class="text-muted mb-0">Upload one CSV or paste comma-separated rows, review which students are ready, then pay once from your wallet. Each student will confirm the claim on their own account before access is granted.</p>
                               </div>
                               <div class="bulk-summary-metrics">
                                 <div class="bulk-summary-metric">
@@ -1001,22 +1019,24 @@ $storeUrl = nivasity_app_url();
 
                             <form method="post" enctype="multipart/form-data" class="bulk-dropzone" id="bulkPreviewForm" action="bulk_material_payment.php?manual_id=<?php echo $manualId; ?>">
                               <div class="row g-3 align-items-end">
-                                <div class="col-12 col-lg-8">
+                                <div class="col-12">
                                   <label for="bulk_csv" class="form-label fw-bold">Upload CSV</label>
                                   <input type="file" class="form-control" id="bulk_csv" name="bulk_csv" accept=".csv,text/csv" required>
-                                  <div class="small text-muted mt-2" id="bulkCsvHelper">Only `.csv` files are accepted for upload. You can also paste rows in the modal below.</div>
+                                  <div class="small text-muted mt-2" id="bulkCsvHelper"></div>
                                   <div class="small text-primary fw-semibold mt-1 d-none" id="bulkCsvFileName"></div>
                                 </div>
-                                <div class="col-12 col-lg-4 d-grid">
+                                <div class="col-12 d-grid">
                                   <button type="submit" class="btn btn-primary fw-bold" id="bulkPreviewSubmitBtn">Proceed to Preview & Pay</button>
                                 </div>
                               </div>
                             </form>
 
+                            <div class="bulk-option-divider" aria-hidden="true">OR</div>
+
                             <div class="bulk-dropzone bulk-alt-entry-card mt-3">
                               <div>
                                 <label class="form-label fw-bold mb-1">Paste Records</label>
-                                <div class="small text-muted">Open a modal and paste one comma-separated row per student if you do not want to upload a CSV file.</div>
+                                <div class="small text-muted">Open a modal and paste one comma-separated row per student.</div>
                               </div>
                               <button type="button" class="btn btn-secondary fw-bold" id="bulkOpenTextEntryModalBtn">Paste Records</button>
                               <div class="small text-muted" id="bulkTextDraftStatus">Paste rows in a modal if you do not want to upload a CSV file.</div>
@@ -1216,7 +1236,7 @@ $storeUrl = nivasity_app_url();
         var hasDraft = String(textRecordsInput.val() || '').trim() !== '';
         textDraftStatus.text(
           hasDraft
-            ? 'A pasted-records draft is saved on this device.'
+            ? 'Pasted records are saved on this device.'
             : 'Paste rows in a modal if you do not want to upload a CSV file.'
         );
       }
