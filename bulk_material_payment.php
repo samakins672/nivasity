@@ -5,6 +5,57 @@ include('model/page_config.php');
 require_once 'model/bulk_material_payment_service.php';
 require_once 'model/material_copy_status.php';
 
+if (!function_exists('bulk_material_payment_preview_normalize_header_row')) {
+  function bulk_material_payment_preview_normalize_header_row(array $row): array
+  {
+    $normalizedHeaders = [];
+    foreach ($row as $index => $header) {
+      $header = (string) $header;
+      if ($index === 0) {
+        $header = preg_replace('/^\xEF\xBB\xBF/', '', $header);
+      }
+      $normalizedHeaders[] = bulk_material_payment_normalize_text($header);
+    }
+
+    return $normalizedHeaders;
+  }
+}
+
+if (!function_exists('bulk_material_payment_preview_build_rows_from_records')) {
+  function bulk_material_payment_preview_build_rows_from_records(array $records): array
+  {
+    $rows = [];
+
+    foreach ($records as $record) {
+      if (!is_array($record)) {
+        continue;
+      }
+
+      $data = is_array($record['data'] ?? null) ? $record['data'] : [];
+      $lineNumber = (int) ($record['line_number'] ?? 0);
+      $firstName = trim((string) ($data[0] ?? ''));
+      $lastName = trim((string) ($data[1] ?? ''));
+      $matricNo = trim((string) ($data[2] ?? ''));
+
+      if ($firstName === '' && $lastName === '' && $matricNo === '') {
+        continue;
+      }
+
+      $rows[] = [
+        'line_number' => $lineNumber,
+        'first_name' => $firstName,
+        'last_name' => $lastName,
+        'matric_no' => $matricNo,
+        'normalized_first_name' => bulk_material_payment_normalize_text($firstName),
+        'normalized_last_name' => bulk_material_payment_normalize_text($lastName),
+        'normalized_matric_no' => bulk_material_payment_normalize_text($matricNo),
+      ];
+    }
+
+    return $rows;
+  }
+}
+
 if (!function_exists('bulk_material_payment_preview_parse_upload')) {
   function bulk_material_payment_preview_parse_upload(array $file): array
   {
@@ -50,15 +101,7 @@ if (!function_exists('bulk_material_payment_preview_parse_upload')) {
       ];
     }
 
-    $normalizedHeaders = [];
-    foreach ($headers as $index => $header) {
-      $header = (string) $header;
-      if ($index === 0) {
-        $header = preg_replace('/^\xEF\xBB\xBF/', '', $header);
-      }
-      $normalizedHeaders[] = bulk_material_payment_normalize_text($header);
-    }
-
+    $normalizedHeaders = bulk_material_payment_preview_normalize_header_row($headers);
     $expectedHeaders = bulk_material_payment_format_csv_header();
     if ($normalizedHeaders !== $expectedHeaders) {
       fclose($handle);
@@ -68,7 +111,7 @@ if (!function_exists('bulk_material_payment_preview_parse_upload')) {
       ];
     }
 
-    $rows = [];
+    $records = [];
     $lineNumber = 1;
     while (($data = fgetcsv($handle)) !== false) {
       $lineNumber++;
@@ -76,22 +119,9 @@ if (!function_exists('bulk_material_payment_preview_parse_upload')) {
         continue;
       }
 
-      $firstName = trim((string) ($data[0] ?? ''));
-      $lastName = trim((string) ($data[1] ?? ''));
-      $matricNo = trim((string) ($data[2] ?? ''));
-
-      if ($firstName === '' && $lastName === '' && $matricNo === '') {
-        continue;
-      }
-
-      $rows[] = [
+      $records[] = [
         'line_number' => $lineNumber,
-        'first_name' => $firstName,
-        'last_name' => $lastName,
-        'matric_no' => $matricNo,
-        'normalized_first_name' => bulk_material_payment_normalize_text($firstName),
-        'normalized_last_name' => bulk_material_payment_normalize_text($lastName),
-        'normalized_matric_no' => bulk_material_payment_normalize_text($matricNo),
+        'data' => $data,
       ];
     }
 
@@ -99,8 +129,82 @@ if (!function_exists('bulk_material_payment_preview_parse_upload')) {
 
     return [
       'ok' => true,
+      'rows' => bulk_material_payment_preview_build_rows_from_records($records),
+    ];
+  }
+}
+
+if (!function_exists('bulk_material_payment_preview_parse_text')) {
+  function bulk_material_payment_preview_parse_text(string $rawText): array
+  {
+    if (trim($rawText) === '') {
+      return [
+        'ok' => false,
+        'message' => 'Paste at least one student row before previewing your batch.',
+      ];
+    }
+
+    $lines = preg_split('/\r\n|\r|\n/', $rawText);
+    if (!is_array($lines)) {
+      return [
+        'ok' => false,
+        'message' => 'We could not read the pasted student records.',
+      ];
+    }
+
+    $records = [];
+    foreach ($lines as $index => $line) {
+      if (trim((string) $line) === '') {
+        continue;
+      }
+
+      $data = str_getcsv((string) $line);
+      if (!is_array($data)) {
+        continue;
+      }
+
+      $records[] = [
+        'line_number' => $index + 1,
+        'data' => $data,
+      ];
+    }
+
+    if (count($records) < 1) {
+      return [
+        'ok' => false,
+        'message' => 'Paste at least one student row before previewing your batch.',
+      ];
+    }
+
+    $expectedHeaders = bulk_material_payment_format_csv_header();
+    $firstRecordHeaders = bulk_material_payment_preview_normalize_header_row((array) ($records[0]['data'] ?? []));
+    if ($firstRecordHeaders === $expectedHeaders) {
+      array_shift($records);
+    }
+
+    $rows = bulk_material_payment_preview_build_rows_from_records($records);
+    if (count($rows) < 1) {
+      return [
+        'ok' => false,
+        'message' => 'Paste at least one student row before previewing your batch.',
+      ];
+    }
+
+    return [
+      'ok' => true,
       'rows' => $rows,
     ];
+  }
+}
+
+if (!function_exists('bulk_material_payment_preview_parse_request')) {
+  function bulk_material_payment_preview_parse_request(array $file, string $rawText): array
+  {
+    if (trim($rawText) !== '') {
+      return bulk_material_payment_preview_parse_text($rawText);
+    }
+
+    return bulk_material_payment_preview_parse_upload($file);
   }
 }
 
@@ -454,7 +558,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_preview_bulk_pay
     bulk_material_payment_json_response('error', $pageError, [], 422);
   }
 
-  $parsedUpload = bulk_material_payment_preview_parse_upload($_FILES['bulk_csv'] ?? []);
+  $parsedUpload = bulk_material_payment_preview_parse_request(
+    $_FILES['bulk_csv'] ?? [],
+    (string) ($_POST['bulk_text_records'] ?? '')
+  );
   if (!$parsedUpload['ok']) {
     bulk_material_payment_json_response('error', (string) ($parsedUpload['message'] ?? 'Unable to preview the uploaded CSV right now.'), [], 422);
   }
@@ -787,7 +894,7 @@ $storeUrl = nivasity_app_url();
                                 <?php if ($manualCode !== ''): ?>
                                   <p class="text-muted mb-3"><?php echo htmlspecialchars($manualCode, ENT_QUOTES, 'UTF-8'); ?></p>
                                 <?php endif; ?>
-                                <p class="text-muted mb-0">Upload one CSV, review which students are ready, then pay once from your wallet. Each student will confirm the claim on their own account before access is granted.</p>
+                                <p class="text-muted mb-0">Upload one CSV or paste comma-separated rows, review which students are ready, then pay once from your wallet. Each student will confirm the claim on their own account before access is granted.</p>
                               </div>
                               <div class="bulk-summary-metrics">
                                 <div class="bulk-summary-metric">
@@ -824,7 +931,7 @@ $storeUrl = nivasity_app_url();
                                 <div class="bulk-step-index">2</div>
                                 <div>
                                   <h6 class="fw-bold mb-1">Fill one row per student</h6>
-                                  <p class="text-muted mb-0">Each row must contain <strong>first name</strong>, <strong>last name</strong>, and <strong>matric number</strong>. Students are matched only inside your department.</p>
+                                  <p class="text-muted mb-0">Each row must contain <strong>first name</strong>, <strong>last name</strong>, and <strong>matric number</strong>. You can upload the rows as CSV or paste them directly. Students are matched only inside your department.</p>
                                 </div>
                               </div>
                               <div class="bulk-step-card">
@@ -878,11 +985,17 @@ $storeUrl = nivasity_app_url();
                                 <div class="col-12 col-lg-8">
                                   <label for="bulk_csv" class="form-label fw-bold">Upload CSV</label>
                                   <input type="file" class="form-control" id="bulk_csv" name="bulk_csv" accept=".csv,text/csv" required>
-                                  <div class="small text-muted mt-2" id="bulkCsvHelper">Only `.csv` files are accepted.</div>
+                                  <div class="small text-muted mt-2" id="bulkCsvHelper">Only `.csv` files are accepted for upload. You can also paste rows in the modal below.</div>
                                   <div class="small text-primary fw-semibold mt-1 d-none" id="bulkCsvFileName"></div>
                                 </div>
                                 <div class="col-12 col-lg-4 d-grid">
                                   <button type="submit" class="btn btn-primary fw-bold" id="bulkPreviewSubmitBtn">Proceed to Preview & Pay</button>
+                                </div>
+                                <div class="col-12">
+                                  <div class="d-flex flex-column flex-md-row gap-2 align-items-md-center">
+                                    <button type="button" class="btn btn-outline-secondary fw-bold" id="bulkOpenTextEntryModalBtn">Paste Records In A Modal</button>
+                                    <div class="small text-muted" id="bulkTextDraftStatus">Paste rows in a modal if you do not want to upload a CSV file.</div>
+                                  </div>
                                 </div>
                               </div>
                             </form>
@@ -923,6 +1036,30 @@ $storeUrl = nivasity_app_url();
     </div>
   </div>
 
+  <div class="modal fade" id="bulkTextEntryModal" tabindex="-1" aria-labelledby="bulkTextEntryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen-sm-down modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title fw-bold" id="bulkTextEntryModalLabel">Paste Student Records</h5>
+            <p class="text-muted mb-0">Use one comma-separated row per student in the format <strong>first_name, last_name, matric_no</strong>.</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="bulkTextEntryAlert"></div>
+          <label for="bulkTextRecordsInput" class="form-label fw-bold">Student rows</label>
+          <textarea class="form-control" id="bulkTextRecordsInput" rows="14" placeholder="first_name,last_name,matric_no&#10;Ada,Okafor,CSC/2022/001&#10;John,Balogun,CSC/2022/002"></textarea>
+          <div class="small text-muted mt-2">The first row can be the column header or the first student record. Drafts stay on this device until payment succeeds.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary fw-bold" id="bulkTextPreviewSubmitBtn">Proceed to Preview & Pay</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal fade" id="bulkWalletPinModal" tabindex="-1" aria-labelledby="bulkWalletPinModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -950,6 +1087,7 @@ $storeUrl = nivasity_app_url();
     <input type="hidden" name="submit_bulk_payment" value="1">
     <input type="hidden" name="wallet_pin" id="bulkWalletPaymentHiddenPin" value="">
     <input type="hidden" name="preview_payload" id="bulkWalletPaymentPreviewPayload" value="">
+    <input type="hidden" name="preview_source" id="bulkWalletPaymentPreviewSource" value="">
   </form>
 
   <script src="assets/vendors/js/vendor.bundle.base.js"></script>
@@ -960,15 +1098,32 @@ $storeUrl = nivasity_app_url();
   <script src="assets/js/script.js"></script>
   <script>
     $(document).ready(function () {
+      function createModalInstance(element) {
+        if (!element || !window.bootstrap || !window.bootstrap.Modal) {
+          return null;
+        }
+
+        return typeof window.bootstrap.Modal.getOrCreateInstance === 'function'
+          ? window.bootstrap.Modal.getOrCreateInstance(element)
+          : new window.bootstrap.Modal(element);
+      }
+
       var previewForm = $('#bulkPreviewForm');
       var fileInput = $('#bulk_csv');
       var fileNameNode = $('#bulkCsvFileName');
       var previewSubmitBtn = $('#bulkPreviewSubmitBtn');
+      var openTextEntryModalBtn = $('#bulkOpenTextEntryModalBtn');
+      var textEntryModalElement = document.getElementById('bulkTextEntryModal');
+      var textEntryModal = createModalInstance(textEntryModalElement);
+      var textEntryAlert = $('#bulkTextEntryAlert');
+      var textRecordsInput = $('#bulkTextRecordsInput');
+      var textPreviewSubmitBtn = $('#bulkTextPreviewSubmitBtn');
+      var textDraftStatus = $('#bulkTextDraftStatus');
       var ajaxAlert = $('#bulkPreviewAjaxAlert');
       var previewModalElement = document.getElementById('bulkPreviewModal');
-      var previewModal = previewModalElement && window.bootstrap ? new bootstrap.Modal(previewModalElement) : null;
+      var previewModal = createModalInstance(previewModalElement);
       var walletPinModalElement = document.getElementById('bulkWalletPinModal');
-      var walletPinModal = walletPinModalElement && window.bootstrap ? new bootstrap.Modal(walletPinModalElement) : null;
+      var walletPinModal = createModalInstance(walletPinModalElement);
       var walletPinInput = $('#bulkWalletPinInput');
       var walletPinError = $('#bulkWalletPinError');
       var walletPinConfirmBtn = $('#bulkWalletPinConfirmBtn');
@@ -976,9 +1131,16 @@ $storeUrl = nivasity_app_url();
       var walletPaymentForm = $('#bulkWalletPaymentForm');
       var walletPaymentHiddenPin = $('#bulkWalletPaymentHiddenPin');
       var walletPaymentPreviewPayload = $('#bulkWalletPaymentPreviewPayload');
+      var walletPaymentPreviewSource = $('#bulkWalletPaymentPreviewSource');
       var pendingPaymentTotal = 0;
       var reopenPreviewAfterPin = false;
       var walletPaymentSubmitting = false;
+      var lastPreviewSource = '';
+      var returnTextEntryAfterPreview = false;
+      var previewHideReason = '';
+      var textDraftStorageKey = 'nivasity.bulk_payment_text_records.' + <?php echo json_encode((string) $user_id); ?> + '.' + <?php echo json_encode((string) $manualId); ?>;
+      var paymentCompleted = <?php echo is_array($paymentSuccess) ? 'true' : 'false'; ?>;
+      var initialPreviewSource = <?php echo json_encode((string) ($_POST['preview_source'] ?? '')); ?>;
       var initialPreviewResponse = <?php echo json_encode($initialPreviewResponse, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 
       function escapeHtml(value) {
@@ -996,6 +1158,87 @@ $storeUrl = nivasity_app_url();
 
       function showAjaxAlert(message, kind) {
         ajaxAlert.removeClass('d-none alert-danger alert-success alert-warning alert-info').addClass('alert-' + kind).html(message);
+      }
+
+      function showTextEntryAlert(message, kind) {
+        if (!textEntryAlert.length) {
+          return;
+        }
+
+        if (!message) {
+          textEntryAlert.addClass('d-none').removeClass('alert-danger alert-success alert-warning alert-info').html('');
+          return;
+        }
+
+        textEntryAlert.removeClass('d-none alert-danger alert-success alert-warning alert-info').addClass('alert-' + kind).html(message);
+      }
+
+      function canUseLocalStorage() {
+        try {
+          return typeof window.localStorage !== 'undefined';
+        } catch (error) {
+          return false;
+        }
+      }
+
+      function updateTextDraftStatus() {
+        if (!textDraftStatus.length) {
+          return;
+        }
+
+        if (paymentCompleted) {
+          textDraftStatus.text('Saved pasted records were cleared after payment completion.');
+          return;
+        }
+
+        var hasDraft = String(textRecordsInput.val() || '').trim() !== '';
+        textDraftStatus.text(
+          hasDraft
+            ? 'A pasted-records draft is saved on this device.'
+            : 'Paste rows in a modal if you do not want to upload a CSV file.'
+        );
+      }
+
+      function persistTextDraft() {
+        if (paymentCompleted) {
+          updateTextDraftStatus();
+          return;
+        }
+
+        if (canUseLocalStorage()) {
+          var value = String(textRecordsInput.val() || '');
+          if (value.trim() === '') {
+            window.localStorage.removeItem(textDraftStorageKey);
+          } else {
+            window.localStorage.setItem(textDraftStorageKey, value);
+          }
+        }
+
+        updateTextDraftStatus();
+      }
+
+      function clearTextDraft() {
+        textRecordsInput.val('');
+        if (canUseLocalStorage()) {
+          window.localStorage.removeItem(textDraftStorageKey);
+        }
+        updateTextDraftStatus();
+      }
+
+      function restoreTextDraft() {
+        if (paymentCompleted) {
+          clearTextDraft();
+          return;
+        }
+
+        if (canUseLocalStorage()) {
+          var savedDraft = window.localStorage.getItem(textDraftStorageKey);
+          if (savedDraft) {
+            textRecordsInput.val(savedDraft);
+          }
+        }
+
+        updateTextDraftStatus();
       }
 
       function resolvePreviewRequestError(xhr) {
@@ -1042,6 +1285,15 @@ $storeUrl = nivasity_app_url();
         }
 
         return 'Unable to preview this CSV right now.';
+      }
+
+      function handlePreviewError(message, target) {
+        if (target === 'text') {
+          showTextEntryAlert(message, 'danger');
+          return;
+        }
+
+        showAjaxAlert(message, 'danger');
       }
 
       function renderWarnings(warnings) {
@@ -1134,6 +1386,7 @@ $storeUrl = nivasity_app_url();
         walletPinError.addClass('d-none').text('');
         walletPinMessage.text('Enter your 4-digit Wallet PIN to authorize this bulk payment of ' + formatNaira(pendingPaymentTotal) + '.');
         if (previewModalElement && previewModalElement.classList.contains('show') && previewModal) {
+          previewHideReason = 'wallet';
           $('#bulkPreviewModal').one('hidden.bs.modal', function () {
             if (walletPinModal) {
               walletPinModal.show();
@@ -1147,11 +1400,17 @@ $storeUrl = nivasity_app_url();
         }
       }
 
-      function renderPreviewModal(response) {
+      function renderPreviewModal(response, source) {
+        if (source) {
+          lastPreviewSource = source;
+          returnTextEntryAfterPreview = source === 'text';
+        }
+
         var payload = response && response.data ? response.data : {};
         var preview = payload.preview || {};
         var manual = payload.manual || {};
         walletPaymentPreviewPayload.val(JSON.stringify(Array.isArray(payload.preview_rows) ? payload.preview_rows : []));
+        walletPaymentPreviewSource.val(lastPreviewSource || 'file');
         var summaryHtml = '' +
           '<div class="row g-3">' +
             '<div class="col-6 col-md-3"><div class="bulk-kpi-card"><p class="text-muted mb-1">Rows uploaded</p><h4 class="fw-bold mb-0">' + Number((preview.rows || []).length) + '</h4></div></div>' +
@@ -1176,9 +1435,55 @@ $storeUrl = nivasity_app_url();
         $('#bulkPreviewModalRows').html(rowsHtml);
         $('#bulkPreviewModalPaymentWrap').html(renderPaymentBlock(payload));
 
+        if (lastPreviewSource === 'text' && textEntryModalElement && textEntryModalElement.classList.contains('show') && textEntryModal) {
+          $('#bulkTextEntryModal').one('hidden.bs.modal', function () {
+            if (previewModal) {
+              previewModal.show();
+            }
+          });
+          textEntryModal.hide();
+          return;
+        }
+
         if (previewModal) {
           previewModal.show();
         }
+      }
+
+      function runPreviewRequest(formData, options) {
+        options = options || {};
+
+        var triggerButton = options.triggerButton || previewSubmitBtn;
+        var previewSource = options.previewSource || 'file';
+        var errorTarget = options.errorTarget || 'page';
+        var originalText = triggerButton.html();
+
+        if (errorTarget === 'text') {
+          showTextEntryAlert('', 'danger');
+        }
+        ajaxAlert.addClass('d-none').removeClass('alert-danger alert-success alert-warning alert-info').html('');
+
+        triggerButton.prop('disabled', true).html('Previewing...');
+
+        $.ajax({
+          type: 'POST',
+          url: previewForm.attr('action'),
+          data: formData,
+          processData: false,
+          contentType: false,
+          dataType: 'json'
+        }).done(function (response) {
+          if (response && response.status === 'success') {
+            renderPreviewModal(response, previewSource);
+            return;
+          }
+
+          handlePreviewError(response && response.message ? response.message : 'Unable to preview this CSV right now.', errorTarget);
+        }).fail(function (xhr) {
+          handlePreviewError(resolvePreviewRequestError(xhr), errorTarget);
+        }).always(function () {
+          triggerButton.prop('disabled', false).html(originalText);
+        });
       }
 
       fileInput.on('change', function () {
@@ -1190,33 +1495,45 @@ $storeUrl = nivasity_app_url();
         }
       });
 
+      textRecordsInput.on('input', function () {
+        persistTextDraft();
+      });
+
+      openTextEntryModalBtn.on('click', function () {
+        showTextEntryAlert('', 'danger');
+        if (textEntryModal) {
+          textEntryModal.show();
+        }
+      });
+
       previewForm.on('submit', function (event) {
         event.preventDefault();
 
         var formData = new FormData(this);
         formData.append('ajax_preview_bulk_payment', '1');
-        var originalText = previewSubmitBtn.html();
-        previewSubmitBtn.prop('disabled', true).html('Previewing...');
-        ajaxAlert.addClass('d-none').removeClass('alert-danger alert-success alert-warning alert-info').html('');
+        runPreviewRequest(formData, {
+          triggerButton: previewSubmitBtn,
+          previewSource: 'file',
+          errorTarget: 'page'
+        });
+      });
 
-        $.ajax({
-          type: 'POST',
-          url: previewForm.attr('action'),
-          data: formData,
-          processData: false,
-          contentType: false,
-          dataType: 'json'
-        }).done(function (response) {
-          if (response && response.status === 'success') {
-            renderPreviewModal(response);
-            return;
-          }
+      textPreviewSubmitBtn.on('click', function () {
+        var rawText = String(textRecordsInput.val() || '');
+        if (rawText.trim() === '') {
+          showTextEntryAlert('Paste at least one student row before previewing your batch.', 'danger');
+          return;
+        }
 
-          showAjaxAlert(response && response.message ? response.message : 'Unable to preview this CSV right now.', 'danger');
-        }).fail(function (xhr) {
-          showAjaxAlert(resolvePreviewRequestError(xhr), 'danger');
-        }).always(function () {
-          previewSubmitBtn.prop('disabled', false).html(originalText);
+        persistTextDraft();
+
+        var formData = new FormData();
+        formData.append('ajax_preview_bulk_payment', '1');
+        formData.append('bulk_text_records', rawText);
+        runPreviewRequest(formData, {
+          triggerButton: textPreviewSubmitBtn,
+          previewSource: 'text',
+          errorTarget: 'text'
         });
       });
 
@@ -1237,13 +1554,27 @@ $storeUrl = nivasity_app_url();
 
         walletPinError.addClass('d-none').text('');
         walletPaymentHiddenPin.val(pin);
+        walletPaymentPreviewSource.val(lastPreviewSource || 'file');
         walletPaymentSubmitting = true;
         walletPinConfirmBtn.prop('disabled', true).text('Confirming...');
         walletPaymentForm.get(0).submit();
       });
 
+      $('#bulkPreviewModal').on('hidden.bs.modal', function () {
+        if (previewHideReason === 'wallet') {
+          previewHideReason = '';
+          return;
+        }
+
+        if (!walletPaymentSubmitting && returnTextEntryAfterPreview && lastPreviewSource === 'text' && textEntryModal) {
+          textEntryModal.show();
+        }
+      });
+
+      restoreTextDraft();
+
       if (initialPreviewResponse) {
-        renderPreviewModal(initialPreviewResponse);
+        renderPreviewModal(initialPreviewResponse, initialPreviewSource || 'file');
       }
 
       $('#bulkWalletPinModal').on('hidden.bs.modal', function () {
