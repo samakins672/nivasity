@@ -14,9 +14,6 @@ $date = date('Y-m-d');
 $_SESSION['cart_sellers'] = [];
 
 $gateway_payment_freeze_info = get_payment_freeze_info('gateway');
-$gateway_payment_freeze_message = $gateway_payment_freeze_info
-    ? htmlspecialchars((string) ($gateway_payment_freeze_info['message'] ?? 'Gateway payments are currently paused. Only wallet payments are allowed right now.'), ENT_QUOTES, 'UTF-8')
-    : '';
 
 
 if (isset($_SESSION["nivas_cart_event"])) {
@@ -283,7 +280,9 @@ if (isset($_POST['reload_cart'])) {
                         <a class="btn w-100 cart-payment-action wallet-primary" href="wallet.php">Set up wallet to pay ' . $walletTotalLabel . '</a>';
         }
         echo '
-                    </div>
+                    </div>';
+        if (!$gateway_payment_freeze_info) {
+            echo '
                     <div class="cart-payment-option">
                         <div class="cart-payment-option-header">
                             <div>
@@ -296,17 +295,10 @@ if (isset($_POST['reload_cart'])) {
                                 <span>Final Total</span>
                                 <strong>' . $gatewayTotalLabel . '</strong>
                             </div>
-                        </div>';
-        if ($gateway_payment_freeze_info) {
-            echo '
-                        <button class="btn w-100 cart-payment-action wallet-disabled" disabled>Gateway temporarily unavailable</button>
-                        <p class="cart-payment-note mt-3 mb-0">' . $gateway_payment_freeze_message . '</p>';
-        } else {
-            echo '
-                        <button class="btn w-100 cart-payment-action gateway-secondary checkout-cart" data-session_data="'.$sessionData.'" data-charge="'.$charge.'" data-transfer_amount="'.$transferAmount.'" data-mdb-ripple-duration="0ms">Pay ' . $gatewayTotalLabel . ' online</button>';
-        }
-        echo '
+                        </div>
+                        <button class="btn w-100 cart-payment-action gateway-secondary checkout-cart" data-session_data="'.$sessionData.'" data-charge="'.$charge.'" data-transfer_amount="'.$transferAmount.'" data-mdb-ripple-duration="0ms">Pay ' . $gatewayTotalLabel . ' online</button>
                     </div>';
+        }
     } else if ($total_cart_price == 0 && $total_cart_event > 0) {
         echo '
                     <div class="cart-payment-option is-wallet">
