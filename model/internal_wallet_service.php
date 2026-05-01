@@ -181,6 +181,68 @@ if (!function_exists('nivasityRefundsTableExists')) {
     }
 }
 
+if (!function_exists('nivasityManualBulkPaymentBatchesTableExists')) {
+    function nivasityManualBulkPaymentBatchesTableExists($conn) {
+        static $exists = null;
+
+        if ($exists !== null) {
+            return $exists;
+        }
+
+        $rs = mysqli_query($conn, "SHOW TABLES LIKE 'manual_bulk_payment_batches'");
+        $exists = $rs && mysqli_num_rows($rs) > 0;
+        return $exists;
+    }
+}
+
+if (!function_exists('nivasityManualBulkPaymentStudentsTableExists')) {
+    function nivasityManualBulkPaymentStudentsTableExists($conn) {
+        static $exists = null;
+
+        if ($exists !== null) {
+            return $exists;
+        }
+
+        $rs = mysqli_query($conn, "SHOW TABLES LIKE 'manual_bulk_payment_students'");
+        $exists = $rs && mysqli_num_rows($rs) > 0;
+        return $exists;
+    }
+}
+
+if (!function_exists('nivasityIsSuccessfulBulkStudentPurchaseRef')) {
+    function nivasityIsSuccessfulBulkStudentPurchaseRef($conn, $refId) {
+        static $cache = [];
+
+        $refId = trim((string)$refId);
+        if ($refId === '') {
+            return false;
+        }
+
+        if (array_key_exists($refId, $cache)) {
+            return $cache[$refId];
+        }
+
+        if (!nivasityManualBulkPaymentStudentsTableExists($conn) || !nivasityManualBulkPaymentBatchesTableExists($conn)) {
+            $cache[$refId] = false;
+            return $cache[$refId];
+        }
+
+        $refIdSafe = mysqli_real_escape_string($conn, $refId);
+        $rs = mysqli_query(
+            $conn,
+            "SELECT 1
+             FROM manual_bulk_payment_students mbps
+             INNER JOIN manual_bulk_payment_batches mbpb ON mbpb.id = mbps.batch_id
+             WHERE mbps.ref_id = '$refIdSafe'
+               AND mbpb.payment_status = 'successful'
+             LIMIT 1"
+        );
+
+        $cache[$refId] = $rs && mysqli_num_rows($rs) > 0;
+        return $cache[$refId];
+    }
+}
+
 if (!function_exists('nivasityRequireWalletPinInfrastructure')) {
     function nivasityRequireWalletPinInfrastructure($conn) {
         if (
@@ -1117,6 +1179,13 @@ if (!function_exists('nivasityEnsureSchoolPayableForPurchase')) {
             ];
         }
 
+        if (nivasityIsSuccessfulBulkStudentPurchaseRef($conn, $sourceRefId)) {
+            return [
+                'status' => 'ignored_bulk_student_ref',
+                'payable_amount' => 0,
+            ];
+        }
+
         $transactionRs = mysqli_query($conn, "SELECT * FROM transactions WHERE ref_id = '$sourceRefSafe' ORDER BY id DESC LIMIT 1");
         if (!$transactionRs) {
             throw new Exception('Failed to inspect purchase transaction for ledger repair: ' . mysqli_error($conn));
@@ -1300,6 +1369,18 @@ if (!function_exists('nivasityListMissingSchoolPayableRefs')) {
             )",
         ];
 
+        if (nivasityManualBulkPaymentStudentsTableExists($conn) && nivasityManualBulkPaymentBatchesTableExists($conn)) {
+            $where[] = "NOT EXISTS (
+                SELECT 1
+                FROM manual_bulk_payment_students mbps
+                INNER JOIN manual_bulk_payment_batches mbpb
+                    ON mbpb.id = mbps.batch_id
+                WHERE mbps.ref_id = t.ref_id
+                  AND mbpb.payment_status = 'successful'
+                LIMIT 1
+            )";
+        }
+
         if ($refId !== '') {
             $refIdSafe = mysqli_real_escape_string($conn, $refId);
             $where[] = "t.ref_id = '$refIdSafe'";
@@ -1413,6 +1494,8 @@ if (!function_exists('nivasityRunSchoolPayableRepairSweep')) {
                 if ($repairStatus === 'created') {
                     $summary['repaired']++;
                 } elseif ($repairStatus === 'exists') {
+                    $summary['already_present']++;
+                } elseif ($repairStatus === 'ignored_bulk_student_ref') {
                     $summary['already_present']++;
                 } elseif ($repairStatus === 'unresolved') {
                     $summary['unresolved']++;
