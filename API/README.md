@@ -36,7 +36,6 @@ When the access token expires, use the refresh token to get a new access token p
   "password": "securepassword",
   "first_name": "John",
   "last_name": "Doe",
-  "phone": "08012345678",
   "gender": "male",
   "school_id": 1
 }
@@ -57,6 +56,8 @@ When the access token expires, use the refresh token to get a new access token p
 ```
 
 **Note:** 
+- `email`, `password`, `first_name`, `last_name`, `gender`, and `school_id` are required at registration.
+- `phone` is optional and can be supplied later if the student chooses.
 - Account is created with status='unverified' until OTP is verified
 - OTP expires in 10 minutes (600 seconds)
 - Academic information (department, matric number, admission year) is NOT required at registration

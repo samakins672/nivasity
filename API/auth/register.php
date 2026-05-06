@@ -16,14 +16,13 @@ if (!$input) {
     $input = $_POST;
 }
 
-// Validate required fields
-validateRequiredFields(['email', 'password', 'first_name', 'last_name', 'phone', 'gender', 'school_id'], $input);
+validateRequiredFields(['email', 'password', 'first_name', 'last_name', 'gender', 'school_id'], $input);
 
 $email = sanitizeInput($conn, $input['email']);
 $password = md5($input['password']);
 $first_name = sanitizeInput($conn, $input['first_name']);
 $last_name = sanitizeInput($conn, $input['last_name']);
-$phone = sanitizeInput($conn, $input['phone']);
+$phone = sanitizeInput($conn, $input['phone'] ?? '');
 $gender = sanitizeInput($conn, $input['gender']);
 $school_id = (int)$input['school_id'];
 
