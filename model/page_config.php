@@ -29,7 +29,7 @@ if (isset($_SESSION['nivas_userId'])) {
   $mobile_experience_prompt_state = [
     'captured' => false,
     'visit_count' => 0,
-    'min_visits' => 5,
+    'min_visits' => 6,
     'should_show' => false,
   ];
   
@@ -80,7 +80,7 @@ if (isset($_SESSION['nivas_userId'])) {
     exit();
   }
 
-  $mobile_experience_prompt_state = mobile_experience_prompt_get_state($conn, (int) $user_id, 5, true);
+  $mobile_experience_prompt_state = mobile_experience_prompt_get_state($conn, (int) $user_id, 6, true);
 
 }
 

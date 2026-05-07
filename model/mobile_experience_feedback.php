@@ -59,12 +59,13 @@ if ($source_page === '') {
   $source_page = 'store';
 }
 $source_page = substr($source_page, 0, 64);
+$campaign_key = mobile_experience_prompt_get_current_campaign_key();
 $user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? substr((string) $_SERVER['HTTP_USER_AGENT'], 0, 255) : null;
 $comfort_label = $comfort_labels[$comfort_level];
 
 mobile_experience_prompt_ensure_schema($conn);
 
-if (mobile_experience_prompt_has_feedback($conn, $user_id)) {
+if (mobile_experience_prompt_has_feedback($conn, $user_id, $campaign_key)) {
   echo json_encode([
     'status' => 'success',
     'message' => 'Feedback already captured'
@@ -72,8 +73,8 @@ if (mobile_experience_prompt_has_feedback($conn, $user_id)) {
   exit;
 }
 
-$query = "INSERT INTO mobile_experience_feedback (user_id, device_choice, comfort_level, comfort_label, source_page, user_agent, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, NOW())";
+$query = "INSERT INTO mobile_experience_feedback (user_id, device_choice, comfort_level, comfort_label, source_page, campaign_key, user_agent, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
 $stmt = mysqli_prepare($conn, $query);
 
 if (!$stmt) {
@@ -85,7 +86,7 @@ if (!$stmt) {
   exit;
 }
 
-mysqli_stmt_bind_param($stmt, 'isssss', $user_id, $device_choice, $comfort_level, $comfort_label, $source_page, $user_agent);
+mysqli_stmt_bind_param($stmt, 'issssss', $user_id, $device_choice, $comfort_level, $comfort_label, $source_page, $campaign_key, $user_agent);
 $ok = mysqli_stmt_execute($stmt);
 mysqli_stmt_close($stmt);
 

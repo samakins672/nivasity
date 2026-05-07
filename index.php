@@ -16,6 +16,7 @@ $gateway_payment_freeze_info = get_payment_freeze_info('gateway');
 $wallet_payment_freeze_info = get_payment_freeze_info('wallet');
 $free_payment_freeze_info = get_payment_freeze_info('free');
 $play_store_url = 'https://play.google.com/store/apps/details?id=com.nivasity.app';
+$app_store_url = 'https://apps.apple.com/us/app/nivasity/id6766183351';
 $mobile_prompt_captured = !empty($mobile_experience_prompt_state['captured']);
 $mobile_prompt_should_show = !empty($mobile_experience_prompt_state['should_show']);
 $wallet_pin_configured = function_exists('nivasityUserHasWalletPin') ? nivasityUserHasWalletPin($conn, (int)$user_id) : false;
@@ -931,6 +932,7 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
   <script src="assets/js/main.js"></script>
   <script>
     const playStoreUrl = <?php echo json_encode($play_store_url); ?>;
+    const appStoreUrl = <?php echo json_encode($app_store_url); ?>;
     const mobileAppPromptCaptured = <?php echo $mobile_prompt_captured ? 'true' : 'false'; ?>;
     const mobileAppPromptShouldShow = <?php echo $mobile_prompt_should_show ? 'true' : 'false'; ?>;
 
@@ -1066,11 +1068,13 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           }
 
           if (step === 'iphone') {
-            titleEl.textContent = 'Nivasity iOS App Coming Soon 🎊';
+            titleEl.textContent = 'Nivasity iPhone App Is Live 🎊';
             bodyEl.innerHTML = ''
               + '<p class="mb-2">' + getComfortIntroMessage() + '</p><br>'
-              + "<p class=\"mb-0\">We're excited to announce that our team is <strong>actively building</strong> the Nivasity iOS app and working to launch by <strong>March 2026</strong>, to give all students a <strong>smoother experience</strong>.</p>";
-            actionsEl.innerHTML = '<button type="button" class="btn btn-primary" data-app-action="cancel">Cancel</button>';
+              + "<p class=\"mb-0\">We're happy to announce that our team has <strong>launched</strong> the Nivasity app on the <strong>App Store</strong>.</p>";
+            actionsEl.innerHTML = ''
+              + '<button type="button" class="btn btn-light" data-app-action="cancel">Cancel</button>'
+              + '<a href="' + appStoreUrl + '" target="_blank" rel="noopener noreferrer" class="btn btn-primary" data-app-action="install">Install now</a>';
             return;
           }
 
