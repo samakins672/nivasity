@@ -109,6 +109,176 @@ if (!function_exists('nivasityWalletFundingTransactionsHasColumn')) {
     }
 }
 
+if (!function_exists('nivasityWalletPreCreditsTableExists')) {
+    function nivasityWalletPreCreditsTableExists($conn) {
+        static $exists = null;
+
+        if ($exists !== null) {
+            return $exists;
+        }
+
+        $rs = mysqli_query($conn, "SHOW TABLES LIKE 'wallet_pre_credits'");
+        $exists = $rs && mysqli_num_rows($rs) > 0;
+        return $exists;
+    }
+}
+
+if (!function_exists('nivasityWalletPreCreditsHasColumn')) {
+    function nivasityWalletPreCreditsHasColumn($conn, $columnName) {
+        static $columns = [];
+
+        if (array_key_exists($columnName, $columns)) {
+            return $columns[$columnName];
+        }
+
+        if (!nivasityWalletPreCreditsTableExists($conn)) {
+            $columns[$columnName] = false;
+            return false;
+        }
+
+        $columnNameSafe = mysqli_real_escape_string($conn, (string)$columnName);
+        $rs = mysqli_query($conn, "SHOW COLUMNS FROM wallet_pre_credits LIKE '$columnNameSafe'");
+        $columns[$columnName] = $rs && mysqli_num_rows($rs) > 0;
+        return $columns[$columnName];
+    }
+}
+
+if (!function_exists('nivasityGetWalletPreCreditByReference')) {
+    function nivasityGetWalletPreCreditByReference($conn, $reference) {
+        $reference = trim((string)$reference);
+        if ($reference === '' || !nivasityWalletPreCreditsTableExists($conn)) {
+            return null;
+        }
+
+        $fields = [
+            'id',
+            'wallet_id',
+            'user_id',
+            'provider_reference',
+            'amount',
+            'status',
+        ];
+
+        $optionalFields = [
+            'confirmed_amount',
+            'confirmed_provider_transaction_id',
+            'confirmation_source',
+            'reconciliation_note',
+            'confirmed_at',
+            'confirmed_payload',
+        ];
+
+        foreach ($optionalFields as $field) {
+            if (nivasityWalletPreCreditsHasColumn($conn, $field)) {
+                $fields[] = $field;
+            }
+        }
+
+        $referenceSafe = mysqli_real_escape_string($conn, $reference);
+        $sql = "SELECT " . implode(', ', $fields) . "
+                FROM wallet_pre_credits
+                WHERE provider_reference = '$referenceSafe'
+                LIMIT 1";
+        $rs = mysqli_query($conn, $sql);
+        if ($rs && mysqli_num_rows($rs) > 0) {
+            return mysqli_fetch_assoc($rs);
+        }
+
+        return null;
+    }
+}
+
+if (!function_exists('nivasityReconcileWalletPreCredit')) {
+    function nivasityReconcileWalletPreCredit($conn, $reference, $amount, $payload, $source = 'webhook') {
+        $reference = trim((string)$reference);
+        $amount = (int)round((float)$amount);
+        if ($reference === '' || $amount <= 0) {
+            return [
+                'matched' => false,
+            ];
+        }
+
+        $preCredit = nivasityGetWalletPreCreditByReference($conn, $reference);
+        if (!$preCredit) {
+            return [
+                'matched' => false,
+            ];
+        }
+
+        $expectedAmount = (int)($preCredit['amount'] ?? 0);
+        $amountMatches = $expectedAmount === $amount;
+        $status = $amountMatches ? 'confirmed' : 'amount_disputed';
+        $source = trim((string)$source);
+        if ($source === '') {
+            $source = 'webhook';
+        }
+
+        $providerTransactionId = trim((string)($payload['id'] ?? ''));
+        $currentNote = trim((string)($preCredit['reconciliation_note'] ?? ''));
+        $newNote = $amountMatches
+            ? 'Paystack ' . $source . ' confirmed the manual wallet pre-credit reference ' . $reference . '.'
+            : 'Paystack ' . $source . ' reported amount ' . $amount . ' for wallet pre-credit reference ' . $reference . ', but the manual pre-credit amount is ' . $expectedAmount . '.';
+
+        if ($currentNote !== '' && stripos($currentNote, $newNote) === false) {
+            $newNote = $currentNote . "\n" . $newNote;
+        }
+
+        $updates = [
+            "status = '" . mysqli_real_escape_string($conn, $status) . "'",
+            'updated_at = NOW()',
+        ];
+
+        if (nivasityWalletPreCreditsHasColumn($conn, 'confirmed_amount')) {
+            $updates[] = 'confirmed_amount = ' . $amount;
+        }
+
+        if (nivasityWalletPreCreditsHasColumn($conn, 'confirmed_provider_transaction_id')) {
+            $providerTransactionIdSafe = mysqli_real_escape_string($conn, $providerTransactionId);
+            $updates[] = $providerTransactionId !== ''
+                ? "confirmed_provider_transaction_id = '$providerTransactionIdSafe'"
+                : 'confirmed_provider_transaction_id = NULL';
+        }
+
+        if (nivasityWalletPreCreditsHasColumn($conn, 'confirmation_source')) {
+            $sourceSafe = mysqli_real_escape_string($conn, $source);
+            $updates[] = "confirmation_source = '$sourceSafe'";
+        }
+
+        if (nivasityWalletPreCreditsHasColumn($conn, 'reconciliation_note')) {
+            $newNoteSafe = mysqli_real_escape_string($conn, $newNote);
+            $updates[] = "reconciliation_note = '$newNoteSafe'";
+        }
+
+        if (nivasityWalletPreCreditsHasColumn($conn, 'confirmed_payload')) {
+            $payloadJson = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            if ($payloadJson === false) {
+                $payloadJson = '{}';
+            }
+            $payloadSafe = mysqli_real_escape_string($conn, $payloadJson);
+            $updates[] = "confirmed_payload = '$payloadSafe'";
+        }
+
+        if (nivasityWalletPreCreditsHasColumn($conn, 'confirmed_at')) {
+            $updates[] = $amountMatches
+                ? 'confirmed_at = COALESCE(confirmed_at, NOW())'
+                : 'confirmed_at = NULL';
+        }
+
+        $preCreditId = (int)($preCredit['id'] ?? 0);
+        $updateSql = 'UPDATE wallet_pre_credits SET ' . implode(', ', $updates) . ' WHERE id = ' . $preCreditId . ' LIMIT 1';
+        if (!mysqli_query($conn, $updateSql)) {
+            throw new Exception('Failed to reconcile wallet pre-credit row: ' . mysqli_error($conn));
+        }
+
+        return [
+            'matched' => true,
+            'status' => $status,
+            'amount_matches' => $amountMatches,
+            'pre_credit' => nivasityGetWalletPreCreditByReference($conn, $reference),
+        ];
+    }
+}
+
 if (!function_exists('nivasityWalletTransfersTableExists')) {
     function nivasityWalletTransfersTableExists($conn) {
         static $exists = null;
@@ -2454,6 +2624,17 @@ if (!function_exists('nivasityApplyWalletFundingTransaction')) {
             throw new Exception('Wallet funding amount must be greater than zero');
         }
 
+        $preCreditReconciliation = nivasityReconcileWalletPreCredit($conn, $providerReference, $amount, $data, $source);
+        if (!empty($preCreditReconciliation['matched'])) {
+            return [
+                'status' => !empty($preCreditReconciliation['amount_matches']) ? 'pre_credit_confirmed' : 'pre_credit_disputed',
+                'amount' => $amount,
+                'reconciled' => true,
+                'pre_credit' => $preCreditReconciliation['pre_credit'] ?? null,
+                'amount_matches' => !empty($preCreditReconciliation['amount_matches']),
+            ];
+        }
+
         $providerReferenceSafe = mysqli_real_escape_string($conn, $providerReference);
         $existingSql = "SELECT * FROM wallet_funding_transactions WHERE provider_reference = '$providerReferenceSafe' LIMIT 1";
         $existingRs = mysqli_query($conn, $existingSql);
@@ -3004,6 +3185,8 @@ if (!function_exists('nivasitySyncWalletFundingFromPaystack')) {
                 'status' => 'no_wallet',
                 'processed' => 0,
                 'posted' => 0,
+                'reconciled' => 0,
+                'disputed' => 0,
             ];
         }
 
@@ -3023,6 +3206,8 @@ if (!function_exists('nivasitySyncWalletFundingFromPaystack')) {
 
         $processed = 0;
         $posted = 0;
+        $reconciled = 0;
+        $disputed = 0;
         foreach ($transactions as $row) {
             if (!nivasityIsPaystackDvaTransaction($conn, $wallet, $row, $customerId, $customerCode)) {
                 continue;
@@ -3033,6 +3218,11 @@ if (!function_exists('nivasitySyncWalletFundingFromPaystack')) {
                 $applyResult = nivasityApplyWalletFundingTransaction($conn, $wallet, $row, $source, 'dedicated_account.credit');
                 if (($applyResult['status'] ?? '') === 'posted') {
                     $posted++;
+                } elseif (($applyResult['status'] ?? '') === 'pre_credit_confirmed') {
+                    $reconciled++;
+                } elseif (($applyResult['status'] ?? '') === 'pre_credit_disputed') {
+                    $reconciled++;
+                    $disputed++;
                 }
             } catch (Throwable $e) {
                 nivasityWalletLog('Wallet funding sync row failed', [
@@ -3047,7 +3237,15 @@ if (!function_exists('nivasitySyncWalletFundingFromPaystack')) {
             'status' => 'ok',
             'processed' => $processed,
             'posted' => $posted,
-            'message' => $posted > 0 ? 'Wallet funding sync completed successfully.' : 'No new DVA funding transactions were found for this customer.',
+            'reconciled' => $reconciled,
+            'disputed' => $disputed,
+            'message' => $posted > 0
+                ? 'Wallet funding sync completed successfully.'
+                : ($reconciled > 0
+                    ? ($disputed > 0
+                        ? 'Wallet funding sync completed and flagged one or more pre-credit amount disputes.'
+                        : 'Wallet funding sync completed and confirmed pending wallet pre-credits without double crediting the wallet.')
+                    : 'No new DVA funding transactions were found for this customer.'),
         ];
     }
 }
@@ -3106,6 +3304,8 @@ if (!function_exists('nivasityRunWalletFundingSweep')) {
             'wallets_with_new_credits' => 0,
             'processed_rows' => 0,
             'posted_rows' => 0,
+            'reconciled_rows' => 0,
+            'disputed_rows' => 0,
             'failed_wallets' => 0,
         ];
         $results = [];
@@ -3124,6 +3324,8 @@ if (!function_exists('nivasityRunWalletFundingSweep')) {
                 'status' => 'pending',
                 'processed' => 0,
                 'posted' => 0,
+                'reconciled' => 0,
+                'disputed' => 0,
                 'message' => '',
             ];
 
@@ -3132,10 +3334,14 @@ if (!function_exists('nivasityRunWalletFundingSweep')) {
                 $result['status'] = (string)($syncResult['status'] ?? 'ok');
                 $result['processed'] = (int)($syncResult['processed'] ?? 0);
                 $result['posted'] = (int)($syncResult['posted'] ?? 0);
+                $result['reconciled'] = (int)($syncResult['reconciled'] ?? 0);
+                $result['disputed'] = (int)($syncResult['disputed'] ?? 0);
                 $result['message'] = trim((string)($syncResult['message'] ?? ''));
 
                 $summary['processed_rows'] += $result['processed'];
                 $summary['posted_rows'] += $result['posted'];
+                $summary['reconciled_rows'] += $result['reconciled'];
+                $summary['disputed_rows'] += $result['disputed'];
                 if ($result['posted'] > 0) {
                     $summary['wallets_with_new_credits']++;
                 }
