@@ -114,10 +114,14 @@ if (!class_exists('NivasityManualExportPdfComposer')) {
         $textLines = $this->wrapText((string) ($row[$key] ?? ''), (float) $header['width'], 9.5);
         $lineY = $this->cursorY + 12;
         foreach ($textLines as $line) {
+          $color = [0.170, 0.170, 0.170];
+          if ($key === 'name' && trim((string) $line) === 'Paid outside Nivasity') {
+            $color = [0.480, 0.480, 0.480];
+          }
           if (($header['align'] ?? 'left') === 'right') {
-            $this->textRight((float) $header['x'], $lineY, $line, 'F1', 9.5, [0.170, 0.170, 0.170]);
+            $this->textRight((float) $header['x'], $lineY, $line, 'F1', 9.5, $color);
           } else {
-            $this->text((float) $header['x'], $lineY, $line, 'F1', 9.5, [0.170, 0.170, 0.170]);
+            $this->text((float) $header['x'], $lineY, $line, 'F1', 9.5, $color);
           }
           $lineY += 12;
         }

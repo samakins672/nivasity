@@ -140,6 +140,15 @@ function exportIsExternalManualPaymentRef($refId) {
   return stripos(trim((string)$refId), 'manual_ext_') === 0;
 }
 
+function exportDisplayMatricNo($matricNo) {
+  $matricNo = trim((string)$matricNo);
+  if ($matricNo === '') {
+    return '';
+  }
+
+  return preg_replace('/_PEND_$/i', '', $matricNo) ?? $matricNo;
+}
+
 // Check if the manual ID is provided in the POST request
 if (isset($_POST['manual_id'])) {
   $requestId = exportRequestId();
@@ -401,7 +410,7 @@ if (isset($_POST['manual_id'])) {
       $usersData[] = [
         'user_id' => $userId,
         'name' => $row['first_name'] . ' ' . $row['last_name'],
-        'matric_no' => $row['matric_no'],
+        'matric_no' => exportDisplayMatricNo($row['matric_no'] ?? ''),
         'adm_year' => $row['adm_year'],
         'price' => $price,
         'is_external_payment' => exportIsExternalManualPaymentRef($row['ref_id'] ?? ''),
