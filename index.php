@@ -1181,7 +1181,8 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
             dataType: 'json',
             data: {
               student_row_id: claim.id,
-              action: action
+              action: action,
+              source: claim.source || 'bulk'
             }
           }).done(function(response) {
             if (response && response.status === 'success') {

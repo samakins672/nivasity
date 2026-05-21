@@ -47,9 +47,10 @@ if (!in_array($role, ['student', 'hoc'], true)) {
 
 $studentRowId = isset($_POST['student_row_id']) ? (int) $_POST['student_row_id'] : 0;
 $action = isset($_POST['action']) ? trim((string) $_POST['action']) : '';
+$source = isset($_POST['source']) ? trim((string) $_POST['source']) : '';
 
 try {
-  $result = bulk_material_payment_resolve_claim_for_user($conn, $studentRowId, $user, $action);
+  $result = bulk_material_payment_resolve_claim_for_user($conn, $studentRowId, $user, $action, $source);
   $remainingClaims = bulk_material_payment_get_pending_claims_for_user($conn, $user, 5);
   echo json_encode([
     'status' => 'success',

@@ -278,6 +278,65 @@ if (!function_exists('bulk_material_payment_student_transaction_context')) {
   }
 }
 
+if (!function_exists('bulk_material_payment_claim_source_bulk')) {
+  function bulk_material_payment_claim_source_bulk(): string
+  {
+    return 'bulk';
+  }
+}
+
+if (!function_exists('bulk_material_payment_claim_source_external_manual')) {
+  function bulk_material_payment_claim_source_external_manual(): string
+  {
+    return 'external_manual';
+  }
+}
+
+if (!function_exists('bulk_material_payment_normalize_claim_matric')) {
+  function bulk_material_payment_normalize_claim_matric(string $value): string
+  {
+    $value = strtoupper(trim($value));
+    return preg_replace('/\s+/', '', $value) ?? '';
+  }
+}
+
+if (!function_exists('bulk_material_payment_external_manual_claims_ready')) {
+  function bulk_material_payment_external_manual_claims_ready(mysqli $conn): bool
+  {
+    if (!bulk_material_payment_has_table($conn, 'manual_payment_batches') || !bulk_material_payment_has_table($conn, 'manual_payment_batch_items')) {
+      return false;
+    }
+
+    $requiredColumns = [
+      'manual_payment_batch_items' => [
+        'student_matric',
+        'student_first_name',
+        'student_last_name',
+        'placeholder_user_id',
+        'matched_user_id',
+        'manuals_bought_id',
+        'normalized_first_name',
+        'normalized_last_name',
+        'pending_lookup_matric_no',
+        'claim_status',
+        'claimed_at',
+        'confirmed_at',
+      ],
+      'manual_payment_batches' => ['school_id', 'dept_id', 'gateway', 'status', 'created_at'],
+    ];
+
+    foreach ($requiredColumns as $table => $columns) {
+      foreach ($columns as $column) {
+        if (!bulk_material_payment_has_column($conn, $table, $column)) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+}
+
 if (!function_exists('bulk_material_payment_generate_ref')) {
   function bulk_material_payment_generate_ref(int $payerUserId): string
   {
@@ -790,99 +849,356 @@ if (!function_exists('bulk_material_payment_get_pending_claims_for_user')) {
     $schoolId = (int) ($user['school'] ?? 0);
     $deptId = (int) ($user['dept'] ?? 0);
     $normalizedMatricNo = bulk_material_payment_normalize_text((string) ($user['matric_no'] ?? ''));
+    $normalizedClaimMatricNo = bulk_material_payment_normalize_claim_matric((string) ($user['matric_no'] ?? ''));
     $normalizedFirstName = bulk_material_payment_normalize_text((string) ($user['first_name'] ?? ''));
     $normalizedLastName = bulk_material_payment_normalize_text((string) ($user['last_name'] ?? ''));
     $limit = max(1, min(20, $limit));
 
-    if ($userId <= 0 || $schoolId <= 0 || $deptId <= 0 || $normalizedMatricNo === '' || $normalizedFirstName === '' || $normalizedLastName === '') {
-      return [];
-    }
-    if (!bulk_material_payment_has_table($conn, 'manual_bulk_payment_students') || !bulk_material_payment_has_table($conn, 'manual_bulk_payment_batches')) {
+    if ($userId <= 0 || $schoolId <= 0 || $deptId <= 0 || $normalizedMatricNo === '' || $normalizedClaimMatricNo === '' || $normalizedFirstName === '' || $normalizedLastName === '') {
       return [];
     }
 
     $awaitingStudent = mysqli_real_escape_string($conn, bulk_material_payment_claim_status_awaiting_student_confirmation());
     $awaitingClaim = mysqli_real_escape_string($conn, bulk_material_payment_claim_status_awaiting_claim_confirmation());
     $matricSafe = mysqli_real_escape_string($conn, $normalizedMatricNo);
+    $claimMatricSafe = mysqli_real_escape_string($conn, $normalizedClaimMatricNo);
     $firstSafe = mysqli_real_escape_string($conn, $normalizedFirstName);
     $lastSafe = mysqli_real_escape_string($conn, $normalizedLastName);
 
-    $query = mysqli_query(
-      $conn,
-      "SELECT
-          s.id,
-          s.batch_id,
-          s.manual_id,
-          s.ref_id,
-          s.first_name,
-          s.last_name,
-          s.raw_matric_no,
-          s.claim_status,
-          s.created_at,
-          b.payer_user_id,
-          b.student_count,
-          b.subtotal,
-          b.total_amount,
-          b.paid_at,
-          b.payment_status,
-          m.title,
-          m.course_code,
-          p.first_name AS payer_first_name,
-          p.last_name AS payer_last_name
-       FROM manual_bulk_payment_students AS s
-       INNER JOIN manual_bulk_payment_batches AS b ON b.id = s.batch_id
-       INNER JOIN manuals AS m ON m.id = s.manual_id
-       INNER JOIN users AS p ON p.id = b.payer_user_id
-       WHERE s.school_id = {$schoolId}
-         AND s.payer_dept_id = {$deptId}
-         AND b.payment_status = 'successful'
-         AND (
-           (s.claim_status = '{$awaitingStudent}' AND s.matched_user_id = {$userId})
-           OR
-           (
-             s.claim_status = '{$awaitingClaim}'
-             AND s.normalized_matric_no = '{$matricSafe}'
-             AND s.normalized_first_name = '{$firstSafe}'
-             AND s.normalized_last_name = '{$lastSafe}'
-           )
-         )
-       ORDER BY COALESCE(b.paid_at, s.created_at) ASC, s.id ASC
-       LIMIT {$limit}"
-    );
-
-    if (!$query) {
-      return [];
-    }
-
     $claims = [];
-    while ($row = mysqli_fetch_assoc($query)) {
-      $payerName = trim((string) ($row['payer_first_name'] ?? '') . ' ' . (string) ($row['payer_last_name'] ?? ''));
-      $claims[] = [
-        'id' => (int) ($row['id'] ?? 0),
-        'batch_id' => (int) ($row['batch_id'] ?? 0),
-        'manual_id' => (int) ($row['manual_id'] ?? 0),
-        'ref_id' => (string) ($row['ref_id'] ?? ''),
-        'title' => (string) ($row['title'] ?? ''),
-        'course_code' => (string) ($row['course_code'] ?? ''),
-        'student_name' => trim((string) ($row['first_name'] ?? '') . ' ' . (string) ($row['last_name'] ?? '')),
-        'student_matric_no' => (string) ($row['raw_matric_no'] ?? ''),
-        'claim_status' => (string) ($row['claim_status'] ?? ''),
-        'payer_name' => $payerName,
-        'paid_at' => (string) ($row['paid_at'] ?? ''),
-        'student_count' => (int) ($row['student_count'] ?? 0),
-        'subtotal' => (int) ($row['subtotal'] ?? 0),
-        'total_amount' => (int) ($row['total_amount'] ?? 0),
-      ];
+
+    if (bulk_material_payment_has_table($conn, 'manual_bulk_payment_students') && bulk_material_payment_has_table($conn, 'manual_bulk_payment_batches')) {
+      $query = mysqli_query(
+        $conn,
+        "SELECT
+            s.id,
+            s.batch_id,
+            s.manual_id,
+            s.ref_id,
+            s.first_name,
+            s.last_name,
+            s.raw_matric_no,
+            s.claim_status,
+            s.created_at,
+            b.payer_user_id,
+            b.student_count,
+            b.subtotal,
+            b.total_amount,
+            b.paid_at,
+            b.payment_status,
+            m.title,
+            m.course_code,
+            p.first_name AS payer_first_name,
+            p.last_name AS payer_last_name
+         FROM manual_bulk_payment_students AS s
+         INNER JOIN manual_bulk_payment_batches AS b ON b.id = s.batch_id
+         INNER JOIN manuals AS m ON m.id = s.manual_id
+         INNER JOIN users AS p ON p.id = b.payer_user_id
+         WHERE s.school_id = {$schoolId}
+           AND s.payer_dept_id = {$deptId}
+           AND b.payment_status = 'successful'
+           AND (
+             (s.claim_status = '{$awaitingStudent}' AND s.matched_user_id = {$userId})
+             OR
+             (
+               s.claim_status = '{$awaitingClaim}'
+               AND s.normalized_matric_no = '{$matricSafe}'
+               AND s.normalized_first_name = '{$firstSafe}'
+               AND s.normalized_last_name = '{$lastSafe}'
+             )
+           )
+         ORDER BY COALESCE(b.paid_at, s.created_at) ASC, s.id ASC
+         LIMIT {$limit}"
+      );
+
+      if ($query) {
+        while ($row = mysqli_fetch_assoc($query)) {
+          $payerName = trim((string) ($row['payer_first_name'] ?? '') . ' ' . (string) ($row['payer_last_name'] ?? ''));
+          $claims[] = [
+            'id' => (int) ($row['id'] ?? 0),
+            'source' => bulk_material_payment_claim_source_bulk(),
+            'batch_id' => (int) ($row['batch_id'] ?? 0),
+            'manual_id' => (int) ($row['manual_id'] ?? 0),
+            'ref_id' => (string) ($row['ref_id'] ?? ''),
+            'title' => (string) ($row['title'] ?? ''),
+            'course_code' => (string) ($row['course_code'] ?? ''),
+            'student_name' => trim((string) ($row['first_name'] ?? '') . ' ' . (string) ($row['last_name'] ?? '')),
+            'student_matric_no' => (string) ($row['raw_matric_no'] ?? ''),
+            'claim_status' => (string) ($row['claim_status'] ?? ''),
+            'payer_name' => $payerName,
+            'paid_at' => (string) ($row['paid_at'] ?? ''),
+            'student_count' => (int) ($row['student_count'] ?? 0),
+            'subtotal' => (int) ($row['subtotal'] ?? 0),
+            'total_amount' => (int) ($row['total_amount'] ?? 0),
+          ];
+        }
+      }
     }
 
-    return $claims;
+    if (bulk_material_payment_external_manual_claims_ready($conn)) {
+      $paidByNameSelect = bulk_material_payment_has_column($conn, 'manual_payment_batches', 'paid_by_name')
+        ? 'b.paid_by_name'
+        : "'' AS paid_by_name";
+      $externalQuery = mysqli_query(
+        $conn,
+        "SELECT
+            i.id,
+            i.batch_id,
+            i.manual_id,
+            i.ref_id,
+            i.student_matric,
+            i.student_first_name,
+            i.student_last_name,
+            i.claim_status,
+            i.normalized_first_name,
+            i.normalized_last_name,
+            i.placeholder_user_id,
+            i.matched_user_id,
+            i.manuals_bought_id,
+            i.created_at,
+            b.total_students AS student_count,
+            b.total_amount,
+            b.created_at AS paid_at,
+            $paidByNameSelect,
+            m.title,
+            m.course_code
+         FROM manual_payment_batch_items AS i
+         INNER JOIN manual_payment_batches AS b ON b.id = i.batch_id
+         INNER JOIN manuals AS m ON m.id = i.manual_id
+         WHERE b.school_id = {$schoolId}
+           AND b.dept_id = {$deptId}
+           AND b.status = 'paid'
+           AND UPPER(COALESCE(b.gateway, '')) = 'MANUAL'
+           AND (
+             (i.claim_status = '{$awaitingStudent}' AND i.matched_user_id = {$userId})
+             OR
+             (
+               i.claim_status = '{$awaitingClaim}'
+               AND UPPER(TRIM(COALESCE(i.student_matric, ''))) = '{$claimMatricSafe}'
+               AND LOWER(TRIM(COALESCE(i.normalized_first_name, ''))) = '{$firstSafe}'
+               AND LOWER(TRIM(COALESCE(i.normalized_last_name, ''))) = '{$lastSafe}'
+             )
+           )
+         ORDER BY COALESCE(b.created_at, i.created_at) ASC, i.id ASC
+         LIMIT {$limit}"
+      );
+
+      if ($externalQuery) {
+        while ($row = mysqli_fetch_assoc($externalQuery)) {
+          $claims[] = [
+            'id' => (int) ($row['id'] ?? 0),
+            'source' => bulk_material_payment_claim_source_external_manual(),
+            'batch_id' => (int) ($row['batch_id'] ?? 0),
+            'manual_id' => (int) ($row['manual_id'] ?? 0),
+            'ref_id' => (string) ($row['ref_id'] ?? ''),
+            'title' => (string) ($row['title'] ?? ''),
+            'course_code' => (string) ($row['course_code'] ?? ''),
+            'student_name' => trim((string) ($row['student_first_name'] ?? '') . ' ' . (string) ($row['student_last_name'] ?? '')),
+            'student_matric_no' => (string) ($row['student_matric'] ?? ''),
+            'claim_status' => (string) ($row['claim_status'] ?? ''),
+            'payer_name' => trim((string) ($row['paid_by_name'] ?? '')),
+            'paid_at' => (string) ($row['paid_at'] ?? ''),
+            'student_count' => (int) ($row['student_count'] ?? 0),
+            'subtotal' => (int) ($row['total_amount'] ?? 0),
+            'total_amount' => (int) ($row['total_amount'] ?? 0),
+          ];
+        }
+      }
+    }
+
+    if (count($claims) < 2) {
+      return array_slice($claims, 0, $limit);
+    }
+
+    usort($claims, function (array $left, array $right): int {
+      $leftTime = strtotime((string) ($left['paid_at'] ?? '')) ?: 0;
+      $rightTime = strtotime((string) ($right['paid_at'] ?? '')) ?: 0;
+      if ($leftTime === $rightTime) {
+        return ((int) ($left['id'] ?? 0)) <=> ((int) ($right['id'] ?? 0));
+      }
+
+      return $leftTime <=> $rightTime;
+    });
+
+    return array_slice($claims, 0, $limit);
+  }
+}
+
+if (!function_exists('bulk_material_payment_resolve_external_manual_claim_for_user')) {
+  function bulk_material_payment_resolve_external_manual_claim_for_user(mysqli $conn, int $studentRowId, array $user, string $decision): array
+  {
+    $studentRowId = (int) $studentRowId;
+    $userId = (int) ($user['id'] ?? 0);
+    $schoolId = (int) ($user['school'] ?? 0);
+    $deptId = (int) ($user['dept'] ?? 0);
+    $normalizedClaimMatricNo = bulk_material_payment_normalize_claim_matric((string) ($user['matric_no'] ?? ''));
+    $normalizedFirstName = bulk_material_payment_normalize_text((string) ($user['first_name'] ?? ''));
+    $normalizedLastName = bulk_material_payment_normalize_text((string) ($user['last_name'] ?? ''));
+
+    if ($studentRowId <= 0 || $userId <= 0 || $schoolId <= 0 || $deptId <= 0 || $normalizedClaimMatricNo === '' || $normalizedFirstName === '' || $normalizedLastName === '') {
+      throw new Exception('This account is not ready to review pending manual claims.');
+    }
+    if (!bulk_material_payment_external_manual_claims_ready($conn)) {
+      throw new Exception('Pending manual claims are not ready right now.');
+    }
+
+    $awaitingStudent = mysqli_real_escape_string($conn, bulk_material_payment_claim_status_awaiting_student_confirmation());
+    $awaitingClaim = mysqli_real_escape_string($conn, bulk_material_payment_claim_status_awaiting_claim_confirmation());
+    $confirmedStatus = mysqli_real_escape_string($conn, 'confirmed');
+    $rejectedStatus = mysqli_real_escape_string($conn, 'student_rejected');
+    $claimMatricSafe = mysqli_real_escape_string($conn, $normalizedClaimMatricNo);
+    $firstSafe = mysqli_real_escape_string($conn, $normalizedFirstName);
+    $lastSafe = mysqli_real_escape_string($conn, $normalizedLastName);
+
+    mysqli_begin_transaction($conn);
+    try {
+      $query = mysqli_query(
+        $conn,
+        "SELECT
+            i.*, 
+            b.school_id,
+            b.dept_id,
+            b.gateway,
+            b.status AS batch_status,
+            m.user_id AS manual_seller_id
+         FROM manual_payment_batch_items AS i
+         INNER JOIN manual_payment_batches AS b ON b.id = i.batch_id
+         INNER JOIN manuals AS m ON m.id = i.manual_id
+         WHERE i.id = {$studentRowId}
+           AND b.school_id = {$schoolId}
+           AND b.dept_id = {$deptId}
+           AND b.status = 'paid'
+           AND UPPER(COALESCE(b.gateway, '')) = 'MANUAL'
+         LIMIT 1 FOR UPDATE"
+      );
+      if (!$query || mysqli_num_rows($query) < 1) {
+        throw new Exception('Pending manual claim not found.');
+      }
+
+      $row = mysqli_fetch_assoc($query) ?: [];
+      $claimStatus = (string) ($row['claim_status'] ?? '');
+      $matchedUserId = (int) ($row['matched_user_id'] ?? 0);
+      $identityMatches = bulk_material_payment_normalize_claim_matric((string) ($row['student_matric'] ?? '')) === $normalizedClaimMatricNo
+        && bulk_material_payment_normalize_text((string) ($row['normalized_first_name'] ?? '')) === $normalizedFirstName
+        && bulk_material_payment_normalize_text((string) ($row['normalized_last_name'] ?? '')) === $normalizedLastName;
+      $isEligible = ($claimStatus === bulk_material_payment_claim_status_awaiting_student_confirmation() && $matchedUserId === $userId)
+        || ($claimStatus === bulk_material_payment_claim_status_awaiting_claim_confirmation() && $identityMatches);
+
+      if (!$isEligible) {
+        throw new Exception('This manual claim is not assigned to this account.');
+      }
+
+      if ($decision === 'reject') {
+        $existingBoughtId = (int) ($row['manuals_bought_id'] ?? 0);
+        $placeholderUserId = (int) ($row['placeholder_user_id'] ?? 0);
+        if ($existingBoughtId > 0 && $placeholderUserId <= 0) {
+          $deleteBoughtSql = "DELETE FROM manuals_bought
+                              WHERE id = {$existingBoughtId}
+                                AND buyer = {$userId}
+                                AND ref_id = '" . mysqli_real_escape_string($conn, (string) ($row['ref_id'] ?? '')) . "'
+                              LIMIT 1";
+          if (!mysqli_query($conn, $deleteBoughtSql)) {
+            throw new Exception('Unable to remove this material purchase right now.');
+          }
+        }
+
+        $rejectSql = "UPDATE manual_payment_batch_items
+                      SET claim_status = '{$rejectedStatus}',
+                          matched_user_id = {$userId},
+                          manuals_bought_id = NULL,
+                          claimed_at = NOW(),
+                          confirmed_at = NULL
+                      WHERE id = {$studentRowId} LIMIT 1";
+        if (!mysqli_query($conn, $rejectSql)) {
+          throw new Exception('Unable to reject this manual claim right now.');
+        }
+
+        mysqli_commit($conn);
+        return [
+          'status' => 'success',
+          'message' => 'The manual claim was rejected. Support can review it if needed.',
+        ];
+      }
+
+      $manualId = (int) ($row['manual_id'] ?? 0);
+      $placeholderUserId = (int) ($row['placeholder_user_id'] ?? 0);
+      $existingBoughtId = (int) ($row['manuals_bought_id'] ?? 0);
+      $unitPrice = max(0, (int) ($row['price'] ?? 0));
+      if ($existingBoughtId <= 0) {
+        $existingPurchaseRs = mysqli_query(
+          $conn,
+          "SELECT id
+           FROM manuals_bought
+           WHERE ref_id = '" . mysqli_real_escape_string($conn, (string) ($row['ref_id'] ?? '')) . "'
+             AND manual_id = {$manualId}
+             AND buyer IN ({$userId}, " . max(0, $placeholderUserId) . ")
+           LIMIT 1"
+        );
+        if ($existingPurchaseRs && mysqli_num_rows($existingPurchaseRs) > 0) {
+          $existingPurchase = mysqli_fetch_assoc($existingPurchaseRs) ?: [];
+          $existingBoughtId = (int) ($existingPurchase['id'] ?? 0);
+        }
+      }
+
+      if ($existingBoughtId > 0 && $placeholderUserId > 0 && $placeholderUserId !== $userId) {
+        $reassignSql = "UPDATE manuals_bought
+                        SET buyer = {$userId}
+                        WHERE id = {$existingBoughtId}
+                          AND buyer = {$placeholderUserId}
+                        LIMIT 1";
+        if (!mysqli_query($conn, $reassignSql)) {
+          throw new Exception('Unable to attach this material purchase to your account right now.');
+        }
+      }
+
+      if ($existingBoughtId <= 0) {
+        $existingBoughtId = bulk_material_payment_create_manual_purchase(
+          $conn,
+          $manualId,
+          $unitPrice,
+          (int) ($row['manual_seller_id'] ?? 0),
+          $userId,
+          0,
+          (string) ($row['ref_id'] ?? ''),
+          $schoolId
+        );
+      }
+
+      $confirmSql = "UPDATE manual_payment_batch_items
+                     SET student_id = {$userId},
+                         matched_user_id = {$userId},
+                         manuals_bought_id = {$existingBoughtId},
+                         claim_status = '{$confirmedStatus}',
+                         claimed_at = COALESCE(claimed_at, NOW()),
+                         confirmed_at = NOW()
+                     WHERE id = {$studentRowId} LIMIT 1";
+      if (!mysqli_query($conn, $confirmSql)) {
+        throw new Exception('Unable to confirm this manual claim right now.');
+      }
+
+      mysqli_commit($conn);
+
+      return [
+        'status' => 'success',
+        'message' => 'Material claim confirmed successfully.',
+        'manuals_bought_id' => $existingBoughtId,
+      ];
+    } catch (Throwable $e) {
+      mysqli_rollback($conn);
+      throw $e;
+    }
   }
 }
 
 if (!function_exists('bulk_material_payment_resolve_claim_for_user')) {
-  function bulk_material_payment_resolve_claim_for_user(mysqli $conn, int $studentRowId, array $user, string $decision): array
+  function bulk_material_payment_resolve_claim_for_user(mysqli $conn, int $studentRowId, array $user, string $decision, ?string $source = null): array
   {
     $studentRowId = (int) $studentRowId;
+    $source = strtolower(trim((string) $source));
+    if ($source === bulk_material_payment_claim_source_external_manual()) {
+      return bulk_material_payment_resolve_external_manual_claim_for_user($conn, $studentRowId, $user, $decision);
+    }
+
     $userId = (int) ($user['id'] ?? 0);
     $schoolId = (int) ($user['school'] ?? 0);
     $deptId = (int) ($user['dept'] ?? 0);
