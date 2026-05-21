@@ -136,6 +136,10 @@ function exportManualsBoughtHasColumn(mysqli $conn, $columnName) {
   return $hasColumn;
 }
 
+function exportIsExternalManualPaymentRef($refId) {
+  return stripos(trim((string)$refId), 'manual_ext_') === 0;
+}
+
 // Check if the manual ID is provided in the POST request
 if (isset($_POST['manual_id'])) {
   $requestId = exportRequestId();
@@ -351,7 +355,8 @@ if (isset($_POST['manual_id'])) {
         u.matric_no,
         u.adm_year,
         mb.price,
-        mb.created_at
+        mb.created_at,
+        mb.ref_id
       FROM
         manuals_bought AS mb
       JOIN
@@ -399,6 +404,8 @@ if (isset($_POST['manual_id'])) {
         'matric_no' => $row['matric_no'],
         'adm_year' => $row['adm_year'],
         'price' => $price,
+        'is_external_payment' => exportIsExternalManualPaymentRef($row['ref_id'] ?? ''),
+        'payment_source_label' => exportIsExternalManualPaymentRef($row['ref_id'] ?? '') ? 'Paid outside Nivasity' : 'Paid on Nivasity',
       ];
     }
 
@@ -540,9 +547,13 @@ if (isset($_POST['manual_id'])) {
 
       $pdfRows = [];
       foreach ($usersData as $index => $row) {
+        $name = (string)$row['name'];
+        if (!empty($row['is_external_payment'])) {
+          $name .= "\nPaid outside Nivasity";
+        }
         $pdfRow = [
           'sn' => (string)($index + 1),
-          'name' => (string)$row['name'],
+          'name' => $name,
           'matric_no' => (string)$row['matric_no'],
           'adm_year' => (string)$row['adm_year'],
           'price' => number_format((float)$row['price'], 0),

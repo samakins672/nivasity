@@ -6,6 +6,10 @@ require_once 'model/material_change_service.php';
 require_once 'model/material_copy_status.php';
 require_once 'model/bulk_material_payment_service.php';
 
+function order_is_external_manual_payment_ref($refId) {
+  return stripos(trim((string)$refId), 'manual_ext_') === 0;
+}
+
 $manual_query = mysqli_query($conn, "SELECT * FROM manuals_bought WHERE buyer = $user_id AND school_id = $school_id ORDER BY created_at DESC");
 $bulk_payment_rows = [];
 if (bulk_material_payment_has_table($conn, 'manual_bulk_payment_batches') && bulk_material_payment_has_table($conn, 'manual_bulk_payment_students')) {
@@ -143,6 +147,7 @@ if ($manuals_bought_has_id) {
                                 $is_within_change_window = material_change_is_within_window((string) ($manual['created_at'] ?? ''), 72);
                                 $is_after_lost_wait_period = material_copy_is_after_lost_wait_period((string) ($manual['created_at'] ?? ''), 48);
                                 $is_lost = material_copy_is_lost_row($manual);
+                                $is_external_payment = order_is_external_manual_payment_ref($manual['ref_id'] ?? '');
                                 $is_granted = ($manuals_bought_has_grant_status && material_change_boolish_is_true($manual['grant_status'] ?? '0'))
                                   || ($manuals_bought_has_export_id && (int) ($manual['export_id'] ?? 0) > 0);
                                 $was_changed = $manuals_bought_has_id && isset($changed_bought_ids[(int) ($manual['id'] ?? 0)]);
@@ -221,6 +226,9 @@ if ($manuals_bought_has_id) {
                                   </div>
                                   <?php if (!$can_change_material && $change_material_reason !== ''): ?>
                                     <small class="text-muted d-block mt-2"><?php echo htmlspecialchars($change_material_reason, ENT_QUOTES, 'UTF-8'); ?></small>
+                                  <?php endif; ?>
+                                  <?php if ($is_external_payment): ?>
+                                    <small class="text-warning d-block mt-2 fw-semibold">Paid outside Nivasity.</small>
                                   <?php endif; ?>
                                 </td>
                               </tr>

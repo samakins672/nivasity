@@ -978,7 +978,11 @@ GET /materials/details.php?code=MAN-2024-001
         "dept_name": "Computer Science",
         "seller_name": "Jane Smith",
         "ref_id": "NIVAS_1234567890_123_abc",
-        "purchased_at": "2024-02-01 14:25:00"
+        "purchased_at": "2024-02-01 14:25:00",
+        "is_external_payment": false,
+        "payment_source": "nivasity",
+        "payment_source_label": "Paid on Nivasity",
+        "payment_source_note": ""
       }
     ],
     "pagination": {
@@ -990,6 +994,12 @@ GET /materials/details.php?code=MAN-2024-001
   }
 }
 ```
+
+**Response Fields:**
+- `is_external_payment`: `true` when the material was recorded as paid outside Nivasity
+- `payment_source`: `nivasity` for regular platform purchases, `external` for outside-Nivasity payments
+- `payment_source_label`: Human-readable payment source label for UI display
+- `payment_source_note`: Extra note for external purchases
 
 ---
 
@@ -1231,7 +1241,7 @@ This allows the payment gateway to redirect back to your mobile app after the us
 #### 21. Get Transactions
 **Endpoint:** `GET /payment/transactions.php`
 
-**Description:** Get user transaction history.
+**Description:** Get user material transaction history, including externally recorded material purchases without a hosted Nivasity transaction row.
 
 **Authentication:** Required
 
@@ -1256,13 +1266,21 @@ This allows the payment gateway to redirect back to your mobile app after the us
         "payment_channel": "gateway",
         "transaction_context": "purchase",
         "gateway_ref": "FLW_REF_123456",
+        "is_external_payment": false,
+        "payment_source": "nivasity",
+        "payment_source_label": "Paid on Nivasity",
+        "payment_source_note": "",
         "items": [
           {
             "type": "manual",
             "id": 45,
             "title": "Introduction to Algorithms",
             "course_code": "CSC301",
-            "price": 1500
+            "price": 1500,
+            "is_external_payment": false,
+            "payment_source": "nivasity",
+            "payment_source_label": "Paid on Nivasity",
+            "payment_source_note": ""
           }
         ],
         "created_at": "2024-02-01 14:30:00",
@@ -1284,8 +1302,12 @@ This allows the payment gateway to redirect back to your mobile app after the us
 
 **Response Fields:**
 - `medium`: Payment provider or source that produced the transaction record
-- `payment_channel`: `gateway` for hosted checkout flows, `wallet` for wallet-funded purchases and wallet funding credits
+- `payment_channel`: `gateway` for hosted checkout flows, `wallet` for wallet-funded purchases and wallet funding credits, `external_manual` for manually recorded outside-Nivasity purchases
 - `transaction_context`: `purchase` for actual material/event purchases, `wallet_funding` for dedicated-account wallet topups
+- `is_external_payment`: `true` when the reference belongs to a manually recorded outside-Nivasity material payment
+- `payment_source`: `nivasity` for regular platform purchases, `external` for outside-Nivasity payments
+- `payment_source_label`: Human-readable payment source label for UI display
+- `payment_source_note`: Extra note for external purchases
 
 ---
 

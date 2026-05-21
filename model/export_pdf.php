@@ -128,36 +128,46 @@ if (!class_exists('NivasityManualExportPdfComposer')) {
 
     private function wrapText($text, $maxWidth, $fontSize)
     {
-      $normalized = preg_replace('/\s+/u', ' ', trim($text));
-      if ($normalized === null || $normalized === '') {
-        return [''];
-      }
-
-      $words = preg_split('/\s+/u', $normalized) ?: [$normalized];
+      $text = str_replace(["\r\n", "\r"], "\n", (string)$text);
+      $paragraphs = explode("\n", $text);
       $lines = [];
-      $line = '';
 
-      foreach ($words as $word) {
-        $candidate = $line === '' ? $word : $line . ' ' . $word;
-        if ($this->estimateTextWidth($candidate, $fontSize) <= $maxWidth) {
-          $line = $candidate;
+      foreach ($paragraphs as $paragraph) {
+        $normalized = preg_replace('/\s+/u', ' ', trim($paragraph));
+        if ($normalized === null || $normalized === '') {
+          $lines[] = '';
           continue;
+        }
+
+        $words = preg_split('/\s+/u', $normalized) ?: [$normalized];
+        $line = '';
+
+        foreach ($words as $word) {
+          $candidate = $line === '' ? $word : $line . ' ' . $word;
+          if ($this->estimateTextWidth($candidate, $fontSize) <= $maxWidth) {
+            $line = $candidate;
+            continue;
+          }
+
+          if ($line !== '') {
+            $lines[] = $line;
+            $line = $word;
+          } else {
+            $lines[] = $word;
+            $line = '';
+          }
         }
 
         if ($line !== '') {
           $lines[] = $line;
-          $line = $word;
-        } else {
-          $lines[] = $word;
-          $line = '';
         }
       }
 
-      if ($line !== '') {
-        $lines[] = $line;
+      if ($lines === []) {
+        return [''];
       }
 
-      return $lines === [] ? [''] : $lines;
+      return $lines;
     }
 
     private function estimateTextWidth($text, $fontSize)

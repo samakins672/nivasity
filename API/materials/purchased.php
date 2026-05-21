@@ -4,6 +4,10 @@ require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/../../model/material_copy_status.php';
 
+function purchased_material_is_external_ref($refId) {
+    return stripos(trim((string)$refId), 'manual_ext_') === 0;
+}
+
 // Only accept GET requests
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     sendApiError('Method not allowed', 405);
@@ -40,6 +44,7 @@ $purchased = [];
 
 while ($row = mysqli_fetch_assoc($result)) {
     $copy_status = isset($row['copy_status']) && trim((string)$row['copy_status']) !== '' ? (string)$row['copy_status'] : 'active';
+    $is_external_payment = purchased_material_is_external_ref($row['ref_id'] ?? '');
     $purchased[] = [
         'bought_id' => isset($row['id']) ? (int)$row['id'] : 0,
         'id' => $row['manual_id'],
@@ -54,6 +59,10 @@ while ($row = mysqli_fetch_assoc($result)) {
         'seller_name' => $row['first_name'] . ' ' . $row['last_name'],
         'ref_id' => $row['ref_id'],
         'purchased_at' => $row['created_at'],
+        'is_external_payment' => $is_external_payment,
+        'payment_source' => $is_external_payment ? 'external' : 'nivasity',
+        'payment_source_label' => $is_external_payment ? 'Paid outside Nivasity' : 'Paid on Nivasity',
+        'payment_source_note' => $is_external_payment ? 'This material was paid outside Nivasity.' : '',
         'copy_status' => $copy_status,
         'is_lost' => material_copy_is_lost_value($copy_status),
         'lost_at' => $row['lost_at'] ?? null
