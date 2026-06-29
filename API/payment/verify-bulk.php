@@ -67,6 +67,95 @@ function verifyBulkResolveUserSchoolId($conn, $userId) {
     return 0;
 }
 
+function verifyBulkTryWalletFundingReference($conn, $refId, $dryRun = false) {
+    $refId = trim((string)$refId);
+    $result = [
+        'ref_id' => $refId,
+        'user_id' => 0,
+        'gateway' => 'paystack',
+        'status' => 'pending',
+        'message' => '',
+        'context' => 'wallet_funding',
+    ];
+
+    if ($refId === '') {
+        $result['status'] = 'not_found';
+        $result['reason'] = 'empty_reference';
+        $result['message'] = 'No reference supplied';
+        return $result;
+    }
+
+    try {
+        $gateway = PaymentGatewayFactory::getGateway('paystack');
+        $verificationResult = $gateway->verifyTransaction($refId);
+    } catch (Throwable $e) {
+        $result['status'] = 'error';
+        $result['reason'] = 'paystack_verification_exception';
+        $result['message'] = 'Paystack verification failed: ' . $e->getMessage();
+        return $result;
+    }
+
+    if (!$verificationResult || !isset($verificationResult['status']) || $verificationResult['status'] !== true) {
+        $result['status'] = 'not_found';
+        $result['reason'] = 'paystack_reference_not_successful';
+        $result['message'] = isset($verificationResult['message']) ? $verificationResult['message'] : 'No successful Paystack transaction found';
+        return $result;
+    }
+
+    $data = $verificationResult['data'] ?? [];
+    if (!is_array($data) || strtolower((string)($data['status'] ?? '')) !== 'success') {
+        $result['status'] = 'not_found';
+        $result['reason'] = 'paystack_reference_not_successful';
+        $result['message'] = 'Paystack transaction is not successful';
+        return $result;
+    }
+
+    if (!nivasityIsPaystackDedicatedNubanPayload($data)) {
+        $result['status'] = 'not_found';
+        $result['reason'] = 'not_wallet_funding';
+        $result['message'] = 'Reference is not a Paystack dedicated virtual account credit';
+        return $result;
+    }
+
+    $wallet = nivasityResolveWalletFromPaystackPayload($conn, $data);
+    if (!$wallet) {
+        $result['status'] = 'error';
+        $result['reason'] = 'wallet_not_resolved';
+        $result['message'] = 'Successful Paystack DVA credit found, but no matching wallet virtual account was found';
+        $result['receiver_account_number'] = (string)($data['metadata']['receiver_account_number'] ?? $data['authorization']['receiver_bank_account_number'] ?? '');
+        $result['customer_code'] = (string)($data['customer']['customer_code'] ?? '');
+        return $result;
+    }
+
+    $result['user_id'] = (int)($wallet['user_id'] ?? 0);
+    $result['wallet_id'] = (int)($wallet['id'] ?? 0);
+    $result['amount'] = nivasityNormalizePaystackAmount($data['amount'] ?? 0);
+
+    if ($dryRun) {
+        $result['status'] = 'verified';
+        $result['reason'] = 'wallet_funding_verified_dry_run';
+        $result['message'] = 'Wallet funding verified (DRY RUN)';
+        return $result;
+    }
+
+    try {
+        $applyResult = nivasityApplyWalletFundingTransaction($conn, $wallet, $data, 'api_bulk_manual', 'manual_verify');
+        $applyStatus = (string)($applyResult['status'] ?? 'processed');
+        $result['status'] = in_array($applyStatus, ['posted', 'exists', 'pre_credit_confirmed'], true) ? 'verified' : 'error';
+        $result['reason'] = 'wallet_funding_' . $applyStatus;
+        $result['message'] = $applyStatus === 'exists'
+            ? 'Wallet funding already processed'
+            : ($applyStatus === 'posted' ? 'Wallet funding verified and posted' : 'Wallet funding reconciliation completed');
+        $result['apply_result'] = $applyResult;
+    } catch (Throwable $e) {
+        $result['status'] = 'error';
+        $result['reason'] = 'wallet_funding_apply_failed';
+        $result['message'] = 'Failed to apply wallet funding: ' . $e->getMessage();
+    }
+
+    return $result;
+}
+
 // Method validation (only for web requests)
 if (!$isCli) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $_SERVER['REQUEST_METHOD'] !== 'GET') {
@@ -129,11 +218,12 @@ if ($isCli) {
     $is_get = ($_SERVER['REQUEST_METHOD'] === 'GET');
     
     if ($is_get) {
-        // GET request - global check with no params (last 24 hours, excluding past 2 minutes)
-        $user_id = 0;
-        $date_from = '';
-        $date_to = '';
-        $ref_id = '';
+        // GET request - preserve provided filters; no params still means global check.
+        $user_id = isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0;
+        $date_from = isset($_GET['date_from']) ? sanitizeInput($conn, $_GET['date_from']) : '';
+        $date_to = isset($_GET['date_to']) ? sanitizeInput($conn, $_GET['date_to']) : '';
+        $ref_id = isset($_GET['ref_id']) ? sanitizeInput($conn, $_GET['ref_id']) : '';
+        $dry_run = isset($_GET['dry_run']) ? ($_GET['dry_run'] === '1' || strtolower((string)$_GET['dry_run']) === 'true') : false;
     } else {
         // POST request - use provided parameters
         $user_id = isset($_POST['user_id']) ? (int)$_POST['user_id'] : 0;
@@ -227,6 +317,27 @@ $not_found_count = 0;
 $error_count = 0;
 $reserved_refunds_checked = 0;
 $reserved_refunds_reconciled = 0;
+
+if ($ref_id !== '' && $total_refs === 0) {
+    $walletFundingResult = verifyBulkTryWalletFundingReference($conn, $ref_id, $dry_run);
+    $total_refs = 1;
+    $results[] = $walletFundingResult;
+
+    if (($walletFundingResult['status'] ?? '') === 'verified') {
+        if (($walletFundingResult['reason'] ?? '') === 'wallet_funding_exists') {
+            $already_processed_count++;
+        } else {
+            $verified_count++;
+        }
+    } else {
+        $failed_count++;
+        if (($walletFundingResult['status'] ?? '') === 'not_found') {
+            $not_found_count++;
+        } else {
+            $error_count++;
+        }
+    }
+}
 
 if ($isCli) {
     echo "Found $total_refs pending cart reference(s) to verify\n";

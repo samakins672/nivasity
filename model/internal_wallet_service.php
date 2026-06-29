@@ -2520,6 +2520,7 @@ if (!function_exists('nivasityResolveWalletFromPaystackPayload')) {
         $accountNumberCandidates = [
             $data['dedicated_account']['account_number'] ?? null,
             $data['authorization']['receiver_bank_account_number'] ?? null,
+            $data['metadata']['receiver_account_number'] ?? null,
             $data['customer']['dedicated_account']['account_number'] ?? null,
         ];
 
@@ -2611,7 +2612,7 @@ if (!function_exists('nivasityApplyWalletFundingTransaction')) {
 
         $providerTransactionId = trim((string)($data['id'] ?? ''));
         $providerAccountId = trim((string)($data['dedicated_account']['id'] ?? $wallet['provider_account_id'] ?? ''));
-        $accountNumber = trim((string)($data['dedicated_account']['account_number'] ?? $data['authorization']['receiver_bank_account_number'] ?? $wallet['account_number'] ?? ''));
+        $accountNumber = trim((string)($data['dedicated_account']['account_number'] ?? $data['authorization']['receiver_bank_account_number'] ?? $data['metadata']['receiver_account_number'] ?? $wallet['account_number'] ?? ''));
         $amount = nivasityNormalizePaystackAmount($data['amount'] ?? 0);
         $providerChargeAmount = nivasityCalculateWalletFundingProviderCharge($amount, 'paystack');
         $description = trim((string)($data['narration'] ?? $data['gateway_response'] ?? 'Wallet funding via Paystack DVA'));
@@ -3150,7 +3151,10 @@ if (!function_exists('nivasityIsPaystackDvaTransaction')) {
         $authCardType = strtolower(trim((string)($transaction['authorization']['card_type'] ?? '')));
         $authBrand = strtolower(trim((string)($transaction['authorization']['brand'] ?? '')));
         $receiverAccountNumber = trim((string)($transaction['authorization']['receiver_bank_account_number'] ?? ''));
-        $dedicatedAccountNumber = trim((string)($transaction['dedicated_account']['account_number'] ?? $transaction['customer']['dedicated_account']['account_number'] ?? ''));
+        if ($receiverAccountNumber === '') {
+            $receiverAccountNumber = trim((string)($transaction['metadata']['receiver_account_number'] ?? ''));
+        }
+        $dedicatedAccountNumber = trim((string)($transaction['dedicated_account']['account_number'] ?? $transaction['customer']['dedicated_account']['account_number'] ?? $transaction['metadata']['receiver_account_number'] ?? ''));
         $dedicatedAccountId = trim((string)($transaction['dedicated_account']['id'] ?? $transaction['customer']['dedicated_account']['id'] ?? ''));
 
         if ($walletProviderAccountId !== '' && $dedicatedAccountId !== '' && $walletProviderAccountId === $dedicatedAccountId) {
@@ -3161,7 +3165,7 @@ if (!function_exists('nivasityIsPaystackDvaTransaction')) {
             return true;
         }
 
-        if (nivasityIsPaystackDedicatedNubanPayload($transaction)) {
+        if (nivasityIsPaystackDedicatedNubanPayload($transaction) && $walletAccountNumber !== '' && $receiverAccountNumber !== '' && $walletAccountNumber === $receiverAccountNumber) {
             return true;
         }
 
@@ -3201,7 +3205,9 @@ if (!function_exists('nivasitySyncWalletFundingFromPaystack')) {
         }
 
         $customerCode = trim((string)($customer['customer_code'] ?? ''));
-        $fromDate = !empty($wallet['created_at']) ? date('Y-m-d', strtotime((string)$wallet['created_at'])) : null;
+        $fromDate = !empty($wallet['created_at'])
+            ? date('Y-m-d', strtotime((string)$wallet['created_at'] . ' -1 day'))
+            : null;
         $transactions = nivasityListPaystackTransactionsForCustomer($customerId, $fromDate, 'success', 100);
 
         $processed = 0;
