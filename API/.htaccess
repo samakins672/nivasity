@@ -19,11 +19,8 @@
     Header always set X-XSS-Protection "1; mode=block"
 </IfModule>
 
-# Handle OPTIONS requests for CORS preflight
-<IfModule mod_rewrite.c>
-    RewriteCond %{REQUEST_METHOD} OPTIONS
-    RewriteRule ^(.*)$ $1 [R=200,L]
-</IfModule>
+# OPTIONS preflight is handled by PHP (config.php sets CORS headers before exit)
+# Do NOT intercept OPTIONS here — it would return 200 without CORS headers.
 
 # Deny access to sensitive files
 <FilesMatch "^(config|auth)\.php$">
