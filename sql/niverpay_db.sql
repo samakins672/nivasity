@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: May 01, 2026 at 04:18 PM
--- Server version: 11.4.10-MariaDB
--- PHP Version: 8.4.20
+-- Generation Time: Jun 29, 2026 at 02:59 PM
+-- Server version: 11.4.12-MariaDB
+-- PHP Version: 8.4.22
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -168,6 +168,82 @@ CREATE TABLE `audit_logs` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `career_applications`
+--
+
+CREATE TABLE `career_applications` (
+  `id` int(11) NOT NULL,
+  `code` varchar(25) NOT NULL,
+  `opening_id` int(11) NOT NULL,
+  `campus_affiliation` enum('funaab','fummsa','other') NOT NULL DEFAULT 'other',
+  `school_name` varchar(160) DEFAULT NULL,
+  `level_text` varchar(30) NOT NULL,
+  `full_name` varchar(160) NOT NULL,
+  `email` varchar(180) NOT NULL,
+  `phone` varchar(30) NOT NULL,
+  `portfolio_url` varchar(255) DEFAULT NULL,
+  `availability_text` varchar(160) DEFAULT NULL,
+  `motivation_text` text DEFAULT NULL,
+  `willing_to_join` tinyint(1) NOT NULL DEFAULT 1,
+  `responses_json` longtext DEFAULT NULL,
+  `status` enum('submitted','shortlisted','interview','offer','hired','rejected') NOT NULL DEFAULT 'submitted',
+  `assigned_admin_id` int(11) DEFAULT NULL,
+  `reviewed_by_admin_id` int(11) DEFAULT NULL,
+  `admin_notes` longtext DEFAULT NULL,
+  `submitter_ip` varchar(45) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `career_application_status_history`
+--
+
+CREATE TABLE `career_application_status_history` (
+  `id` int(11) NOT NULL,
+  `application_id` int(11) NOT NULL,
+  `event_type` enum('submitted','status_changed','assignment_changed','note') NOT NULL DEFAULT 'note',
+  `from_status` varchar(20) DEFAULT NULL,
+  `to_status` varchar(20) DEFAULT NULL,
+  `note` text DEFAULT NULL,
+  `changed_by_admin_id` int(11) DEFAULT NULL,
+  `assigned_admin_id` int(11) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `career_openings`
+--
+
+CREATE TABLE `career_openings` (
+  `id` int(11) NOT NULL,
+  `slug` varchar(160) NOT NULL,
+  `title` varchar(160) NOT NULL,
+  `team` varchar(120) DEFAULT NULL,
+  `summary` varchar(255) NOT NULL,
+  `description` longtext NOT NULL,
+  `employment_type` enum('internship','part_time','full_time','contract','volunteer') NOT NULL DEFAULT 'internship',
+  `internship_duration` varchar(80) DEFAULT NULL,
+  `eligibility_text` text DEFAULT NULL,
+  `questions_json` longtext DEFAULT NULL,
+  `application_open_at` datetime DEFAULT NULL,
+  `application_close_at` datetime DEFAULT NULL,
+  `status` enum('draft','published','archived') NOT NULL DEFAULT 'draft',
+  `is_public` tinyint(1) NOT NULL DEFAULT 0,
+  `sort_order` int(11) NOT NULL DEFAULT 0,
+  `created_by_admin_id` int(11) DEFAULT NULL,
+  `updated_by_admin_id` int(11) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `cart`
 --
 
@@ -286,13 +362,6 @@ CREATE TABLE `fund_requests` (
   `purpose` text NOT NULL,
   `additional_details` text DEFAULT NULL,
   `status` varchar(20) NOT NULL DEFAULT 'pending',
-  `paid_by_name` varchar(120) DEFAULT NULL,
-  `paid_by_phone` varchar(30) DEFAULT NULL,
-  `payment_reason` text DEFAULT NULL,
-  `receipt_path` varchar(255) DEFAULT NULL,
-  `receipt_name` varchar(255) DEFAULT NULL,
-  `receipt_mime_type` varchar(100) DEFAULT NULL,
-  `receipt_size` int(11) DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -567,6 +636,7 @@ CREATE TABLE `mobile_experience_feedback` (
   `comfort_level` enum('love_it','its_cool','its_okay','kinda_stressful','not_good_experience') NOT NULL,
   `comfort_label` varchar(64) NOT NULL,
   `source_page` varchar(64) NOT NULL DEFAULT 'store',
+  `campaign_key` varchar(64) NOT NULL DEFAULT 'legacy',
   `user_agent` varchar(255) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -939,6 +1009,46 @@ CREATE TABLE `support_ticket_messages` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `surveys`
+--
+
+CREATE TABLE `surveys` (
+  `id` int(11) NOT NULL,
+  `slug` varchar(160) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `description` text DEFAULT NULL,
+  `questions_json` longtext NOT NULL COMMENT 'Full survey definition JSON matching SurveyData format (questions or sections)',
+  `status` enum('draft','published','closed','archived') NOT NULL DEFAULT 'draft',
+  `allow_duplicate_email` tinyint(1) NOT NULL DEFAULT 0 COMMENT '0 = block duplicate emails per survey, 1 = allow',
+  `expiry_date` datetime DEFAULT NULL COMMENT 'Auto-close survey after this date; NULL = no expiry',
+  `created_by_admin_id` int(11) DEFAULT NULL,
+  `updated_by_admin_id` int(11) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `survey_responses`
+--
+
+CREATE TABLE `survey_responses` (
+  `id` int(11) NOT NULL,
+  `survey_id` int(11) NOT NULL,
+  `first_name` varchar(160) NOT NULL,
+  `last_name` varchar(160) NOT NULL,
+  `email` varchar(180) NOT NULL,
+  `phone` varchar(30) DEFAULT NULL,
+  `responses_json` longtext NOT NULL COMMENT 'JSON object mapping question_id to answer value',
+  `submitter_ip` varchar(45) DEFAULT NULL,
+  `user_agent` varchar(500) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `system_alerts`
 --
 
@@ -1083,40 +1193,6 @@ CREATE TABLE `wallet_funding_transactions` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `wallet_pre_credits`
---
-
-CREATE TABLE `wallet_pre_credits` (
-  `id` int(11) NOT NULL,
-  `wallet_id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `account_number` varchar(30) NOT NULL,
-  `provider_customer_code` varchar(100) DEFAULT NULL,
-  `provider_reference` varchar(100) NOT NULL,
-  `amount` int(11) NOT NULL DEFAULT 0,
-  `confirmed_amount` int(11) DEFAULT NULL,
-  `receipt_path` varchar(255) NOT NULL,
-  `receipt_name` varchar(255) NOT NULL,
-  `receipt_mime_type` varchar(100) DEFAULT NULL,
-  `receipt_size` int(11) NOT NULL DEFAULT 0,
-  `created_by_admin_id` int(11) NOT NULL,
-  `funding_transaction_id` int(11) DEFAULT NULL,
-  `ledger_entry_id` int(11) DEFAULT NULL,
-  `transaction_id` int(11) DEFAULT NULL,
-  `confirmed_provider_transaction_id` varchar(100) DEFAULT NULL,
-  `confirmation_source` varchar(30) DEFAULT NULL,
-  `status` enum('pending_confirmation','confirmed','amount_disputed') NOT NULL DEFAULT 'pending_confirmation',
-  `admin_note` text DEFAULT NULL,
-  `reconciliation_note` text DEFAULT NULL,
-  `confirmed_payload` longtext DEFAULT NULL,
-  `confirmed_at` datetime DEFAULT NULL,
-  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
-  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `wallet_ledger_entries`
 --
 
@@ -1152,6 +1228,40 @@ CREATE TABLE `wallet_pin_tokens` (
   `verification_token_expires_at` datetime DEFAULT NULL,
   `consumed_at` datetime DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `wallet_pre_credits`
+--
+
+CREATE TABLE `wallet_pre_credits` (
+  `id` int(11) NOT NULL,
+  `wallet_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `account_number` varchar(30) NOT NULL,
+  `provider_customer_code` varchar(100) DEFAULT NULL,
+  `provider_reference` varchar(100) NOT NULL,
+  `amount` int(11) NOT NULL DEFAULT 0,
+  `confirmed_amount` int(11) DEFAULT NULL,
+  `receipt_path` varchar(255) NOT NULL,
+  `receipt_name` varchar(255) NOT NULL,
+  `receipt_mime_type` varchar(100) DEFAULT NULL,
+  `receipt_size` int(11) NOT NULL DEFAULT 0,
+  `created_by_admin_id` int(11) NOT NULL,
+  `funding_transaction_id` int(11) DEFAULT NULL,
+  `ledger_entry_id` int(11) DEFAULT NULL,
+  `transaction_id` int(11) DEFAULT NULL,
+  `confirmed_provider_transaction_id` varchar(100) DEFAULT NULL,
+  `confirmation_source` varchar(30) DEFAULT NULL,
+  `status` enum('pending_confirmation','confirmed','amount_disputed') NOT NULL DEFAULT 'pending_confirmation',
+  `admin_note` text DEFAULT NULL,
+  `reconciliation_note` text DEFAULT NULL,
+  `confirmed_payload` longtext DEFAULT NULL,
+  `confirmed_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -1270,6 +1380,41 @@ ALTER TABLE `audit_logs`
   ADD KEY `action` (`action`),
   ADD KEY `entity_type` (`entity_type`),
   ADD KEY `created_at` (`created_at`);
+
+--
+-- Indexes for table `career_applications`
+--
+ALTER TABLE `career_applications`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uniq_career_applications_code` (`code`),
+  ADD KEY `idx_career_applications_opening_status` (`opening_id`,`status`),
+  ADD KEY `idx_career_applications_campus_status` (`campus_affiliation`,`status`),
+  ADD KEY `idx_career_applications_assigned_status` (`assigned_admin_id`,`status`),
+  ADD KEY `idx_career_applications_email_created` (`email`,`created_at`),
+  ADD KEY `idx_career_applications_created` (`created_at`),
+  ADD KEY `idx_career_applications_reviewed_by` (`reviewed_by_admin_id`);
+
+--
+-- Indexes for table `career_application_status_history`
+--
+ALTER TABLE `career_application_status_history`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_career_application_history_application` (`application_id`,`created_at`),
+  ADD KEY `idx_career_application_history_admin` (`changed_by_admin_id`),
+  ADD KEY `idx_career_application_history_assigned` (`assigned_admin_id`),
+  ADD KEY `idx_career_application_history_event` (`event_type`);
+
+--
+-- Indexes for table `career_openings`
+--
+ALTER TABLE `career_openings`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uniq_career_openings_slug` (`slug`),
+  ADD KEY `idx_career_openings_status_public` (`status`,`is_public`),
+  ADD KEY `idx_career_openings_sort` (`sort_order`,`updated_at`),
+  ADD KEY `idx_career_openings_window` (`application_open_at`,`application_close_at`),
+  ADD KEY `idx_career_openings_created_by` (`created_by_admin_id`),
+  ADD KEY `idx_career_openings_updated_by` (`updated_by_admin_id`);
 
 --
 -- Indexes for table `cart`
@@ -1431,7 +1576,8 @@ ALTER TABLE `mobile_experience_feedback`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_mef_user_id` (`user_id`),
   ADD KEY `idx_mef_device_choice` (`device_choice`),
-  ADD KEY `idx_mef_created_at` (`created_at`);
+  ADD KEY `idx_mef_created_at` (`created_at`),
+  ADD KEY `idx_mef_campaign_key` (`campaign_key`);
 
 --
 -- Indexes for table `notifications`
@@ -1594,6 +1740,25 @@ ALTER TABLE `support_ticket_messages`
   ADD KEY `idx_msg_admin` (`admin_id`);
 
 --
+-- Indexes for table `surveys`
+--
+ALTER TABLE `surveys`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `ux_survey_slug` (`slug`),
+  ADD KEY `idx_survey_status` (`status`),
+  ADD KEY `idx_survey_created_at` (`created_at`);
+
+--
+-- Indexes for table `survey_responses`
+--
+ALTER TABLE `survey_responses`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `ux_sr_survey_email` (`survey_id`,`email`),
+  ADD KEY `idx_sr_survey` (`survey_id`),
+  ADD KEY `idx_sr_email` (`email`),
+  ADD KEY `idx_sr_created_at` (`created_at`);
+
+--
 -- Indexes for table `system_alerts`
 --
 ALTER TABLE `system_alerts`
@@ -1642,17 +1807,6 @@ ALTER TABLE `wallet_funding_transactions`
   ADD KEY `idx_wallet_funding_status` (`status`);
 
 --
--- Indexes for table `wallet_pre_credits`
---
-ALTER TABLE `wallet_pre_credits`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uniq_wallet_pre_credits_reference` (`provider_reference`),
-  ADD KEY `idx_wallet_pre_credits_status_created` (`status`,`created_at`),
-  ADD KEY `idx_wallet_pre_credits_wallet_created` (`wallet_id`,`created_at`),
-  ADD KEY `idx_wallet_pre_credits_user_created` (`user_id`,`created_at`),
-  ADD KEY `idx_wallet_pre_credits_account_number` (`account_number`);
-
---
 -- Indexes for table `wallet_ledger_entries`
 --
 ALTER TABLE `wallet_ledger_entries`
@@ -1668,6 +1822,17 @@ ALTER TABLE `wallet_pin_tokens`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_wallet_pin_tokens_user` (`user_id`),
   ADD KEY `idx_wallet_pin_tokens_code` (`code`);
+
+--
+-- Indexes for table `wallet_pre_credits`
+--
+ALTER TABLE `wallet_pre_credits`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uniq_wallet_pre_credits_reference` (`provider_reference`),
+  ADD KEY `idx_wallet_pre_credits_status_created` (`status`,`created_at`),
+  ADD KEY `idx_wallet_pre_credits_wallet_created` (`wallet_id`,`created_at`),
+  ADD KEY `idx_wallet_pre_credits_user_created` (`user_id`,`created_at`),
+  ADD KEY `idx_wallet_pre_credits_account_number` (`account_number`);
 
 --
 -- Indexes for table `wallet_transfers`
@@ -1732,6 +1897,24 @@ ALTER TABLE `app_update_configs`
 -- AUTO_INCREMENT for table `audit_logs`
 --
 ALTER TABLE `audit_logs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `career_applications`
+--
+ALTER TABLE `career_applications`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `career_application_status_history`
+--
+ALTER TABLE `career_application_status_history`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `career_openings`
+--
+ALTER TABLE `career_openings`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
@@ -1957,6 +2140,18 @@ ALTER TABLE `support_ticket_messages`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `surveys`
+--
+ALTER TABLE `surveys`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `survey_responses`
+--
+ALTER TABLE `survey_responses`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `system_alerts`
 --
 ALTER TABLE `system_alerts`
@@ -1993,12 +2188,6 @@ ALTER TABLE `wallet_funding_transactions`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
--- AUTO_INCREMENT for table `wallet_pre_credits`
---
-ALTER TABLE `wallet_pre_credits`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
-
---
 -- AUTO_INCREMENT for table `wallet_ledger_entries`
 --
 ALTER TABLE `wallet_ledger_entries`
@@ -2008,6 +2197,12 @@ ALTER TABLE `wallet_ledger_entries`
 -- AUTO_INCREMENT for table `wallet_pin_tokens`
 --
 ALTER TABLE `wallet_pin_tokens`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `wallet_pre_credits`
+--
+ALTER TABLE `wallet_pre_credits`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
@@ -2048,6 +2243,29 @@ ALTER TABLE `admin_support_ticket_messages`
   ADD CONSTRAINT `fk_admin_msg_admin` FOREIGN KEY (`admin_id`) REFERENCES `admins` (`id`),
   ADD CONSTRAINT `fk_admin_msg_ticket` FOREIGN KEY (`ticket_id`) REFERENCES `admin_support_tickets` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `fk_admin_msg_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`);
+
+--
+-- Constraints for table `career_applications`
+--
+ALTER TABLE `career_applications`
+  ADD CONSTRAINT `fk_career_applications_assigned_admin` FOREIGN KEY (`assigned_admin_id`) REFERENCES `admins` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_career_applications_opening` FOREIGN KEY (`opening_id`) REFERENCES `career_openings` (`id`),
+  ADD CONSTRAINT `fk_career_applications_reviewed_by` FOREIGN KEY (`reviewed_by_admin_id`) REFERENCES `admins` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `career_application_status_history`
+--
+ALTER TABLE `career_application_status_history`
+  ADD CONSTRAINT `fk_career_application_history_admin` FOREIGN KEY (`changed_by_admin_id`) REFERENCES `admins` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_career_application_history_application` FOREIGN KEY (`application_id`) REFERENCES `career_applications` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_career_application_history_assigned_admin` FOREIGN KEY (`assigned_admin_id`) REFERENCES `admins` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `career_openings`
+--
+ALTER TABLE `career_openings`
+  ADD CONSTRAINT `fk_career_openings_created_by` FOREIGN KEY (`created_by_admin_id`) REFERENCES `admins` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_career_openings_updated_by` FOREIGN KEY (`updated_by_admin_id`) REFERENCES `admins` (`id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `material_request_votes`

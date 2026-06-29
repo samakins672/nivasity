@@ -1,7 +1,23 @@
 <?php
 // API Configuration
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+
+// CORS: allow credentials from known Nivasity origins
+$allowed_origins = [
+    'https://marketplace.nivasity.com',
+    'https://school.nivasity.com',
+    'https://app.nivasity.com',
+    'http://localhost:8080',
+    'http://localhost:5173',
+    'http://localhost:3000',
+];
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (in_array($origin, $allowed_origins, true)) {
+    header('Access-Control-Allow-Origin: ' . $origin);
+    header('Access-Control-Allow-Credentials: true');
+} else {
+    header('Access-Control-Allow-Origin: *');
+}
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 

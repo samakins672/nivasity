@@ -10,14 +10,10 @@
 </IfModule>
 
 # Security Headers
+# NOTE: CORS headers are handled dynamically in config.php to support
+# Access-Control-Allow-Credentials for .nivasity.com SSO cookies.
 <IfModule mod_headers.c>
-    # CORS Headers (adjust origins as needed)
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-    Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
-    Header always set Access-Control-Max-Age "3600"
-    
-    # Security headers
+    # Security headers only (CORS is set in PHP, not here)
     Header always set X-Content-Type-Options "nosniff"
     Header always set X-Frame-Options "DENY"
     Header always set X-XSS-Protection "1; mode=block"

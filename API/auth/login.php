@@ -125,21 +125,53 @@ if ($user['role'] !== 'student' && $user['role'] !== 'hoc') {
 // Generate JWT tokens
 $tokens = generateTokenPair($user['id'], $user['role'], $user['school']);
 
+// Set SSO cookie for .nivasity.com cross-subdomain auth
+$cookie_domain = (strpos($_SERVER['HTTP_HOST'] ?? '', 'nivasity.com') !== false)
+    ? '.nivasity.com'
+    : '';
+if ($cookie_domain) {
+    setcookie('nivasity_token', $tokens['access_token'], [
+        'expires'  => time() + 3600,
+        'path'     => '/',
+        'domain'   => $cookie_domain,
+        'secure'   => true,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+}
+
+// Seller level check
+require_once __DIR__ . '/../../model/internal_wallet_service.php';
+$user_id_int = (int)$user['id'];
+$level = 1;
+$seller_check = mysqli_query($conn, "SELECT id FROM marketplace_seller_verifications WHERE user_id = $user_id_int AND status = 'approved' LIMIT 1");
+if ($seller_check && mysqli_num_rows($seller_check) > 0) {
+    $level = 2;
+}
+
+// Wallet provisioned
+$wallet = nivasityGetUserWallet($conn, $user_id_int);
+$wallet_provisioned = $wallet && isset($wallet['id']);
+
 // Prepare user data
 $userData = [
-    'id' => $user['id'],
-    'first_name' => $user['first_name'],
-    'last_name' => $user['last_name'],
-    'email' => $user['email'],
-    'phone' => $user['phone'],
-    'role' => $user['role'],
-    'gender' => $user['gender'],
-    'status' => $user['status'],
-    'profile_pic' => $user['profile_pic'],
-    'school_id' => $user['school'],
-    'matric_no' => $user['matric_no'] ?? null,
-    'dept' => $user['dept'] ?? null,
-    'adm_year' => $user['adm_year'] ?? null
+    'id'                 => $user['id'],
+    'first_name'         => $user['first_name'],
+    'last_name'          => $user['last_name'],
+    'email'              => $user['email'],
+    'phone'              => $user['phone'],
+    'role'               => $user['role'],
+    'gender'             => $user['gender'],
+    'status'             => $user['status'],
+    'profile_pic'        => $user['profile_pic'],
+    'school_id'          => $user['school'],
+    'matric_no'          => $user['matric_no'] ?? null,
+    'dept'               => $user['dept'] ?? null,
+    'adm_year'           => $user['adm_year'] ?? null,
+    'level'              => $level,
+    'wallet_provisioned' => $wallet_provisioned,
+    'phone_verified'     => !empty($user['phone']) && ($user['phone_verified'] ?? 0) == 1,
+    'email_verified'     => $user['status'] !== 'unverified',
 ];
 
 // Combine user data with tokens
