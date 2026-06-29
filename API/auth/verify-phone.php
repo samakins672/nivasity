@@ -76,7 +76,7 @@ if ($step === 'send') {
             'type'              => 'template',
             'template'          => [
                 'name'     => $wa_template,
-                'language' => ['code' => 'en_US'],
+                'language' => ['code' => 'en'],
                 'components' => [
                     [
                         'type'       => 'body',
