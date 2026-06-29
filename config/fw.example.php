@@ -30,6 +30,31 @@ define('PAYSTACK_PUBLIC_KEY', 'pk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 define('PAYSTACK_SECRET_KEY', 'sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
 
 // ============================================================================
+// WHATSAPP CLOUD API (Meta) — Phone OTP Verification
+// ============================================================================
+// Used by: API/auth/verify-phone.php
+//
+// How to get these credentials:
+//   1. Go to https://developers.facebook.com → Your App → WhatsApp → API Setup
+//   2. Copy the Phone Number ID shown under "From"
+//   3. Generate a Permanent System User Token in:
+//      Meta Business Suite → Settings → Users → System Users → Generate Token
+//      (Select whatsapp_business_messaging + whatsapp_business_management scopes)
+//
+// OTP Message Template:
+//   Create an AUTHENTICATION template in WhatsApp Manager:
+//   business.facebook.com → WhatsApp Manager → Message Templates → Create
+//   Category: Authentication  |  Template name must match WHATSAPP_OTP_TEMPLATE
+//   Body example: "{{1}} is your Nivasity verification code. Valid for 10 minutes."
+//   Authentication templates are auto-approved instantly by Meta.
+//
+// Leave blank to use dev mode (OTP is logged to PHP error_log instead of sending).
+
+define('WHATSAPP_ACCESS_TOKEN',    '');   // System User permanent token
+define('WHATSAPP_PHONE_NUMBER_ID', '');   // e.g. 123456789012345
+define('WHATSAPP_OTP_TEMPLATE',    'nivasity_otp'); // Must match your approved template name
+
+// ============================================================================
 // STAGING ACCESS CONTROL
 // ============================================================================
 

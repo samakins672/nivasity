@@ -54,20 +54,76 @@ if ($step === 'send') {
     $otp_safe = sanitizeInput($conn, $otp);
     mysqli_query($conn, "INSERT INTO phone_verification_otps (user_id, phone, otp_code, expires_at) VALUES ($user_id, '$phone_safe', '$otp_safe', '$expires_at')");
 
-    // Send SMS (integrate your SMS provider here)
-    // For Termii, Infobip, Twilio, etc. — replace the stub below.
-    // Example using a generic HTTP SMS gateway:
-    $sms_sent = false;
-    if (function_exists('sendSmsOtp')) {
-        $sms_sent = sendSmsOtp($phone, "Your Nivasity verification code is: $otp. Valid for 10 minutes.");
+    // Send OTP via Meta WhatsApp Cloud API
+    require_once __DIR__ . '/../../config/fw.php';
+
+    $wa_token      = defined('WHATSAPP_ACCESS_TOKEN')    ? WHATSAPP_ACCESS_TOKEN    : '';
+    $wa_phone_id   = defined('WHATSAPP_PHONE_NUMBER_ID') ? WHATSAPP_PHONE_NUMBER_ID : '';
+    $wa_template   = defined('WHATSAPP_OTP_TEMPLATE')    ? WHATSAPP_OTP_TEMPLATE    : 'nivasity_otp';
+
+    if (empty($wa_token) || empty($wa_phone_id)) {
+        // Development fallback — log OTP to error log so you can test without credentials
+        error_log("[WHATSAPP OTP DEV] user_id=$user_id phone=$phone otp=$otp");
+        $sms_sent = true;
     } else {
-        // Log OTP for development (remove in production)
-        error_log("[PHONE OTP] user_id=$user_id phone=$phone otp=$otp");
-        $sms_sent = true; // assume success in dev
+        // WhatsApp Cloud API requires an approved message template for user-initiated OTPs.
+        // Template category: AUTHENTICATION
+        // Template body example: "{{1}} is your Nivasity verification code. Valid for 10 minutes."
+        // Create it at: business.facebook.com → WhatsApp Manager → Message Templates
+        $payload = json_encode([
+            'messaging_product' => 'whatsapp',
+            'to'                => $phone,   // E.164 format: +2348XXXXXXXXX
+            'type'              => 'template',
+            'template'          => [
+                'name'     => $wa_template,
+                'language' => ['code' => 'en_US'],
+                'components' => [
+                    [
+                        'type'       => 'body',
+                        'parameters' => [
+                            ['type' => 'text', 'text' => $otp],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $url = 'https://graph.facebook.com/v19.0/' . $wa_phone_id . '/messages';
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $payload,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $wa_token,
+            ],
+            CURLOPT_TIMEOUT        => 10,
+        ]);
+
+        $response_raw = curl_exec($ch);
+        $curl_error   = curl_error($ch);
+        $http_code    = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($curl_error) {
+            error_log('[WHATSAPP CURL ERROR] ' . $curl_error);
+            sendApiError('Could not connect to WhatsApp. Please try again.', 500);
+        }
+
+        $response = json_decode($response_raw, true);
+
+        // Meta returns messages[0].id on success (HTTP 200)
+        $sms_sent = ($http_code === 200) && !empty($response['messages'][0]['id']);
+
+        if (!$sms_sent) {
+            error_log('[WHATSAPP FAILED] HTTP ' . $http_code . ' — ' . $response_raw);
+        }
     }
 
     if (!$sms_sent) {
-        sendApiError('Failed to send OTP. Please try again.', 500);
+        sendApiError('Failed to send WhatsApp OTP. Please try again.', 500);
     }
 
     sendApiSuccess('OTP sent to ' . substr($phone, 0, 7) . '****');
