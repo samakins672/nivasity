@@ -3867,7 +3867,7 @@ if (!function_exists('nivasityProcessWalletCheckout')) {
 
 if (!function_exists('nivasitySettlementCapPerSchool')) {
     function nivasitySettlementCapPerSchool() {
-        return 8000000;
+        return 6000000;
     }
 }
 
