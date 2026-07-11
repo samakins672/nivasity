@@ -109,3 +109,12 @@ CREATE TABLE IF NOT EXISTS phone_verification_otps (
     created_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 8. Platform Profits
+CREATE TABLE IF NOT EXISTS platform_profits (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    order_id    INT           NOT NULL,
+    amount      DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    created_at  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_order_id (order_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

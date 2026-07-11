@@ -168,13 +168,23 @@ if (!function_exists('marketplaceReleaseEscrow')) {
             $wallet_row   = mysqli_fetch_assoc($wallet_q);
             $wallet_id    = (int)$wallet_row['id'];
             $bal_before   = (int)$wallet_row['balance'];
-            $bal_after    = $bal_before + $amount;
+
+            // Platform fee accounting (5%)
+            $platform_fee = (int)round($amount * 0.05);
+            $seller_credit = $amount - $platform_fee;
+
+            $bal_after    = $bal_before + $seller_credit;
             $ref          = mysqli_real_escape_string($conn, 'marketplace_sale_' . $order_id);
-            $desc         = mysqli_real_escape_string($conn, 'Marketplace sale — order #' . $order_id);
+            $desc         = mysqli_real_escape_string($conn, 'Marketplace sale (less 5% fee) — order #' . $order_id);
 
             mysqli_query($conn, "UPDATE user_wallets SET balance = $bal_after, updated_at = NOW() WHERE id = $wallet_id");
             mysqli_query($conn, "INSERT INTO wallet_ledger_entries (wallet_id, entry_type, amount, balance_before, balance_after, status, reference, description)
-                                 VALUES ($wallet_id, 'credit', $amount, $bal_before, $bal_after, 'posted', '$ref', '$desc')");
+                                 VALUES ($wallet_id, 'credit', $seller_credit, $bal_before, $bal_after, 'posted', '$ref', '$desc')");
+
+            // Log platform profit
+            if ($platform_fee > 0) {
+                mysqli_query($conn, "INSERT INTO platform_profits (order_id, amount) VALUES ($order_id, $platform_fee)");
+            }
 
             mysqli_query($conn, "UPDATE marketplace_orders SET escrow_locked = 0 WHERE id = $order_id");
 
