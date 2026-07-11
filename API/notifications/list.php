@@ -30,6 +30,7 @@ $offset = ($page - 1) * $limit;
 
 // Get end_date parameter (filter notifications before this date)
 $end_date = isset($_GET['end_date']) ? trim($_GET['end_date']) : null;
+$unread_only = isset($_GET['unread_only']) && ($_GET['unread_only'] === '1' || $_GET['unread_only'] === 'true');
 
 // Validate end_date format if provided (expects YYYY-MM-DD HH:MM:SS or YYYY-MM-DD)
 if ($end_date !== null && $end_date !== '') {
@@ -58,6 +59,10 @@ try {
         $where_clause .= " AND created_at <= ?";
         $where_params[] = $end_date;
         $param_types .= 's';
+    }
+
+    if ($unread_only) {
+        $where_clause .= " AND read_at IS NULL";
     }
     
     // Get unread count (with date filter if provided)
