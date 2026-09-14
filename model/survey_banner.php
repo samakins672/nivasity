@@ -1,9 +1,11 @@
 <?php
 
-// Determines whether the bottom-right survey banner should be shown to the
-// current student, and handles dismiss/submit against the shared survey
-// tables (surveys, survey_responses, survey_banner_dismissals) that also
-// back the cc_dashboard survey builder. No separate table is created here.
+// Determines whether the bottom survey banner should be shown to the
+// current student, and records dismissals. The actual survey is answered
+// on the public survey page (main_site), opened in a new tab — this file
+// only reads/writes the shared survey tables (surveys, survey_responses,
+// survey_banner_dismissals) that also back the cc_dashboard survey builder.
+// No separate table is created here beyond survey_banner_dismissals.
 
 if (!function_exists('surveyBannerTablesReady')) {
   function surveyBannerTablesReady(mysqli $conn): bool
@@ -87,7 +89,7 @@ if (!function_exists('surveyBannerGetActiveForUser')) {
 
     $result = mysqli_query(
       $conn,
-      "SELECT id, slug, title, description, questions_json, allow_duplicate_email
+      "SELECT id, slug, title, description
        FROM surveys
        WHERE show_as_banner = 1
          AND status = 'published'
@@ -111,15 +113,11 @@ if (!function_exists('surveyBannerGetActiveForUser')) {
       return null;
     }
 
-    $questionsData = json_decode((string) ($survey['questions_json'] ?? '{}'), true);
-
     return [
       'id' => $surveyId,
       'slug' => (string) $survey['slug'],
-      'title' => (string) ($questionsData['title'] ?? $survey['title']),
-      'description' => (string) ($questionsData['description'] ?? ($survey['description'] ?? '')),
-      'questions' => $questionsData['questions'] ?? null,
-      'sections' => $questionsData['sections'] ?? null,
+      'title' => (string) $survey['title'],
+      'description' => (string) ($survey['description'] ?? ''),
     ];
   }
 }
@@ -149,61 +147,3 @@ if (!function_exists('surveyBannerDismiss')) {
   }
 }
 
-if (!function_exists('surveyBannerSubmitResponse')) {
-  /**
-   * Records a submission and treats it as an implicit dismissal so the
-   * banner never reappears for this survey once answered.
-   */
-  function surveyBannerSubmitResponse(
-    mysqli $conn,
-    int $surveyId,
-    int $userId,
-    string $firstName,
-    string $lastName,
-    string $email,
-    string $phone,
-    string $responsesJson
-  ): bool {
-    if ($surveyId <= 0 || $userId <= 0 || !surveyBannerTablesReady($conn)) {
-      return false;
-    }
-
-    $email = strtolower(trim($email));
-    if ($firstName === '' || $lastName === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-      return false;
-    }
-
-    $stmt = mysqli_prepare(
-      $conn,
-      "INSERT INTO survey_responses (survey_id, first_name, last_name, email, phone, responses_json, submitter_ip, user_agent, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())"
-    );
-    if (!$stmt) {
-      return false;
-    }
-
-    $submitterIp = isset($_SERVER['REMOTE_ADDR']) ? substr((string) $_SERVER['REMOTE_ADDR'], 0, 45) : '';
-    $userAgent = isset($_SERVER['HTTP_USER_AGENT']) ? substr((string) $_SERVER['HTTP_USER_AGENT'], 0, 500) : '';
-
-    mysqli_stmt_bind_param(
-      $stmt,
-      'isssssss',
-      $surveyId,
-      $firstName,
-      $lastName,
-      $email,
-      $phone,
-      $responsesJson,
-      $submitterIp,
-      $userAgent
-    );
-    $ok = mysqli_stmt_execute($stmt);
-    mysqli_stmt_close($stmt);
-
-    if ($ok) {
-      surveyBannerDismiss($conn, $surveyId, $userId);
-    }
-
-    return (bool) $ok;
-  }
-}
