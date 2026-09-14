@@ -9,6 +9,7 @@ if (isset($conn)) {
 
 require_once __DIR__ . '/../config/fw.php';
 require_once __DIR__ . '/mobile_experience_prompt.php';
+require_once __DIR__ . '/survey_banner.php';
 require_once __DIR__ . '/internal_wallet_service.php';
 $url = substr($_SERVER["SCRIPT_NAME"], strrpos($_SERVER["SCRIPT_NAME"], "/") + 1);
 $allow_all_roles_wallet_page = ($url === 'wallet.php');
@@ -81,6 +82,7 @@ if (isset($_SESSION['nivas_userId'])) {
   }
 
   $mobile_experience_prompt_state = mobile_experience_prompt_get_state($conn, (int) $user_id, 6, true);
+  $survey_banner_active = surveyBannerGetActiveForUser($conn, (int) $user_id, (string) $user_email);
 
 }
 

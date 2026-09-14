@@ -22,6 +22,10 @@ $whatsAppLink = nivasity_get_support_whatsapp_link();
     <span class="whatsapp-tooltip">Talk to Bella</span>
   </div>
 <?php } ?>
+
+<?php if (!defined('SURVEY_BANNER_RENDERED') && !empty($survey_banner_active) && is_array($survey_banner_active)) { define('SURVEY_BANNER_RENDERED', true); ?>
+  <?php include __DIR__ . '/_survey_banner.php'; ?>
+<?php } ?>
 <?php
   $asset_prefix = (strpos($_SERVER['SCRIPT_NAME'] ?? '', '/admin/') !== false) ? '../' : '';
 ?>

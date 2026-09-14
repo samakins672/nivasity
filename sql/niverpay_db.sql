@@ -1020,6 +1020,7 @@ CREATE TABLE `surveys` (
   `questions_json` longtext NOT NULL COMMENT 'Full survey definition JSON matching SurveyData format (questions or sections)',
   `status` enum('draft','published','closed','archived') NOT NULL DEFAULT 'draft',
   `allow_duplicate_email` tinyint(1) NOT NULL DEFAULT 0 COMMENT '0 = block duplicate emails per survey, 1 = allow',
+  `show_as_banner` tinyint(1) NOT NULL DEFAULT 0 COMMENT '1 = show as the non-blocking bottom-right banner in the student app (only one survey should be flagged at a time)',
   `expiry_date` datetime DEFAULT NULL COMMENT 'Auto-close survey after this date; NULL = no expiry',
   `created_by_admin_id` int(11) DEFAULT NULL,
   `updated_by_admin_id` int(11) DEFAULT NULL,
@@ -1044,6 +1045,21 @@ CREATE TABLE `survey_responses` (
   `submitter_ip` varchar(45) DEFAULT NULL,
   `user_agent` varchar(500) DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `survey_banner_dismissals`
+-- Tracks which logged-in students have closed the bottom-right survey
+-- banner in the student app, per survey, so it stays hidden across devices.
+--
+
+CREATE TABLE `survey_banner_dismissals` (
+  `id` int(11) NOT NULL,
+  `survey_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `dismissed_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -1746,7 +1762,8 @@ ALTER TABLE `surveys`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `ux_survey_slug` (`slug`),
   ADD KEY `idx_survey_status` (`status`),
-  ADD KEY `idx_survey_created_at` (`created_at`);
+  ADD KEY `idx_survey_created_at` (`created_at`),
+  ADD KEY `idx_survey_show_as_banner` (`show_as_banner`);
 
 --
 -- Indexes for table `survey_responses`
@@ -1757,6 +1774,14 @@ ALTER TABLE `survey_responses`
   ADD KEY `idx_sr_survey` (`survey_id`),
   ADD KEY `idx_sr_email` (`email`),
   ADD KEY `idx_sr_created_at` (`created_at`);
+
+--
+-- Indexes for table `survey_banner_dismissals`
+--
+ALTER TABLE `survey_banner_dismissals`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `ux_sbd_survey_user` (`survey_id`,`user_id`),
+  ADD KEY `idx_sbd_user` (`user_id`);
 
 --
 -- Indexes for table `system_alerts`
@@ -2149,6 +2174,12 @@ ALTER TABLE `surveys`
 -- AUTO_INCREMENT for table `survey_responses`
 --
 ALTER TABLE `survey_responses`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `survey_banner_dismissals`
+--
+ALTER TABLE `survey_banner_dismissals`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
