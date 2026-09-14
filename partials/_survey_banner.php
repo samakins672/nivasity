@@ -14,10 +14,13 @@ $__surveyLink = 'https://nivasity.com/survey/' . rawurlencode($__surveySlug);
   <div class="survey-banner-inner">
     <div class="survey-banner-text">
       <i class="bx bx-message-rounded-dots survey-banner-icon"></i>
-      <div>
+      <div class="survey-banner-copy">
         <div class="survey-banner-title"><?php echo htmlspecialchars((string) ($__survey['title'] ?? 'We would love your feedback'), ENT_QUOTES, 'UTF-8'); ?></div>
-        <?php if (!empty($__survey['description'])) { ?>
-          <div class="survey-banner-desc"><?php echo htmlspecialchars((string) $__survey['description'], ENT_QUOTES, 'UTF-8'); ?></div>
+        <?php if (!empty($__survey['description'])) {
+          $__descFull = (string) $__survey['description'];
+          $__descPreview = mb_strlen($__descFull) > 90 ? rtrim(mb_substr($__descFull, 0, 90)) . '…' : $__descFull;
+        ?>
+          <div class="survey-banner-desc" title="<?php echo htmlspecialchars($__descFull, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($__descPreview, ENT_QUOTES, 'UTF-8'); ?></div>
         <?php } ?>
       </div>
     </div>
@@ -31,7 +34,7 @@ $__surveyLink = 'https://nivasity.com/survey/' . rawurlencode($__surveySlug);
 <style>
   /* Lift the WhatsApp float above this full-width bottom banner so they don't overlap. */
   .whatsapp-float {
-    bottom: 76px !important;
+    bottom: 100px !important;
   }
 
   .survey-banner {
@@ -61,6 +64,11 @@ $__surveyLink = 'https://nivasity.com/survey/' . rawurlencode($__surveySlug);
     align-items: flex-start;
     gap: 10px;
     min-width: 0;
+    flex: 1;
+  }
+
+  .survey-banner-copy {
+    min-width: 0;
   }
 
   .survey-banner-icon {
@@ -80,6 +88,9 @@ $__surveyLink = 'https://nivasity.com/survey/' . rawurlencode($__surveySlug);
     color: rgba(255,255,255,0.85);
     margin-top: 2px;
     max-width: 560px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .survey-banner-actions {
@@ -127,8 +138,11 @@ $__surveyLink = 'https://nivasity.com/survey/' . rawurlencode($__surveySlug);
     .survey-banner-inner {
       padding: 12px 14px;
     }
+    .survey-banner-text {
+      max-width: 100%;
+    }
     .survey-banner-desc {
-      display: none;
+      max-width: 100%;
     }
   }
 </style>
