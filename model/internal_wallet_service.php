@@ -1892,7 +1892,7 @@ if (!function_exists('nivasityGetWalletHandlingFeeBreakdown')) {
             if ($gatewayCharge <= 0) {
                 $effectiveCharge = 0;
             } else {
-                $effectiveCharge = min($configuredCharge, max(0, $gatewayCharge - 1));
+                $effectiveCharge = $configuredCharge > 0 ? $configuredCharge : max(0, $gatewayCharge);
             }
         }
 
