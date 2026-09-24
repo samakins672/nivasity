@@ -3,6 +3,7 @@ include('config.php');
 include('mail.php');
 include('functions.php');
 $statusRes = $messageRes = $school_id = $departments = $user_id = $first_name = $role = 'failed';
+$school_domain = '';
 
 if (isset($_POST['verify'])) {
   $code = $_POST['verify'];
@@ -19,6 +20,7 @@ if (isset($_POST['verify'])) {
     if ($user['status'] == 'unverified') {
       // Get school and department
       $school_id = $user['school'];
+      $school_domain = nivasity_get_school_domain($conn, $school_id);
   
       // Retrieve departments with IDs based on school ID
       $departments_query = mysqli_query($conn, "SELECT * FROM depts WHERE status = 'active' AND school_id = $school_id");
@@ -45,6 +47,8 @@ if (isset($_POST['verify'])) {
         $statusRes = "success";
       }
     } else {
+      $school_id = $user['school'];
+      $school_domain = nivasity_get_school_domain($conn, $school_id);
       $statusRes = "verified";
     }
   } else {
@@ -56,6 +60,7 @@ if (isset($_POST['verify'])) {
 $responseData = array(
   "status" => "$statusRes",
   "school_id" => "$school_id",
+  "school_domain" => "$school_domain",
   "departments" => $departments,
   "user_id" => "$user_id",
   "first_name" => "$first_name",

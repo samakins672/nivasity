@@ -88,7 +88,7 @@ if ($user['status'] === 'unverified') {
     $subject = "Verify Your Account on NIVASITY";
     $first_name = htmlspecialchars($user['first_name'], ENT_QUOTES, 'UTF-8');
     $verificationLinkEscaped = htmlspecialchars($verificationLink, ENT_QUOTES, 'UTF-8');
-    $verificationUrl = htmlspecialchars(nivasity_app_url($verificationLink), ENT_QUOTES, 'UTF-8');
+    $verificationUrl = htmlspecialchars(nivasity_get_school_url($conn, $user['school'], $verificationLink), ENT_QUOTES, 'UTF-8');
     $body = "Hello $first_name,
 <br><br>
 We noticed you tried to log in with an unverified account. We've sent you a new verification link to complete your registration.

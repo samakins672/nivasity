@@ -95,7 +95,7 @@ while ($pendingUser = mysqli_fetch_assoc($pendingUsersQuery)) {
 
   $subject = 'Verify Your Account on NIVASITY';
   $firstName = $pendingUser['first_name'];
-  $verificationUrl = nivasity_app_url($verificationPath);
+  $verificationUrl = nivasity_get_school_url($conn, $pendingUser['school'], $verificationPath);
   $body = "Hello $firstName,<br><br>"
     . "We're sending you a new verification link so you can finish setting up your Nivasity account.<br><br>"
     . "Click on the following link to verify your account: <a href='$verificationUrl'>Verify Account</a><br>"

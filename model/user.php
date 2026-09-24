@@ -58,7 +58,7 @@ if (isset($_POST['signup'])) {
       }
 
       $subject = "Verify Your Account on NIVASITY";
-      $verificationUrl = nivasity_app_url($verificationCode);
+      $verificationUrl = nivasity_get_school_url($conn, $school, $verificationCode);
       $body = "Hello $first_name,
       <br><br>
       Welcome to Nivasity! We're excited to have you on board. To ensure the security of your account and to provide you with the best experience, we kindly ask you to verify your email address.
@@ -133,7 +133,7 @@ if (isset($_POST['resend_verification'])) {
 
             $subject = "Verify Your Account on NIVASITY";
           $first_name = $user['first_name'];
-            $verificationUrl = nivasity_app_url($verificationCode);
+            $verificationUrl = nivasity_get_school_url($conn, $user['school'], $verificationCode);
           $body = "Hello $first_name,
       <br><br>
       We're sending you a new verification link so you can finish setting up your Nivasity account.
@@ -547,7 +547,7 @@ if (isset($_POST['login'])) {
           // Escape user data for safe inclusion in HTML email
           $first_name = htmlspecialchars($user['first_name'], ENT_QUOTES, 'UTF-8');
           $verificationLinkEscaped = htmlspecialchars($verificationLink, ENT_QUOTES, 'UTF-8');
-          $verificationUrl = htmlspecialchars(nivasity_app_url($verificationLink), ENT_QUOTES, 'UTF-8');
+          $verificationUrl = htmlspecialchars(nivasity_get_school_url($conn, $user['school'], $verificationLink), ENT_QUOTES, 'UTF-8');
           $body = "Hello $first_name,
 <br><br>
 We noticed you tried to log in with an unverified account. We're sending you a verification link to complete your registration.

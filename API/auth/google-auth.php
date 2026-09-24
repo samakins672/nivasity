@@ -152,7 +152,7 @@ if ($user_query->num_rows === 1) {
         $subject = "Verify Your Account on NIVASITY";
         $first_name_escaped = htmlspecialchars($user['first_name'], ENT_QUOTES, 'UTF-8');
         $verificationLinkEscaped = htmlspecialchars($verificationLink, ENT_QUOTES, 'UTF-8');
-        $verificationUrl = htmlspecialchars(nivasity_app_url($verificationLink), ENT_QUOTES, 'UTF-8');
+        $verificationUrl = htmlspecialchars(nivasity_get_school_url($conn, $user['school'], $verificationLink), ENT_QUOTES, 'UTF-8');
         $body = "Hello $first_name_escaped,
 <br><br>
 We noticed you tried to log in with Google but your account is still unverified. We're sending you a verification link to complete your registration.
@@ -285,7 +285,7 @@ Best regards,<br><b>Nivasity Team</b>";
     $subject = "Verify Your Account on NIVASITY";
     $first_name_escaped = htmlspecialchars($first_name, ENT_QUOTES, 'UTF-8');
     $verificationLinkEscaped = htmlspecialchars($verificationLink, ENT_QUOTES, 'UTF-8');
-    $verificationUrl = htmlspecialchars(nivasity_app_url($verificationLink), ENT_QUOTES, 'UTF-8');
+    $verificationUrl = htmlspecialchars(nivasity_get_school_url($conn, $school_id, $verificationLink), ENT_QUOTES, 'UTF-8');
     $body = "Hello $first_name_escaped,
 <br><br>
 Welcome to Nivasity! You've successfully created an account using Google Sign-In. We're sending you a verification link to complete your registration.

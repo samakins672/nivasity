@@ -65,7 +65,7 @@ if ($user['role'] === 'org_admin') {
 
 $subject = "Verify Your Account on NIVASITY";
 $first_name = $user['first_name'];
-$verificationUrl = nivasity_app_url($verificationLink);
+$verificationUrl = nivasity_get_school_url($conn, $user['school'], $verificationLink);
 $body = "Hello $first_name,
 <br><br>
 We're sending you a new verification link so you can finish setting up your Nivasity account.

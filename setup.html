@@ -154,6 +154,21 @@
         data: { verify: verify },
         success: function (data) {
           if (data.status == 'success') {
+            // If accessed from api.nivasity.com or another domain, redirect to student school domain
+            if (data.school_domain) {
+              try {
+                var currentHost = window.location.hostname.toLowerCase();
+                var targetHost = new URL(data.school_domain).hostname.toLowerCase();
+                var isLocal = currentHost === 'localhost' || currentHost === '127.0.0.1';
+                if (!isLocal && (currentHost === 'api.nivasity.com' || (targetHost && currentHost !== targetHost))) {
+                  window.location.href = data.school_domain + '/setup.html' + window.location.search;
+                  return;
+                }
+              } catch (e) {
+                console.error(e);
+              }
+            }
+
             // Get the select element
             var dept = $('#dept');
 

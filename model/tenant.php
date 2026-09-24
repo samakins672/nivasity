@@ -181,6 +181,55 @@ if (!function_exists('nivasity_asset_url')) {
   }
 }
 
+if (!function_exists('nivasity_get_school_domain')) {
+  function nivasity_get_school_domain($conn, $schoolId) {
+    $schoolId = (int) $schoolId;
+    if ($schoolId <= 0 || !$conn) {
+      return nivasity_default_domain();
+    }
+
+    $scheme = nivasity_detect_request_scheme();
+    $hasDomainColumn = nivasity_db_has_column($conn, 'schools', 'domain');
+    $query = $hasDomainColumn
+      ? "SELECT id, name, code, domain FROM schools WHERE id = ? LIMIT 1"
+      : "SELECT id, name, code FROM schools WHERE id = ? LIMIT 1";
+
+    $stmt = mysqli_prepare($conn, $query);
+    if ($stmt) {
+      mysqli_stmt_bind_param($stmt, 'i', $schoolId);
+      mysqli_stmt_execute($stmt);
+      $result = mysqli_stmt_get_result($stmt);
+      if ($result && mysqli_num_rows($result) === 1) {
+        $row = mysqli_fetch_assoc($result);
+        mysqli_stmt_close($stmt);
+
+        if (!empty($row['domain'])) {
+          $host = nivasity_normalize_host($row['domain']);
+          return $scheme . '://' . $host;
+        } elseif (!empty($row['code'])) {
+          $code = strtolower(trim((string)$row['code']));
+          return $scheme . '://' . $code . '.nivasity.com';
+        }
+      } else {
+        mysqli_stmt_close($stmt);
+      }
+    }
+
+    return nivasity_default_domain();
+  }
+}
+
+if (!function_exists('nivasity_get_school_url')) {
+  function nivasity_get_school_url($conn, $schoolId, $path = '') {
+    $schoolDomain = nivasity_get_school_domain($conn, $schoolId);
+    $normalizedPath = ltrim((string) $path, '/');
+    if ($normalizedPath === '') {
+      return $schoolDomain;
+    }
+    return $schoolDomain . '/' . $normalizedPath;
+  }
+}
+
 if (!function_exists('nivasity_school_id')) {
   function nivasity_school_id() {
     $context = nivasity_get_tenant_context();
