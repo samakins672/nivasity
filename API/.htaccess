@@ -4,9 +4,10 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
     
-    # Restrict access to api.nivasity.com only (can be disabled for testing)
-    # RewriteCond %{HTTP_HOST} !^api\.nivasity\.com$ [NC]
-    # RewriteRule ^ - [F,L]
+    # Rewrite setup and verification requests to the redirect handler
+    RewriteRule ^setup\.html$ setup_redirect.php [QSA,L]
+    RewriteRule ^setup_org\.html$ setup_redirect.php?type=org [QSA,L]
+    RewriteRule ^verify\.html$ setup_redirect.php?type=visitor [QSA,L]
 </IfModule>
 
 # Security Headers

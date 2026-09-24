@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redirecting to Nivasity Setup...</title>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const verify = urlParams.get('verify');
+    if (verify) {
+      window.location.href = 'setup_redirect.php?type=org&verify=' + encodeURIComponent(verify);
+    } else {
+      window.location.href = 'https://nivasity.com';
+    }
+  </script>
+</head>
+<body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #fff7f2;">
+  <p style="color: #666; font-size: 16px;">Redirecting to your portal...</p>
+</body>
+</html>
