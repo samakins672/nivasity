@@ -158,22 +158,27 @@ function checkBrevoCredits()
   if ($statusCode >= 200 && $statusCode < 300) {
     $accountData = json_decode($response, true);
     
-    // Look for subscription credits in the plan array
+    // Look for email send credits in the plan array. Brevo returns a "type"
+    // of "free", "payAsYouGo", or "subscription" depending on the account's
+    // billing setup; all of them grant email sending credits (creditsType
+    // "sendLimit"), so any of them should be accepted here.
     if (isset($accountData['plan']) && is_array($accountData['plan'])) {
       foreach ($accountData['plan'] as $plan) {
-        if (isset($plan['type']) && $plan['type'] === 'subscription' && isset($plan['credits'])) {
+        $planType = $plan['type'] ?? null;
+        $isEmailPlan = in_array($planType, ['subscription', 'free', 'payAsYouGo'], true);
+        if ($isEmailPlan && isset($plan['credits'])) {
           $credits = (int)$plan['credits'];
           // Cache the result
           $cachedCredits = $credits;
           $cacheTime = time();
-          error_log(sprintf('Brevo subscription credits: %d', $credits));
+          error_log(sprintf('Brevo %s plan credits: %d', $planType, $credits));
           return $credits;
         }
       }
     }
-    
-    // No subscription plan found - treat as error condition to avoid false positives
-    error_log('No subscription plan found in Brevo account data - treating as error');
+
+    // No usable plan entry found - treat as error condition to avoid false positives
+    error_log('No usable plan found in Brevo account data - treating as error');
     return false;
   }
   

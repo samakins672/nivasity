@@ -40,15 +40,18 @@ The Brevo API returns account information including a `plan` array:
 {
   "plan": [
     {
-      "type": "subscription",
-      "credits": 100,
+      "type": "free",
+      "credits": 300,
       "creditsType": "sendLimit"
     }
   ]
 }
 ```
 
-The system specifically looks for entries where `type === "subscription"` and extracts the `credits` value.
+The `type` field can be `"free"`, `"payAsYouGo"`, `"subscription"`, or `"sms"` depending on
+the account's billing setup. The system looks for the first entry whose type is `"free"`,
+`"payAsYouGo"`, or `"subscription"` and extracts its `credits` value — accounts without a
+paid subscription (e.g. using only the daily free email quota) are still recognized correctly.
 
 ## Functions
 
