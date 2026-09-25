@@ -154,13 +154,21 @@ function walletEntryBadgeClass($entryType) {
       font-weight: 700;
       letter-spacing: 0.24em;
       text-align: center;
-      padding: 0.75rem 1rem;
+      padding: 0.75rem 0.5rem;
     }
 
     .wallet-pin-input::placeholder {
       letter-spacing: 0.08em;
       font-size: 0.9rem;
       font-weight: 600;
+    }
+
+    @media (max-width: 380px) {
+      .wallet-pin-input {
+        font-size: 1.25rem;
+        letter-spacing: 0.14em;
+        padding: 0.75rem 0.35rem;
+      }
     }
 
     .wallet-pin-field {
@@ -174,6 +182,11 @@ function walletEntryBadgeClass($entryType) {
       text-align: center;
     }
 
+    #walletPinModal .modal-content {
+      max-height: 90vh;
+      max-height: 90dvh;
+    }
+
     .wallet-pin-flow {
       position: relative;
       overflow: hidden;
@@ -181,7 +194,7 @@ function walletEntryBadgeClass($entryType) {
 
     .wallet-pin-track {
       position: relative;
-      min-height: 20rem;
+      min-height: 14rem;
     }
 
     .wallet-pin-step {
@@ -587,7 +600,7 @@ function walletEntryBadgeClass($entryType) {
       </div>
 
       <div class="modal fade" id="walletPinModal" tabindex="-1" aria-labelledby="walletPinModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title fw-bold" id="walletPinModalLabel">Wallet PIN</h5>
