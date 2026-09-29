@@ -963,16 +963,14 @@ function walletEntryBadgeClass($entryType) {
       function resetWalletPinModal(mode) {
         walletPinMode = mode || walletPinMode;
         $('#walletPinModalLabel').text(walletPinMode === 'update' ? 'Update Wallet PIN' : 'Create Wallet PIN');
-        $('#walletPinModalIntro').text(walletPinMode === 'update'
-          ? 'Enter the verification code sent to your email to continue updating your Wallet PIN.'
-          : 'Enter the verification code sent to your email to continue creating your Wallet PIN.');
         $('#walletPinPinIntro').text(walletPinMode === 'update'
-          ? 'Code confirmed. Set your new 4-digit Wallet PIN.'
-          : 'Code confirmed. Create your 4-digit Wallet PIN.');
+          ? 'Set your new 4-digit Wallet PIN.'
+          : 'Create your 4-digit Wallet PIN for wallet transactions.');
         walletPinVerificationToken = '';
         $('#walletPinError').addClass('d-none').text('');
-        $('#wallet-pin-code, #wallet-pin-value, #wallet-pin-confirm').val('');
-        setWalletPinStep('code');
+        $('#wallet-pin-value, #wallet-pin-confirm').val('');
+        setWalletPinStep('pin');
+        $('#wallet-pin-back-btn').addClass('d-none');
       }
 
       $('#manage-wallet-pin-btn').on('click', function() {
@@ -980,53 +978,6 @@ function walletEntryBadgeClass($entryType) {
         if (walletPinModal) {
           walletPinModal.show();
         }
-        sendWalletPinCode(null, 'A verification code has been sent to your email.');
-      });
-
-      $('#resend-wallet-pin-code-btn').on('click', function() {
-        sendWalletPinCode(this, 'A new verification code has been sent to your email.');
-      });
-
-      $('#verify-wallet-pin-code-btn').on('click', function() {
-        var button = $(this);
-        var originalText = button.text();
-        var code = $('#wallet-pin-code').val().trim();
-
-        $('#walletPinError').addClass('d-none').text('');
-        if (!/^\d{6}$/.test(code)) {
-          $('#walletPinError').removeClass('d-none').text('Enter the 6-digit code sent to your email.');
-          return;
-        }
-
-        button.prop('disabled', true).text('Verifying...');
-        $.ajax({
-          url: 'model/wallet-pin.php',
-          type: 'POST',
-          dataType: 'json',
-          data: {
-            action: 'verify_code',
-            code: code
-          }
-        }).done(function(response) {
-          if (response && response.status === 'success' && response.data && response.data.pin_token) {
-            walletPinVerificationToken = response.data.pin_token;
-            setWalletPinStep('pin');
-            return;
-          }
-          $('#walletPinError').removeClass('d-none').text((response && response.message) ? response.message : 'Unable to verify Wallet PIN code.');
-        }).fail(function(xhr) {
-          var message = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Unable to verify Wallet PIN code.';
-          $('#walletPinError').removeClass('d-none').text(message);
-        }).always(function() {
-          button.prop('disabled', false).text(originalText);
-        });
-      });
-
-      $('#wallet-pin-back-btn').on('click', function() {
-        walletPinVerificationToken = '';
-        $('#wallet-pin-value, #wallet-pin-confirm').val('');
-        $('#walletPinError').addClass('d-none').text('');
-        setWalletPinStep('code');
       });
 
       $('#save-wallet-pin-btn').on('click', function() {
@@ -1036,10 +987,6 @@ function walletEntryBadgeClass($entryType) {
         var confirmPin = $('#wallet-pin-confirm').val().trim();
 
         $('#walletPinError').addClass('d-none').text('');
-        if (!walletPinVerificationToken) {
-          $('#walletPinError').removeClass('d-none').text('Verify the email code before setting your Wallet PIN.');
-          return;
-        }
         if (!/^\d{4}$/.test(pin)) {
           $('#walletPinError').removeClass('d-none').text('Wallet PIN must be exactly 4 digits.');
           return;
@@ -1056,7 +1003,6 @@ function walletEntryBadgeClass($entryType) {
           dataType: 'json',
           data: {
             action: 'save_pin',
-            pin_token: walletPinVerificationToken,
             pin: pin,
             confirm_pin: confirmPin
           }
