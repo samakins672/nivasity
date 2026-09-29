@@ -229,13 +229,103 @@ function sendMail($subject, $body, $to, $replyToEmail = null)
   return $statusRes;
 }
 
-function sendBrevoMail($subject, $body, $to, $replyToEmail = null)
+/**
+ * Send email via Resend API with automatic SMTP fallback
+ *
+ * @param string $subject
+ * @param string $body
+ * @param string|array $to
+ * @param string|null $replyToEmail
+ * @return string 'success'|'error'
+ */
+function sendResendMail($subject, $body, $to, $replyToEmail = null)
 {
   $body_ = buildEmailTemplate($body);
 
+  if (!defined('RESEND_API_KEY') || !RESEND_API_KEY) {
+    error_log('Resend API key is not configured. Falling back to SMTP.');
+    return sendMail($subject, $body, $to, $replyToEmail);
+  }
+
+  $senderEmail = defined('RESEND_SENDER_EMAIL') && RESEND_SENDER_EMAIL ? RESEND_SENDER_EMAIL : (defined('BREVO_SENDER_EMAIL') ? BREVO_SENDER_EMAIL : 'contact@nivasity.com');
+  $senderName = defined('RESEND_SENDER_NAME') && RESEND_SENDER_NAME ? RESEND_SENDER_NAME : (defined('BREVO_SENDER_NAME') ? BREVO_SENDER_NAME : 'Nivasity');
+  $fromFormatted = "{$senderName} <{$senderEmail}>";
+
+  $effectiveReplyTo = null;
+  if ($replyToEmail) {
+    $effectiveReplyTo = $replyToEmail;
+  } elseif (defined('RESEND_REPLY_TO_EMAIL') && RESEND_REPLY_TO_EMAIL) {
+    $effectiveReplyTo = RESEND_REPLY_TO_EMAIL;
+  } elseif (defined('BREVO_REPLY_TO_EMAIL') && BREVO_REPLY_TO_EMAIL) {
+    $effectiveReplyTo = BREVO_REPLY_TO_EMAIL;
+  }
+
+  $recipients = is_array($to) ? $to : [$to];
+
+  $payload = [
+    'from'    => $fromFormatted,
+    'to'      => $recipients,
+    'subject' => $subject,
+    'html'    => $body_,
+  ];
+
+  if ($effectiveReplyTo) {
+    $payload['reply_to'] = $effectiveReplyTo;
+  }
+
+  $encodedPayload = json_encode($payload);
+
+  $ch = curl_init('https://api.resend.com/emails');
+  curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    'Authorization: Bearer ' . RESEND_API_KEY,
+    'Content-Type: application/json',
+    'Accept: application/json',
+  ]);
+  curl_setopt($ch, CURLOPT_POST, true);
+  curl_setopt($ch, CURLOPT_POSTFIELDS, $encodedPayload);
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+  $recipientStr = is_array($to) ? implode(',', $to) : $to;
+  error_log(sprintf('Resend request initiated for %s with subject "%s"', $recipientStr, $subject));
+
+  $response = curl_exec($ch);
+
+  if ($response === false) {
+    $curlErr = curl_error($ch);
+    curl_close($ch);
+    error_log('Resend cURL error: ' . $curlErr . ', falling back to SMTP');
+    return sendMail($subject, $body, $to, $replyToEmail);
+  }
+
+  $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+  curl_close($ch);
+
+  $decodedResponse = json_decode($response, true);
+
+  if ($statusCode >= 200 && $statusCode < 300) {
+    $emailId = isset($decodedResponse['id']) ? $decodedResponse['id'] : 'unknown';
+    error_log(sprintf('Resend email sent successfully to %s (id: %s)', $recipientStr, $emailId));
+    return 'success';
+  }
+
+  $errorMessage = isset($decodedResponse['message']) ? $decodedResponse['message'] : $response;
+  error_log(sprintf('Resend email failed for %s with status %s: %s. Falling back to SMTP.', $recipientStr, $statusCode, $errorMessage));
+  
+  return sendMail($subject, $body, $to, $replyToEmail);
+}
+
+function sendBrevoMail($subject, $body, $to, $replyToEmail = null)
+{
+  // If Resend is configured, prioritize Resend
+  if (defined('RESEND_API_KEY') && RESEND_API_KEY) {
+    return sendResendMail($subject, $body, $to, $replyToEmail);
+  }
+
+  $body_ = buildEmailTemplate($body);
+
   if (!defined('BREVO_API_KEY') || !BREVO_API_KEY || !defined('BREVO_SENDER_EMAIL') || !BREVO_SENDER_EMAIL) {
-    error_log('Brevo credentials are not configured. Please copy config/mail.example.php to config/mail.php and fill in BREVO_* constants.');
-    return 'error';
+    error_log('Brevo credentials are not configured. Falling back to SMTP.');
+    return sendMail($subject, $body, $to, $replyToEmail);
   }
 
   // Check Brevo credits before attempting to send
@@ -313,6 +403,7 @@ function sendBrevoMail($subject, $body, $to, $replyToEmail = null)
   error_log(sprintf('Brevo email failed for %s with status %s: %s', $to, $statusCode, $errorMessage));
   return 'error';
 }
+
 
 function sendBulkMail($subject, $body, $recipients, $replyToEmail)
 {
