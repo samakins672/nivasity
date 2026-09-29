@@ -501,26 +501,22 @@ if (!function_exists('nivasitySendWalletPinCode')) {
             throw new Exception('Failed to create Wallet PIN verification code: ' . mysqli_error($conn));
         }
 
-        // Only send email OTP when updating/resetting an existing PIN.
-        // For first-time PIN creation, email is skipped to eliminate redundant email costs.
-        if ($purpose === 'update') {
-            $displayName = trim((string)(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')));
-            if ($displayName === '') {
-                $displayName = 'there';
-            }
-            $subject = 'Update your Nivasity Wallet PIN';
-            $body = '<p>Hello ' . htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8') . ',</p>'
-                . '<p>Your Wallet PIN verification code is <b>' . htmlspecialchars($code, ENT_QUOTES, 'UTF-8') . '</b>.</p>'
-                . '<p>This code expires in 10 minutes. Use it to update your 4-digit Wallet PIN.</p>'
-                . '<p>If you did not request this, please ignore this email.</p><p>Regards,<br><b>Nivasity Team</b></p>';
+        $displayName = trim((string)(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')));
+        if ($displayName === '') {
+            $displayName = 'there';
+        }
+        $subject = $purpose === 'create' ? 'Create your Nivasity Wallet PIN' : 'Update your Nivasity Wallet PIN';
+        $body = '<p>Hello ' . htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8') . ',</p>'
+            . '<p>Your Wallet PIN verification code is <b>' . htmlspecialchars($code, ENT_QUOTES, 'UTF-8') . '</b>.</p>'
+            . '<p>This code expires in 10 minutes. Use it to ' . ($purpose === 'create' ? 'create' : 'update') . ' your 4-digit Wallet PIN.</p>'
+            . '<p>If you did not request this, please ignore this email.</p><p>Regards,<br><b>Nivasity Team</b></p>';
 
-            $mailStatus = function_exists('sendBrevoMail') ? sendBrevoMail($subject, $body, (string)$user['email']) : sendMail($subject, $body, (string)$user['email']);
-            if ($mailStatus !== 'success' && function_exists('sendMail')) {
-                $mailStatus = sendMail($subject, $body, (string)$user['email']);
-            }
-            if ($mailStatus !== 'success') {
-                throw new Exception('Failed to send Wallet PIN code to your email');
-            }
+        $mailStatus = function_exists('sendBrevoMail') ? sendBrevoMail($subject, $body, (string)$user['email']) : sendMail($subject, $body, (string)$user['email']);
+        if ($mailStatus !== 'success' && function_exists('sendMail')) {
+            $mailStatus = sendMail($subject, $body, (string)$user['email']);
+        }
+        if ($mailStatus !== 'success') {
+            throw new Exception('Failed to send Wallet PIN code to your email');
         }
 
         return [
@@ -553,19 +549,13 @@ if (!function_exists('nivasitySaveWalletPin')) {
 
         $codeSafe = mysqli_real_escape_string($conn, $code);
         $nowSafe = mysqli_real_escape_string($conn, date('Y-m-d H:i:s'));
-        $tokenSql = "SELECT * FROM wallet_pin_tokens WHERE user_id = $userId AND consumed_at IS NULL AND expires_at >= '$nowSafe' ORDER BY id DESC LIMIT 1";
+        $tokenSql = "SELECT * FROM wallet_pin_tokens WHERE user_id = $userId AND code = '$codeSafe' AND consumed_at IS NULL AND expires_at >= '$nowSafe' ORDER BY id DESC LIMIT 1";
         $tokenRs = mysqli_query($conn, $tokenSql);
         if (!$tokenRs || mysqli_num_rows($tokenRs) < 1) {
-            throw new Exception('Invalid or expired Wallet PIN code session');
+            throw new Exception('Invalid or expired Wallet PIN code');
         }
 
         $tokenRow = mysqli_fetch_assoc($tokenRs);
-        $isFirstTimeCreate = (($tokenRow['purpose'] ?? '') === 'create') || !nivasityUserHasWalletPin($conn, $userId);
-
-        // For PIN updates, verify exact code; for first-time creation, accept any 6-digit input seamlessly
-        if (!$isFirstTimeCreate && (string)($tokenRow['code'] ?? '') !== $code) {
-            throw new Exception('Invalid or expired Wallet PIN code');
-        }
         $verificationToken = bin2hex(random_bytes(24));
         $verificationTokenHash = mysqli_real_escape_string($conn, password_hash($verificationToken, PASSWORD_DEFAULT));
         $verificationTokenExpiresAt = date('Y-m-d H:i:s', strtotime('+10 minutes'));

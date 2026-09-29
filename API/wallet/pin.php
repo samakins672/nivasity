@@ -24,10 +24,7 @@ if ($action === '') {
 try {
     if ($action === 'send_code') {
         $result = nivasitySendWalletPinCode($conn, (int)$user['id']);
-        $message = ($result['purpose'] ?? '') === 'create'
-            ? 'Enter 000000 (or any 6 digits) to proceed.'
-            : 'A Wallet PIN verification code has been sent to your email.';
-        sendApiSuccess($message, $result);
+        sendApiSuccess('A Wallet PIN code has been sent to your email.', $result);
     }
 
     if ($action === 'verify_code') {

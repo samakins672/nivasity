@@ -23,12 +23,9 @@ $action = strtolower(trim((string)($_POST['action'] ?? '')));
 try {
     if ($action === 'send_code') {
         $result = nivasitySendWalletPinCode($conn, $userId);
-        $message = ($result['purpose'] ?? '') === 'create'
-            ? 'Enter 000000 (or any 6 digits) to proceed.'
-            : 'A Wallet PIN verification code has been sent to your email.';
         echo json_encode([
             'status' => 'success',
-            'message' => $message,
+            'message' => 'A Wallet PIN code has been sent to your email.',
             'data' => $result,
         ]);
         exit;
