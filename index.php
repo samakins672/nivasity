@@ -17,8 +17,6 @@ $wallet_payment_freeze_info = get_payment_freeze_info('wallet');
 $free_payment_freeze_info = get_payment_freeze_info('free');
 $play_store_url = 'https://play.google.com/store/apps/details?id=com.nivasity.app';
 $app_store_url = 'https://apps.apple.com/us/app/nivasity/id6766183351';
-$mobile_prompt_captured = !empty($mobile_experience_prompt_state['captured']);
-$mobile_prompt_should_show = !empty($mobile_experience_prompt_state['should_show']);
 $wallet_pin_configured = function_exists('nivasityUserHasWalletPin') ? nivasityUserHasWalletPin($conn, (int)$user_id) : false;
 $pending_bulk_claims = [];
 if ((string) ($user_status ?? '') === 'verified' && in_array((string) ($_SESSION['nivas_userRole'] ?? ''), ['student', 'hoc'], true)) {
@@ -601,17 +599,27 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                 <div class="tab-content tab-content-basic">
                   <?php if ($show_store): ?>
                   <div class="tab-pane fade show active" id="store" role="tabpanel" aria-labelledby="store">
-                    <div class="row">
-                      <div class="col-5 col-md-3 offset-md-9 form-group me-2">
-                        <p class="text-muted">Level:</p>
-                        <select class="form-control w-100" name="store-level-filter" id="store-level-filter">
-                          <option value="">All Levels</option>
-                          <?php foreach ($store_level_options as $level_option): ?>
-                            <option value="<?php echo htmlspecialchars($level_option); ?>">
-                              <?php echo htmlspecialchars($level_option); ?>
-                            </option>
-                          <?php endforeach; ?>
-                        </select>
+                    <div class="row mb-3 align-items-center g-2">
+                      <div class="col-12 col-md-7 col-lg-8">
+                        <div class="input-group">
+                          <span class="input-group-text bg-white border-end-0 text-muted" style="border-radius: 0.75rem 0 0 0.75rem; border-color: #dee2e6;">
+                            <i class="mdi mdi-magnify fs-5"></i>
+                          </span>
+                          <input type="text" class="form-control border-start-0" id="store-material-search" placeholder="Search materials by title, course code..." style="border-radius: 0 0.75rem 0.75rem 0; border-color: #dee2e6;" autocomplete="off">
+                        </div>
+                      </div>
+                      <div class="col-12 col-md-5 col-lg-4">
+                        <div class="d-flex align-items-center gap-2">
+                          <label for="store-level-filter" class="text-muted small fw-bold mb-0 text-nowrap">Level:</label>
+                          <select class="form-select form-control" name="store-level-filter" id="store-level-filter" style="border-radius: 0.75rem; border-color: #dee2e6;">
+                            <option value="">All Levels</option>
+                            <?php foreach ($store_level_options as $level_option): ?>
+                              <option value="<?php echo htmlspecialchars($level_option); ?>">
+                                <?php echo htmlspecialchars($level_option); ?>
+                              </option>
+                            <?php endforeach; ?>
+                          </select>
+                        </div>
                       </div>
                     </div>
 
@@ -660,8 +668,11 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
                               $button_text = $is_in_cart ? 'Remove' : 'Add to Cart';
                               $button_class = $is_in_cart ? 'btn-primary' : 'btn-outline-primary';
 
+                              $card_title_lower = htmlspecialchars(strtolower(trim((string)($manual['title'] ?? ''))));
+                              $card_code_lower = htmlspecialchars(strtolower(trim((string)($manual['course_code'] ?? ''))));
+                              $card_level_lower = htmlspecialchars(strtolower(trim((string)($manual['level'] ?? ''))));
                               ?>
-                                  <div class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card sortable-card" data-level="<?php echo htmlspecialchars(strtolower(trim((string)($manual['level'] ?? '')))); ?>">
+                                  <div class="col-12 col-md-6 col-lg-4 col-xl-3 grid-margin px-2 stretch-card sortable-card" data-level="<?php echo $card_level_lower; ?>" data-title="<?php echo $card_title_lower; ?>" data-course-code="<?php echo $card_code_lower; ?>">
                                     <div class="card card-rounded shadow-sm h-100">
                                       <div class="card-body d-flex flex-column h-100">
                                         <h4 class="card-title"><?php echo $manual['title'] ?> <span class="text-secondary">- <?php echo $manual['course_code'] ?></span></h4>
@@ -933,8 +944,6 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
   <script>
     const playStoreUrl = <?php echo json_encode($play_store_url); ?>;
     const appStoreUrl = <?php echo json_encode($app_store_url); ?>;
-    const mobileAppPromptCaptured = <?php echo $mobile_prompt_captured ? 'true' : 'false'; ?>;
-    const mobileAppPromptShouldShow = <?php echo $mobile_prompt_should_show ? 'true' : 'false'; ?>;
 
     const urlParams = new URLSearchParams(window.location.search);
     // Get the logout parameter from the URL
@@ -986,139 +995,6 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           minimumResultsForSearch: 0
         });
       }
-
-      function initMobileAppPromptModal() {
-        var modalEl = document.getElementById('mobileAppPromoModal');
-        if (!modalEl || !window.bootstrap || !bootstrap.Modal) return;
-        if (mobileAppPromptCaptured) return;
-        if (!mobileAppPromptShouldShow) return;
-
-        var titleEl = document.getElementById('mobileAppPromoTitle');
-        var bodyEl = document.getElementById('mobileAppPromoBody');
-        var actionsEl = document.getElementById('mobileAppPromoActions');
-        if (!titleEl || !bodyEl || !actionsEl) return;
-
-        var modalInstance;
-        if (bootstrap.Modal && typeof bootstrap.Modal.getOrCreateInstance === 'function') {
-          modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
-        } else {
-          modalInstance = new bootstrap.Modal(modalEl);
-        }
-        var selectedDevice = '';
-        var selectedComfort = '';
-
-        function submitComfortSurvey(deviceChoice, comfortLevel) {
-          if (!deviceChoice || !comfortLevel) return;
-          $.ajax({
-            type: 'POST',
-            url: 'model/mobile_experience_feedback.php',
-            dataType: 'json',
-            data: {
-              device_choice: deviceChoice,
-              comfort_level: comfortLevel,
-              source_page: 'store'
-            }
-          }).fail(function () {
-            console.warn('Unable to save mobile experience survey response.');
-          });
-        }
-
-        function getComfortIntroMessage() {
-          if (selectedComfort === 'love_it') {
-            return "Thank you for the 💛. We're glad Nivasity is working great for you 😉.";
-          }
-          if (selectedComfort === 'its_cool') {
-            return "Thanks for sharing. We're happy things feel cool so far 🙂.";
-          }
-          if (selectedComfort === 'its_okay') {
-            return "Thanks for your honest feedback 👍. We know there's room to improve and we're working on it.";
-          }
-          if (selectedComfort === 'kinda_stressful') {
-            return "Thanks for telling us. We're sorry it has felt stressful 🥺, and we're improving the experience.";
-          }
-          if (selectedComfort === 'not_good_experience') {
-            return "We appreciate your honesty. We're sorry your experience has not been good 😣, and our team is prioritizing fixes.";
-          }
-          return "Thanks for being part of Nivasity. We're constantly improving your experience.";
-        }
-
-        function renderStep(step) {
-          if (step === 'select') {
-            titleEl.textContent = 'Nivasity Mobile App';
-            bodyEl.textContent = 'Which mobile device you actively use?';
-            actionsEl.innerHTML = ''
-              + '<button type="button" class="btn btn-primary" data-app-device="android">Android</button>'
-              + '<button type="button" class="btn btn-outline-primary" data-app-device="iphone">iPhone</button>';
-            return;
-          }
-
-          if (step === 'survey') {
-            titleEl.textContent = 'Nivasity Quick Survey (Optional)';
-            bodyEl.textContent = 'How comfortable are you using Nivasity?';
-            actionsEl.innerHTML = ''
-              + '<div class="d-flex flex-column gap-2 w-100">'
-              + '<button type="button" class="btn btn-outline-primary w-100 text-start" data-app-comfort="love_it">Love it 🔥</button>'
-              + '<button type="button" class="btn btn-outline-primary w-100 text-start" data-app-comfort="its_cool">It\'s cool 🙂</button>'
-              + '<button type="button" class="btn btn-outline-primary w-100 text-start" data-app-comfort="its_okay">It\'s okay 😐</button>'
-              + '<button type="button" class="btn btn-outline-primary w-100 text-start" data-app-comfort="kinda_stressful">Kinda stressful 😕</button>'
-              + '<button type="button" class="btn btn-outline-primary w-100 text-start" data-app-comfort="not_good_experience">Not a good experience 😣</button>'
-              + '<button type="button" class="btn btn-light w-100 mt-1" data-app-action="skip-survey">Skip</button>'
-              + '</div>';
-            return;
-          }
-
-          if (step === 'iphone') {
-            titleEl.textContent = 'Nivasity iPhone App Is Live 🎊';
-            bodyEl.innerHTML = ''
-              + '<p class="mb-2">' + getComfortIntroMessage() + '</p><br>'
-              + "<p class=\"mb-0\">We're happy to announce that our team has <strong>launched</strong> the Nivasity app on the <strong>App Store</strong>.</p>";
-            actionsEl.innerHTML = ''
-              + '<button type="button" class="btn btn-light" data-app-action="cancel">Cancel</button>'
-              + '<a href="' + appStoreUrl + '" target="_blank" rel="noopener noreferrer" class="btn btn-primary" data-app-action="install">Install now</a>';
-            return;
-          }
-
-          titleEl.textContent = 'Nivasity Android App Is Live 🎊';
-          bodyEl.innerHTML = ''
-            + '<p class="mb-2">' + getComfortIntroMessage() + '</p><br>'
-            + "<p class=\"mb-0\">We're happy to announce that our team has <strong>launched</strong> the Nivasity app on <strong>Google Play Store</strong>.</p>";
-          actionsEl.innerHTML = ''
-            + '<button type="button" class="btn btn-light" data-app-action="cancel">Cancel</button>'
-            + '<a href="' + playStoreUrl + '" target="_blank" rel="noopener noreferrer" class="btn btn-primary" data-app-action="install">Install now</a>';
-        }
-
-        modalEl.addEventListener('click', function (e) {
-          var deviceChoice = e.target.getAttribute('data-app-device');
-          if (deviceChoice === 'android' || deviceChoice === 'iphone') {
-            selectedDevice = deviceChoice;
-            renderStep('survey');
-            return;
-          }
-
-          var comfort = e.target.getAttribute('data-app-comfort');
-          if (comfort) {
-            selectedComfort = comfort;
-            submitComfortSurvey(selectedDevice, comfort);
-            renderStep(selectedDevice || 'android');
-            return;
-          }
-
-          var action = e.target.getAttribute('data-app-action');
-          if (action === 'skip-survey') {
-            renderStep(selectedDevice || 'android');
-            return;
-          }
-
-          if (action === 'cancel' || action === 'install') {
-            modalInstance.hide();
-          }
-        });
-
-        renderStep('select');
-        modalInstance.show();
-      }
-
-      initMobileAppPromptModal();
 
       function initBulkMaterialClaimModal() {
         var pendingClaims = <?php echo json_encode(array_values($pending_bulk_claims), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
@@ -1222,19 +1098,24 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
 
       initBulkMaterialClaimModal();
 
-      $(document).on('change', '#store-level-filter', function () {
-        applyStoreLevelFilter();
-      });
-
-      function applyStoreLevelFilter() {
+      function applyStoreFilters() {
+        var searchQuery = ($('#store-material-search').val() || '').toString().trim().toLowerCase();
         var selectedLevel = ($('#store-level-filter').val() || '').toString().trim().toLowerCase();
         var $cards = $('#store .sortables .sortable-card');
         var visibleCount = 0;
 
         $cards.each(function () {
-          var cardLevel = ($(this).attr('data-level') || '').toString().trim().toLowerCase();
-          var shouldShow = !selectedLevel || selectedLevel === cardLevel;
-          $(this).toggle(shouldShow);
+          var $card = $(this);
+          var cardLevel = ($card.attr('data-level') || '').toString().trim().toLowerCase();
+          var cardTitle = ($card.attr('data-title') || '').toString().trim().toLowerCase();
+          var cardCourse = ($card.attr('data-course-code') || '').toString().trim().toLowerCase();
+          var cardText = $card.text().toLowerCase();
+
+          var levelMatches = !selectedLevel || selectedLevel === cardLevel;
+          var searchMatches = !searchQuery || cardTitle.indexOf(searchQuery) !== -1 || cardCourse.indexOf(searchQuery) !== -1 || cardText.indexOf(searchQuery) !== -1;
+
+          var shouldShow = levelMatches && searchMatches;
+          $card.toggle(shouldShow);
           if (shouldShow) {
             visibleCount++;
           }
@@ -1245,9 +1126,10 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           $('#store .sortables').append(
             '<div class="col-12" id="store-level-empty-state" style="display:none;">'
               + '<div class="card card-rounded shadow-sm">'
-                + '<div class="card-body">'
-                  + '<h5 class="card-title text-center">No material available for this level.</h5>'
-                  + '<p class="card-text text-center">Try another level.</p>'
+                + '<div class="card-body text-center py-4">'
+                  + '<i class="mdi mdi-book-search-outline text-muted" style="font-size: 2.5rem;"></i>'
+                  + '<h5 class="card-title mt-2 mb-1" id="store-empty-title">No matching materials found</h5>'
+                  + '<p class="card-text text-muted" id="store-empty-desc">Try adjusting your search terms or level filter.</p>'
                 + '</div>'
               + '</div>'
             + '</div>'
@@ -1255,10 +1137,35 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
           $empty = $('#store-level-empty-state');
         }
 
-        $empty.toggle(visibleCount === 0);
+        if (visibleCount === 0) {
+          if (searchQuery && selectedLevel) {
+            $('#store-empty-title').text('No materials match "' + searchQuery + '" for ' + selectedLevel);
+            $('#store-empty-desc').text('Try clearing the search or choosing a different level.');
+          } else if (searchQuery) {
+            $('#store-empty-title').text('No materials found matching "' + searchQuery + '"');
+            $('#store-empty-desc').text('Check your spelling or try searching with a course code.');
+          } else if (selectedLevel) {
+            $('#store-empty-title').text('No material available for ' + selectedLevel);
+            $('#store-empty-desc').text('Try selecting another level.');
+          } else {
+            $('#store-empty-title').text('No materials available');
+            $('#store-empty-desc').text('Check back later.');
+          }
+          $empty.show();
+        } else {
+          $empty.hide();
+        }
       }
 
-      applyStoreLevelFilter();
+      $(document).on('input keyup change', '#store-material-search', function () {
+        applyStoreFilters();
+      });
+
+      $(document).on('change', '#store-level-filter', function () {
+        applyStoreFilters();
+      });
+
+      applyStoreFilters();
 
       $('.go-to-cart-button').on('click', function () {
           $('#cart-tab').tab('show');
@@ -1909,22 +1816,6 @@ $show_store = (isset($_SESSION['nivas_userRole']) && $_SESSION['nivas_userRole']
   </div>
 
   <?php include('partials/_bulk_payment_modal.php') ?>
-
-  <!-- Mobile App Promo Modal -->
-  <div class="modal fade" id="mobileAppPromoModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="mobileAppPromoTitle" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title fw-bold" id="mobileAppPromoTitle">Nivasity Mobile App</h5>
-        </div>
-        <div class="modal-body">
-          <p class="mb-0" id="mobileAppPromoBody"></p>
-        </div>
-        <div class="modal-footer" id="mobileAppPromoActions">
-        </div>
-      </div>
-    </div>
-  </div>
 
   <div class="modal fade" id="bulkMaterialClaimModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="bulkMaterialClaimHeading" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">

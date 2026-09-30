@@ -26,6 +26,12 @@ if (!function_exists('surveyBannerTablesReady')) {
       }
     }
 
+    // Ensure dismiss_count column exists
+    $colResult = mysqli_query($conn, "SHOW COLUMNS FROM `survey_banner_dismissals` LIKE 'dismiss_count'");
+    if ($colResult && mysqli_num_rows($colResult) === 0) {
+      @mysqli_query($conn, "ALTER TABLE `survey_banner_dismissals` ADD COLUMN `dismiss_count` INT(11) NOT NULL DEFAULT 1 AFTER `user_id`");
+    }
+
     $ready = true;
     return $ready;
   }
@@ -38,7 +44,7 @@ if (!function_exists('surveyBannerHasDismissed')) {
       return false;
     }
 
-    $stmt = mysqli_prepare($conn, "SELECT id FROM survey_banner_dismissals WHERE survey_id = ? AND user_id = ? LIMIT 1");
+    $stmt = mysqli_prepare($conn, "SELECT dismiss_count FROM survey_banner_dismissals WHERE survey_id = ? AND user_id = ? LIMIT 1");
     if (!$stmt) {
       return false;
     }
@@ -46,7 +52,13 @@ if (!function_exists('surveyBannerHasDismissed')) {
     mysqli_stmt_bind_param($stmt, 'ii', $surveyId, $userId);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
-    $dismissed = $result && mysqli_num_rows($result) > 0;
+    $dismissed = false;
+    if ($result && mysqli_num_rows($result) > 0) {
+      $row = mysqli_fetch_assoc($result);
+      $dismissCount = isset($row['dismiss_count']) ? (int) $row['dismiss_count'] : 1;
+      // Persist dismissal permanently only after 5th dismissal
+      $dismissed = ($dismissCount >= 5);
+    }
     mysqli_stmt_close($stmt);
 
     return $dismissed;
@@ -131,9 +143,9 @@ if (!function_exists('surveyBannerDismiss')) {
 
     $stmt = mysqli_prepare(
       $conn,
-      "INSERT INTO survey_banner_dismissals (survey_id, user_id, dismissed_at)
-       VALUES (?, ?, NOW())
-       ON DUPLICATE KEY UPDATE dismissed_at = dismissed_at"
+      "INSERT INTO survey_banner_dismissals (survey_id, user_id, dismiss_count, dismissed_at)
+       VALUES (?, ?, 1, NOW())
+       ON DUPLICATE KEY UPDATE dismiss_count = COALESCE(dismiss_count, 0) + 1, dismissed_at = NOW()"
     );
     if (!$stmt) {
       return false;

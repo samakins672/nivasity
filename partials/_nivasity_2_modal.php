@@ -7,20 +7,32 @@ $nivasity_intro_is_student_type = in_array($nivasity_intro_role, ['student', 'ho
 ?>
 
 <style>
+  .nivasity-2-modal .modal-dialog {
+    max-height: calc(100vh - 2.5rem);
+    display: flex;
+  }
+
   .nivasity-2-modal .modal-content {
     border: 0;
     border-radius: 1.5rem;
     overflow: hidden;
+    max-height: calc(100vh - 2.5rem);
+    display: flex;
+    flex-direction: column;
     box-shadow: 0 30px 80px rgba(28, 24, 20, 0.18);
   }
 
   .nivasity-2-modal .modal-header {
     border-bottom: 0;
     padding: 0;
+    flex-shrink: 0;
   }
 
   .nivasity-2-modal .modal-body {
     padding: 0;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    flex: 1 1 auto;
   }
 
   .nivasity-2-modal__hero {
@@ -192,7 +204,7 @@ $nivasity_intro_is_student_type = in_array($nivasity_intro_role, ['student', 'ho
 </style>
 
 <div class="modal fade nivasity-2-modal" id="nivasity2IntroModal" tabindex="-1" aria-labelledby="nivasity2IntroModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <div class="nivasity-2-modal__hero w-100">

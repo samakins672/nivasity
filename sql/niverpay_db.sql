@@ -1059,6 +1059,7 @@ CREATE TABLE `survey_banner_dismissals` (
   `id` int(11) NOT NULL,
   `survey_id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
+  `dismiss_count` int(11) NOT NULL DEFAULT 1,
   `dismissed_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 

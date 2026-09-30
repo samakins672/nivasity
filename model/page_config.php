@@ -8,7 +8,6 @@ if (isset($conn)) {
 }
 
 require_once __DIR__ . '/../config/fw.php';
-require_once __DIR__ . '/mobile_experience_prompt.php';
 require_once __DIR__ . '/survey_banner.php';
 require_once __DIR__ . '/internal_wallet_service.php';
 $url = substr($_SERVER["SCRIPT_NAME"], strrpos($_SERVER["SCRIPT_NAME"], "/") + 1);
@@ -27,12 +26,6 @@ if (isset($_SESSION['nivas_userId'])) {
   $user_id = $_SESSION['nivas_userId'];
   $school_id = $_SESSION['nivas_userSch'];
   $nivasity_2_intro_seen = false;
-  $mobile_experience_prompt_state = [
-    'captured' => false,
-    'visit_count' => 0,
-    'min_visits' => 6,
-    'should_show' => false,
-  ];
   
   $user_ = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = $user_id"));
   
@@ -81,7 +74,6 @@ if (isset($_SESSION['nivas_userId'])) {
     exit();
   }
 
-  $mobile_experience_prompt_state = mobile_experience_prompt_get_state($conn, (int) $user_id, 6, true);
   $survey_banner_active = surveyBannerGetActiveForUser($conn, (int) $user_id, (string) $user_email);
 
 }
