@@ -73,14 +73,16 @@ if (!$google_id || !$email) {
     sendApiError('Unable to retrieve user information from Google', 401);
 }
 
-// Check if user exists with this email
-$stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+// Check if user exists with this email. If old duplicates share the email, sign in to the
+// verified/oldest one instead of creating yet another account (this used to require exactly 1 match).
+acquireSignupLock($conn, $email);
+$stmt = $conn->prepare("SELECT * FROM users WHERE email = ? ORDER BY (status = 'verified') DESC, id ASC LIMIT 1");
 $stmt->bind_param('s', $email);
 $stmt->execute();
 $user_query = $stmt->get_result();
 $stmt->close();
 
-if ($user_query->num_rows === 1) {
+if ($user_query->num_rows >= 1) {
     // User exists - perform login
     $user = $user_query->fetch_array();
     

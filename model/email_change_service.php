@@ -40,6 +40,43 @@ if (!function_exists('nivasityNormalizeEmailAddress')) {
     }
 }
 
+if (!function_exists('nivasityEmailHolderIsEmptyAccount')) {
+    // True when an account has nothing worth keeping: no purchases, payments, wallet money,
+    // transfers or pending bulk claims. Used to let a student take back their email from an
+    // unused duplicate account (they prove they own the email with the OTP).
+    function nivasityEmailHolderIsEmptyAccount($conn, $holderId) {
+        $holderId = (int) $holderId;
+        $holder = mysqli_fetch_assoc(mysqli_query($conn, "SELECT role FROM users WHERE id = $holderId LIMIT 1"));
+        if (!$holder || !in_array((string) $holder['role'], ['student', 'hoc'], true)) {
+            return false;
+        }
+
+        $checks = [
+            "SELECT 1 FROM manuals_bought WHERE buyer = $holderId LIMIT 1",
+            "SELECT 1 FROM transactions WHERE user_id = $holderId LIMIT 1",
+            "SELECT 1 FROM user_wallets WHERE user_id = $holderId AND balance <> 0 LIMIT 1",
+        ];
+        $optional = [
+            'wallet_transfers' => "SELECT 1 FROM wallet_transfers WHERE sender_user_id = $holderId OR recipient_user_id = $holderId LIMIT 1",
+            'manual_bulk_payment_students' => "SELECT 1 FROM manual_bulk_payment_students WHERE (matched_user_id = $holderId OR placeholder_user_id = $holderId) AND claimed_at IS NULL LIMIT 1",
+        ];
+        foreach ($optional as $table => $sql) {
+            $exists = mysqli_query($conn, "SHOW TABLES LIKE '$table'");
+            if ($exists && mysqli_num_rows($exists) > 0) {
+                $checks[] = $sql;
+            }
+        }
+
+        foreach ($checks as $sql) {
+            $rs = mysqli_query($conn, $sql);
+            if (!$rs || mysqli_num_rows($rs) > 0) {
+                return false; // query failure counts as "not empty": never retire on doubt
+            }
+        }
+        return true;
+    }
+}
+
 if (!function_exists('nivasityEnsureEmailCanBeChanged')) {
     function nivasityEnsureEmailCanBeChanged($conn, $userId, $newEmail) {
         $user = nivasityGetEmailChangeUserById($conn, $userId);
@@ -65,16 +102,25 @@ if (!function_exists('nivasityEnsureEmailCanBeChanged')) {
         $newEmailSafe = mysqli_real_escape_string($conn, $normalizedNewEmail);
         $duplicateResult = mysqli_query(
             $conn,
-            "SELECT id FROM users WHERE id != " . (int) $userId . " AND LOWER(TRIM(email)) = '$newEmailSafe' LIMIT 1"
+            "SELECT id FROM users WHERE id != " . (int) $userId . " AND LOWER(TRIM(email)) = '$newEmailSafe'"
         );
 
-        if ($duplicateResult && mysqli_num_rows($duplicateResult) > 0) {
-            throw new Exception('That email address is already in use by another account.');
+        // Another account uses this email. If it is an unused duplicate (nothing bought, no wallet
+        // money), it is retired when the OTP sent to that email is confirmed. Otherwise support must merge.
+        $retireUserIds = [];
+        if ($duplicateResult) {
+            while ($holder = mysqli_fetch_assoc($duplicateResult)) {
+                if (!nivasityEmailHolderIsEmptyAccount($conn, (int) $holder['id'])) {
+                    throw new Exception('That email address is used by another account that has purchases or wallet funds. Contact support to merge the two accounts.');
+                }
+                $retireUserIds[] = (int) $holder['id'];
+            }
         }
 
         return [
             'user' => $user,
             'new_email' => $normalizedNewEmail,
+            'retire_user_ids' => $retireUserIds,
         ];
     }
 }
@@ -164,6 +210,19 @@ if (!function_exists('nivasityConfirmEmailChangeOtp')) {
 
         if (!$requestResult || mysqli_num_rows($requestResult) < 1) {
             throw new Exception('Invalid or expired OTP. Please request a new code.');
+        }
+
+        // Retire unused duplicates that held this email: free the email and matric number, block sign-in.
+        foreach ($validated['retire_user_ids'] ?? [] as $retireId) {
+            $retireId = (int) $retireId;
+            if (!nivasityEmailHolderIsEmptyAccount($conn, $retireId)) {
+                throw new Exception('That email address is used by another account that has purchases or wallet funds. Contact support to merge the two accounts.');
+            }
+            $retiredEmail = 'retired+' . $retireId . '@nivasity.invalid';
+            if (!mysqli_query($conn, "UPDATE users SET email = '$retiredEmail', matric_no = NULL, status = 'deactivated' WHERE id = $retireId LIMIT 1")) {
+                throw new Exception('Failed to update your email address. Please try again later.');
+            }
+            error_log('[EMAIL_CHANGE] user ' . $userId . ' took ' . $normalizedNewEmail . ' from empty duplicate account ' . $retireId);
         }
 
         $updateSql = "UPDATE users SET email = '$newEmailSafe' WHERE id = $userId LIMIT 1";

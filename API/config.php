@@ -72,6 +72,29 @@ function validateRequiredFields($fields, $data) {
 }
 
 // Sanitize input
+// Serialises signups for one email address (normal and Google) so a double tap or two
+// simultaneous requests cannot create two accounts. Released when the request ends.
+function acquireSignupLock($conn, $email) {
+    $key = 'nvsignup:' . md5(strtolower(trim((string)$email)));
+    $rs = mysqli_query($conn, "SELECT GET_LOCK('$key', 10) AS l");
+    $row = $rs ? mysqli_fetch_assoc($rs) : null;
+    if (!$row || (int)$row['l'] !== 1) {
+        sendApiError('Your sign-up is already being processed. Please wait a moment and try again.', 429);
+    }
+}
+
+// Partly hidden email (ad•••@gmail.com) to point a student to their other account without revealing it.
+function maskEmailForHint($email) {
+    $email = trim((string)$email);
+    $at = strpos($email, '@');
+    if ($at === false || $at < 1) {
+        return '';
+    }
+    $local = substr($email, 0, $at);
+    $visible = strlen($local) <= 2 ? substr($local, 0, 1) : substr($local, 0, 2);
+    return $visible . '•••' . substr($email, $at);
+}
+
 function sanitizeInput($conn, $data) {
     if (is_array($data)) {
         return array_map(function($item) use ($conn) {

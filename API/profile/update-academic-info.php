@@ -39,7 +39,7 @@ if ($normalized_matric !== '') {
     $normalized_matric_sql = mysqli_real_escape_string($conn, $normalized_matric);
     $duplicate_check = mysqli_query(
         $conn,
-        "SELECT id
+        "SELECT id, email
          FROM users
          WHERE id != $user_id
            AND school = {$user['school']}
@@ -53,7 +53,18 @@ if ($normalized_matric !== '') {
     }
 
     if (mysqli_num_rows($duplicate_check) > 0) {
-        sendApiError('Another verified user already has this matric number. Update it before saving.', 409);
+        // Usually the student's own older account (where their purchases are). Point them to it
+        // with a partly hidden email instead of a dead end.
+        $existing = mysqli_fetch_assoc($duplicate_check);
+        $hint = maskEmailForHint($existing['email'] ?? '');
+        sendApiResponse(
+            'error',
+            'This matric number is already on another Nivasity account' . ($hint !== '' ? " ($hint)" : '') . '. '
+                . 'If that account is yours, sign in to it instead: your purchases are there. Forgot its password? Use "Forgot password". '
+                . 'If it is not yours, contact support with your student ID card.',
+            ['code' => 'matric_taken', 'existing_account_hint' => $hint],
+            409
+        );
     }
 }
 

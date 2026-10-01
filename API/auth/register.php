@@ -35,7 +35,9 @@ if (mysqli_num_rows($school_check) === 0) {
     sendApiError('Invalid school_id. School does not exist or is not active.', 400);
 }
 
-// Check if user already exists
+// Check if user already exists (locked so a double submit cannot create two accounts)
+$email = trim($email);
+acquireSignupLock($conn, $email);
 $user_query = mysqli_query($conn, "SELECT * FROM users WHERE email = '$email'");
 
 if (mysqli_num_rows($user_query) >= 1) {
