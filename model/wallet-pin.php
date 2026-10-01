@@ -46,44 +46,25 @@ try {
     if ($action === 'save_pin' || $action === 'set_pin_direct') {
         $pin = trim((string)($_POST['pin'] ?? ''));
         $confirmPin = trim((string)($_POST['confirm_pin'] ?? ''));
+        $pinToken = trim((string)($_POST['pin_token'] ?? ''));
 
-        if (!nivasityIsValidWalletPin($pin)) {
-            throw new Exception('Wallet PIN must be exactly 4 digits');
-        }
-        if ($pin !== $confirmPin) {
-            throw new Exception('Wallet PIN confirmation does not match');
-        }
-
-        $wallet = nivasityGetUserWallet($conn, $userId);
-        if (!$wallet || (int)($wallet['id'] ?? 0) <= 0) {
-            throw new Exception('Create your wallet before setting a Wallet PIN');
-        }
-
-        $pinHashSafe = mysqli_real_escape_string($conn, password_hash($pin, PASSWORD_DEFAULT));
-        mysqli_begin_transaction($conn);
-        try {
-            $updates = ["wallet_pin_hash = '$pinHashSafe'"];
-            if (nivasityUsersHasWalletPinUpdatedAtColumn($conn)) {
-                $updates[] = 'wallet_pin_updated_at = NOW()';
-            }
-            $updateSql = 'UPDATE users SET ' . implode(', ', $updates) . " WHERE id = $userId LIMIT 1";
-            if (!mysqli_query($conn, $updateSql)) {
-                throw new Exception('Failed to save Wallet PIN: ' . mysqli_error($conn));
-            }
-            mysqli_query($conn, "DELETE FROM wallet_pin_tokens WHERE user_id = $userId");
-            mysqli_commit($conn);
-        } catch (Throwable $e) {
-            mysqli_rollback($conn);
-            throw $e;
+        // Email-code token present = forgot-PIN reset; otherwise direct create/change.
+        if ($pinToken !== '') {
+            $result = nivasitySaveWalletPin($conn, $userId, $pinToken, $pin, $confirmPin);
+        } else {
+            $result = nivasitySetWalletPinDirect(
+                $conn,
+                $userId,
+                $pin,
+                $confirmPin,
+                trim((string)($_POST['current_pin'] ?? ''))
+            );
         }
 
         echo json_encode([
             'status' => 'success',
             'message' => 'Wallet PIN saved successfully.',
-            'data' => [
-                'status' => 'saved',
-                'has_pin' => true,
-            ],
+            'data' => $result,
         ]);
         exit;
     }

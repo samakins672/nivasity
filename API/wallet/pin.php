@@ -53,6 +53,21 @@ try {
         sendApiSuccess('Wallet PIN saved successfully.', $result);
     }
 
+    // Web (white_label) flow: no email code to create; current PIN required to change.
+    if ($action === 'set_pin_direct') {
+        validateRequiredFields(['pin', 'confirm_pin'], $input);
+
+        $result = nivasitySetWalletPinDirect(
+            $conn,
+            (int)$user['id'],
+            (string)$input['pin'],
+            (string)$input['confirm_pin'],
+            (string)($input['current_pin'] ?? '')
+        );
+
+        sendApiSuccess('Wallet PIN saved successfully.', $result);
+    }
+
     sendApiError('Invalid Wallet PIN action', 400);
 } catch (Throwable $e) {
     sendApiError($e->getMessage(), 422);

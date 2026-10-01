@@ -655,6 +655,73 @@ if (!function_exists('nivasitySaveWalletPin')) {
     }
 }
 
+if (!function_exists('nivasitySetWalletPinDirect')) {
+    // Web flow: create a PIN without an email code. Changing an existing PIN
+    // requires the current PIN; a forgotten PIN goes through nivasitySaveWalletPin (email code).
+    function nivasitySetWalletPinDirect($conn, $userId, $pin, $confirmPin, $currentPin = '') {
+        $userId = (int)$userId;
+        $pin = trim((string)$pin);
+        $confirmPin = trim((string)$confirmPin);
+        $currentPin = trim((string)$currentPin);
+
+        if ($userId <= 0) {
+            throw new Exception('Authentication required');
+        }
+
+        nivasityRequireWalletPinInfrastructure($conn);
+
+        if (!nivasityIsValidWalletPin($pin)) {
+            throw new Exception('Wallet PIN must be exactly 4 digits');
+        }
+        if ($pin !== $confirmPin) {
+            throw new Exception('Wallet PIN confirmation does not match');
+        }
+
+        $wallet = nivasityGetUserWallet($conn, $userId);
+        if (!$wallet || (int)($wallet['id'] ?? 0) <= 0) {
+            throw new Exception('Create your wallet before setting a Wallet PIN');
+        }
+
+        $hadPin = nivasityUserHasWalletPin($conn, $userId);
+        if ($hadPin) {
+            if ($currentPin === '') {
+                throw new Exception('Enter your current Wallet PIN to change it');
+            }
+            try {
+                nivasityVerifyWalletPin($conn, $userId, $currentPin);
+            } catch (Throwable $e) {
+                throw new Exception('Current Wallet PIN is incorrect');
+            }
+        }
+
+        $pinHashSafe = mysqli_real_escape_string($conn, password_hash($pin, PASSWORD_DEFAULT));
+        mysqli_begin_transaction($conn);
+        try {
+            $updates = ["wallet_pin_hash = '$pinHashSafe'"];
+            if (nivasityUsersHasWalletPinUpdatedAtColumn($conn)) {
+                $updates[] = 'wallet_pin_updated_at = NOW()';
+            }
+            $updateSql = 'UPDATE users SET ' . implode(', ', $updates) . " WHERE id = $userId LIMIT 1";
+            if (!mysqli_query($conn, $updateSql)) {
+                throw new Exception('Failed to save Wallet PIN: ' . mysqli_error($conn));
+            }
+            if (!mysqli_query($conn, "DELETE FROM wallet_pin_tokens WHERE user_id = $userId")) {
+                throw new Exception('Failed to clear Wallet PIN verification codes: ' . mysqli_error($conn));
+            }
+            mysqli_commit($conn);
+        } catch (Throwable $e) {
+            mysqli_rollback($conn);
+            throw $e;
+        }
+
+        return [
+            'status' => 'saved',
+            'has_pin' => true,
+            'purpose' => $hadPin ? 'update' : 'create',
+        ];
+    }
+}
+
 if (!function_exists('nivasityVerifyWalletPin')) {
     function nivasityVerifyWalletPin($conn, $userId, $pin) {
         $userId = (int)$userId;

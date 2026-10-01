@@ -1,81 +1,92 @@
 <?php
-// Transfer funds between students via email
+// Transfer wallet funds to another student in the same school.
+// Uses the same service as the website: PIN check, same-school recipient,
+// idempotent request_token, wallet_transfers record and ledger entries.
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../auth.php';
+require_once __DIR__ . '/../../model/internal_wallet_service.php';
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') sendApiError('Method not allowed', 405);
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    sendApiError('Method not allowed', 405);
+}
 
 $user = authenticateApiRequest($conn);
-$sender_id = (int)$user['id'];
+requireStudentRole($user);
+$userId = (int)$user['id'];
 
-$input = json_decode(file_get_contents('php://input'), true) ?: $_POST;
-validateRequiredFields(['amount', 'recipient_email'], $input);
-
-$amount = (int)round((float)$input['amount']);
-if ($amount <= 0) sendApiError('Amount must be greater than zero', 400);
-
-$recipient_email = mysqli_real_escape_string($conn, trim($input['recipient_email']));
-
-if (strtolower($recipient_email) === strtolower($user['email'])) {
-    sendApiError('You cannot transfer money to yourself', 400);
+$input = json_decode(file_get_contents('php://input'), true);
+if (!$input) {
+    $input = $_POST;
 }
 
-mysqli_begin_transaction($conn);
+$action = strtolower(trim((string)($input['action'] ?? 'transfer')));
+// recipient_email is accepted for older clients; matric number or email both work.
+$recipientIdentifier = trim((string)($input['recipient_identifier'] ?? ($input['recipient_email'] ?? '')));
+
 try {
-    // 1. Check sender wallet
-    $sender_q = mysqli_query($conn, "SELECT id, balance FROM user_wallets WHERE user_id = $sender_id LIMIT 1 FOR UPDATE");
-    if (!$sender_q || mysqli_num_rows($sender_q) === 0) {
-        throw new Exception("Your wallet was not found.");
+    if ($action === 'lookup') {
+        if ($recipientIdentifier === '') {
+            sendApiError('Enter the recipient email or matric number', 400);
+        }
+
+        $senderWallet = nivasityGetUserWallet($conn, $userId);
+        if (!$senderWallet || (int)($senderWallet['id'] ?? 0) <= 0) {
+            throw new Exception('Create your wallet before transferring funds');
+        }
+
+        $recipient = nivasityResolveStudentWalletTransferRecipient(
+            $conn,
+            (int)($senderWallet['school_id'] ?? 0),
+            $recipientIdentifier,
+            $userId
+        );
+
+        sendApiSuccess('Recipient found', [
+            'recipient' => [
+                'user_id' => (int)($recipient['user_id'] ?? 0),
+                'name' => (string)($recipient['display_name'] ?? ''),
+                'email' => (string)($recipient['email'] ?? ''),
+                'matric_no' => (string)($recipient['matric_no'] ?? ''),
+            ],
+        ]);
     }
-    $sender_wallet = mysqli_fetch_assoc($sender_q);
-    $sender_wallet_id = (int)$sender_wallet['id'];
-    $sender_balance = (int)$sender_wallet['balance'];
 
-    if ($sender_balance < $amount) {
-        throw new Exception("Insufficient wallet balance.");
+    if ($action !== 'transfer') {
+        sendApiError('Unknown wallet transfer action', 400);
     }
 
-    // 2. Find recipient
-    $rec_user_q = mysqli_query($conn, "SELECT id FROM users WHERE email = '$recipient_email' LIMIT 1");
-    if (!$rec_user_q || mysqli_num_rows($rec_user_q) === 0) {
-        throw new Exception("Recipient not found.");
+    if ($recipientIdentifier === '') {
+        sendApiError('Enter the recipient email or matric number', 400);
     }
-    $recipient = mysqli_fetch_assoc($rec_user_q);
-    $recipient_id = (int)$recipient['id'];
+    validateRequiredFields(['amount', 'wallet_pin', 'request_token'], $input);
 
-    // 3. Check recipient wallet
-    $rec_wallet_q = mysqli_query($conn, "SELECT id, balance FROM user_wallets WHERE user_id = $recipient_id LIMIT 1 FOR UPDATE");
-    if (!$rec_wallet_q || mysqli_num_rows($rec_wallet_q) === 0) {
-        throw new Exception("Recipient does not have a provisioned wallet.");
+    try {
+        nivasitySyncWalletFundingFromPaystack($conn, $userId, 'api_wallet_transfer');
+    } catch (Throwable $syncError) {
+        error_log('[NIVASITY_WALLET_TRANSFER_SYNC] ' . $syncError->getMessage());
     }
-    $rec_wallet = mysqli_fetch_assoc($rec_wallet_q);
-    $rec_wallet_id = (int)$rec_wallet['id'];
-    $rec_balance = (int)$rec_wallet['balance'];
 
-    $sender_bal_after = $sender_balance - $amount;
-    $rec_bal_after = $rec_balance + $amount;
-    $ref = 'TRX_' . time() . '_' . rand(1000, 9999);
+    $result = nivasityTransferWalletToStudent(
+        $conn,
+        $userId,
+        $recipientIdentifier,
+        (int)round((float)$input['amount']),
+        trim((string)$input['wallet_pin']),
+        trim((string)($input['description'] ?? '')),
+        trim((string)$input['request_token']),
+        'api'
+    );
 
-    // 4. Update Sender
-    mysqli_query($conn, "UPDATE user_wallets SET balance = $sender_bal_after, updated_at = NOW() WHERE id = $sender_wallet_id");
-    $desc_s = "Transfer to $recipient_email";
-    mysqli_query($conn, "INSERT INTO wallet_ledger_entries (wallet_id, entry_type, amount, balance_before, balance_after, status, reference, description)
-                         VALUES ($sender_wallet_id, 'debit', $amount, $sender_balance, $sender_bal_after, 'posted', '$ref', '$desc_s')");
-
-    // 5. Update Recipient
-    mysqli_query($conn, "UPDATE user_wallets SET balance = $rec_bal_after, updated_at = NOW() WHERE id = $rec_wallet_id");
-    $desc_r = "Transfer from " . $user['email'];
-    mysqli_query($conn, "INSERT INTO wallet_ledger_entries (wallet_id, entry_type, amount, balance_before, balance_after, status, reference, description)
-                         VALUES ($rec_wallet_id, 'credit', $amount, $rec_balance, $rec_bal_after, 'posted', '$ref', '$desc_r')");
-
-    mysqli_commit($conn);
-    sendApiSuccess('Transfer successful', ['reference' => $ref, 'new_balance' => $sender_bal_after]);
-} catch (Exception $e) {
-    mysqli_rollback($conn);
-    sendApiError($e->getMessage(), 400);
+    sendApiSuccess(
+        !empty($result['already_processed'])
+            ? 'This wallet transfer was already completed.'
+            : 'Wallet transfer completed successfully.',
+        [
+            'transfer' => $result,
+            'reference' => (string)($result['transfer_reference'] ?? ''),
+            'new_balance' => (int)($result['wallet_balance_after'] ?? 0),
+        ]
+    );
 } catch (Throwable $e) {
-    mysqli_rollback($conn);
-    error_log("[WALLET TRANSFER] " . $e->getMessage());
-    sendApiError('An unexpected error occurred', 500);
+    sendApiError($e->getMessage(), 422);
 }
-?>
