@@ -62,4 +62,20 @@ function requireStudentRole($user) {
         sendApiError('Access denied. This API is for students only.', 403);
     }
 }
+
+// The API cart lives in a PHP session. Browsers calling the API cross-origin (white label) do not
+// send the session cookie, so bind the session to the authenticated user instead: same cart for
+// every request and device, no cookie needed. The id is an HMAC so it cannot be guessed.
+function startApiCartSession($userId) {
+    $userId = (int)$userId;
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        return;
+    }
+
+    $secret = (defined('JWT_SECRET_KEY') && strpos(JWT_SECRET_KEY, 'INSECURE_DEFAULT_KEY') !== 0)
+        ? JWT_SECRET_KEY
+        : 'nivasity-api-cart';
+    session_id('nvcart' . substr(hash_hmac('sha256', 'api-cart:' . $userId, $secret), 0, 40));
+    session_start();
+}
 ?>

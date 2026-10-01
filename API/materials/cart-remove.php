@@ -25,7 +25,7 @@ $material_id = (int)$input['material_id'];
 $user_id = $user['id'];
 
 // Remove from session cart
-session_start();
+startApiCartSession($user_id);
 $cart_key = "nivas_cart$user_id";
 $cart_event_key = "nivas_cart_event$user_id";
 

@@ -19,7 +19,7 @@ $user_id = $user['id'];
 $school_id = $user['school'];
 
 // Get cart from session
-session_start();
+startApiCartSession($user_id);
 $cart_key = "nivas_cart$user_id";
 
 if (!isset($_SESSION[$cart_key]) || empty($_SESSION[$cart_key])) {

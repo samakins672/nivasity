@@ -296,9 +296,7 @@ try {
     );
 
     // Clear session cart
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
-    }
+    startApiCartSession($user_id);
     $_SESSION["nivas_cart$user_id"] = array();
     $_SESSION["nivas_cart_event$user_id"] = array();
 

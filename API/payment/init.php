@@ -53,7 +53,7 @@ if ($redirect_url && !filter_var($redirect_url, FILTER_VALIDATE_URL)) {
 }
 
 // Get cart from session
-session_start();
+startApiCartSession($user_id);
 $cart_key = "nivas_cart$user_id";
 $cart_event_key = "nivas_cart_event$user_id";
 

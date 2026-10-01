@@ -2,6 +2,7 @@
 // API: Payment Gateway Callback (Unauthenticated)
 // This endpoint receives callbacks from payment gateways after payment completion
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../auth.php'; // startApiCartSession() only; no auth check here
 require_once __DIR__ . '/../../model/PaymentGatewayFactory.php';
 require_once __DIR__ . '/../../model/functions.php';
 require_once __DIR__ . '/../../model/refund_engine.php';
@@ -292,9 +293,7 @@ try {
     );
 
     // Clear session cart (if session exists)
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
-    }
+    startApiCartSession($user_id);
     $_SESSION["nivas_cart$user_id"] = array();
     $_SESSION["nivas_cart_event$user_id"] = array();
 

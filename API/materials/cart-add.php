@@ -55,7 +55,7 @@ if (mysqli_num_rows($bought_query) > 0) {
 }
 
 // Add to session cart
-session_start();
+startApiCartSession($user_id);
 $cart_key = "nivas_cart$user_id";
 $cart_event_key = "nivas_cart_event$user_id";
 
