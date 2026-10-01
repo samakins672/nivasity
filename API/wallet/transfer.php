@@ -58,7 +58,14 @@ try {
     if ($recipientIdentifier === '') {
         sendApiError('Enter the recipient email or matric number', 400);
     }
-    validateRequiredFields(['amount', 'wallet_pin', 'request_token'], $input);
+    validateRequiredFields(['amount', 'wallet_pin'], $input);
+
+    // Clients that predate request_token (e.g. the marketplace transfer sheet) get a server-made
+    // one: the transfer still works, but only clients that send their own token are protected
+    // against double sends on retry.
+    if (trim((string)($input['request_token'] ?? '')) === '') {
+        $input['request_token'] = 'api-' . bin2hex(random_bytes(16));
+    }
 
     try {
         nivasitySyncWalletFundingFromPaystack($conn, $userId, 'api_wallet_transfer');
