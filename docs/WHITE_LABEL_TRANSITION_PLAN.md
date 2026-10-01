@@ -1,5 +1,55 @@
 # White Label Student Portal: Transition Plan
 
+## 0. Status (1 October 2026)
+
+**Steps 1–7 are built and committed. Nothing is pushed or deployed yet.** All PHP files pass `php -l` and the white_label build passes, but the PHP changes have not been run against a database (local MySQL/Apache were off), and the new white_label screens have not been clicked through in a browser. Step 8 (testing and per-school cutover) needs you.
+
+### 0.1 What was built
+
+| # | Work | Repo / branch | Commits |
+| :--- | :--- | :--- | :--- |
+| 1 | API transfer secured (PIN, same school, idempotent) + PIN change needs current PIN, "forgot PIN" via email code | nivasity / `funaab` | `05f6de6` |
+| 1b | Wallet PIN lockout: 5 wrong PINs → 30 min, everywhere the PIN is checked | nivasity / `funaab` | `96b04d2` |
+| 2 | Semester schema migration + `model/material_semester.php` helper; non-`open` = unavailable in web cart/details | nivasity / `funaab` | `06acf8b` |
+| 3 | cc_dashboard: required semester, duplicate for other semester, semester panel + switch, Confirm & Open, Retire, filters, CSV column | cc_dashboard / `semester-tagging` (new, from `main`) | `61dbdcb` |
+| 4 | Semester filter on store (web + API), details, cart, both payment paths, bulk picker/page, request matching; API returns semester fields | nivasity / `funaab` | `23ddff6` |
+| 5 | API endpoints: bulk manuals/preview/pay, claims pending/resolve, material requests list/create/upvote, surveys active/dismiss, system alerts; README | nivasity / `funaab` | `423e8b4`, `cbefe86` |
+| 5b | API cart bound to the user (no cookie), needed by any browser client | nivasity / `funaab` | `c373ad8`, `b7b60c9` |
+| 6 | white_label: API client/types, direct PIN page, checkout parity, store details dialog, mark as lost | Documents/Projects/nivasity / `white-label-parity` (new, from `staging`) | `a256ec1` (+ `a6d0bf7` unused imports that broke the build, `2c4de0b` plan copy) |
+| 6b | Cloudflare hosting for white_label (`wrangler.jsonc`, `_headers`, guide) | `white-label-parity` | `13a483f` |
+| 7 | white_label: send money, bulk payment, pending claims dialog, material requests, system alerts, survey card, nav, return-after-login | `white-label-parity` | `81be182` |
+| 8 | Review fixes: cart session under PHP strict mode; lockout message on PIN change | nivasity / `funaab` | `b7b60c9` |
+
+### 0.2 Changes from this plan
+
+- **Semester switch** lives on cc_dashboard's **Course Materials** page, not the Schools page (school admins can't see the Schools tab). Nivasity staff and school-wide admins can switch; faculty-level admins cannot.
+- **Price confirmations** are logged with the dashboard audit log, not `manual_change_logs` (that table tracks students swapping a bought material).
+- **Reopening any closed material** also goes through Confirm & Open (price + semester check), not only awaiting ones.
+- **Bulk preview logic** moved to `model/bulk_material_payment_preview.php` instead of the bulk service file.
+- **API cart** is now tied to the user instead of a cookie session. It was found broken for browser clients; side effect: carts in the mobile app are emptied once on deploy (purchases unaffected).
+- **Hosting:** white_label can be served from Cloudflare (see `white_label/docs/CLOUDFLARE_DEPLOYMENT.md`). Docker/nginx still works.
+
+### 0.3 Extra fixes found on the way
+
+- Payment init (API) and web `saveCart.php` refused nothing: closed materials still in a cart were written into the order (wallet charged for them; gateway could grant them unpaid). Both now refuse carts with materials that are not on sale. (`23ddff6`)
+- `saveCart.php` trusted `user_id` from the request body; it must now match the signed-in user. (`a2d15f8`)
+
+### 0.4 What you need to do
+
+1. **Review and push** the three branches: nivasity `funaab`, cc_dashboard `semester-tagging`, Documents/Projects/nivasity `white-label-parity`.
+2. **Run the migrations** (any order, both safe to re-run; `manuals` is MyISAM so run off-peak):
+   - `nivasity/sql/add_wallet_pin_lockout.sql`
+   - `nivasity/sql/add_semester_tagging.sql`
+   Until they run, the lockout and all semester behaviour stay off and everything works as before.
+3. **Deploy in this order:** nivasity (website + API) → cc_dashboard → white_label. The mobile app needs no release.
+4. **Test** with the checklist in section 6, plus:
+   - API cart: add to cart from white_label, reload, cart still there; checkout works.
+   - Mobile app: add to cart and pay with wallet (cart is now user-bound).
+   - Cloudflare: preview deploy on `*.workers.dev` (guide section 3), then move FUNAAB (section 4).
+5. **Set each school's current semester** in cc_dashboard → Course Materials (defaults to First). Tag existing materials if you like; untagged ones keep selling until the first switch.
+
+---
+
 ## 1. Goal
 
 `white_label` (React + Vite, one site per school resolved by subdomain) replaces the PHP student website. It should **work exactly like the mobile app**, plus a set of web-only features that exist today only on the PHP site.
@@ -74,7 +124,7 @@ All new endpoints follow the existing API conventions: `authenticateApiRequest($
 **Recommendation on direct PIN:** allow `set_pin_direct` only when the user **has no PIN yet**. Changing an existing PIN should require the current PIN, and "forgot PIN" should keep the OTP flow. Otherwise a hijacked session can reset the PIN and drain the wallet. The web site today allows overwriting without either check, so fix `model/wallet-pin.php` the same way.
 
 ### 3.2 Bulk payments
-1. Move the `bulk_material_payment_preview_*` functions out of `bulk_material_payment.php` into `model/bulk_material_payment_service.php`, so the page and the API share them.
+1. Move the `bulk_material_payment_preview_*` functions out of `bulk_material_payment.php` into a shared model file, so the page and the API share them. *(Built as `model/bulk_material_payment_preview.php` rather than inside the 1,400-line service.)*
 2. New endpoints under `API/materials/bulk/`:
 
 | Endpoint | Purpose |
@@ -179,9 +229,9 @@ API responses should include `semester` on each material and `current_semester` 
 | :--- | :--- |
 | Create / edit material (`model/materials.php`, `course_materials.php`) | **Required** semester select: "First" or "Second" (no "both" option). Default to the school's current semester. |
 | Duplicate for other semester | Action on a material: creates a new `manuals` row with the same title, course code, price, scope and level, the **other** semester, and a **new** `code`. Opens it in the edit form so the admin can adjust the price before saving. Sales, exports and grants stay separate per copy. |
-| School page (`school.php`, `model/school.php`) | "Current semester" control. Before switching, show "N materials (tagged Semester X or untagged) will move to Awaiting confirmation; M materials tagged Semester Y will go live." Then run the switch **in one transaction**: update `schools.current_semester`, then `UPDATE manuals SET status='awaiting_confirmation' WHERE school_id=? AND status='open' AND (semester=<outgoing> OR semester IS NULL)`. |
+| Semester switch *(built on the Course Materials page, because school admins cannot see the Schools tab; Nivasity staff and school-wide admins only)* | "Current semester" control. Before switching, show "N materials (tagged Semester X or untagged) will move to Awaiting confirmation; M materials tagged Semester Y will go live." Then run the switch (tables are MyISAM, so no transaction: the school is switched first with a guard against double submits, and switched back if moving materials fails): update `schools.current_semester`, then `UPDATE manuals SET status='awaiting_confirmation' WHERE school_id=? AND status='open' AND (semester=<outgoing> OR semester IS NULL)`. |
 | Materials list | "Awaiting confirmation" filter/tab showing the current price, last sale date and units sold last time; "No semester set" badge and filter for legacy rows |
-| Confirm action | Semester required (pre-filled if already tagged), optional price edit → `status='open'`, `confirmed_at`, `confirmed_by`. Log old/new price and semester in `manual_change_logs`. If the chosen semester is not the current one, say "Will go live when Semester X starts". |
+| Confirm action | Semester required (pre-filled if already tagged), optional price edit → `status='open'`, `confirmed_at`, `confirmed_by`. Log old/new price and semester in the dashboard audit log (`log_audit_event`). *(`manual_change_logs` turned out to track students swapping a bought material, so it was not used.)* If the chosen semester is not the current one, say "Will go live when Semester X starts". |
 | Retire action | `status='closed'` (reuses the existing close-notification logic around `model/materials.php:741`) |
 | Open/closed toggle (`model/materials.php:722-766`) | Must not flip `awaiting_confirmation` straight to `open`, and must not open a material with no semester; route both through Confirm instead |
 | Permissions | Same admin roles/scopes that can edit materials today |
@@ -235,9 +285,14 @@ Steps 2–4 can ship before white_label: they immediately clean up the current P
 - After the switch, semester-1 materials are `awaiting_confirmation`, hidden everywhere, but still visible in order history and receipts for buyers.
 - Confirming with a new price reopens the material; old purchases keep the old price.
 - Transfer fails with a wrong PIN, a recipient from another school, or insufficient balance; a double submit with the same `request_token` sends once.
-- `set_pin_direct` is refused when a PIN already exists.
+- `set_pin_direct` creates a first PIN without a code; changing an existing PIN fails without the right current PIN; "forgot PIN" works with the email code (web page and white_label).
+- 5 wrong PINs lock checkout, transfer, bulk pay and PIN change for 30 minutes with the lockout message; an email-code reset clears it.
 - The mobile app PIN OTP flow and checkout still work unchanged.
-- Bulk: name mismatch, department mismatch and unregistered students (placeholder → later claim) all behave as on the PHP site.
+- Bulk: name mismatch, department mismatch and unregistered students (placeholder → later claim) all behave as on the PHP site, both on the website page and in white_label.
+- Pending claims dialog appears for a student with a claim; Confirm adds it to orders, "Not me" removes it.
+- Material request: create (duplicate and "already on sale" cases), upvote, share link opens highlighted after login.
+- Mark as lost in white_label lets the student buy the material again.
+- A closed material left in a cart blocks checkout with "no longer on sale" (API and website).
 
 ---
 
