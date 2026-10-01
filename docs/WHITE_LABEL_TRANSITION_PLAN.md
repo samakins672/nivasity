@@ -19,6 +19,8 @@
 | 6b | Cloudflare hosting for white_label (`wrangler.jsonc`, `_headers`, guide) | `white-label-parity` | `13a483f` |
 | 7 | white_label: send money, bulk payment, pending claims dialog, material requests, system alerts, survey card, nav, return-after-login | `white-label-parity` | `81be182` |
 | 8 | Review fixes: cart session under PHP strict mode; lockout message on PIN change | nivasity / `funaab` | `b7b60c9` |
+| 9 | nivasity.com (main_site) on Cloudflare (`wrangler.jsonc`, `_headers`, guide) | Documents/Projects/nivasity / `white-label-parity` | `9dd7881` |
+| 10 | Mobile app: wallet PIN without email code (change needs current PIN, forgot PIN uses the code) | nivasity_app / `direct-wallet-pin` (new, from `main`) | `9117eef` |
 
 ### 0.2 Changes from this plan
 
@@ -36,7 +38,7 @@
 
 ### 0.4 What you need to do
 
-1. **Review and push** the three branches: nivasity `funaab`, cc_dashboard `semester-tagging`, Documents/Projects/nivasity `white-label-parity`.
+1. **Review and push** the branches: nivasity `funaab`, cc_dashboard `semester-tagging`, Documents/Projects/nivasity `white-label-parity`, nivasity_app `direct-wallet-pin` (ship the app update after the backend is live; older app versions keep using the email-code flow).
 2. **Run the migrations** (any order, both safe to re-run; `manuals` is MyISAM so run off-peak):
    - `nivasity/sql/add_wallet_pin_lockout.sql`
    - `nivasity/sql/add_semester_tagging.sql`
