@@ -1015,6 +1015,116 @@ GET /materials/details.php?code=MAN-2024-001
 
 ---
 
+### Bulk Payments, Claims, Material Requests, Surveys and Alerts
+
+These endpoints expose features that were previously only on the PHP website. They reuse the same services, so rules and messages match the website. All except system alerts require authentication; bulk, claims and material requests are for `student`/`hoc` accounts only.
+
+#### Bulk Payment: Materials
+**Endpoint:** `GET /materials/bulk/manuals.php`
+
+Materials the student can pay for on behalf of course mates: open, not overdue, current semester, visible to their department (including ones they already own).
+
+```json
+{
+  "status": "success",
+  "data": {
+    "materials": [{ "id": 45, "title": "Introduction to Algorithms", "course_code": "CSC301", "price": 1500, "level": "300", "semester": 1 }],
+    "fee_percent": 5,
+    "csv_headers": ["first_name", "last_name", "matric_no"],
+    "wallet": { "ready": true, "balance": 20000, "warnings": [] }
+  }
+}
+```
+
+#### Bulk Payment: Preview
+**Endpoint:** `POST /materials/bulk/preview.php`
+
+Either `multipart/form-data` with `manual_id` and a `bulk_csv` file (official template headers), or JSON with `manual_id` and `records` (pasted text, one `first name, last name, matric no` per line; a header line is ignored).
+
+Each row is checked against the payer's department: missing fields, duplicates, same matric with different names, pending claims, existing copies, name mismatch (error) and department mismatch (note). Unregistered students are allowed and become claimable placeholders.
+
+```json
+{
+  "status": "success",
+  "message": "Preview loaded successfully.",
+  "data": {
+    "manual": { "id": 45, "title": "Introduction to Algorithms", "course_code": "CSC301", "price": 1500 },
+    "rows": [{ "line_number": 2, "first_name": "Ada", "last_name": "Obi", "matric_no": "20201234", "status": "valid", "resolution": "existing_student", "message": "Matched in your dept." }],
+    "errors": [],
+    "valid_count": 1,
+    "invalid_count": 0,
+    "breakdown": { "subtotal": 1500, "fee_percent": 5, "fee_amount": 75, "total_amount": 1575 },
+    "wallet": { "ready": true, "balance": 20000, "has_enough_balance": true },
+    "warnings": [],
+    "can_submit_payment": true,
+    "payment_rows": [{ "line_number": 2, "first_name": "Ada", "last_name": "Obi", "matric_no": "20201234", "normalized_first_name": "ada", "normalized_last_name": "obi", "normalized_matric_no": "20201234" }]
+  }
+}
+```
+
+#### Bulk Payment: Pay
+**Endpoint:** `POST /materials/bulk/pay.php`
+
+```json
+{ "manual_id": 45, "rows": [ /* payment_rows from preview, unchanged */ ], "wallet_pin": "1234" }
+```
+Rows are validated again; any invalid row blocks payment. Response data: `ref_id`, `batch_id`, `student_count`, `subtotal`, `fee_amount`, `total_amount`, `wallet_balance_after`. Subject to the Wallet PIN lockout.
+
+#### Bulk Claims: Pending
+**Endpoint:** `GET /materials/claims/pending.php?limit=5`
+
+Materials someone else paid for on the student's behalf (HOC/student bulk payments or admin-uploaded external payments), waiting for the student to confirm. Max `limit` 20. Response data: `{ "claims": [ ... ] }`. Each claim has `id` (send it as `student_row_id` when resolving), `source` (`bulk` or `external_manual`), `manual_id`, `title`, `course_code`, `student_name`, `student_matric_no`, `payer_name`, `paid_at` and `claim_status`.
+
+#### Bulk Claims: Resolve
+**Endpoint:** `POST /materials/claims/resolve.php`
+
+```json
+{ "student_row_id": 310, "action": "confirm", "source": "bulk" }
+```
+`action`: `confirm` or `reject`. `student_row_id` is the claim's `id`; pass `source` exactly as returned by `pending.php`. Response data: `remaining_claims`, `manuals_bought_id`.
+
+#### Material Requests: List
+**Endpoint:** `GET /material-requests/list.php?token=<share_token>`
+
+Requests visible to the student's department/faculty with `upvote_count`, `expected_buyers_count`, `progress_percent`, `threshold_percent` (40), `threshold_met`, `viewer_has_upvoted` and `share_token`. With `token`, the matching request is also returned as `highlighted`.
+
+#### Material Requests: Create
+**Endpoint:** `POST /material-requests/create.php` (verified accounts)
+
+```json
+{ "material_code": "CSC305", "material_title": "Operating Systems", "scope": "department", "target_dept_ids": [], "target_faculty_ids": [] }
+```
+Response `data.status`:
+- `created` (HTTP 201): `request_id`, `share_token`
+- `duplicate`: a similar active request exists, returned in `request`; upvote it instead
+- `material_exists`: a matching material is already on sale this semester, returned in `material`
+
+#### Material Requests: Upvote
+**Endpoint:** `POST /material-requests/upvote.php` (verified accounts)
+
+```json
+{ "request_id": 12 }
+```
+Response data: `status` (`upvoted` or `already_upvoted`) and `progress`.
+
+#### Survey Banner: Active Survey
+**Endpoint:** `GET /surveys/active.php`
+
+Response data: `{ "survey": { "id": 3, "slug": "store-feedback", "title": "...", "description": "...", "url": "https://nivasity.com/survey/store-feedback" } }`, or `survey: null` when there is nothing to show (no published banner survey, dismissed 5 times, or already answered).
+
+#### Survey Banner: Dismiss
+**Endpoint:** `POST /surveys/dismiss.php`
+
+```json
+{ "survey_id": 3 }
+```
+Each call counts one dismissal; after the 5th the banner stops showing.
+
+#### System Alerts
+**Endpoint:** `GET /reference/system-alerts.php` (no authentication)
+
+Response data: `{ "alerts": [{ "id": 1, "title": "...", "message": "...", "color": "red", "expiry_date": "2026-10-10 00:00:00", "created_at": "..." }] }`. `color` is `red` (default), `green` or `info`.
+
 ### App Endpoints
 
 #### App Update Config
