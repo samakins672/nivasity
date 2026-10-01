@@ -21,6 +21,11 @@
 | 8 | Review fixes: cart session under PHP strict mode; lockout message on PIN change | nivasity / `funaab` | `b7b60c9` |
 | 9 | nivasity.com (main_site) on Cloudflare (`wrangler.jsonc`, `_headers`, guide) | Documents/Projects/nivasity / `white-label-parity` | `9dd7881` |
 | 10 | Mobile app: wallet PIN without email code (change needs current PIN, forgot PIN uses the code) | nivasity_app / `direct-wallet-pin` (new, from `main`) | `9117eef` |
+| 11 | Mobile app: update gate compares against the installed store version | nivasity_app / `direct-wallet-pin` | `22dbd55` |
+| 12 | Local end-to-end test fixes: `manuals.status` widened to fit `awaiting_confirmation` (was silently cut to 20 chars); migration no longer needs `manuals.level` | nivasity / `funaab` | `93da4bb` |
+| 13 | Security (already on cc_dashboard `main`): materials list/CSV, batch payment items and student lookup answered without login; now admin-only | cc_dashboard / `semester-tagging` | `478abfc` |
+
+**Tested end to end on a local copy of the database (1 Oct 2026)**, after upgrading its structure to `sql/niverpay_db.sql` and running both migrations twice: store and details semester filtering, add-to-cart refusal, cart kept without cookies, checkout refusing a stale cart item, PIN change with current PIN, lockout after 5 wrong PINs (blocks PIN change and checkout), transfer lookup rules, bulk manuals/preview, material request create/duplicate/upvote, surveys, alerts, and in cc_dashboard: semester panel counts, Confirm & Open, toggle reopen block, switch (and double-submit guard), Retire, confirm-ahead, switch back. Not exercised: real money movements (wallet checkout, transfer, bulk pay) and emails.
 
 ### 0.2 Changes from this plan
 
