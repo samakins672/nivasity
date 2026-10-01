@@ -702,7 +702,11 @@ if (!function_exists('nivasitySetWalletPinDirect')) {
             try {
                 nivasityVerifyWalletPin($conn, $userId, $currentPin);
             } catch (Throwable $e) {
-                throw new Exception('Current Wallet PIN is incorrect');
+                // Keep lockout and validation messages; only reword a plain wrong PIN.
+                if ($e->getMessage() === 'Incorrect Wallet PIN') {
+                    throw new Exception('Current Wallet PIN is incorrect');
+                }
+                throw $e;
             }
         }
 

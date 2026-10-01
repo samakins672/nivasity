@@ -75,6 +75,12 @@ function startApiCartSession($userId) {
     $secret = (defined('JWT_SECRET_KEY') && strpos(JWT_SECRET_KEY, 'INSECURE_DEFAULT_KEY') !== 0)
         ? JWT_SECRET_KEY
         : 'nivasity-api-cart';
+    // Strict mode would replace a not-yet-existing custom id with a random one (cart lost each
+    // request), and the id is derived server-side, so no session cookie is read or sent.
+    ini_set('session.use_strict_mode', '0');
+    ini_set('session.use_cookies', '0');
+    ini_set('session.use_only_cookies', '0');
+    ini_set('session.use_trans_sid', '0');
     session_id('nvcart' . substr(hash_hmac('sha256', 'api-cart:' . $userId, $secret), 0, 40));
     session_start();
 }
