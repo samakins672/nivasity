@@ -24,6 +24,10 @@
 | 11 | Mobile app: update gate compares against the installed store version | nivasity_app / `direct-wallet-pin` | `22dbd55` |
 | 12 | Local end-to-end test fixes: `manuals.status` widened to fit `awaiting_confirmation` (was silently cut to 20 chars); migration no longer needs `manuals.level` | nivasity / `funaab` | `93da4bb` |
 | 13 | Security (already on cc_dashboard `main`): materials list/CSV, batch payment items and student lookup answered without login; now admin-only | cc_dashboard / `semester-tagging` | `478abfc` |
+| 14 | Cloudflare deploys are preview-only by default; real domains need `--env production` | `white-label-parity` | `f5c6e69` |
+| 15 | Bank withdrawals removed (API endpoint had no PIN) + marketplace "Send via bank transfer" removed; marketplace transfers keep working | nivasity `funaab` + `white-label-parity` | `a94031d`, `fdb97bd` |
+| 16 | Duplicate accounts: Google sign-in no longer creates a new account when duplicates share an email; sign-up lock; matric-taken hint; take email back from an unused duplicate; `find-purchase` endpoint | nivasity / `funaab` | `f59ef92` |
+| 17 | Receipts by reference for every purchase type; per-material receipts; "Missing a purchase?" in white_label | nivasity `funaab` + `white-label-parity` | `00b7d3b`, `69f036b` |
 
 **Tested end to end on a local copy of the database (1 Oct 2026)**, after upgrading its structure to `sql/niverpay_db.sql` and running both migrations twice: store and details semester filtering, add-to-cart refusal, cart kept without cookies, checkout refusing a stale cart item, PIN change with current PIN, lockout after 5 wrong PINs (blocks PIN change and checkout), transfer lookup rules, bulk manuals/preview, material request create/duplicate/upvote, surveys, alerts, and in cc_dashboard: semester panel counts, Confirm & Open, toggle reopen block, switch (and double-submit guard), Retire, confirm-ahead, switch back. Not exercised: real money movements (wallet checkout, transfer, bulk pay) and emails.
 
