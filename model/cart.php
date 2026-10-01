@@ -83,7 +83,7 @@ if (isset($_POST['reload_cart'])) {
         $seller_code = $sett_row['subaccount_code'];
         $seller_gateway = $sett_row['gateway'] ?? 'paystack';
 
-        if ($date > $due_date2 || $status == 'closed') {
+        if ($date > $due_date2 || $status !== 'open') {
             $status = 'disabled';
             $status_c = 'danger';
         } else {
