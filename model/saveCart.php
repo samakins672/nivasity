@@ -4,6 +4,7 @@ require_once 'config.php';
 require_once 'payment_freeze.php';
 require_once 'functions.php';
 require_once 'refund_engine.php';
+require_once 'material_semester.php';
 
 header('Content-Type: application/json');
 
@@ -61,6 +62,15 @@ foreach ($items as $item) {
     $type = isset($item['type']) ? mysqli_real_escape_string($conn, (string)$item['type']) : '';
     if ($item_id <= 0 || ($type !== 'manual' && $type !== 'event')) {
         continue;
+    }
+    if ($type === 'manual') {
+        // Only open materials on sale in the school's current semester can be paid for.
+        $available_q = mysqli_query($conn, "SELECT * FROM manuals WHERE id = $item_id AND school_id = $school_id AND status = 'open' LIMIT 1");
+        $available_row = $available_q ? mysqli_fetch_assoc($available_q) : null;
+        if (!$available_row || !material_semester_is_visible($conn, $available_row, $school_id)) {
+            echo json_encode(['success' => false, 'message' => 'One or more materials in your cart are no longer on sale. Remove them from your cart and try again.']);
+            exit;
+        }
     }
     $gateway_value = $gateway ? "'$gateway'" : "NULL";
     $values[] = "('$ref_id', $user_id, $item_id, '$type', 'pending', $gateway_value, '$payment_channel')";

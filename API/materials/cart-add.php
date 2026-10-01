@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/../../model/material_copy_status.php';
+require_once __DIR__ . '/../../model/material_semester.php';
 
 // Only accept POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -34,6 +35,10 @@ if (mysqli_num_rows($material_query) === 0) {
 }
 
 $material = mysqli_fetch_assoc($material_query);
+
+if (!material_semester_is_visible($conn, $material, (int)$school_id)) {
+    sendApiError('This material is not on sale this semester', 400);
+}
 
 // Check if due date has passed
 $due_date = strtotime($material['due_date']);

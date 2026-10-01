@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../model/functions.php';
 require_once __DIR__ . '/../../model/refund_engine.php';
 require_once __DIR__ . '/../../model/payment_freeze.php';
 require_once __DIR__ . '/../../model/internal_wallet_service.php';
+require_once __DIR__ . '/../../model/material_semester.php';
 require_once __DIR__ . '/../../config/fw.php';
 
 // Only accept POST requests
@@ -69,13 +70,20 @@ $cart_items = [];
 
 // Process manuals
 if (!empty($cart)) {
-    $cart_ids = array_map('intval', $cart);
+    $cart_ids = array_values(array_unique(array_map('intval', $cart)));
     $ids_string = implode(',', $cart_ids);
-    
-    $manuals_query = mysqli_query($conn, "SELECT m.* 
-                                          FROM manuals m 
-                                          WHERE m.id IN ($ids_string) AND m.school_id = $school_id AND m.status = 'open'");
-    
+    $semester_where = material_semester_where_sql($conn, (int)$school_id, 'm');
+
+    $manuals_query = mysqli_query($conn, "SELECT m.*
+                                          FROM manuals m
+                                          WHERE m.id IN ($ids_string) AND m.school_id = $school_id AND m.status = 'open' AND $semester_where");
+
+    // Every cart row is charged/granted later, so refuse if any material is no longer on sale.
+    if (!$manuals_query || mysqli_num_rows($manuals_query) !== count($cart_ids)) {
+        sendApiError('One or more materials in your cart are no longer on sale. Remove them from your cart and try again.', 400);
+    }
+    $cart = $cart_ids;
+
     while ($manual = mysqli_fetch_assoc($manuals_query)) {
         $price = (float)$manual['price'];
         $subtotal += $price;

@@ -4,6 +4,7 @@ include('config.php');
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/internal_wallet_service.php';
 require_once __DIR__ . '/payment_freeze.php';
+require_once __DIR__ . '/material_semester.php';
 
 $user_id = $_SESSION['nivas_userId'];
 $school_id = $_SESSION['nivas_userSch'];
@@ -83,7 +84,7 @@ if (isset($_POST['reload_cart'])) {
         $seller_code = $sett_row['subaccount_code'];
         $seller_gateway = $sett_row['gateway'] ?? 'paystack';
 
-        if ($date > $due_date2 || $status !== 'open') {
+        if ($date > $due_date2 || $status !== 'open' || !material_semester_is_visible($conn, $cart_item)) {
             $status = 'disabled';
             $status_c = 'danger';
         } else {

@@ -56,7 +56,9 @@ if (!isset($bulk_payment_manual_options) || !is_array($bulk_payment_manual_optio
       $bulkVisibilityWhere = $bulkLegacyVisibilityWhere;
     }
 
-    $bulkManualQuerySql = "SELECT * FROM manuals AS m WHERE ($bulkVisibilityWhere) AND m.status = 'open' AND m.school_id = $bulkSchoolIdInt ORDER BY m.id DESC";
+    require_once __DIR__ . '/../model/material_semester.php';
+    $bulkSemesterWhere = material_semester_where_sql($conn, $bulkSchoolIdInt, 'm');
+    $bulkManualQuerySql = "SELECT * FROM manuals AS m WHERE ($bulkVisibilityWhere) AND m.status = 'open' AND m.school_id = $bulkSchoolIdInt AND $bulkSemesterWhere ORDER BY m.id DESC";
     $bulkPaymentManualQuery = mysqli_query($conn, $bulkManualQuerySql);
     if ($bulkPaymentManualQuery) {
       $todayYmd = date('Y-m-d');

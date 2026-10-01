@@ -6,6 +6,7 @@ include('model/system_alerts.php');
 include('model/payment_freeze.php');
 require_once 'model/internal_wallet_service.php';
 require_once 'model/material_copy_status.php';
+require_once 'model/material_semester.php';
 require_once 'model/bulk_material_payment_service.php';
 
 // Fetch active system alerts
@@ -93,12 +94,16 @@ try {
   $manual_visibility_where = $legacy_manual_visibility_where;
 }
 
+// Only the school's current semester (no-op until semester tagging is set up)
+$store_semester_where = material_semester_where_sql($conn, $school_id_int, 'm');
+$store_semester_where_plain = material_semester_where_sql($conn, $school_id_int, '');
+
 try {
-  $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(m.id) FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int"))[0];
-  $manual_query_sql = "SELECT * FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int ORDER BY m.id DESC";
+  $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(m.id) FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int AND $store_semester_where"))[0];
+  $manual_query_sql = "SELECT * FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int AND $store_semester_where ORDER BY m.id DESC";
   $manual_query = mysqli_query($conn, $manual_query_sql);
 
-  $level_query = mysqli_query($conn, "SELECT DISTINCT m.level FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int AND m.level IS NOT NULL AND TRIM(m.level) <> '' ORDER BY m.level ASC");
+  $level_query = mysqli_query($conn, "SELECT DISTINCT m.level FROM manuals AS m WHERE ($manual_visibility_where) AND m.status = 'open' AND m.school_id = $school_id_int AND $store_semester_where AND m.level IS NOT NULL AND TRIM(m.level) <> '' ORDER BY m.level ASC");
   if ($level_query) {
     while ($level_row = mysqli_fetch_assoc($level_query)) {
       $level_value = trim((string) ($level_row['level'] ?? ''));
@@ -110,8 +115,8 @@ try {
   }
 } catch (Throwable $e) {
   error_log('[index] manual query failed, falling back: ' . $e->getMessage());
-  $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int"))[0];
-  $manual_query_sql = "SELECT * FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int ORDER BY id DESC";
+  $t_manuals = mysqli_fetch_array(mysqli_query($conn, "SELECT COUNT(id) FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int AND $store_semester_where_plain"))[0];
+  $manual_query_sql = "SELECT * FROM manuals WHERE dept = $user_dept_int AND status = 'open' AND school_id = $school_id_int AND $store_semester_where_plain ORDER BY id DESC";
   $manual_query = mysqli_query($conn, $manual_query_sql);
 }
 

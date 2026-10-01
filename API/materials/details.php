@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/../../model/material_copy_status.php';
+require_once __DIR__ . '/../../model/material_semester.php';
 
 // Only accept GET requests
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
@@ -75,6 +76,16 @@ $due_date = strtotime($material['due_date']);
 $now = time();
 $is_overdue = ($now > $due_date);
 
+// Still shown (e.g. from order history) but not buyable outside its semester or when not open.
+$in_current_semester = material_semester_is_visible($conn, $material, (int)$school_id);
+$is_available = !$is_overdue && $material['status'] === 'open' && $in_current_semester;
+$display_status = $material['status'];
+if ($is_overdue) {
+    $display_status = 'overdue';
+} elseif (!$is_available) {
+    $display_status = 'unavailable';
+}
+
 $materialData = [
     'id' => $material['id'],
     'code' => $material['code'],
@@ -83,8 +94,9 @@ $materialData = [
     'price' => (float)$material['price'],
     'quantity' => (int)$material['quantity'],
     'due_date' => $material['due_date'],
-    'status' => $is_overdue ? 'overdue' : $material['status'],
+    'status' => $display_status,
     'is_overdue' => $is_overdue,
+    'is_available' => $is_available,
     'dept' => (int)$material['dept'],
     'dept_name' => ((int)$material['dept'] === 0) ? 'All Departments' : $material['dept_name'],
     'faculty' => $material['faculty'],
@@ -92,6 +104,8 @@ $materialData = [
     'host_faculty' => $material['host_faculty'],
     'host_faculty_name' => $material['host_faculty_name'],
     'level' => $material['level'] ? (string)$material['level'] : null,
+    'semester' => material_semester_normalize($material['semester'] ?? null),
+    'semester_label' => material_semester_label($material['semester'] ?? null),
     'seller' => [
         'id' => $material['user_id'],
         'name' => $material['first_name'] . ' ' . $material['last_name'],

@@ -739,6 +739,7 @@ These endpoints provide institutional data needed for registration and profile s
   - Department-specific materials (`dept = user_dept`)
   - Faculty-level shared materials (`dept = 0` with matching faculty)
 - Only `open` materials are returned, and due dates older than 24 hours are excluded
+- Only materials tagged for the school's **current semester** are returned (legacy untagged materials still show until the school's first semester switch). `current_semester` (1 or 2, or `null` before semester tagging is set up) is returned alongside the list, and each material has `semester` and `semester_label`
 
 **Response (Success):**
 ```json
@@ -759,11 +760,15 @@ These endpoints provide institutional data needed for registration and profile s
         "dept_name": "Computer Science",
         "faculty": 2,
         "faculty_name": "Science",
+        "semester": 1,
+        "semester_label": "First Semester",
         "seller_name": "Jane Smith",
         "is_purchased": false,
         "created_at": "2024-01-15 10:30:00"
       }
     ],
+    "current_semester": 1,
+    "current_semester_label": "First Semester",
     "pagination": {
       "total": 100,
       "page": 1,
@@ -822,10 +827,13 @@ GET /materials/list.php?search=algorithm&level=300
     "quantity": 50,
     "due_date": "2024-12-31",
     "status": "open",
+    "is_available": true,
     "dept": 5,
     "dept_name": "Computer Science",
     "faculty": 2,
     "faculty_name": "Science",
+    "semester": 1,
+    "semester_label": "First Semester",
     "seller": {
       "id": 78,
       "name": "Jane Smith",
@@ -847,6 +855,10 @@ GET /materials/details.php?id=45
 # Get material by code
 GET /materials/details.php?code=MAN-2024-001
 ```
+
+**Notes:**
+- Details are still returned for materials the student can no longer buy (e.g. opened from order history). `is_available` is `false` and `status` is `unavailable` when the material is not open (closed or `awaiting_confirmation`) or belongs to a different semester; `status` is `overdue` when the due date has passed.
+- `/materials/cart-add.php` and `/payment/init.php` reject materials that are not on sale in the current semester ("One or more materials in your cart are no longer on sale…").
 
 #### 14. Add to Cart
 **Endpoint:** `POST /materials/cart-add.php`
@@ -1547,6 +1559,74 @@ This allows the payment gateway to redirect back to your mobile app after the us
 - `action = verify_code` validates the email code and returns a short-lived `pin_token`
 - `action = save_pin` requires that `pin_token` plus matching 4-digit PIN values
 - The authenticated user must already have a wallet before PIN setup or update is allowed
+
+**Direct PIN setup (web / white label, no email code):**
+```json
+{
+  "action": "set_pin_direct",
+  "pin": "1234",
+  "confirm_pin": "1234",
+  "current_pin": "4321"
+}
+```
+- First PIN: `current_pin` is not needed.
+- Changing an existing PIN: `current_pin` is required. A forgotten PIN must be reset with `send_code` → `verify_code` → `save_pin`.
+- Response data: `{ "status": "saved", "has_pin": true, "purpose": "create" | "update" }`.
+
+**Wallet PIN lockout (all PIN-protected actions):**
+- After 5 consecutive wrong PINs, checkout, transfers, bulk payment, marketplace orders and PIN changes are blocked for 30 minutes with: "Too many wrong Wallet PIN attempts. Try again in N minutes, or reset your Wallet PIN with the email code."
+- A correct PIN resets the counter; saving a new PIN (any method) clears the lock.
+- Requires `sql/add_wallet_pin_lockout.sql`; until it runs, no lockout is applied.
+
+#### Wallet Transfer to Student
+**Endpoint:** `POST /wallet/transfer.php`
+
+**Description:** Send wallet funds to another verified student in the same school. Uses the same service as the website (PIN check, same-school recipient, idempotent `request_token`).
+
+**Authentication:** Required (student or HOC)
+
+**Look up the recipient first:**
+```json
+{
+  "action": "lookup",
+  "recipient_identifier": "20201234"
+}
+```
+Response data: `{ "recipient": { "user_id": 12, "name": "Ada Obi", "email": "ada@example.com", "matric_no": "20201234" } }`
+
+**Send:**
+```json
+{
+  "action": "transfer",
+  "recipient_identifier": "ada@example.com",
+  "amount": 2000,
+  "wallet_pin": "1234",
+  "description": "For CSC301 manual",
+  "request_token": "web-6f1c2a9b-41d3-4f7e-9c11"
+}
+```
+- `recipient_identifier`: email or matric number (`recipient_email` is still accepted).
+- `request_token`: unique per transfer attempt, 16–100 characters (letters, digits, `:`, `_`, `-`). Re-sending the same token returns the original result instead of sending twice.
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Wallet transfer completed successfully.",
+  "data": {
+    "transfer": {
+      "already_processed": false,
+      "transfer_id": 88,
+      "transfer_reference": "nwt_20261001143000_A1B2C3D4E5",
+      "amount": 2000,
+      "wallet_balance_after": 3500,
+      "recipient": { "user_id": 12, "name": "Ada Obi", "email": "ada@example.com", "matric_no": "20201234" }
+    },
+    "reference": "nwt_20261001143000_A1B2C3D4E5",
+    "new_balance": 3500
+  }
+}
+```
 
 #### Refresh Wallet Credits
 **Endpoint:** `POST /wallet/refresh-credits.php`

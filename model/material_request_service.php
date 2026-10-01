@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/material_semester.php';
+
 if (!function_exists('nivasityMaterialRequestTableExists')) {
     function nivasityMaterialRequestTableExists($conn, $tableName) {
         static $cache = [];
@@ -389,11 +391,14 @@ if (!function_exists('nivasityMaterialRequestFindOpenMaterialMatch')) {
 
         $matchCondition = nivasityMaterialRequestMatchCondition($conn, $codeNormalized, $titleNormalized, 'm.course_code', 'm.title');
                 $deptMatchWhere = nivasityMaterialRequestBuildManualDeptMatchWhere($conn, $userDeptId, 'm');
+        // Only materials students can actually buy now (current semester)
+        $semesterWhere = material_semester_where_sql($conn, $schoolId, 'm');
 
         $sql = "SELECT m.id, m.title, m.course_code
                 FROM manuals m
                 WHERE m.school_id = $schoolId
                   AND m.status = 'open'
+                  AND $semesterWhere
                                     AND ($deptMatchWhere)
                   AND $matchCondition
                 ORDER BY m.id DESC

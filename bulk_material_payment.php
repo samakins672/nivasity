@@ -4,6 +4,7 @@ include('model/config.php');
 include('model/page_config.php');
 require_once 'model/bulk_material_payment_service.php';
 require_once 'model/material_copy_status.php';
+require_once 'model/material_semester.php';
 
 if (!function_exists('bulk_material_payment_preview_normalize_header_row')) {
   function bulk_material_payment_preview_normalize_header_row(array $row): array
@@ -528,6 +529,8 @@ if ($pageError === '' && $manual) {
   $dueDate = strtotime((string) ($manual['due_date'] ?? ''));
   if ((string) ($manual['status'] ?? '') !== 'open' || ($dueDate !== false && time() > $dueDate)) {
     $pageError = 'This material is closed and cannot be used for bulk payment.';
+  } elseif (!material_semester_is_visible($conn, $manual, (int) $school_id)) {
+    $pageError = 'This material is not on sale this semester and cannot be used for bulk payment.';
   }
 }
 

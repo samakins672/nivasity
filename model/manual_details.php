@@ -1,6 +1,7 @@
 <?php
 session_start();
 include('config.php');
+require_once __DIR__ . '/material_semester.php';
 
 header('Content-Type: text/html; charset=utf-8');
 
@@ -30,7 +31,8 @@ $due_date = date('j M, Y', strtotime($manual['due_date']));
 $due_date2 = date('Y-m-d', strtotime($manual['due_date']));
 $status = $manual['status'];
 $material_scope_label = ((int)$manual['dept'] === 0 && (int)$manual['faculty'] > 0) ? 'Faculty' : 'Department';
-$is_overdue = (date('Y-m-d') > $due_date2) || ($status !== 'open');
+$is_overdue = (date('Y-m-d') > $due_date2) || ($status !== 'open')
+  || !material_semester_is_visible($conn, $manual);
 $can_bulk_pay = isset($_SESSION['nivas_userId'])
   && in_array((string) ($_SESSION['nivas_userRole'] ?? ''), ['student', 'hoc'], true)
   && !$is_overdue;

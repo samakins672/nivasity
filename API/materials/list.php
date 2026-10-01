@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/../../model/material_copy_status.php';
+require_once __DIR__ . '/../../model/material_semester.php';
 
 // Only accept GET requests
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
@@ -28,6 +29,9 @@ $offset = ($page - 1) * $limit;
 // Build query - filter by school and due date; visibility is added below
 // Exclude materials with due date passed over 24 hours ago
 $where_conditions = ["m.school_id = $school_id", "m.status = 'open'", "m.due_date >= DATE_SUB(NOW(), INTERVAL 24 HOUR)"];
+// Only the school's current semester (no-op until semester tagging is set up)
+$where_conditions[] = material_semester_where_sql($conn, (int)$school_id, 'm');
+$current_semester = material_semester_current_for_school($conn, (int)$school_id);
 
 // Get user's faculty from their department and sanitize dept
 $user_faculty = null;
@@ -168,6 +172,8 @@ while ($row = mysqli_fetch_assoc($result)) {
         'host_faculty' => $row['host_faculty'],
         'host_faculty_name' => $row['host_faculty_name'],
         'level' => $row['level'] ? (string)$row['level'] : null,
+        'semester' => material_semester_normalize($row['semester'] ?? null),
+        'semester_label' => material_semester_label($row['semester'] ?? null),
         'seller_name' => $row['first_name'] . ' ' . $row['last_name'],
         'is_purchased' => $is_purchased,
         'created_at' => $row['created_at']
@@ -176,6 +182,8 @@ while ($row = mysqli_fetch_assoc($result)) {
 
 sendApiSuccess('Materials retrieved successfully', [
     'materials' => $materials,
+    'current_semester' => $current_semester,
+    'current_semester_label' => material_semester_label($current_semester),
     'pagination' => [
         'total' => (int)$total,
         'page' => $page,
