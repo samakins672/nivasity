@@ -456,6 +456,8 @@ This approach separates OTP verification from password update for better securit
 }
 ```
 
+**Taking back an email from an unused duplicate account:** if the new email belongs to another account that has nothing in it (no purchases, payments, wallet balance, transfers or pending bulk claims), the change is allowed. When the OTP sent to that email is confirmed, the unused account is retired (email and matric number freed, account deactivated). If that other account has purchases or wallet funds, the request is refused with "Contact support to merge the two accounts".
+
 #### Verify Email Change OTP
 **Endpoint:** `POST /profile/verify-email-change.php`
 
@@ -513,6 +515,8 @@ This approach separates OTP verification from password update for better securit
 ```
 
 **Note:** All fields are optional. The department must belong to the user's school.
+
+**Matric number already used (HTTP 409):** `data.code = "matric_taken"` and `data.existing_account_hint` (partly hidden email of the account that has it). The message tells the student to sign in to that account if it is theirs, or contact support with their ID card.
 
 #### 10. Change Password
 **Endpoint:** `POST /profile/change-password.php`
@@ -1361,6 +1365,21 @@ This allows the payment gateway to redirect back to your mobile app after the us
 }
 ```
 
+#### Find a Missing Purchase
+**Endpoint:** `GET /payment/find-purchase.php?reference=<reference>`
+
+**Description:** Self-service check for "I paid but can't see it". Accepts a purchase reference (`nivas_...`) or a bank-transfer reference.
+
+**Authentication:** Required (student or HOC)
+
+**Response `data.status`:**
+- `in_your_orders`: on this account (`ref_id` returned)
+- `pending_payment`: a gateway payment on this account that was never confirmed; call `/payment/verify.php?tx_ref=` next
+- `other_account`: on another account of the **same person** (same name or matric number); `existing_account_hint` is that account's partly hidden email, e.g. `ad•••@gmail.com`
+- `other_student`: on someone else's account (nothing shared)
+- `wallet_funding`: a bank transfer into this wallet; `credited` and `amount`
+- `not_found`
+
 #### 21. Get Transactions
 **Endpoint:** `GET /payment/transactions.php`
 
@@ -1371,6 +1390,7 @@ This allows the payment gateway to redirect back to your mobile app after the us
 **Query Parameters:**
 - `page` (optional, default: 1): Page number
 - `limit` (optional, default: 20, max: 100): Items per page
+- `ref_id` (optional): return only this purchase reference (receipt page). Always limited to the signed-in buyer; works for wallet, gateway, bulk-paid, claimed and external purchases. Each item includes `bought_id`.
 
 **Response (Success):**
 ```json
@@ -1717,7 +1737,9 @@ Response data: `{ "recipient": { "user_id": 12, "name": "Ada Obi", "email": "ada
 }
 ```
 - `recipient_identifier`: email or matric number (`recipient_email` is still accepted).
-- `request_token`: unique per transfer attempt, 16–100 characters (letters, digits, `:`, `_`, `-`). Re-sending the same token returns the original result instead of sending twice.
+- `request_token` (recommended): unique per transfer attempt, 16–100 characters (letters, digits, `:`, `_`, `-`). Re-sending the same token returns the original result instead of sending twice. If omitted (older clients), the server creates one, so a retry could send twice.
+- `wallet_pin` is always required.
+- Bank withdrawals are not offered: there is no withdraw endpoint.
 
 **Response (Success):**
 ```json

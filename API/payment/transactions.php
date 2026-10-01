@@ -34,10 +34,16 @@ $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
 $limit = isset($_GET['limit']) ? min(100, max(1, (int)$_GET['limit'])) : 20;
 $offset = ($page - 1) * $limit;
 
+// Optional: one purchase by reference (receipt page). Always limited to the signed-in buyer.
+$ref_filter = '';
+if (isset($_GET['ref_id']) && trim((string)$_GET['ref_id']) !== '') {
+    $ref_filter = " AND mb.ref_id = '" . mysqli_real_escape_string($conn, trim((string)$_GET['ref_id'])) . "'";
+}
+
 // Count total material-purchase references, including externally recorded purchases.
 $count_query = mysqli_query($conn, "SELECT COUNT(DISTINCT mb.ref_id) as total 
         FROM manuals_bought mb 
-        WHERE mb.buyer = $user_id AND mb.status = 'successful'");
+        WHERE mb.buyer = $user_id AND mb.status = 'successful'$ref_filter");
 $total = mysqli_fetch_array($count_query)['total'];
 
 // Fetch material purchase history grouped by reference, with transaction data when available.
@@ -61,7 +67,7 @@ $query = "SELECT
                 MAX(CASE WHEN mb.ref_id LIKE 'manual_ext_%' THEN 1 ELSE 0 END) AS is_external_payment
         FROM manuals_bought mb
         LEFT JOIN transactions t ON t.ref_id = mb.ref_id AND t.user_id = mb.buyer
-        WHERE mb.buyer = $user_id AND mb.status = 'successful'
+        WHERE mb.buyer = $user_id AND mb.status = 'successful'$ref_filter
         GROUP BY mb.ref_id
         ORDER BY MAX(COALESCE(t.created_at, mb.created_at)) DESC
         LIMIT $limit OFFSET $offset";
@@ -86,6 +92,7 @@ while ($row = mysqli_fetch_assoc($result)) {
         $items[] = [
             'type' => 'manual',
             'id' => $manual['manual_id'],
+            'bought_id' => (int)$manual['id'],
             'title' => $manual['title'],
             'course_code' => $manual['course_code'],
             'price' => (float)$manual['price'],
