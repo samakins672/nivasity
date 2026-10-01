@@ -4,6 +4,14 @@ require_once __DIR__ . '/../config/fw.php';
 require_once __DIR__ . '/notifications.php';
 require_once __DIR__ . '/mail.php';
 
+// Wallet PIN lockout: consecutive wrong PINs before locking, and lock duration.
+if (!defined('NIVASITY_WALLET_PIN_MAX_ATTEMPTS')) {
+    define('NIVASITY_WALLET_PIN_MAX_ATTEMPTS', 5);
+}
+if (!defined('NIVASITY_WALLET_PIN_LOCK_MINUTES')) {
+    define('NIVASITY_WALLET_PIN_LOCK_MINUTES', 30);
+}
+
 if (!function_exists('nivasityWalletLog')) {
     function nivasityWalletLog($message, $context = []) {
         $payload = '[NIVASITY_WALLET] ' . $message;
@@ -632,6 +640,10 @@ if (!function_exists('nivasitySaveWalletPin')) {
             if (nivasityUsersHasWalletPinUpdatedAtColumn($conn)) {
                 $updates[] = 'wallet_pin_updated_at = NOW()';
             }
+            if (nivasityUsersHasWalletPinLockoutColumns($conn)) {
+                $updates[] = 'wallet_pin_failed_attempts = 0';
+                $updates[] = 'wallet_pin_locked_until = NULL';
+            }
             $updateSql = 'UPDATE users SET ' . implode(', ', $updates) . " WHERE id = $userId LIMIT 1";
             if (!mysqli_query($conn, $updateSql)) {
                 throw new Exception('Failed to save Wallet PIN: ' . mysqli_error($conn));
@@ -701,6 +713,10 @@ if (!function_exists('nivasitySetWalletPinDirect')) {
             if (nivasityUsersHasWalletPinUpdatedAtColumn($conn)) {
                 $updates[] = 'wallet_pin_updated_at = NOW()';
             }
+            if (nivasityUsersHasWalletPinLockoutColumns($conn)) {
+                $updates[] = 'wallet_pin_failed_attempts = 0';
+                $updates[] = 'wallet_pin_locked_until = NULL';
+            }
             $updateSql = 'UPDATE users SET ' . implode(', ', $updates) . " WHERE id = $userId LIMIT 1";
             if (!mysqli_query($conn, $updateSql)) {
                 throw new Exception('Failed to save Wallet PIN: ' . mysqli_error($conn));
@@ -736,7 +752,11 @@ if (!function_exists('nivasityVerifyWalletPin')) {
             throw new Exception('Enter your 4-digit Wallet PIN to continue');
         }
 
-        $sql = "SELECT wallet_pin_hash FROM users WHERE id = $userId LIMIT 1";
+        $lockoutEnabled = nivasityUsersHasWalletPinLockoutColumns($conn);
+        $lockoutSelect = $lockoutEnabled
+            ? ', wallet_pin_failed_attempts, wallet_pin_locked_until, NOW() AS db_now'
+            : '';
+        $sql = "SELECT wallet_pin_hash$lockoutSelect FROM users WHERE id = $userId LIMIT 1";
         $rs = mysqli_query($conn, $sql);
         if (!$rs || mysqli_num_rows($rs) < 1) {
             throw new Exception('Unable to verify Wallet PIN for this user');
@@ -747,11 +767,90 @@ if (!function_exists('nivasityVerifyWalletPin')) {
         if ($walletPinHash === '') {
             throw new Exception('Set up your Wallet PIN before paying with wallet');
         }
+
+        if ($lockoutEnabled) {
+            $lockedUntil = (string)($row['wallet_pin_locked_until'] ?? '');
+            $dbNow = (string)($row['db_now'] ?? '');
+            if ($lockedUntil !== '' && $dbNow !== '' && strtotime($lockedUntil) > strtotime($dbNow)) {
+                $minutesLeft = max(1, (int)ceil((strtotime($lockedUntil) - strtotime($dbNow)) / 60));
+                throw new Exception(nivasityWalletPinLockedMessage($minutesLeft));
+            }
+        }
+
         if (!password_verify($pin, $walletPinHash)) {
+            if ($lockoutEnabled) {
+                nivasityRecordWalletPinFailure($conn, $userId);
+            }
             throw new Exception('Incorrect Wallet PIN');
         }
 
+        if ($lockoutEnabled && ((int)($row['wallet_pin_failed_attempts'] ?? 0) > 0 || !empty($row['wallet_pin_locked_until']))) {
+            nivasityResetWalletPinFailures($conn, $userId);
+        }
+
         return true;
+    }
+}
+
+if (!function_exists('nivasityUsersHasWalletPinLockoutColumns')) {
+    function nivasityUsersHasWalletPinLockoutColumns($conn) {
+        static $hasColumns = null;
+
+        if ($hasColumns !== null) {
+            return $hasColumns;
+        }
+
+        $attemptsRs = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'wallet_pin_failed_attempts'");
+        $lockedRs = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'wallet_pin_locked_until'");
+        $hasColumns = $attemptsRs && mysqli_num_rows($attemptsRs) > 0
+            && $lockedRs && mysqli_num_rows($lockedRs) > 0;
+        return $hasColumns;
+    }
+}
+
+if (!function_exists('nivasityWalletPinLockedMessage')) {
+    function nivasityWalletPinLockedMessage($minutesLeft) {
+        $minutesLeft = max(1, (int)$minutesLeft);
+        return 'Too many wrong Wallet PIN attempts. Try again in ' . $minutesLeft
+            . ' minute' . ($minutesLeft === 1 ? '' : 's')
+            . ', or reset your Wallet PIN with the email code.';
+    }
+}
+
+if (!function_exists('nivasityRecordWalletPinFailure')) {
+    // Counts a wrong PIN; on the Nth consecutive failure the PIN is locked and the counter restarts.
+    function nivasityRecordWalletPinFailure($conn, $userId) {
+        $userId = (int)$userId;
+        $maxAttempts = NIVASITY_WALLET_PIN_MAX_ATTEMPTS;
+        $lockMinutes = NIVASITY_WALLET_PIN_LOCK_MINUTES;
+
+        $sql = "UPDATE users SET
+                    wallet_pin_locked_until = IF(wallet_pin_failed_attempts + 1 >= $maxAttempts, DATE_ADD(NOW(), INTERVAL $lockMinutes MINUTE), wallet_pin_locked_until),
+                    wallet_pin_failed_attempts = IF(wallet_pin_failed_attempts + 1 >= $maxAttempts, 0, wallet_pin_failed_attempts + 1)
+                WHERE id = $userId LIMIT 1";
+        if (!mysqli_query($conn, $sql)) {
+            error_log('[NIVASITY_WALLET_PIN_LOCKOUT] Failed to record PIN failure for user ' . $userId . ': ' . mysqli_error($conn));
+            return;
+        }
+
+        $rs = mysqli_query($conn, "SELECT wallet_pin_locked_until > NOW() AS is_locked FROM users WHERE id = $userId LIMIT 1");
+        $row = $rs ? mysqli_fetch_assoc($rs) : null;
+        if ($row && (int)($row['is_locked'] ?? 0) === 1) {
+            throw new Exception(nivasityWalletPinLockedMessage($lockMinutes));
+        }
+    }
+}
+
+if (!function_exists('nivasityResetWalletPinFailures')) {
+    function nivasityResetWalletPinFailures($conn, $userId) {
+        $userId = (int)$userId;
+        if ($userId <= 0 || !nivasityUsersHasWalletPinLockoutColumns($conn)) {
+            return;
+        }
+
+        if (!mysqli_query($conn, "UPDATE users SET wallet_pin_failed_attempts = 0, wallet_pin_locked_until = NULL WHERE id = $userId LIMIT 1")) {
+            error_log('[NIVASITY_WALLET_PIN_LOCKOUT] Failed to reset PIN failures for user ' . $userId . ': ' . mysqli_error($conn));
+        }
     }
 }
 
