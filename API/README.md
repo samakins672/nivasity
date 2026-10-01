@@ -1092,8 +1092,9 @@ Requests visible to the student's department/faculty with `upvote_count`, `expec
 **Endpoint:** `POST /material-requests/create.php` (verified accounts)
 
 ```json
-{ "material_code": "CSC305", "material_title": "Operating Systems", "scope": "department", "target_dept_ids": [], "target_faculty_ids": [] }
+{ "material_code": "CSC305", "material_title": "Operating Systems", "scope": "my_department" }
 ```
+`scope`: `my_department`, `faculty` (with `target_faculty_id`), `school`, `selected_departments` (with `target_dept_ids`) or `selected_faculties` (with `target_faculty_ids`).
 Response `data.status`:
 - `created` (HTTP 201): `request_id`, `share_token`
 - `duplicate`: a similar active request exists, returned in `request`; upvote it instead
