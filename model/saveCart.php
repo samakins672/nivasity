@@ -42,6 +42,14 @@ if ($ref_id === '' || $user_id <= 0 || empty($items)) {
     exit;
 }
 
+// Cart rows may only be created for the signed-in student.
+$session_user_id = isset($_SESSION['nivas_userId']) ? (int)$_SESSION['nivas_userId'] : 0;
+if ($session_user_id <= 0 || $session_user_id !== $user_id) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Your session has expired. Please sign in again.']);
+    exit;
+}
+
 // Validate if user_id exists in the users table
 $query = "SELECT id, school FROM users WHERE id = $user_id LIMIT 1";
 $result = mysqli_query($conn, $query);
