@@ -8,26 +8,26 @@
 
 | # | Work | Repo / branch | Commits |
 | :--- | :--- | :--- | :--- |
-| 1 | API transfer secured (PIN, same school, idempotent) + PIN change needs current PIN, "forgot PIN" via email code | nivasity / `funaab` | `05f6de6` |
-| 1b | Wallet PIN lockout: 5 wrong PINs → 30 min, everywhere the PIN is checked | nivasity / `funaab` | `96b04d2` |
-| 2 | Semester schema migration + `model/material_semester.php` helper; non-`open` = unavailable in web cart/details | nivasity / `funaab` | `06acf8b` |
+| 1 | API transfer secured (PIN, same school, idempotent) + PIN change needs current PIN, "forgot PIN" via email code | nivasity / `white-label-parity` | `05f6de6` |
+| 1b | Wallet PIN lockout: 5 wrong PINs → 30 min, everywhere the PIN is checked | nivasity / `white-label-parity` | `96b04d2` |
+| 2 | Semester schema migration + `model/material_semester.php` helper; non-`open` = unavailable in web cart/details | nivasity / `white-label-parity` | `06acf8b` |
 | 3 | cc_dashboard: required semester, duplicate for other semester, semester panel + switch, Confirm & Open, Retire, filters, CSV column | cc_dashboard / `semester-tagging` (new, from `main`) | `61dbdcb` |
-| 4 | Semester filter on store (web + API), details, cart, both payment paths, bulk picker/page, request matching; API returns semester fields | nivasity / `funaab` | `23ddff6` |
-| 5 | API endpoints: bulk manuals/preview/pay, claims pending/resolve, material requests list/create/upvote, surveys active/dismiss, system alerts; README | nivasity / `funaab` | `423e8b4`, `cbefe86` |
-| 5b | API cart bound to the user (no cookie), needed by any browser client | nivasity / `funaab` | `c373ad8`, `b7b60c9` |
+| 4 | Semester filter on store (web + API), details, cart, both payment paths, bulk picker/page, request matching; API returns semester fields | nivasity / `white-label-parity` | `23ddff6` |
+| 5 | API endpoints: bulk manuals/preview/pay, claims pending/resolve, material requests list/create/upvote, surveys active/dismiss, system alerts; README | nivasity / `white-label-parity` | `423e8b4`, `cbefe86` |
+| 5b | API cart bound to the user (no cookie), needed by any browser client | nivasity / `white-label-parity` | `c373ad8`, `b7b60c9` |
 | 6 | white_label: API client/types, direct PIN page, checkout parity, store details dialog, mark as lost | Documents/Projects/nivasity / `white-label-parity` (new, from `staging`) | `a256ec1` (+ `a6d0bf7` unused imports that broke the build, `2c4de0b` plan copy) |
 | 6b | Cloudflare hosting for white_label (`wrangler.jsonc`, `_headers`, guide) | `white-label-parity` | `13a483f` |
 | 7 | white_label: send money, bulk payment, pending claims dialog, material requests, system alerts, survey card, nav, return-after-login | `white-label-parity` | `81be182` |
-| 8 | Review fixes: cart session under PHP strict mode; lockout message on PIN change | nivasity / `funaab` | `b7b60c9` |
+| 8 | Review fixes: cart session under PHP strict mode; lockout message on PIN change | nivasity / `white-label-parity` | `b7b60c9` |
 | 9 | nivasity.com (main_site) on Cloudflare (`wrangler.jsonc`, `_headers`, guide) | Documents/Projects/nivasity / `white-label-parity` | `9dd7881` |
 | 10 | Mobile app: wallet PIN without email code (change needs current PIN, forgot PIN uses the code) | nivasity_app / `direct-wallet-pin` (new, from `main`) | `9117eef` |
 | 11 | Mobile app: update gate compares against the installed store version | nivasity_app / `direct-wallet-pin` | `22dbd55` |
-| 12 | Local end-to-end test fixes: `manuals.status` widened to fit `awaiting_confirmation` (was silently cut to 20 chars); migration no longer needs `manuals.level` | nivasity / `funaab` | `93da4bb` |
+| 12 | Local end-to-end test fixes: `manuals.status` widened to fit `awaiting_confirmation` (was silently cut to 20 chars); migration no longer needs `manuals.level` | nivasity / `white-label-parity` | `93da4bb` |
 | 13 | Security (already on cc_dashboard `main`): materials list/CSV, batch payment items and student lookup answered without login; now admin-only | cc_dashboard / `semester-tagging` | `478abfc` |
 | 14 | Cloudflare deploys are preview-only by default; real domains need `--env production` | `white-label-parity` | `f5c6e69` |
-| 15 | Bank withdrawals removed (API endpoint had no PIN) + marketplace "Send via bank transfer" removed; marketplace transfers keep working | nivasity `funaab` + `white-label-parity` | `a94031d`, `fdb97bd` |
-| 16 | Duplicate accounts: Google sign-in no longer creates a new account when duplicates share an email; sign-up lock; matric-taken hint; take email back from an unused duplicate; `find-purchase` endpoint | nivasity / `funaab` | `f59ef92` |
-| 17 | Receipts by reference for every purchase type; per-material receipts; "Missing a purchase?" in white_label | nivasity `funaab` + `white-label-parity` | `00b7d3b`, `69f036b` |
+| 15 | Bank withdrawals removed (API endpoint had no PIN) + marketplace "Send via bank transfer" removed; marketplace transfers keep working | nivasity + monorepo `white-label-parity` | `a94031d`, `fdb97bd` |
+| 16 | Duplicate accounts: Google sign-in no longer creates a new account when duplicates share an email; sign-up lock; matric-taken hint; take email back from an unused duplicate; `find-purchase` endpoint | nivasity / `white-label-parity` | `f59ef92` |
+| 17 | Receipts by reference for every purchase type; per-material receipts; "Missing a purchase?" in white_label | nivasity + monorepo `white-label-parity` | `00b7d3b`, `69f036b` |
 
 **Tested end to end on a local copy of the database (1 Oct 2026)**, after upgrading its structure to `sql/niverpay_db.sql` and running both migrations twice: store and details semester filtering, add-to-cart refusal, cart kept without cookies, checkout refusing a stale cart item, PIN change with current PIN, lockout after 5 wrong PINs (blocks PIN change and checkout), transfer lookup rules, bulk manuals/preview, material request create/duplicate/upvote, surveys, alerts, and in cc_dashboard: semester panel counts, Confirm & Open, toggle reopen block, switch (and double-submit guard), Retire, confirm-ahead, switch back. Not exercised: real money movements (wallet checkout, transfer, bulk pay) and emails.
 
@@ -47,7 +47,7 @@
 
 ### 0.4 What you need to do
 
-1. **Review and push** the branches: nivasity `funaab`, cc_dashboard `semester-tagging`, Documents/Projects/nivasity `white-label-parity`, nivasity_app `direct-wallet-pin` (ship the app update after the backend is live; older app versions keep using the email-code flow).
+1. **Review and push** the branches: nivasity `white-label-parity` (branched from `funaab`; merge into the branch production deploys from), cc_dashboard `semester-tagging`, Documents/Projects/nivasity `white-label-parity`, nivasity_app `direct-wallet-pin` (ship the app update after the backend is live; older app versions keep using the email-code flow).
 2. **Run the migrations** (any order, both safe to re-run; `manuals` is MyISAM so run off-peak):
    - `nivasity/sql/add_wallet_pin_lockout.sql`
    - `nivasity/sql/add_semester_tagging.sql`
