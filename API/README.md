@@ -1075,6 +1075,16 @@ Each row is checked against the payer's department: missing fields, duplicates, 
 ```
 Rows are validated again; any invalid row blocks payment. Response data: `ref_id`, `batch_id`, `student_count`, `subtotal`, `fee_amount`, `total_amount`, `wallet_balance_after`. Subject to the Wallet PIN lockout.
 
+#### Bulk Payments: History
+**Endpoint:** `GET /materials/bulk/history.php`
+
+Bulk payments the signed-in student made for course mates (successful only, newest first, max 200), the same list as "Bulk Payments Made" on the website's orders page. Response data: `{ "payments": [ ... ] }`, each with `id`, `ref_id`, `manual_id`, `title`, `course_code`, `student_count`, `subtotal`, `fee_amount`, `total_amount`, `status` and `paid_at`. Download a receipt with `/payment/receipt-pdf.php?ref=<ref_id>`.
+
+#### Receipt PDF
+**Endpoint:** `GET /payment/receipt-pdf.php?ref=<ref_id>[&item_id=<manual_id>]`
+
+Returns the official receipt as `application/pdf` (attachment), the same PDF and logo as the website's receipt download. Works for normal purchases and bulk payments (each student paid for is listed, plus the fee). With `item_id`, the receipt covers that one material only. The reference must belong to the signed-in user, otherwise `404` JSON. Errors are JSON.
+
 #### Bulk Claims: Pending
 **Endpoint:** `GET /materials/claims/pending.php?limit=5`
 
