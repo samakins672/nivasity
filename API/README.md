@@ -1075,6 +1075,16 @@ Each row is checked against the payer's department: missing fields, duplicates, 
 ```
 Rows are validated again; any invalid row blocks payment. Response data: `ref_id`, `batch_id`, `student_count`, `subtotal`, `fee_amount`, `total_amount`, `wallet_balance_after`. Subject to the Wallet PIN lockout.
 
+#### Quick Login (cc_dashboard links)
+**Endpoint:** `POST /auth/quick-login.php` with `{ "code": "<code>" }`
+
+Exchanges a one-time code created in cc_dashboard (Students > Quick Login) for the same payload as `/auth/login.php` (user fields plus `access_token` / `refresh_token`). Same rules as the website's `demo.php`: the code must be active and unexpired, the account verified, and the code is marked used on success. The white label portal opens these links at `/quick-login?code=` (old `/demo.php?code=` links work too).
+
+#### Account Setup (emailed link)
+**Endpoint:** `GET /auth/setup-account.php?verify=<code>` and `POST /auth/setup-account.php`
+
+For the emailed setup link (`setup.html?verify=<code>`). `GET` returns `{ status: "pending", first_name, school_id, departments }`, or `{ status: "verified" }` if the account is already set up. `POST { verify, dept, adm_year, matric_no }` checks the department belongs to the school and the matric number is not on another account, marks the account verified, deletes the code and returns the login payload. The white label portal serves the page at `/setup` and `/setup.html`.
+
 #### Bulk Payments: History
 **Endpoint:** `GET /materials/bulk/history.php`
 
