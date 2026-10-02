@@ -32,6 +32,17 @@ require_once __DIR__ . '/../model/config.php';
 require_once __DIR__ . '/../model/functions.php';
 
 // API Response Helper
+// Keep valid UTF-8 characters as they are and convert only stray bytes (Windows-1252 curly
+// quotes, dashes) to UTF-8, so a mixed string keeps its emoji and accents.
+function nivasityFixUtf8(string $value): string {
+    $validChar = '[\x00-\x7F]|[\xC2-\xDF][\x80-\xBF]|\xE0[\xA0-\xBF][\x80-\xBF]|[\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}'
+        . '|\xED[\x80-\x9F][\x80-\xBF]|\xF0[\x90-\xBF][\x80-\xBF]{2}|[\xF1-\xF3][\x80-\xBF]{3}|\xF4[\x80-\x8F][\x80-\xBF]{2}';
+    $fixed = preg_replace_callback('/(' . $validChar . ')|(.)/s', static function ($m) {
+        return (isset($m[2]) && $m[2] !== '') ? mb_convert_encoding($m[2], 'UTF-8', 'Windows-1252') : $m[1];
+    }, $value);
+    return $fixed === null ? $value : $fixed;
+}
+
 function sendApiResponse($status, $message, $data = null, $statusCode = 200) {
     http_response_code($statusCode);
     $response = [
@@ -42,8 +53,21 @@ function sendApiResponse($status, $message, $data = null, $statusCode = 200) {
     if ($data !== null) {
         $response['data'] = $data;
     }
-    
-    echo json_encode($response);
+
+    // Text pasted from Word/Windows (curly quotes, dashes) can reach us as Windows-1252
+    // bytes, which made json_encode() return false and the reply came out empty. Convert
+    // such strings to UTF-8, and substitute anything still invalid instead of failing.
+    array_walk_recursive($response, static function (&$value) {
+        if (is_string($value) && $value !== '' && function_exists('mb_check_encoding') && !mb_check_encoding($value, 'UTF-8')) {
+            $value = nivasityFixUtf8($value);
+        }
+    });
+    $json = json_encode($response, JSON_INVALID_UTF8_SUBSTITUTE);
+    if ($json === false) {
+        http_response_code(500);
+        $json = json_encode(['status' => 'error', 'message' => 'Could not prepare the response: ' . json_last_error_msg()]);
+    }
+    echo $json;
     exit();
 }
 
