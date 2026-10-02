@@ -15,10 +15,13 @@ if (!$input) {
     $input = $_POST;
 }
 
-// Validate required fields
-validateRequiredFields(['id_token'], $input);
-
-$id_token = sanitizeInput($conn, $input['id_token']);
+// Either a Google ID token (One Tap, mobile app) or an OAuth access token (the web
+// "Continue with Google" button, which uses Google's token flow).
+$id_token = trim((string) ($input['id_token'] ?? ''));
+$access_token = trim((string) ($input['access_token'] ?? ''));
+if ($id_token === '' && $access_token === '') {
+    sendApiError('Missing Google sign-in token', 400);
+}
 $school_id = isset($input['school_id']) ? (int)$input['school_id'] : null;
 
 // Load Google OAuth credentials
@@ -33,41 +36,64 @@ if (!defined('GOOGLE_ALLOWED_CLIENT_IDS') || empty(GOOGLE_ALLOWED_CLIENT_IDS)) {
     sendApiError('Google OAuth client IDs are not configured.', 500);
 }
 
-// Verify the Google ID token
-$token_info_url = "https://oauth2.googleapis.com/tokeninfo?id_token=" . urlencode($id_token);
+// Small GET helper for Google's token endpoints
+$googleGet = static function (string $url, ?string $bearer = null): array {
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    if ($bearer !== null) {
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $bearer]);
+    }
+    $body = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    return [$code, $body ? json_decode($body, true) : null];
+};
 
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, $token_info_url);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-$response = curl_exec($ch);
-$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
-
-if ($http_code !== 200 || !$response) {
-    sendApiError('Invalid or expired Google ID token', 401);
+if ($id_token !== '') {
+    // ID token: Google decodes and checks it; the claims carry the profile.
+    [$http_code, $token_data] = $googleGet("https://oauth2.googleapis.com/tokeninfo?id_token=" . urlencode($id_token));
+    if ($http_code !== 200 || !is_array($token_data)) {
+        sendApiError('Invalid or expired Google ID token', 401);
+    }
+    if (!isset($token_data['aud']) || !in_array($token_data['aud'], GOOGLE_ALLOWED_CLIENT_IDS, true)) {
+        sendApiError('Google ID token is not valid for this application', 401);
+    }
+    if (!isset($token_data['exp']) || $token_data['exp'] < time()) {
+        sendApiError('Google ID token has expired', 401);
+    }
+    $profile = $token_data;
+} else {
+    // Access token: confirm it was issued to one of our client IDs (so a token from another
+    // app cannot be used here), then read the profile from Google's userinfo endpoint.
+    [$http_code, $token_data] = $googleGet("https://oauth2.googleapis.com/tokeninfo?access_token=" . urlencode($access_token));
+    if ($http_code !== 200 || !is_array($token_data)) {
+        sendApiError('Invalid or expired Google sign-in. Please try again.', 401);
+    }
+    $audience = $token_data['aud'] ?? ($token_data['azp'] ?? ($token_data['issued_to'] ?? null));
+    if (!$audience || !in_array($audience, GOOGLE_ALLOWED_CLIENT_IDS, true)) {
+        sendApiError('Google sign-in is not valid for this application', 401);
+    }
+    [$info_code, $userinfo] = $googleGet('https://www.googleapis.com/oauth2/v3/userinfo', $access_token);
+    if ($info_code !== 200 || !is_array($userinfo)) {
+        sendApiError('Unable to retrieve user information from Google', 401);
+    }
+    // Google's account id must match the token's subject
+    if (!empty($token_data['sub']) && !empty($userinfo['sub']) && $token_data['sub'] !== $userinfo['sub']) {
+        sendApiError('Google sign-in could not be verified. Please try again.', 401);
+    }
+    $profile = $userinfo;
 }
 
-$token_data = json_decode($response, true);
-
-// Verify token is for our app (support multiple client IDs for Web, Android, iOS)
-if (!isset($token_data['aud']) || !in_array($token_data['aud'], GOOGLE_ALLOWED_CLIENT_IDS, true)) {
-    sendApiError('Google ID token is not valid for this application', 401);
-}
-
-// Verify token is not expired
-if (!isset($token_data['exp']) || $token_data['exp'] < time()) {
-    sendApiError('Google ID token has expired', 401);
-}
-
-// Extract user information from token
-$google_id = $token_data['sub'] ?? null;
-$email = $token_data['email'] ?? null;
-$email_verified = $token_data['email_verified'] ?? false;
-$first_name = $token_data['given_name'] ?? '';
-$last_name = $token_data['family_name'] ?? '';
-$profile_pic = $token_data['picture'] ?? null;
+// Extract user information
+$google_id = $profile['sub'] ?? null;
+$email = $profile['email'] ?? null;
+$email_verified = $profile['email_verified'] ?? false;
+$first_name = $profile['given_name'] ?? '';
+$last_name = $profile['family_name'] ?? '';
+$profile_pic = $profile['picture'] ?? null;
 
 if (!$google_id || !$email) {
     sendApiError('Unable to retrieve user information from Google', 401);
