@@ -62,7 +62,7 @@ $query = "SELECT
                     CASE WHEN MAX(CASE WHEN mb.ref_id LIKE 'manual_ext_%' THEN 1 ELSE 0 END) = 1 THEN 'external_manual' ELSE 'manual_purchase' END
                 ) AS payment_channel,
                 COALESCE(NULLIF(MAX(t.transaction_context), ''), 'purchase') AS transaction_context,
-                MAX(t.gateway_ref) AS gateway_ref,
+                NULL AS gateway_ref, -- transactions has no gateway_ref column in production; kept for clients
                 MAX(COALESCE(t.created_at, mb.created_at)) AS created_at,
                 MAX(CASE WHEN mb.ref_id LIKE 'manual_ext_%' THEN 1 ELSE 0 END) AS is_external_payment
         FROM manuals_bought mb
