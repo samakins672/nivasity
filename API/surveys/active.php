@@ -6,6 +6,8 @@
 //   answered         this student already submitted it (matched by email)
 //   dismissed        this student closed it 5 or more times
 // Diagnostics: if PHP stops without a reply (fatal error, exit in an included file), say why.
+// Not for CORS preflight (OPTIONS), which config.php answers with an empty 200 on purpose.
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'OPTIONS') {
 ob_start();
 register_shutdown_function(static function () {
     $out = ob_get_level() > 0 ? ob_get_clean() : '';
@@ -24,6 +26,7 @@ register_shutdown_function(static function () {
         'php_error' => $err ? ($err['message'] . ' in ' . basename((string) $err['file']) . ':' . $err['line']) : null,
     ]);
 });
+}
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../auth.php';
