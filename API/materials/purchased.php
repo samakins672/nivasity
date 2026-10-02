@@ -24,8 +24,16 @@ $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
 $limit = isset($_GET['limit']) ? min(100, max(1, (int)$_GET['limit'])) : 20;
 $offset = ($page - 1) * $limit;
 
+// Optional search by course code, title or payment reference
+$search_sql = '';
+$search = isset($_GET['search']) ? trim((string)$_GET['search']) : '';
+if ($search !== '') {
+    $like = mysqli_real_escape_string($conn, addcslashes($search, '%_\\'));
+    $search_sql = " AND (m.course_code LIKE '%$like%' OR m.title LIKE '%$like%' OR mb.ref_id LIKE '%$like%')";
+}
+
 // Count total purchased
-$count_query = mysqli_query($conn, "SELECT COUNT(*) as total FROM manuals_bought WHERE buyer = $user_id");
+$count_query = mysqli_query($conn, "SELECT COUNT(*) as total FROM manuals_bought mb JOIN manuals m ON mb.manual_id = m.id WHERE mb.buyer = $user_id$search_sql");
 $total = mysqli_fetch_array($count_query)['total'];
 
 // Fetch purchased materials
@@ -35,7 +43,7 @@ $query = "SELECT mb.*, m.title, m.course_code, m.dept, m.level, m.host_faculty, 
           LEFT JOIN depts d ON m.dept = d.id
           LEFT JOIN faculties hf ON m.host_faculty = hf.id
           LEFT JOIN users u ON m.user_id = u.id
-          WHERE mb.buyer = $user_id
+          WHERE mb.buyer = $user_id$search_sql
           ORDER BY mb.created_at DESC
           LIMIT $limit OFFSET $offset";
 

@@ -978,6 +978,7 @@ GET /materials/details.php?code=MAN-2024-001
 **Query Parameters:**
 - `page` (optional, default: 1): Page number
 - `limit` (optional, default: 20, max: 100): Items per page
+- `search` (optional): matches course code, title or payment reference across all of the student's purchases
 
 **Response (Success):**
 ```json
