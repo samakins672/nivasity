@@ -24,6 +24,7 @@ if ($survey !== null) {
 }
 
 $reason = 'no_banner_survey';
+$row = null;
 if (!surveyBannerTablesReady($conn)) {
     $reason = 'tables_missing';
 } else {
@@ -48,4 +49,8 @@ if (!surveyBannerTablesReady($conn)) {
 sendApiSuccess('Survey retrieved successfully', [
     'survey' => null,
     'reason' => $reason,
+    // Which account was checked, so admins can match it against the survey tables
+    'checked_user_id' => $userId,
+    'checked_email' => $email,
+    'banner_survey_id' => isset($row['id']) ? (int) $row['id'] : null,
 ]);
