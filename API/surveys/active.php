@@ -5,6 +5,26 @@
 //   no_banner_survey no survey is published, unexpired and flagged "show as banner"
 //   answered         this student already submitted it (matched by email)
 //   dismissed        this student closed it 5 or more times
+// Diagnostics: if PHP stops without a reply (fatal error, exit in an included file), say why.
+ob_start();
+register_shutdown_function(static function () {
+    $out = ob_get_level() > 0 ? ob_get_clean() : '';
+    if ($out !== '' && $out !== false) {
+        echo $out;
+        return;
+    }
+    $err = error_get_last();
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: application/json');
+    }
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Survey check stopped without a reply',
+        'php_error' => $err ? ($err['message'] . ' in ' . basename((string) $err['file']) . ':' . $err['line']) : null,
+    ]);
+});
+
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/../../model/survey_banner.php';
