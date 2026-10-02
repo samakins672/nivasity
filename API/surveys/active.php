@@ -17,6 +17,12 @@ $user = authenticateApiRequest($conn);
 $userId = (int) $user['id'];
 $email = strtolower(trim((string) ($user['email'] ?? '')));
 
+// Any database error is returned as JSON (instead of an empty 500) so it can be diagnosed.
+set_exception_handler(static function (Throwable $e) {
+    error_log('[surveys/active] ' . $e->getMessage());
+    sendApiError('Survey check failed: ' . $e->getMessage(), 500);
+});
+
 $survey = surveyBannerGetActiveForUser($conn, $userId, $email);
 if ($survey !== null) {
     $survey['url'] = 'https://nivasity.com/survey/' . rawurlencode((string) $survey['slug']);
