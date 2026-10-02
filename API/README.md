@@ -1540,6 +1540,10 @@ This allows the payment gateway to redirect back to your mobile app after the us
 
 **Query Parameters:**
 - `page` (optional): Page number starting from `1`. Default is `1`
+- `type` (optional): `in` for money in (credits and refunds) or `out` for money out (debits and fees). Omit for all
+- `search` (optional): Matches the description, reference or provider reference
+
+`pagination.total` and `pagination.total_pages` reflect the filters.
 
 **Response (Success):**
 ```json

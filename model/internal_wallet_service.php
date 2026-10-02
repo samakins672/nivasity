@@ -1943,7 +1943,8 @@ if (!function_exists('nivasityGetWalletDashboardPayload')) {
 }
 
 if (!function_exists('nivasityGetWalletTransactionsPayload')) {
-    function nivasityGetWalletTransactionsPayload($conn, $userId, $page = 1, $limit = 20) {
+    // $filters (optional): type = 'in' | 'out', search = text in description or reference.
+    function nivasityGetWalletTransactionsPayload($conn, $userId, $page = 1, $limit = 20, $filters = []) {
         $userId = (int)$userId;
         $page = max(1, (int)$page);
         $limit = (int)$limit;
@@ -1977,14 +1978,27 @@ if (!function_exists('nivasityGetWalletTransactionsPayload')) {
         $walletId = (int)$wallet['id'];
         $offset = ($page - 1) * $limit;
 
-        $countQuery = mysqli_query($conn, "SELECT COUNT(*) AS total FROM wallet_ledger_entries WHERE wallet_id = $walletId");
+        $filterSql = '';
+        $type = strtolower(trim((string)($filters['type'] ?? '')));
+        if ($type === 'in') {
+            $filterSql .= " AND entry_type IN ('credit', 'refund')";
+        } elseif ($type === 'out') {
+            $filterSql .= " AND entry_type IN ('debit', 'fee')";
+        }
+        $search = trim((string)($filters['search'] ?? ''));
+        if ($search !== '') {
+            $like = mysqli_real_escape_string($conn, addcslashes($search, '%_\\'));
+            $filterSql .= " AND (description LIKE '%$like%' OR reference LIKE '%$like%' OR provider_reference LIKE '%$like%')";
+        }
+
+        $countQuery = mysqli_query($conn, "SELECT COUNT(*) AS total FROM wallet_ledger_entries WHERE wallet_id = $walletId$filterSql");
         if ($countQuery) {
             $countRow = mysqli_fetch_assoc($countQuery);
             $pagination['total'] = (int)($countRow['total'] ?? 0);
             $pagination['total_pages'] = $pagination['total'] > 0 ? (int)ceil($pagination['total'] / $limit) : 0;
         }
 
-        $entriesQuery = mysqli_query($conn, "SELECT * FROM wallet_ledger_entries WHERE wallet_id = $walletId ORDER BY created_at DESC, id DESC LIMIT $limit OFFSET $offset");
+        $entriesQuery = mysqli_query($conn, "SELECT * FROM wallet_ledger_entries WHERE wallet_id = $walletId$filterSql ORDER BY created_at DESC, id DESC LIMIT $limit OFFSET $offset");
         if ($entriesQuery) {
             while ($entry = mysqli_fetch_assoc($entriesQuery)) {
                 $entryType = strtolower((string)($entry['entry_type'] ?? 'adjustment'));
