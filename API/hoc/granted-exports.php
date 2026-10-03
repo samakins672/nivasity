@@ -1,7 +1,7 @@
 <?php
 // API: Every export made by any HOC of the signed-in HOC's department (pending or granted),
 // with who exported it. Class reps of a department share these lists.
-//   GET /hoc/granted-exports.php?page=1&limit=20   -> list (newest first)
+//   GET /hoc/granted-exports.php?page=1&limit=20[&manual_id=]   -> list (newest first), optionally one material
 //   GET /hoc/granted-exports.php?id=<id>    -> PDF of that export (with grant details once granted)
 require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/../../model/export_pdf.php';
@@ -32,6 +32,10 @@ $select = "
     JOIN users AS u ON u.id = a.hoc_user_id
     " . ($hasGrantedBy ? "LEFT JOIN admins AS ad ON ad.id = a.granted_by" : "") . "
     WHERE u.dept = $deptId AND u.school = $schoolId";
+$manualFilter = (int) ($_GET['manual_id'] ?? 0);
+if ($manualFilter > 0 && !isset($_GET['id'])) {
+    $select .= " AND a.manual_id = $manualFilter";
+}
 $isGranted = fn($row) => in_array(strtolower(trim((string) $row['export_status'])), ['granted', '1', 'true', 'yes'], true);
 
 $fmt = fn($dt) => $dt ? date('j M Y, g:ia', strtotime($dt)) : '-';
@@ -90,7 +94,7 @@ if (isset($_GET['id'])) {
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $limit = min(50, max(1, (int) ($_GET['limit'] ?? 20)));
 $offset = ($page - 1) * $limit;
-$countRes = mysqli_query($conn, "SELECT COUNT(*) AS total FROM manual_export_audits AS a JOIN users AS u ON u.id = a.hoc_user_id WHERE u.dept = $deptId AND u.school = $schoolId");
+$countRes = mysqli_query($conn, "SELECT COUNT(*) AS total FROM manual_export_audits AS a JOIN users AS u ON u.id = a.hoc_user_id WHERE u.dept = $deptId AND u.school = $schoolId" . ($manualFilter > 0 ? " AND a.manual_id = $manualFilter" : ""));
 $total = $countRes ? (int) (mysqli_fetch_assoc($countRes)['total'] ?? 0) : 0;
 $res = mysqli_query($conn, "$select ORDER BY a.downloaded_at DESC, a.id DESC LIMIT $limit OFFSET $offset");
 $exports = [];
