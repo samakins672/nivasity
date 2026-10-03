@@ -1,7 +1,7 @@
 <?php
 // API: Every export made by any HOC of the signed-in HOC's department (pending or granted),
 // with who exported it. Class reps of a department share these lists.
-//   GET /hoc/granted-exports.php            -> list
+//   GET /hoc/granted-exports.php?page=1&limit=20   -> list (newest first)
 //   GET /hoc/granted-exports.php?id=<id>    -> PDF of that export (with grant details once granted)
 require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/../../model/export_pdf.php';
@@ -87,7 +87,12 @@ if (isset($_GET['id'])) {
     exit;
 }
 
-$res = mysqli_query($conn, "$select ORDER BY a.downloaded_at DESC, a.id DESC LIMIT 300");
+$page = max(1, (int) ($_GET['page'] ?? 1));
+$limit = min(50, max(1, (int) ($_GET['limit'] ?? 20)));
+$offset = ($page - 1) * $limit;
+$countRes = mysqli_query($conn, "SELECT COUNT(*) AS total FROM manual_export_audits AS a JOIN users AS u ON u.id = a.hoc_user_id WHERE u.dept = $deptId AND u.school = $schoolId");
+$total = $countRes ? (int) (mysqli_fetch_assoc($countRes)['total'] ?? 0) : 0;
+$res = mysqli_query($conn, "$select ORDER BY a.downloaded_at DESC, a.id DESC LIMIT $limit OFFSET $offset");
 $exports = [];
 while ($res && ($r = mysqli_fetch_assoc($res))) {
     $exports[] = [
@@ -105,4 +110,7 @@ while ($res && ($r = mysqli_fetch_assoc($res))) {
         'granted_by' => $isGranted($r) && $r['granted_by_name'] !== '' ? $r['granted_by_name'] : null,
     ];
 }
-sendApiResponse('success', 'Exports loaded', ['exports' => $exports]);
+sendApiResponse('success', 'Exports loaded', [
+    'exports' => $exports,
+    'pagination' => ['page' => $page, 'limit' => $limit, 'total' => $total, 'total_pages' => (int) ceil($total / $limit)],
+]);

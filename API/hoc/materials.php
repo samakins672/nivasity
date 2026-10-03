@@ -1,6 +1,7 @@
 <?php
-// API: Materials a class rep (HOC) can export, with sales in their department.
-//   GET /hoc/materials.php?search=
+// API: Materials a class rep (HOC) can export now: students in their department paid and are
+// waiting for collection. Paginated.
+//   GET /hoc/materials.php?search=&page=1&limit=20
 // Same list as the old website's HOC dashboard (admin/index.php). HOCs no longer manage
 // materials, so the only actions are Export list and Copy share link.
 require_once __DIR__ . '/common.php';
@@ -24,16 +25,27 @@ $pendingExpr = $hasGrant
     ? "SUM(CASE WHEN mb.id IS NOT NULL AND (mb.grant_status IS NULL OR LOWER(TRIM(CAST(mb.grant_status AS CHAR))) IN ('', '0', 'pending', 'false')) THEN 1 ELSE 0 END)"
     : "COUNT(mb.id)";
 
-$sql = "
-    SELECT m.id, m.title, m.course_code, m.code, m.price, m.quantity, m.due_date, m.status, m.user_id,
-           COUNT(mb.id) AS sold, COALESCE(SUM(mb.price), 0) AS sold_amount, COALESCE($pendingExpr, 0) AS pending
+$page = max(1, (int) ($_GET['page'] ?? 1));
+$limit = min(50, max(1, (int) ($_GET['limit'] ?? 20)));
+$offset = ($page - 1) * $limit;
+
+$base = "
     FROM manuals AS m
     LEFT JOIN manuals_bought AS mb ON mb.manual_id = m.id AND mb.status = 'successful'
         AND mb.buyer IN (SELECT id FROM users WHERE dept = $deptId)
     WHERE $where
     GROUP BY m.id
-    ORDER BY (COALESCE($pendingExpr, 0) > 0) DESC, COUNT(mb.id) DESC, (m.due_date >= CURDATE()) DESC, m.due_date DESC, m.id DESC
-    LIMIT 300
+    HAVING COALESCE($pendingExpr, 0) > 0
+";
+$countRes = mysqli_query($conn, "SELECT COUNT(*) AS total FROM (SELECT m.id $base) AS t");
+$total = $countRes ? (int) (mysqli_fetch_assoc($countRes)['total'] ?? 0) : 0;
+
+$sql = "
+    SELECT m.id, m.title, m.course_code, m.code, m.price, m.quantity, m.due_date, m.status, m.user_id,
+           COUNT(mb.id) AS sold, COALESCE(SUM(mb.price), 0) AS sold_amount, COALESCE($pendingExpr, 0) AS pending
+    $base
+    ORDER BY COALESCE($pendingExpr, 0) DESC, (m.due_date >= CURDATE()) DESC, m.due_date DESC, m.id DESC
+    LIMIT $limit OFFSET $offset
 ";
 $res = mysqli_query($conn, $sql);
 if (!$res) {
@@ -60,4 +72,7 @@ while ($r = mysqli_fetch_assoc($res)) {
     ];
 }
 
-sendApiResponse('success', 'Materials loaded', ['materials' => $materials]);
+sendApiResponse('success', 'Materials loaded', [
+    'materials' => $materials,
+    'pagination' => ['page' => $page, 'limit' => $limit, 'total' => $total, 'total_pages' => (int) ceil($total / $limit)],
+]);
