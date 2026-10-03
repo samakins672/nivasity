@@ -1,7 +1,7 @@
 <?php
-session_start();
-include('config.php');
-include('functions.php');
+if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
+include_once('config.php');
+include_once('functions.php');
 require_once __DIR__ . '/material_copy_status.php';
 require_once __DIR__ . '/export_pdf.php';
 $statusRes = $schools = 'failed';
@@ -526,7 +526,10 @@ if (isset($_POST['manual_id'])) {
 
     if ($outputMode === 'pdf') {
       $heading = 'PAYMENTS FOR ' . strtoupper((string)$manualRow['course_code']) . ' MANUAL';
-      $verificationUrl = nivasity_app_url('manual-export-verify.php?code=' . urlencode($verificationCode));
+      // The API (HOC export from the school portal) sets where the verify page lives.
+      $verificationUrl = !empty($GLOBALS['manual_export_verify_base'])
+        ? $GLOBALS['manual_export_verify_base'] . '/manual-export-verify?code=' . urlencode($verificationCode)
+        : nivasity_app_url('manual-export-verify.php?code=' . urlencode($verificationCode));
       $metaLines = [
         'Verification Code: ' . $verificationCode,
         'Total Students: ' . $studentsCount . '    Total Amount: NGN ' . number_format((float)$totalAmount, 0),
