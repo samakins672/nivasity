@@ -1075,6 +1075,17 @@ Each row is checked against the payer's department: missing fields, duplicates, 
 ```
 Rows are validated again; any invalid row blocks payment. Response data: `ref_id`, `batch_id`, `student_count`, `subtotal`, `fee_amount`, `total_amount`, `wallet_balance_after`. Subject to the Wallet PIN lockout.
 
+#### Payment Gateway Webhooks
+Set these in each gateway's dashboard (live and test):
+
+| Gateway | Webhook URL |
+|---|---|
+| Paystack | `https://api.nivasity.com/payment/webhooks/paystack.php` |
+| Flutterwave | `https://api.nivasity.com/payment/webhooks/flutterwave.php` |
+| Interswitch | `https://api.nivasity.com/payment/webhooks/interswitch.php` |
+
+They run the existing handlers in `model/` (`handle-ps-webhook.php`, `handle-fw-webhook.php`, `handle-isw-webhook.php`) unchanged, including signature checks. The old addresses on school domains (e.g. `funaab.nivasity.com/model/handle-ps-webhook.php`) stop working once that domain serves the white label portal from Cloudflare.
+
 #### Quick Login (cc_dashboard links)
 **Endpoint:** `POST /auth/quick-login.php` with `{ "code": "<code>" }`
 
