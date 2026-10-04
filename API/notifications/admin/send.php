@@ -40,8 +40,8 @@ if (mysqli_num_rows($admin_query) === 0) {
 
 $admin = mysqli_fetch_assoc($admin_query);
 
-// Enforce role restriction: only roles 1, 2, or 3 are allowed
-$allowed_roles = [1, 2, 3];
+// Enforce role restriction: active admins (roles 1, 2, 3, 4, 5)
+$allowed_roles = [1, 2, 3, 4, 5];
 if (!in_array((int)$admin['role'], $allowed_roles)) {
     error_log("Admin Send Notification: Unauthorized role {$admin['role']} for email: $email");
     sendApiError('Insufficient permissions to send notifications', 403);
