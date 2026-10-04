@@ -21,24 +21,15 @@ if (!$input) {
 }
 
 // Get academic fields (all optional, but at least one should be provided)
-$school_id = isset($input['school_id']) ? (int)$input['school_id'] : (int)($user['school'] ?? 0);
+$user_school_id = (int)($user['school'] ?? 0);
 $dept_id = isset($input['dept_id']) ? (int)$input['dept_id'] : (int)($user['dept'] ?? 0);
 $matric_no = isset($input['matric_no']) ? sanitizeInput($conn, $input['matric_no']) : ($user['matric_no'] ?? '');
 $adm_year = isset($input['adm_year']) ? sanitizeInput($conn, $input['adm_year']) : ($user['adm_year'] ?? '');
 
-// Validate school if provided
-if ($school_id > 0 && $school_id !== (int)($user['school'] ?? 0)) {
-    $school_check = mysqli_query($conn, "SELECT id FROM schools WHERE id = $school_id AND status = 'active' LIMIT 1");
-    if (!$school_check || mysqli_num_rows($school_check) === 0) {
-        sendApiError('Invalid school_id. School does not exist or is not active.', 400);
-    }
-}
-
 // Validate department if changing
-$active_school_id = $school_id > 0 ? $school_id : (int)($user['school'] ?? 0);
 if ($dept_id && $dept_id !== (int)($user['dept'] ?? 0)) {
     // Validate department exists, is active, and belongs to user's school
-    $dept_check = mysqli_query($conn, "SELECT id FROM depts WHERE id = $dept_id AND school_id = $active_school_id AND status = 'active'");
+    $dept_check = mysqli_query($conn, "SELECT id FROM depts WHERE id = $dept_id AND school_id = $user_school_id AND status = 'active'");
     if (!$dept_check || mysqli_num_rows($dept_check) === 0) {
         sendApiError('Invalid dept_id. Department does not exist, is not active, or does not belong to your school.', 400);
     }
@@ -52,7 +43,7 @@ if ($normalized_matric !== '') {
         "SELECT id, email
          FROM users
          WHERE id != $user_id
-           AND school = $active_school_id
+           AND school = $user_school_id
            AND status = 'verified'
            AND LOWER(TRIM(matric_no)) = '$normalized_matric_sql'
          LIMIT 1"
@@ -79,22 +70,12 @@ if ($normalized_matric !== '') {
 }
 
 // Update academic information
-$school_sql = $school_id > 0 ? $school_id : "school";
 $dept_sql = $dept_id > 0 ? $dept_id : "NULL";
-mysqli_query($conn, "UPDATE users SET school = $school_sql, dept = $dept_sql, matric_no = '$matric_no', adm_year = '$adm_year' WHERE id = $user_id");
+mysqli_query($conn, "UPDATE users SET dept = $dept_sql, matric_no = '$matric_no', adm_year = '$adm_year' WHERE id = $user_id");
 
 if (mysqli_affected_rows($conn) >= 0) {
     // Fetch updated user data
     $updated_user = mysqli_fetch_array(mysqli_query($conn, "SELECT * FROM users WHERE id = $user_id"));
-    $updated_school_id = (int)($updated_user['school'] ?? 0);
-    $school_name = null;
-    if ($updated_school_id > 0) {
-        $s_res = mysqli_query($conn, "SELECT name FROM schools WHERE id = $updated_school_id LIMIT 1");
-        if ($s_res && mysqli_num_rows($s_res) > 0) {
-            $school_name = mysqli_fetch_assoc($s_res)['name'];
-        }
-    }
-    
     $updated_dept_id = $updated_user['dept'] ? (int)$updated_user['dept'] : null;
     $dept_name = null;
     if ($updated_dept_id > 0) {
@@ -105,8 +86,6 @@ if (mysqli_affected_rows($conn) >= 0) {
     }
     
     $academicData = [
-        'school_id' => $updated_school_id > 0 ? $updated_school_id : null,
-        'school_name' => $school_name,
         'dept_id' => $updated_dept_id,
         'dept_name' => $dept_name,
         'matric_no' => $updated_user['matric_no'],
