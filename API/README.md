@@ -489,13 +489,14 @@ This approach separates OTP verification from password update for better securit
 #### 9. Update Academic Information
 **Endpoint:** `POST /profile/update-academic-info.php`
 
-**Description:** Update academic information (department, matric number, admission year).
+**Description:** Update academic information (institution/school, department, matric number, admission year).
 
 **Authentication:** Required
 
 **Request Body (JSON):**
 ```json
 {
+  "school_id": 1,
   "dept_id": 5,
   "matric_no": "190101001",
   "adm_year": "2019"
@@ -508,14 +509,17 @@ This approach separates OTP verification from password update for better securit
   "status": "success",
   "message": "Academic information successfully updated!",
   "data": {
+    "school_id": 1,
+    "school_name": "Federal University of Agriculture, Abeokuta",
     "dept_id": 5,
+    "dept_name": "Computer Science",
     "matric_no": "190101001",
     "adm_year": "2019"
   }
 }
 ```
 
-**Note:** All fields are optional. The department must belong to the user's school.
+**Note:** All fields are optional. When provided, the department must belong to the active school.
 
 **Matric number already used (HTTP 409):** `data.code = "matric_taken"` and `data.existing_account_hint` (partly hidden email of the account that has it). The message tells the student to sign in to that account if it is theirs, or contact support with their ID card.
 
