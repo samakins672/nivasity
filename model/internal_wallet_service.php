@@ -2007,7 +2007,29 @@ if (!function_exists('nivasityGetWalletTransactionsPayload')) {
                 $isDebit = in_array($entryType, ['debit', 'fee'], true);
                 $direction = $isCredit ? 'credit' : ($isDebit ? 'debit' : 'neutral');
 
+                $items = [];
+                $providerRef = trim((string)($entry['provider_reference'] ?? ''));
+                if ($entryType === 'debit' && $providerRef !== '' && strpos((string)($entry['reference'] ?? ''), 'wallet_purchase:') === 0) {
+                    $refSafe = mysqli_real_escape_string($conn, $providerRef);
+                    $itemsRs = mysqli_query($conn, "SELECT mb.manual_id, mb.price, m.title, m.course_code
+                        FROM manuals_bought mb
+                        JOIN manuals m ON m.id = mb.manual_id
+                        WHERE mb.ref_id = '$refSafe' AND mb.buyer = $userId");
+                    if ($itemsRs) {
+                        while ($itemRow = mysqli_fetch_assoc($itemsRs)) {
+                            $items[] = [
+                                'id' => (int)$itemRow['manual_id'],
+                                'title' => (string)$itemRow['title'],
+                                'course_code' => (string)($itemRow['course_code'] ?? ''),
+                                'price' => (float)$itemRow['price'],
+                                'ref_id' => $providerRef,
+                            ];
+                        }
+                    }
+                }
+
                 $transactions[] = [
+                    'items' => $items,
                     'id' => (int)($entry['id'] ?? 0),
                     'entry_type' => $entryType,
                     'direction' => $direction,
