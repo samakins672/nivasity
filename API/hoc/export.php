@@ -37,6 +37,8 @@ $_POST = [
     'rrr' => trim((string) ($input['rrr'] ?? '')),
     'output' => 'pdf',
 ];
+// Only this session's purchases (older unclaimed ones belong to past sessions).
+$GLOBALS['manual_export_since_sql'] = hocPurchasesSinceSql($conn, (int) $user['school']);
 // Verification links on the PDF point to the school's portal (/manual-export-verify).
 $GLOBALS['manual_export_verify_base'] = hocVerifyBaseUrl($conn, (int) $user['school']);
 

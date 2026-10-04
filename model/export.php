@@ -280,6 +280,8 @@ if (isset($_POST['manual_id'])) {
       }
     }
 
+    // The API (class rep export) limits purchases to the current academic session.
+    $exportSinceSql = !empty($GLOBALS['manual_export_since_sql']) ? $GLOBALS['manual_export_since_sql'] : '1 = 1';
     $manualsBoughtHasId = exportManualsBoughtHasColumn($conn, 'id');
     $manualsBoughtHasGrantStatus = exportManualsBoughtHasColumn($conn, 'grant_status');
     $fromBoughtId = null;
@@ -291,6 +293,7 @@ if (isset($_POST['manual_id'])) {
         "mb.manual_id = $manualId",
         "mb.status = 'successful'",
         material_copy_non_lost_condition($conn, 'mb'),
+        $exportSinceSql,
       ];
       $fromJoinSql = "";
       if ($applyHocDeptFilter) {
@@ -318,6 +321,7 @@ if (isset($_POST['manual_id'])) {
         "mb.manual_id = $manualId",
         "mb.status = 'successful'",
         material_copy_non_lost_condition($conn, 'mb'),
+        $exportSinceSql,
       ];
       $toJoinSql = "";
       if ($applyHocDeptFilter) {
@@ -344,6 +348,7 @@ if (isset($_POST['manual_id'])) {
       "mb.manual_id = $manualId",
       "mb.status = 'successful'",
       material_copy_non_lost_condition($conn, 'mb'),
+      $exportSinceSql,
     ];
     if ($manualsBoughtHasGrantStatus) {
       // Only export students still pending in manuals_bought.

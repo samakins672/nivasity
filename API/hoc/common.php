@@ -3,6 +3,7 @@
 // Same rules as the old website's admin/index.php, model/export.php and admin/granted_exports.php.
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../auth.php';
+require_once __DIR__ . '/../../model/material_semester.php';
 
 function hocRequireUser($conn): array {
     $user = authenticateApiRequest($conn);
@@ -44,7 +45,15 @@ function hocMaterialsWhere($conn, array $user): string {
     } else {
         $shared = $legacyWhere;
     }
-    return "(m.user_id = 0 AND m.school_id = $schoolId AND ($shared))";
+    // Only the current academic session's materials (both semesters); past sessions never show.
+    $sessionWhere = '1 = 1';
+    if (material_session_ready($conn)) {
+        $period = material_period_current_for_school($conn, $schoolId);
+        $sessionWhere = ($period && $period['session'] !== null)
+            ? "m.session = '" . mysqli_real_escape_string($conn, $period['session']) . "'"
+            : '1 = 0';
+    }
+    return "(m.user_id = 0 AND m.school_id = $schoolId AND $sessionWhere AND ($shared))";
 }
 
 function hocAuditStatusColumn($conn): string {
@@ -55,6 +64,13 @@ function hocAuditStatusColumn($conn): string {
 
 function hocGrantedSql(string $col): string {
     return "LOWER(TRIM(CAST($col AS CHAR))) IN ('granted', '1', 'true', 'yes')";
+}
+
+// Purchases made before the current session started belong to past sessions: never counted or
+// exported. Returns an SQL condition on the manuals_bought alias.
+function hocPurchasesSinceSql($conn, int $schoolId, string $alias = 'mb'): string {
+    $since = material_session_started_at($conn, $schoolId);
+    return $since ? "$alias.created_at >= '" . mysqli_real_escape_string($conn, $since) . "'" : '1 = 1';
 }
 
 // Where verification links point: the school's portal (schools.domain, else FUNAAB's portal).

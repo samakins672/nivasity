@@ -39,6 +39,7 @@ $lastExportExpr = "(SELECT MAX(a.downloaded_at) FROM manual_export_audits AS a J
 $base = "
     FROM manuals AS m
     LEFT JOIN manuals_bought AS mb ON mb.manual_id = m.id AND mb.status = 'successful'
+        AND " . hocPurchasesSinceSql($conn, $schoolId) . "
         AND mb.buyer IN (SELECT id FROM users WHERE dept = $deptId)
     WHERE $where
     GROUP BY m.id
