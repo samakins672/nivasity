@@ -28,7 +28,8 @@ $offset = ($page - 1) * $limit;
 
 // Build query - filter by school and due date; visibility is added below
 // Exclude materials with due date passed over 24 hours ago
-$where_conditions = ["m.school_id = $school_id", "m.status = 'open'", "m.due_date >= DATE_SUB(NOW(), INTERVAL 24 HOUR)"];
+// Only school-admin materials (user_id 0); materials students/HOCs created in the past are retired.
+$where_conditions = ["m.school_id = $school_id", "m.user_id = 0", "m.status = 'open'", "m.due_date >= DATE_SUB(NOW(), INTERVAL 24 HOUR)"];
 // Only the school's current semester (no-op until semester tagging is set up)
 $where_conditions[] = material_semester_where_sql($conn, (int)$school_id, 'm');
 $current_semester = material_semester_current_for_school($conn, (int)$school_id);

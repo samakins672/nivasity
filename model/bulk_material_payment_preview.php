@@ -480,6 +480,7 @@ if (!function_exists('bulk_material_payment_list_payable_manuals')) {
             WHERE ($visibilityWhere)
               AND m.status = 'open'
               AND m.school_id = $schoolId
+              AND m.user_id = 0
               AND $semesterWhere
               AND m.due_date >= NOW()
             ORDER BY m.id DESC";

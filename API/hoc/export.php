@@ -19,6 +19,12 @@ if ($manualId <= 0) {
     sendApiError('Invalid material', 400);
 }
 
+// Only school-admin materials the HOC can see (user-created materials are retired).
+$visible = mysqli_query($conn, "SELECT 1 FROM manuals AS m WHERE m.id = $manualId AND " . hocMaterialsWhere($conn, $user) . " LIMIT 1");
+if (!$visible || mysqli_num_rows($visible) < 1) {
+    sendApiError('You are not permitted to export this material.', 403);
+}
+
 // The website's exporter reads the signed-in HOC from the session and the form from $_POST.
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();

@@ -28,7 +28,8 @@ $user_id = $user['id'];
 $school_id = $user['school'];
 
 // Check if material exists and is available
-$material_query = mysqli_query($conn, "SELECT * FROM manuals WHERE id = $material_id AND school_id = $school_id AND status = 'open'");
+// Only school-admin materials can be bought (user-created materials are retired)
+$material_query = mysqli_query($conn, "SELECT * FROM manuals WHERE id = $material_id AND school_id = $school_id AND user_id = 0 AND status = 'open'");
 
 if (mysqli_num_rows($material_query) === 0) {
     sendApiError('Material not found or not available', 404);

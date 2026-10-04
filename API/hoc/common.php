@@ -22,7 +22,8 @@ function hocColumnExists($conn, string $table, string $column): bool {
     return $res && mysqli_num_rows($res) > 0;
 }
 
-// Materials this HOC can see: their own, plus school-admin materials shared with their department.
+// Materials this HOC can see: school-admin materials shared with their department. Materials
+// HOCs created themselves in the past are retired and never listed.
 function hocMaterialsWhere($conn, array $user): string {
     $hocId = (int) $user['id'];
     $deptId = (int) $user['dept'];
@@ -43,7 +44,7 @@ function hocMaterialsWhere($conn, array $user): string {
     } else {
         $shared = $legacyWhere;
     }
-    return "(m.user_id = $hocId OR (m.user_id = 0 AND m.school_id = $schoolId AND ($shared)))";
+    return "(m.user_id = 0 AND m.school_id = $schoolId AND ($shared))";
 }
 
 function hocAuditStatusColumn($conn): string {
