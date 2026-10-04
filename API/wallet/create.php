@@ -10,6 +10,18 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $user = authenticateApiRequest($conn);
 requireStudentRole($user);
 
+$input = json_decode(file_get_contents('php://input'), true) ?: $_POST;
+$providedPhone = trim((string)($input['phone'] ?? ''));
+
+if ($providedPhone !== '') {
+    $normalized = nivasityNormalizePhoneNumber($providedPhone);
+    if (strlen($normalized) >= 10 && strlen($normalized) <= 15) {
+        $cleanPhone = mysqli_real_escape_string($conn, $normalized);
+        mysqli_query($conn, "UPDATE users SET phone = '$cleanPhone' WHERE id = " . (int)$user['id']);
+        $user['phone'] = $normalized;
+    }
+}
+
 try {
     $result = nivasityCreateWalletOnRequest($conn, (int)$user['id'], 'api');
     sendApiSuccess(
