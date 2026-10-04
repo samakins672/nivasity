@@ -2308,13 +2308,33 @@ if (!function_exists('nivasityFetchPaystackCustomerByEmail')) {
     }
 }
 
+if (!function_exists('nivasityNormalizePhoneNumber')) {
+    function nivasityNormalizePhoneNumber($phone) {
+        $clean = preg_replace('/[^\d+]/', '', (string)$phone);
+        if ($clean === '') {
+            return '';
+        }
+        if (strpos($clean, '+') === 0) {
+            $clean = substr($clean, 1);
+        }
+        if (strpos($clean, '234') === 0 && strlen($clean) === 13) {
+            return '0' . substr($clean, 3);
+        }
+        if (strlen($clean) === 10 && in_array($clean[0], ['7', '8', '9'], true)) {
+            return '0' . $clean;
+        }
+        return $clean;
+    }
+}
+
 if (!function_exists('nivasityCreatePaystackCustomer')) {
     function nivasityCreatePaystackCustomer($user) {
+        $phone = nivasityNormalizePhoneNumber($user['phone'] ?? '');
         $payload = [
             'email' => (string)($user['email'] ?? ''),
             'first_name' => (string)($user['first_name'] ?? ''),
             'last_name' => (string)($user['last_name'] ?? ''),
-            'phone' => (string)($user['phone'] ?? ''),
+            'phone' => $phone,
         ];
 
         $response = nivasityPaystackRequest('POST', '/customer', $payload);
@@ -2339,10 +2359,11 @@ if (!function_exists('nivasityUpdatePaystackCustomer')) {
             throw new Exception('Unable to update Paystack customer without a customer code');
         }
 
+        $phone = nivasityNormalizePhoneNumber($user['phone'] ?? '');
         $payload = [
             'first_name' => (string)($user['first_name'] ?? ''),
             'last_name' => (string)($user['last_name'] ?? ''),
-            'phone' => (string)($user['phone'] ?? ''),
+            'phone' => $phone,
         ];
 
         $response = nivasityPaystackRequest('PUT', '/customer/' . rawurlencode($customerCode), $payload);
@@ -2466,12 +2487,13 @@ if (!function_exists('nivasityCreateDedicatedAccountForCustomer')) {
             throw new Exception('Unable to resolve Paystack customer reference for wallet creation');
         }
 
+        $phone = nivasityNormalizePhoneNumber($user['phone'] ?? '');
         $payload = [
             'customer' => $customerRef,
             'preferred_bank' => $preferredBank,
             'first_name' => (string)($user['first_name'] ?? ''),
             'last_name' => (string)($user['last_name'] ?? ''),
-            'phone' => (string)($user['phone'] ?? ''),
+            'phone' => $phone,
         ];
 
         $response = nivasityPaystackRequest('POST', '/dedicated_account', $payload);
@@ -2597,6 +2619,12 @@ if (!function_exists('nivasityCreateWalletOnRequest')) {
         if ((string)$user['status'] !== 'verified') {
             throw new Exception('Wallet creation requires a verified user account');
         }
+
+        $normalizedPhone = nivasityNormalizePhoneNumber($user['phone'] ?? '');
+        if ($normalizedPhone === '' || strlen($normalizedPhone) < 10) {
+            throw new Exception('Please update your phone number in Profile before activating your wallet.');
+        }
+        $user['phone'] = $normalizedPhone;
 
         if (!defined('PAYSTACK_SECRET_KEY') || PAYSTACK_SECRET_KEY === '') {
             throw new Exception('Paystack secret key is not configured');

@@ -69,6 +69,16 @@ if ($reason === 'password_reset') {
     // Update user status to verified
     mysqli_query($conn, "UPDATE users SET status = 'verified' WHERE id = $user_id");
     
+    // Auto-create wallet for newly verified student
+    if (in_array($user['role'], ['student', 'hoc'], true)) {
+        require_once __DIR__ . '/../../model/internal_wallet_service.php';
+        try {
+            nivasityCreateWalletOnRequest($conn, $user_id, 'api_registration');
+        } catch (Throwable $e) {
+            error_log('[NIVASITY_AUTH] Auto wallet creation on OTP verification failed: ' . $e->getMessage());
+        }
+    }
+    
     // Remove used OTP
     mysqli_query($conn, "DELETE FROM verification_code WHERE user_id = $user_id");
 
@@ -100,7 +110,7 @@ if ($reason === 'password_reset') {
         'dept_name' => $dept_name,
         'matric_no' => $user['matric_no'],
         'adm_year' => $user['adm_year'],
-        'status' => $user['status']
+        'status' => 'verified'
     ];
     
     sendApiSuccess(

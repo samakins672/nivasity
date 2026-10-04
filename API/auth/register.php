@@ -16,13 +16,19 @@ if (!$input) {
     $input = $_POST;
 }
 
-validateRequiredFields(['email', 'password', 'first_name', 'last_name', 'gender', 'school_id'], $input);
+validateRequiredFields(['email', 'password', 'first_name', 'last_name', 'phone', 'gender', 'school_id'], $input);
 
 $email = sanitizeInput($conn, $input['email']);
 $password = md5($input['password']);
 $first_name = sanitizeInput($conn, $input['first_name']);
 $last_name = sanitizeInput($conn, $input['last_name']);
-$phone = sanitizeInput($conn, $input['phone'] ?? '');
+
+require_once __DIR__ . '/../../model/internal_wallet_service.php';
+$rawPhone = sanitizeInput($conn, $input['phone'] ?? '');
+$phone = nivasityNormalizePhoneNumber($rawPhone);
+if (strlen($phone) < 10 || strlen($phone) > 15) {
+    sendApiError('Please provide a valid phone number (at least 10 digits).', 400);
+}
 $gender = sanitizeInput($conn, $input['gender']);
 $school_id = (int)$input['school_id'];
 

@@ -36,6 +36,7 @@ When the access token expires, use the refresh token to get a new access token p
   "password": "securepassword",
   "first_name": "John",
   "last_name": "Doe",
+  "phone": "08012345678",
   "gender": "male",
   "school_id": 1
 }
