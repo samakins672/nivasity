@@ -23,6 +23,7 @@ if (!$input) {
 // Get academic fields (all optional, but at least one should be provided)
 $user_school_id = (int)($user['school'] ?? 0);
 $dept_id = isset($input['dept_id']) ? (int)$input['dept_id'] : (int)($user['dept'] ?? 0);
+$matric_no = isset($input['matric_no']) ? sanitizeInput($conn, trim((string)$input['matric_no'])) : ($user['matric_no'] ?? '');
 $raw_adm_year = isset($input['adm_year']) ? sanitizeInput($conn, $input['adm_year']) : ($user['adm_year'] ?? '');
 $adm_year = trim((string)$raw_adm_year);
 if (preg_match('/^(\d{4})$/', $adm_year, $m)) {
