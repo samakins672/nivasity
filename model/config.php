@@ -9,6 +9,11 @@ if (!$conn) {
   die("Error: Failed to connect to database!");
 }
 
+// Talk to the database in UTF-8 (like the command center). Without this the connection used the
+// server default (latin1 on the live server), so text like "it's" with a curly apostrophe or
+// emoji was stored double-encoded and showed as "itâ€™s" in the command center.
+mysqli_set_charset($conn, 'utf8mb4');
+
 nivasity_resolve_tenant_from_request($conn);
 
 // Set the timezone to Africa/Lagos
