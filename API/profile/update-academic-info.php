@@ -24,6 +24,10 @@ if (!$input) {
 $user_school_id = (int)($user['school'] ?? 0);
 $dept_id = isset($input['dept_id']) ? (int)$input['dept_id'] : (int)($user['dept'] ?? 0);
 $matric_no = isset($input['matric_no']) ? sanitizeInput($conn, trim((string)$input['matric_no'])) : ($user['matric_no'] ?? '');
+// A matric number can be changed but never cleared (students need it for receipts and exports)
+if (isset($input['matric_no']) && trim((string) $input['matric_no']) === '') {
+    sendApiError('Enter your matric number.', 400);
+}
 $raw_adm_year = isset($input['adm_year']) ? sanitizeInput($conn, $input['adm_year']) : ($user['adm_year'] ?? '');
 $adm_year = trim((string)$raw_adm_year);
 if (preg_match('/^(\d{4})$/', $adm_year, $m)) {
