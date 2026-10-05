@@ -17,6 +17,7 @@ include('functions.php');
 require_once __DIR__ . '/notifications.php';
 require_once __DIR__ . '/refund_engine.php';
 require_once __DIR__ . '/internal_wallet_service.php';
+require_once __DIR__ . '/wallet_deposit_refund_core.php';
 
 // Parse incoming webhook
 $raw = file_get_contents('php://input');
@@ -43,6 +44,31 @@ if (!$gateway->verifyWebhookSignature($headers, $raw)) {
 
 // Check event type - only process charge.success events
 $event_type = $payload['event'] ?? '';
+
+// Refunds of wallet deposits started from the command center: update their status
+// (processed -> refunded, failed -> money back on the wallet).
+if (strpos((string) $event_type, 'refund.') === 0) {
+    $refundData = is_array($payload['data'] ?? null) ? $payload['data'] : [];
+    $handled = false;
+    if (nvWalletRefundReady($conn)) {
+        $refundRow = nvWalletRefundFind($conn, $refundData);
+        if ($refundRow) {
+            $providerStatus = (string) ($refundData['status'] ?? substr((string) $event_type, strlen('refund.')));
+            try {
+                nvWalletRefundApplyProviderStatus($conn, (int) $refundRow['id'], $providerStatus, $refundData, 'webhook');
+                $handled = true;
+            } catch (Throwable $e) {
+                sendMail('Paystack Webhook: refund update failed', 'Refund ' . $refundRow['reference'] . ': ' . $e->getMessage(), 'webhook@nivasity.com');
+                http_response_code(500);
+                echo json_encode(['status' => 'error', 'message' => 'Refund update failed']);
+                exit;
+            }
+        }
+    }
+    http_response_code(200);
+    echo json_encode(['status' => 'ok', 'message' => $handled ? 'Refund updated' : 'Refund event ignored']);
+    exit;
+}
 if ($event_type !== 'charge.success') {
     // Acknowledge receipt but don't process other event types
     http_response_code(200);
