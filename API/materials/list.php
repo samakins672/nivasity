@@ -66,7 +66,10 @@ if ($user_dept_safe) {
 }
 
 if (!empty($search)) {
-    $where_conditions[] = "(m.title LIKE '%$search%' OR m.course_code LIKE '%$search%')";
+    // Course codes match with or without spaces/dashes ("sts112", "STS-112" -> "STS 112")
+    $search_compact = preg_replace('/[\s\-]+/', '', $search);
+    $where_conditions[] = "(m.title LIKE '%$search%' OR m.course_code LIKE '%$search%'
+        OR REPLACE(REPLACE(m.course_code, ' ', ''), '-', '') LIKE '%$search_compact%')";
 }
 if ($level !== '' && strtolower($level) !== 'all') {
     if (!preg_match('/^[0-9A-Za-z _-]+$/', $level)) {
