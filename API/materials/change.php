@@ -55,7 +55,9 @@ if ($oldManualId <= 0 || $newManualId <= 0 || $refId === '') {
     sendApiError('old_manual_id, new_manual_id and ref_id are required.', 400);
 }
 
-$result = material_change_execute($conn, $userId, $schoolId, $userDept, $oldManualId, $newManualId, $refId, 'api');
+// Bella confirms swaps through this endpoint with the student's own token; label them in the change log.
+$source = (($payload['source'] ?? '') === 'bella') ? 'bella' : 'api';
+$result = material_change_execute($conn, $userId, $schoolId, $userDept, $oldManualId, $newManualId, $refId, $source);
 if (!$result['ok']) {
     sendApiError($result['message'], (int) ($result['status_code'] ?? 400));
 }

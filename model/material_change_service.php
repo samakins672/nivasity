@@ -1,4 +1,11 @@
 <?php
+// Material change ("swap") rules shared by the student flows (web, API, Bella) and the command
+// center admin override. Identical copy in cc_dashboard/model: keep them in sync.
+//
+// $options (admin override only, never from student requests):
+//   ignore_window => true   allow changes after the 72-hour window
+//   ignore_once   => true   allow another change on a purchase that was already changed once
+// Lost copies, granted (collected/exported) copies, price and visibility rules always apply.
 
 require_once __DIR__ . '/material_copy_status.php';
 
@@ -201,7 +208,7 @@ if (!function_exists('material_change_is_order_granted')) {
 }
 
 if (!function_exists('material_change_get_order_context')) {
-  function material_change_get_order_context(mysqli $conn, int $buyerId, int $schoolId, int $oldManualId, string $refId): array
+  function material_change_get_order_context(mysqli $conn, int $buyerId, int $schoolId, int $oldManualId, string $refId, array $options = []): array
   {
     if (!material_change_ensure_schema($conn)) {
       return [
@@ -324,7 +331,7 @@ if (!function_exists('material_change_get_order_context')) {
       ];
     }
 
-    if (!material_change_is_within_window((string) ($order['created_at'] ?? ''), 72)) {
+    if (empty($options['ignore_window']) && !material_change_is_within_window((string) ($order['created_at'] ?? ''), 72)) {
       return [
         'ok' => false,
         'status_code' => 409,
@@ -341,7 +348,7 @@ if (!function_exists('material_change_get_order_context')) {
     }
 
     $existingLog = material_change_get_existing_log($conn, $buyerId, $refId, $oldManualId, (int) ($order['bought_id'] ?? 0));
-    if ($existingLog !== null) {
+    if ($existingLog !== null && empty($options['ignore_once'])) {
       return [
         'ok' => false,
         'status_code' => 409,
@@ -355,14 +362,15 @@ if (!function_exists('material_change_get_order_context')) {
       'status_code' => 200,
       'message' => 'Order is eligible for material change.',
       'order' => $order,
+      'already_changed' => $existingLog !== null,
     ];
   }
 }
 
 if (!function_exists('material_change_get_candidate_materials')) {
-  function material_change_get_candidate_materials(mysqli $conn, int $buyerId, int $schoolId, int $userDeptId, int $oldManualId, string $refId): array
+  function material_change_get_candidate_materials(mysqli $conn, int $buyerId, int $schoolId, int $userDeptId, int $oldManualId, string $refId, array $options = []): array
   {
-    $context = material_change_get_order_context($conn, $buyerId, $schoolId, $oldManualId, $refId);
+    $context = material_change_get_order_context($conn, $buyerId, $schoolId, $oldManualId, $refId, $options);
     if (!$context['ok']) {
       return $context;
     }
@@ -585,9 +593,9 @@ if (!function_exists('material_change_save_log')) {
 }
 
 if (!function_exists('material_change_execute')) {
-  function material_change_execute(mysqli $conn, int $buyerId, int $schoolId, int $userDeptId, int $oldManualId, int $newManualId, string $refId, string $source = 'web'): array
+  function material_change_execute(mysqli $conn, int $buyerId, int $schoolId, int $userDeptId, int $oldManualId, int $newManualId, string $refId, string $source = 'web', array $options = []): array
   {
-    $context = material_change_get_order_context($conn, $buyerId, $schoolId, $oldManualId, $refId);
+    $context = material_change_get_order_context($conn, $buyerId, $schoolId, $oldManualId, $refId, $options);
     if (!$context['ok']) {
       return $context;
     }
@@ -612,7 +620,11 @@ if (!function_exists('material_change_execute')) {
     $newPrice = (int) ($newManual['price'] ?? 0);
     $buyerId = (int) $buyerId;
     $refIdSafe = mysqli_real_escape_string($conn, $refId);
-    $source = strtolower(trim($source)) === 'api' ? 'api' : 'web';
+    $source = strtolower(trim($source));
+    if (!in_array($source, ['api', 'web', 'bella', 'cc'], true)) {
+      $source = 'web';
+    }
+    $alreadyChanged = !empty($context['already_changed']);
 
     if ($order['bought_id'] > 0) {
       $updateSql = "UPDATE manuals_bought SET manual_id = {$newManualId}, seller = {$newSellerId}, price = {$newPrice} WHERE id = {$order['bought_id']} LIMIT 1";
@@ -636,7 +648,9 @@ if (!function_exists('material_change_execute')) {
       ];
     }
 
-    $logSaved = material_change_save_log($conn, [
+    // A purchase has one change log row (unique key). An admin's repeat change is recorded in
+    // the command center's override log instead.
+    $logSaved = $alreadyChanged ? true : material_change_save_log($conn, [
       'buyer_id' => $buyerId,
       'school_id' => $schoolId,
       'manuals_bought_id' => (int) ($order['bought_id'] ?? 0),
@@ -683,6 +697,10 @@ if (!function_exists('material_change_execute')) {
       'status_code' => 200,
       'message' => 'Material changed successfully.',
       'data' => [
+        'manuals_bought_id' => (int) ($order['bought_id'] ?? 0),
+        'old_seller_id' => (int) ($order['seller'] ?? 0),
+        'new_seller_id' => $newSellerId,
+        'price' => $newPrice,
         'ref_id' => $refId,
         'old_manual_id' => (int) $oldManualId,
         'new_manual_id' => $newManualId,
