@@ -2,10 +2,10 @@
 // Material change ("swap") rules shared by the student flows (web, API, Bella) and the command
 // center admin override. Identical copy in cc_dashboard/model: keep them in sync.
 //
-// $options (admin override only, never from student requests):
-//   ignore_window => true   allow changes after the 72-hour window
-//   ignore_once   => true   allow another change on a purchase that was already changed once
-// Lost copies, granted (collected/exported) copies, price and visibility rules always apply.
+// $options (command center only, never from student requests):
+//   ignore_window => true   allow a change after the 72-hour window
+// A purchase can only ever be changed once, by anyone. Lost copies, granted (collected/exported)
+// copies, price and visibility rules always apply.
 
 require_once __DIR__ . '/material_copy_status.php';
 
@@ -348,7 +348,7 @@ if (!function_exists('material_change_get_order_context')) {
     }
 
     $existingLog = material_change_get_existing_log($conn, $buyerId, $refId, $oldManualId, (int) ($order['bought_id'] ?? 0));
-    if ($existingLog !== null && empty($options['ignore_once'])) {
+    if ($existingLog !== null) {
       return [
         'ok' => false,
         'status_code' => 409,
@@ -362,7 +362,6 @@ if (!function_exists('material_change_get_order_context')) {
       'status_code' => 200,
       'message' => 'Order is eligible for material change.',
       'order' => $order,
-      'already_changed' => $existingLog !== null,
     ];
   }
 }
@@ -624,7 +623,7 @@ if (!function_exists('material_change_execute')) {
     if (!in_array($source, ['api', 'web', 'bella', 'cc'], true)) {
       $source = 'web';
     }
-    $alreadyChanged = !empty($context['already_changed']);
+
 
     if ($order['bought_id'] > 0) {
       $updateSql = "UPDATE manuals_bought SET manual_id = {$newManualId}, seller = {$newSellerId}, price = {$newPrice} WHERE id = {$order['bought_id']} LIMIT 1";
@@ -648,9 +647,7 @@ if (!function_exists('material_change_execute')) {
       ];
     }
 
-    // A purchase has one change log row (unique key). An admin's repeat change is recorded in
-    // the command center's override log instead.
-    $logSaved = $alreadyChanged ? true : material_change_save_log($conn, [
+    $logSaved = material_change_save_log($conn, [
       'buyer_id' => $buyerId,
       'school_id' => $schoolId,
       'manuals_bought_id' => (int) ($order['bought_id'] ?? 0),

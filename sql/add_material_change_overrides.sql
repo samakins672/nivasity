@@ -1,7 +1,7 @@
--- Admin overrides of material changes ("swaps"), done in the command center
--- (Bella Chats > Change material). Students change materials themselves within 72 hours of
--- purchase, once per purchase; admins can go past those two limits with a reason.
--- Every other rule (lost/granted copies, same price, visibility) still applies.
+-- Admin material changes ("swaps") done in the command center (Bella Chats > Change material).
+-- Students change materials themselves within 72 hours of purchase. After that, an admin can
+-- change it with a reason, but only if the purchase was never changed before: a purchase can be
+-- changed once in total. Every other rule (lost/granted copies, same price, visibility) applies.
 -- Safe to run more than once.
 
 CREATE TABLE IF NOT EXISTS `manual_change_overrides` (
@@ -14,8 +14,6 @@ CREATE TABLE IF NOT EXISTS `manual_change_overrides` (
   `old_manual_id` INT(11) NOT NULL,
   `new_manual_id` INT(11) NOT NULL,
   `price` INT(11) NOT NULL DEFAULT 0,
-  `ignored_window` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Changed after the 72-hour window',
-  `ignored_once` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Purchase had already been changed once',
   `reason` VARCHAR(255) NOT NULL,
   `bella_conversation_id` INT(11) DEFAULT NULL COMMENT 'Bella chat it came from, if any',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
