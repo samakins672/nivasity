@@ -1390,4 +1390,130 @@ if (!function_exists('bulk_material_payment_resolve_claim_for_user')) {
   }
 }
 
+// "Not mine" can be undone for 14 days (Bella offers it in the chat). Rejected rows keep the
+// student in matched_user_id; bulk rows record the time in updated_at, admin-uploaded rows in
+// claimed_at.
+if (!function_exists('bulk_material_payment_claim_restore_days')) {
+  function bulk_material_payment_claim_restore_days(): int
+  {
+    return 14;
+  }
+}
+
+if (!function_exists('bulk_material_payment_get_recent_rejections_for_user')) {
+  function bulk_material_payment_get_recent_rejections_for_user(mysqli $conn, array $user, int $limit = 10): array
+  {
+    $userId = (int) ($user['id'] ?? 0);
+    if ($userId <= 0) {
+      return [];
+    }
+    $days = bulk_material_payment_claim_restore_days();
+    $limit = max(1, min(20, $limit));
+    $out = [];
+
+    if (bulk_material_payment_has_table($conn, 'manual_bulk_payment_students') && bulk_material_payment_has_table($conn, 'manual_bulk_payment_batches')) {
+      $q = mysqli_query(
+        $conn,
+        "SELECT s.id, s.updated_at AS rejected_at, b.paid_at, m.title, m.course_code,
+                p.first_name AS payer_first_name, p.last_name AS payer_last_name
+         FROM manual_bulk_payment_students AS s
+         INNER JOIN manual_bulk_payment_batches AS b ON b.id = s.batch_id
+         INNER JOIN manuals AS m ON m.id = s.manual_id
+         LEFT JOIN users AS p ON p.id = b.payer_user_id
+         WHERE s.claim_status = 'student_rejected' AND s.matched_user_id = {$userId}
+           AND s.updated_at >= DATE_SUB(NOW(), INTERVAL {$days} DAY)
+         ORDER BY s.updated_at DESC LIMIT {$limit}"
+      );
+      while ($q && ($row = mysqli_fetch_assoc($q))) {
+        $out[] = [
+          'id' => (int) $row['id'],
+          'source' => bulk_material_payment_claim_source_bulk(),
+          'title' => (string) ($row['title'] ?? ''),
+          'course_code' => (string) ($row['course_code'] ?? ''),
+          'payer_name' => trim((string) ($row['payer_first_name'] ?? '') . ' ' . (string) ($row['payer_last_name'] ?? '')),
+          'paid_at' => (string) ($row['paid_at'] ?? ''),
+          'rejected_at' => (string) ($row['rejected_at'] ?? ''),
+        ];
+      }
+    }
+
+    if (bulk_material_payment_external_manual_claims_ready($conn)) {
+      $q = mysqli_query(
+        $conn,
+        "SELECT i.id, i.claimed_at AS rejected_at, b.created_at AS paid_at, m.title, m.course_code
+         FROM manual_payment_batch_items AS i
+         INNER JOIN manual_payment_batches AS b ON b.id = i.batch_id
+         INNER JOIN manuals AS m ON m.id = i.manual_id
+         WHERE i.claim_status = 'student_rejected' AND i.matched_user_id = {$userId}
+           AND i.claimed_at >= DATE_SUB(NOW(), INTERVAL {$days} DAY)
+         ORDER BY i.claimed_at DESC LIMIT {$limit}"
+      );
+      while ($q && ($row = mysqli_fetch_assoc($q))) {
+        $out[] = [
+          'id' => (int) $row['id'],
+          'source' => bulk_material_payment_claim_source_external_manual(),
+          'title' => (string) ($row['title'] ?? ''),
+          'course_code' => (string) ($row['course_code'] ?? ''),
+          'payer_name' => 'Nivasity (payment recorded by the team)',
+          'paid_at' => (string) ($row['paid_at'] ?? ''),
+          'rejected_at' => (string) ($row['rejected_at'] ?? ''),
+        ];
+      }
+    }
+
+    return array_slice($out, 0, $limit);
+  }
+}
+
+if (!function_exists('bulk_material_payment_restore_rejected_claim_for_user')) {
+  // Puts a claim this student rejected (within 14 days) back to "waiting for this student". It is
+  // tied to their account, so it shows in their prompt and can be approved, whatever their name or
+  // matric number. If the copy still sits on the payment-time placeholder, it is linked again so
+  // approving moves that copy instead of creating a second one.
+  function bulk_material_payment_restore_rejected_claim_for_user(mysqli $conn, int $rowId, array $user, string $source): array
+  {
+    $userId = (int) ($user['id'] ?? 0);
+    $days = bulk_material_payment_claim_restore_days();
+    $awaiting = mysqli_real_escape_string($conn, bulk_material_payment_claim_status_awaiting_student_confirmation());
+    $external = $source === bulk_material_payment_claim_source_external_manual();
+    $table = $external ? 'manual_payment_batch_items' : 'manual_bulk_payment_students';
+    $timeColumn = $external ? 'claimed_at' : 'updated_at';
+    if ($userId <= 0 || $rowId <= 0) {
+      throw new Exception('Claim not found.');
+    }
+    if ($external ? !bulk_material_payment_external_manual_claims_ready($conn) : !bulk_material_payment_has_table($conn, $table)) {
+      throw new Exception('Claim not found.');
+    }
+
+    $q = mysqli_query($conn, "SELECT * FROM {$table} WHERE id = {$rowId} AND claim_status = 'student_rejected' AND matched_user_id = {$userId} LIMIT 1");
+    $row = $q ? mysqli_fetch_assoc($q) : null;
+    if (!$row) {
+      throw new Exception('This payment is not one you rejected.');
+    }
+    if (strtotime((string) ($row[$timeColumn] ?? '')) < time() - $days * 86400) {
+      throw new Exception("It has been more than {$days} days since you rejected this payment, so the Nivasity team needs to review it.");
+    }
+
+    $boughtId = 'NULL';
+    $placeholderId = (int) ($row['placeholder_user_id'] ?? 0);
+    if ($placeholderId > 0 && $placeholderId !== $userId) {
+      $manualId = (int) ($row['manual_id'] ?? 0);
+      $refSafe = mysqli_real_escape_string($conn, (string) ($row['ref_id'] ?? ''));
+      $b = mysqli_query($conn, "SELECT id FROM manuals_bought WHERE buyer = {$placeholderId} AND manual_id = {$manualId} AND ref_id = '{$refSafe}' LIMIT 1");
+      $bRow = $b ? mysqli_fetch_assoc($b) : null;
+      if ($bRow) {
+        $boughtId = (int) $bRow['id'];
+      }
+    }
+
+    $reset = $external
+      ? "UPDATE {$table} SET claim_status = '{$awaiting}', matched_user_id = {$userId}, manuals_bought_id = {$boughtId}, claimed_at = NULL WHERE id = {$rowId} LIMIT 1"
+      : "UPDATE {$table} SET claim_status = '{$awaiting}', matched_user_id = {$userId}, manuals_bought_id = {$boughtId}, updated_at = NOW() WHERE id = {$rowId} LIMIT 1";
+    if (!mysqli_query($conn, $reset)) {
+      throw new Exception('Unable to restore this payment right now.');
+    }
+    return ['status' => 'success', 'message' => 'The payment is back. Approve it to add the material to your orders.'];
+  }
+}
+
 ?>
