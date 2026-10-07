@@ -1,10 +1,10 @@
 <?php
-// API: The survey to show in the banner, or null. Hidden after 5 dismissals or once answered.
+// API: The survey to show in the banner, or null. Hidden after 2 dismissals or once answered.
 // When there is no survey, `reason` says why (helps admins check a survey that "is active"):
 //   tables_missing   survey tables are not in this database (run the cc_dashboard migrations)
 //   no_banner_survey no survey is published, unexpired and flagged "show as banner"
 //   answered         this student already submitted it (matched by email)
-//   dismissed        this student closed it 5 or more times
+//   dismissed        this student closed it 2 or more times
 // Diagnostics: if PHP stops without a reply (fatal error, exit in an included file), say why.
 // Not for CORS preflight (OPTIONS), which config.php answers with an empty 200 on purpose.
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'OPTIONS') {

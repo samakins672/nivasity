@@ -56,8 +56,8 @@ if (!function_exists('surveyBannerHasDismissed')) {
     if ($result && mysqli_num_rows($result) > 0) {
       $row = mysqli_fetch_assoc($result);
       $dismissCount = isset($row['dismiss_count']) ? (int) $row['dismiss_count'] : 1;
-      // Persist dismissal permanently only after 5th dismissal
-      $dismissed = ($dismissCount >= 5);
+      // Hidden for good from the 2nd dismissal
+      $dismissed = ($dismissCount >= 2);
     }
     mysqli_stmt_close($stmt);
 
