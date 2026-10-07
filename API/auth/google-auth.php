@@ -91,8 +91,28 @@ if ($id_token !== '') {
 $google_id = $profile['sub'] ?? null;
 $email = $profile['email'] ?? null;
 $email_verified = $profile['email_verified'] ?? false;
-$first_name = $profile['given_name'] ?? '';
-$last_name = $profile['family_name'] ?? '';
+$first_name = trim((string) ($profile['given_name'] ?? ''));
+$last_name = trim((string) ($profile['family_name'] ?? ''));
+// Many Google accounts have only a full name, or one name with no surname: split the full name
+// (or a two-word first name) so both parts are filled where Google has them. Names that are
+// still missing or look like an email username are asked for in the app after sign-in.
+$full_name = trim(preg_replace('/\s+/', ' ', (string) ($profile['name'] ?? '')));
+if ($first_name === '' && $full_name !== '') {
+    $first_name = $full_name;
+}
+if ($last_name === '' && $full_name !== '' && stripos($full_name, $first_name . ' ') === 0) {
+    $last_name = trim(substr($full_name, strlen($first_name)));
+}
+if ($last_name === '' && strpos($first_name, ' ') !== false) {
+    $parts = explode(' ', $first_name);
+    $last_name = array_pop($parts);
+    $first_name = implode(' ', $parts);
+}
+$email_user = strtolower(preg_replace('/[^a-z0-9]/i', '', strstr((string) ($profile['email'] ?? ''), '@', true) ?: ''));
+if ($first_name !== '' && strtolower(preg_replace('/[^a-z0-9]/i', '', $first_name)) === $email_user) {
+    // Google's "name" is just the email username: store it capitalised, the app asks for the real one
+    $first_name = ucfirst($first_name);
+}
 $profile_pic = $profile['picture'] ?? null;
 
 if (!$google_id || !$email) {
