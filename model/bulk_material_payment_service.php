@@ -667,7 +667,10 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
         $matchedUserId = $matchStatus === 'matched' ? (int) ($matchedUser['id'] ?? 0) : 0;
         $placeholderUserId = 0;
         $manualsBoughtId = 0;
-        $claimStatus = $matchedUserId > 0 ? $pendingStudentStatus : $pendingClaimStatus;
+        // The payer's own copy (they included themselves) is theirs already: no "paid for you"
+        // prompt they could reject by mistake
+        $isPayerSelf = $matchedUserId > 0 && $matchedUserId === $payerUserId;
+        $claimStatus = $isPayerSelf ? 'confirmed' : ($matchedUserId > 0 ? $pendingStudentStatus : $pendingClaimStatus);
         $studentRefId = bulk_material_payment_generate_ref($payerUserId);
         $studentRefIdSafe = mysqli_real_escape_string($conn, $studentRefId);
 
@@ -753,6 +756,9 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
           )";
         if (!mysqli_query($conn, $studentInsertSql)) {
           throw new Exception('Unable to save a student in the bulk batch: ' . mysqli_error($conn));
+        }
+        if ($isPayerSelf) {
+          mysqli_query($conn, "UPDATE manual_bulk_payment_students SET confirmed_at = NOW() WHERE id = " . (int) mysqli_insert_id($conn) . " LIMIT 1");
         }
       }
 
