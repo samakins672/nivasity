@@ -3,7 +3,8 @@
 //   GET  -> the latest deposit and whether it can be refunded (and why not), plus recent refunds
 //   POST { funding_id, reason, wallet_pin } -> refunds that deposit in full via Paystack
 // Rules: only the latest completed bank deposit, only the whole amount, only if the wallet still
-// holds it, a reason is required, and the Wallet PIN. Same mechanics as cc's Student Wallets >
+// holds it, no transfers to or from another student since that deposit, a reason is required,
+// and the Wallet PIN. Same mechanics as cc's Student Wallets >
 // Refund: the amount comes off the wallet at once and goes back on it if Paystack refuses or fails.
 // Student refunds are recorded with created_by = 0 and a "[Student]" reason prefix.
 require_once __DIR__ . '/../config.php';
@@ -55,6 +56,18 @@ function depositRefundState(mysqli $conn, int $walletId): array
     if ($existing) {
         $msg = $existing['status'] === 'refunded' ? 'Your latest deposit has already been refunded.' : 'A refund of your latest deposit is already in progress.';
         return ['deposit' => $public, 'balance' => $balance, 'eligible' => false, 'reason' => 'already_refunded', 'message' => $msg];
+    }
+    // Money moved to or from another student after this deposit: the balance may be their money,
+    // so it can't go to this student's bank (the team can still review it)
+    $since = mysqli_real_escape_string($conn, (string) ($deposit['posted_at'] ?: $deposit['created_at']));
+    $transfers = (int) (mysqli_fetch_row(mysqli_query(
+        $conn,
+        "SELECT COUNT(*) FROM wallet_ledger_entries
+         WHERE wallet_id = $walletId AND created_at >= '$since'
+           AND (reference LIKE 'wallet\_transfer\_in:%' OR reference LIKE 'wallet\_transfer\_out:%')"
+    ))[0] ?? 0);
+    if ($transfers > 0) {
+        return ['deposit' => $public, 'balance' => $balance, 'eligible' => false, 'reason' => 'transfers', 'message' => 'You sent or received money from another student after this deposit, so it can\'t be refunded here. Ask Bella and the team will review it.'];
     }
     if ($deposit['provider'] !== 'paystack') {
         return ['deposit' => $public, 'balance' => $balance, 'eligible' => false, 'reason' => 'not_bank_deposit', 'message' => 'Only bank transfer deposits can be refunded here. Ask Bella for help.'];
