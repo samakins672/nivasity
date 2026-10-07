@@ -150,8 +150,19 @@ if (!function_exists('bulk_material_payment_name_pair_signature')) {
 if (!function_exists('bulk_material_payment_names_overlap')) {
   function bulk_material_payment_names_overlap(string $normalizedFirstName, string $normalizedLastName, string $matchedFirstName, string $matchedLastName): bool
   {
-    return in_array($normalizedFirstName, [$matchedFirstName, $matchedLastName], true)
-      || in_array($normalizedLastName, [$matchedFirstName, $matchedLastName], true);
+    // Any one name word in common, in any field or order: "Musa" / "Nimotalai" matches an account
+    // saved as "Musa Nimotalai" / "Abeke". Always used together with an exact matric number,
+    // school and department, so a shared first name alone can't claim someone else's payment.
+    $words = static function (string $a, string $b): array {
+      $out = [];
+      foreach (preg_split('/[^a-z0-9]+/', strtolower($a . ' ' . $b)) ?: [] as $w) {
+        if (strlen($w) >= 2) {
+          $out[$w] = true;
+        }
+      }
+      return $out;
+    };
+    return (bool) array_intersect_key($words($normalizedFirstName, $normalizedLastName), $words($matchedFirstName, $matchedLastName));
   }
 }
 
@@ -878,6 +889,8 @@ if (!function_exists('bulk_material_payment_get_pending_claims_for_user')) {
             s.first_name,
             s.last_name,
             s.raw_matric_no,
+            s.normalized_first_name,
+            s.normalized_last_name,
             s.claim_status,
             s.created_at,
             b.payer_user_id,
@@ -903,17 +916,23 @@ if (!function_exists('bulk_material_payment_get_pending_claims_for_user')) {
              (
                s.claim_status = '{$awaitingClaim}'
                AND s.normalized_matric_no = '{$matricSafe}'
-               -- Same rule as matching existing accounts (bulk_material_payment_names_overlap):
-               -- the matric number must match and at least one name, in any order
-               AND (s.normalized_first_name IN ('{$firstSafe}', '{$lastSafe}') OR s.normalized_last_name IN ('{$firstSafe}', '{$lastSafe}'))
              )
            )
          ORDER BY COALESCE(b.paid_at, s.created_at) ASC, s.id ASC
-         LIMIT {$limit}"
+         LIMIT 100"
       );
 
       if ($query) {
         while ($row = mysqli_fetch_assoc($query)) {
+          // Not yet linked to an account: the name must share a word with this student's
+          // (bulk_material_payment_names_overlap); matric, school and department matched in SQL
+          if ((string) ($row['claim_status'] ?? '') !== bulk_material_payment_claim_status_awaiting_student_confirmation()
+            && !bulk_material_payment_names_overlap((string) ($row['normalized_first_name'] ?? ''), (string) ($row['normalized_last_name'] ?? ''), $normalizedFirstName, $normalizedLastName)) {
+            continue;
+          }
+          if (count($claims) >= $limit) {
+            break;
+          }
           $payerName = trim((string) ($row['payer_first_name'] ?? '') . ' ' . (string) ($row['payer_last_name'] ?? ''));
           $claims[] = [
             'id' => (int) ($row['id'] ?? 0),
@@ -976,16 +995,21 @@ if (!function_exists('bulk_material_payment_get_pending_claims_for_user')) {
              (
                i.claim_status = '{$awaitingClaim}'
                AND UPPER(TRIM(COALESCE(i.student_matric, ''))) = '{$claimMatricSafe}'
-               AND LOWER(TRIM(COALESCE(i.normalized_first_name, ''))) = '{$firstSafe}'
-               AND LOWER(TRIM(COALESCE(i.normalized_last_name, ''))) = '{$lastSafe}'
              )
            )
          ORDER BY COALESCE(b.created_at, i.created_at) ASC, i.id ASC
-         LIMIT {$limit}"
+         LIMIT 100"
       );
 
       if ($externalQuery) {
         while ($row = mysqli_fetch_assoc($externalQuery)) {
+          if ((string) ($row['claim_status'] ?? '') !== bulk_material_payment_claim_status_awaiting_student_confirmation()
+            && !bulk_material_payment_names_overlap((string) ($row['normalized_first_name'] ?? ''), (string) ($row['normalized_last_name'] ?? ''), $normalizedFirstName, $normalizedLastName)) {
+            continue;
+          }
+          if (count($claims) >= $limit) {
+            break;
+          }
           $claims[] = [
             'id' => (int) ($row['id'] ?? 0),
             'source' => bulk_material_payment_claim_source_external_manual(),
@@ -1080,8 +1104,7 @@ if (!function_exists('bulk_material_payment_resolve_external_manual_claim_for_us
       $claimStatus = (string) ($row['claim_status'] ?? '');
       $matchedUserId = (int) ($row['matched_user_id'] ?? 0);
       $identityMatches = bulk_material_payment_normalize_claim_matric((string) ($row['student_matric'] ?? '')) === $normalizedClaimMatricNo
-        && bulk_material_payment_normalize_text((string) ($row['normalized_first_name'] ?? '')) === $normalizedFirstName
-        && bulk_material_payment_normalize_text((string) ($row['normalized_last_name'] ?? '')) === $normalizedLastName;
+        && bulk_material_payment_names_overlap(bulk_material_payment_normalize_text((string) ($row['normalized_first_name'] ?? '')), bulk_material_payment_normalize_text((string) ($row['normalized_last_name'] ?? '')), $normalizedFirstName, $normalizedLastName);
       $isEligible = ($claimStatus === bulk_material_payment_claim_status_awaiting_student_confirmation() && $matchedUserId === $userId)
         || ($claimStatus === bulk_material_payment_claim_status_awaiting_claim_confirmation() && $identityMatches);
 
