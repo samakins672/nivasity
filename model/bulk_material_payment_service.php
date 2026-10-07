@@ -903,8 +903,9 @@ if (!function_exists('bulk_material_payment_get_pending_claims_for_user')) {
              (
                s.claim_status = '{$awaitingClaim}'
                AND s.normalized_matric_no = '{$matricSafe}'
-               AND s.normalized_first_name = '{$firstSafe}'
-               AND s.normalized_last_name = '{$lastSafe}'
+               -- Same rule as matching existing accounts (bulk_material_payment_names_overlap):
+               -- the matric number must match and at least one name, in any order
+               AND (s.normalized_first_name IN ('{$firstSafe}', '{$lastSafe}') OR s.normalized_last_name IN ('{$firstSafe}', '{$lastSafe}'))
              )
            )
          ORDER BY COALESCE(b.paid_at, s.created_at) ASC, s.id ASC
@@ -1251,8 +1252,7 @@ if (!function_exists('bulk_material_payment_resolve_claim_for_user')) {
       $claimStatus = (string) ($row['claim_status'] ?? '');
       $matchedUserId = (int) ($row['matched_user_id'] ?? 0);
       $identityMatches = (string) ($row['normalized_matric_no'] ?? '') === $normalizedMatricNo
-        && (string) ($row['normalized_first_name'] ?? '') === $normalizedFirstName
-        && (string) ($row['normalized_last_name'] ?? '') === $normalizedLastName;
+        && bulk_material_payment_names_overlap((string) ($row['normalized_first_name'] ?? ''), (string) ($row['normalized_last_name'] ?? ''), $normalizedFirstName, $normalizedLastName);
       $isEligible = ($claimStatus === bulk_material_payment_claim_status_awaiting_student_confirmation() && $matchedUserId === $userId)
         || ($claimStatus === bulk_material_payment_claim_status_awaiting_claim_confirmation() && $identityMatches);
 
