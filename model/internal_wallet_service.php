@@ -2552,6 +2552,18 @@ if (!function_exists('nivasityPersistWalletFromPaystackData')) {
                 ];
             }
 
+            // Paystack gives one account number per customer. If this student's Paystack customer
+            // (found by email or stored code) already belongs to another Nivasity wallet, stop with a
+            // clear message instead of a duplicate-key error; support decides which account keeps it.
+            if ($accountNumber !== '') {
+                $ownerRs = mysqli_query($conn, "SELECT w.user_id FROM wallet_virtual_accounts va JOIN user_wallets w ON w.id = va.wallet_id WHERE va.account_number = '$accountNumber' LIMIT 1");
+                $owner = $ownerRs ? mysqli_fetch_assoc($ownerRs) : null;
+                if ($owner && (int) $owner['user_id'] !== $userId) {
+                    error_log("Wallet create: account $accountNumber (customer $providerCustomerCode) already belongs to user {$owner['user_id']}; requested by user $userId");
+                    throw new Exception('This email is already linked to another Nivasity wallet, so a new account number cannot be created. Ask Bella and the Nivasity team will sort it out.');
+                }
+            }
+
             $insertWalletSql = "INSERT INTO user_wallets (user_id, school_id, requested_via) VALUES ($userId, $schoolId, '$requestedViaSafe')";
             if (!mysqli_query($conn, $insertWalletSql)) {
                 throw new Exception('Failed to create wallet row: ' . mysqli_error($conn));
