@@ -2406,6 +2406,24 @@ if (!function_exists('nivasityEnsurePaystackCustomer')) {
             throw new Exception('Unable to resolve Paystack customer code');
         }
 
+        // Never take over another student's Paystack customer (found by a stored code or an email
+        // that student used): renaming it and reusing its account number mixes two people's money
+        $codeSafe = mysqli_real_escape_string($conn, $customerCode);
+        $takenRs = mysqli_query($conn, "SELECT id FROM users WHERE paystack_customer_code = '$codeSafe' AND id <> $userId LIMIT 1");
+        $taken = $takenRs ? mysqli_fetch_assoc($takenRs) : null;
+        if (!$taken) {
+            $takenRs = mysqli_query($conn, "SELECT w.user_id AS id FROM wallet_virtual_accounts va JOIN user_wallets w ON w.id = va.wallet_id
+                                           WHERE va.provider_customer_code = '$codeSafe' AND w.user_id <> $userId LIMIT 1");
+            $taken = $takenRs ? mysqli_fetch_assoc($takenRs) : null;
+        }
+        if ($taken) {
+            error_log("Paystack customer $customerCode belongs to user {$taken['id']}; user $userId was refused it");
+            if ($storedCustomerCode === $customerCode) {
+                mysqli_query($conn, "UPDATE users SET paystack_customer_code = NULL WHERE id = $userId LIMIT 1");
+            }
+            throw new Exception('This email is already linked to another Nivasity wallet, so a new account number cannot be created. Ask Bella and the Nivasity team will sort it out.');
+        }
+
         $customer = nivasityUpdatePaystackCustomer($customerCode, $user);
         nivasityPersistPaystackCustomerDetails($conn, $userId, $customer);
 
@@ -2559,6 +2577,20 @@ if (!function_exists('nivasityPersistWalletFromPaystackData')) {
                 $ownerRs = mysqli_query($conn, "SELECT w.user_id FROM wallet_virtual_accounts va JOIN user_wallets w ON w.id = va.wallet_id WHERE va.account_number = '$accountNumber' LIMIT 1");
                 $owner = $ownerRs ? mysqli_fetch_assoc($ownerRs) : null;
                 if ($owner && (int) $owner['user_id'] !== $userId) {
+                    // A retired duplicate of this student (deactivated, wallet at 0) held this email:
+                    // its wallet is theirs, so move it over instead of failing
+                    $ownerId = (int) $owner['user_id'];
+                    $ownerRow = mysqli_fetch_assoc(mysqli_query($conn, "SELECT u.status, w.id AS wallet_id, w.balance FROM users u JOIN user_wallets w ON w.user_id = u.id WHERE u.id = $ownerId LIMIT 1"));
+                    if ($ownerRow && $ownerRow['status'] === 'deactivated' && (int) $ownerRow['balance'] === 0) {
+                        mysqli_query($conn, "UPDATE user_wallets SET user_id = $userId WHERE id = " . (int) $ownerRow['wallet_id'] . " AND user_id = $ownerId LIMIT 1");
+                        mysqli_commit($conn);
+                        error_log("Wallet create: moved wallet {$ownerRow['wallet_id']} (account $accountNumber) from retired user $ownerId to user $userId");
+                        return [
+                            'status' => 'exists',
+                            'wallet' => nivasityGetUserWallet($conn, $userId),
+                            'account_source' => $accountSource,
+                        ];
+                    }
                     error_log("Wallet create: account $accountNumber (customer $providerCustomerCode) already belongs to user {$owner['user_id']}; requested by user $userId");
                     throw new Exception('This email is already linked to another Nivasity wallet, so a new account number cannot be created. Ask Bella and the Nivasity team will sort it out.');
                 }

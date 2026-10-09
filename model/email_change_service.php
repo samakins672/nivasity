@@ -218,6 +218,20 @@ if (!function_exists('nivasityConfirmEmailChangeOtp')) {
             if (!nivasityEmailHolderIsEmptyAccount($conn, $retireId)) {
                 throw new Exception('That email address is used by another account that has purchases or wallet funds. Contact support to merge the two accounts.');
             }
+            // The duplicate's wallet (balance 0) is tied to this email on Paystack: it moves to the
+            // student taking the email, if they have none, so their wallet request finds it
+            $dupWallet = mysqli_fetch_assoc(mysqli_query($conn, "SELECT id FROM user_wallets WHERE user_id = $retireId LIMIT 1"));
+            $ownWallet = mysqli_fetch_assoc(mysqli_query($conn, "SELECT id FROM user_wallets WHERE user_id = $userId LIMIT 1"));
+            if ($dupWallet && !$ownWallet) {
+                mysqli_query($conn, "UPDATE user_wallets SET user_id = $userId WHERE id = " . (int) $dupWallet['id'] . " AND user_id = $retireId LIMIT 1");
+                $dupCode = (string) (mysqli_fetch_row(mysqli_query($conn, "SELECT paystack_customer_code FROM users WHERE id = $retireId LIMIT 1"))[0] ?? '');
+                if ($dupCode !== '') {
+                    $dupCodeSafe = mysqli_real_escape_string($conn, $dupCode);
+                    mysqli_query($conn, "UPDATE users SET paystack_customer_code = NULL WHERE id = $retireId LIMIT 1");
+                    mysqli_query($conn, "UPDATE users SET paystack_customer_code = '$dupCodeSafe' WHERE id = $userId LIMIT 1");
+                }
+                error_log('[EMAIL_CHANGE] wallet ' . $dupWallet['id'] . ' moved from retired account ' . $retireId . ' to user ' . $userId);
+            }
             $retiredEmail = 'retired+' . $retireId . '@nivasity.invalid';
             if (!mysqli_query($conn, "UPDATE users SET email = '$retiredEmail', matric_no = NULL, status = 'deactivated' WHERE id = $retireId LIMIT 1")) {
                 throw new Exception('Failed to update your email address. Please try again later.');
