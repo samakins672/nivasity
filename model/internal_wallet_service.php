@@ -2416,6 +2416,21 @@ if (!function_exists('nivasityEnsurePaystackCustomer')) {
                                            WHERE va.provider_customer_code = '$codeSafe' AND w.user_id <> $userId LIMIT 1");
             $taken = $takenRs ? mysqli_fetch_assoc($takenRs) : null;
         }
+        // A retired duplicate of this student (deactivated, wallet at 0 or none) held this customer,
+        // e.g. after an email change retired it: hand the customer and its wallet over instead
+        if ($taken) {
+            $takenId = (int) $taken['id'];
+            $dup = mysqli_fetch_assoc(mysqli_query($conn, "SELECT u.status, w.id AS wallet_id, w.balance FROM users u LEFT JOIN user_wallets w ON w.user_id = u.id WHERE u.id = $takenId LIMIT 1"));
+            $ownWallet = mysqli_fetch_assoc(mysqli_query($conn, "SELECT id FROM user_wallets WHERE user_id = $userId LIMIT 1"));
+            if ($dup && $dup['status'] === 'deactivated' && (int) ($dup['balance'] ?? 0) === 0 && !$ownWallet) {
+                if (!empty($dup['wallet_id'])) {
+                    mysqli_query($conn, "UPDATE user_wallets SET user_id = $userId WHERE id = " . (int) $dup['wallet_id'] . " AND user_id = $takenId LIMIT 1");
+                }
+                mysqli_query($conn, "UPDATE users SET paystack_customer_code = NULL WHERE id = $takenId LIMIT 1");
+                error_log("Paystack customer $customerCode (wallet " . ($dup['wallet_id'] ?? 'none') . ") moved from retired user $takenId to user $userId");
+                $taken = null;
+            }
+        }
         if ($taken) {
             error_log("Paystack customer $customerCode belongs to user {$taken['id']}; user $userId was refused it");
             if ($storedCustomerCode === $customerCode) {
