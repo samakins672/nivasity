@@ -453,6 +453,116 @@ if (!function_exists('bulk_material_payment_upsert_student_transaction')) {
   }
 }
 
+/*
+ * Lookups for a whole batch in one query each.
+ *
+ * users.matric_no is matched as LOWER(TRIM(matric_no)), which no index can serve, so every
+ * lookup reads every user of the school. A batch of ~40 students did that ~5 times per
+ * student (preview, then pay checks them again), tens of seconds on a large school, longer
+ * than the app's 15 s timeout: the payment looked like it hung. Priming reads the school
+ * once for all the matric numbers of the batch; the per-student functions then answer from
+ * memory. A matric number that was not primed still gets the original per-student query.
+ */
+if (!function_exists('bulk_material_payment_lookup_cache')) {
+  function &bulk_material_payment_lookup_cache(): array
+  {
+    static $cache = ['users' => [], 'placeholders' => []];
+    return $cache;
+  }
+}
+
+if (!function_exists('bulk_material_payment_prime_matching_users')) {
+  /** One scan for every matric number in the batch (same predicate and order as the single lookup). */
+  function bulk_material_payment_prime_matching_users(mysqli $conn, int $schoolId, array $normalizedMatrics): void
+  {
+    $wanted = [];
+    foreach ($normalizedMatrics as $m) {
+      $m = (string) $m;
+      if ($m !== '') {
+        $wanted[$m] = true;
+      }
+    }
+    $cache = &bulk_material_payment_lookup_cache();
+    $wanted = array_diff_key($wanted, $cache['users'][$schoolId] ?? []);
+    if ($schoolId <= 0 || !$wanted) {
+      return;
+    }
+
+    $in = implode(',', array_map(function ($m) use ($conn) {
+      return "'" . mysqli_real_escape_string($conn, (string) $m) . "'";
+    }, array_keys($wanted)));
+    $placeholderStatusSafe = mysqli_real_escape_string($conn, bulk_material_payment_placeholder_status());
+    $query = mysqli_query(
+      $conn,
+      "SELECT u.*, d.name AS dept_name, LOWER(TRIM(u.matric_no)) AS lookup_matric
+       FROM users AS u
+       LEFT JOIN depts AS d ON d.id = u.dept AND d.school_id = {$schoolId}
+       WHERE u.school = {$schoolId}
+         AND LOWER(TRIM(u.matric_no)) IN ({$in})
+         AND u.status <> '{$placeholderStatusSafe}'
+       ORDER BY CASE WHEN u.status = 'verified' THEN 0 ELSE 1 END, u.id DESC"
+    );
+    if (!$query) {
+      return; // not primed: each student falls back to its own query
+    }
+
+    $found = [];
+    while ($row = mysqli_fetch_assoc($query)) {
+      $key = (string) $row['lookup_matric'];
+      if (!isset($found[$key])) {
+        unset($row['lookup_matric']);
+        $found[$key] = $row; // first row in ORDER BY wins, as with LIMIT 1
+      }
+    }
+    foreach (array_keys($wanted) as $m) {
+      $cache['users'][$schoolId][$m] = $found[$m] ?? null;
+    }
+  }
+}
+
+if (!function_exists('bulk_material_payment_prime_placeholders')) {
+  /** Candidate placeholder users per matric number, so the name check is a primary-key lookup. */
+  function bulk_material_payment_prime_placeholders(mysqli $conn, int $schoolId, int $deptId, array $pendingMatrics): void
+  {
+    $wanted = [];
+    foreach ($pendingMatrics as $m) {
+      $m = bulk_material_payment_normalize_text((string) $m);
+      if ($m !== '') {
+        $wanted[$m] = true;
+      }
+    }
+    $cache = &bulk_material_payment_lookup_cache();
+    $key = $schoolId . ':' . $deptId;
+    $wanted = array_diff_key($wanted, $cache['placeholders'][$key] ?? []);
+    if ($schoolId <= 0 || $deptId <= 0 || !$wanted) {
+      return;
+    }
+
+    $in = implode(',', array_map(function ($m) use ($conn) {
+      return "'" . mysqli_real_escape_string($conn, (string) $m) . "'";
+    }, array_keys($wanted)));
+    $statusSafe = mysqli_real_escape_string($conn, bulk_material_payment_placeholder_status());
+    $query = mysqli_query(
+      $conn,
+      "SELECT id, LOWER(TRIM(matric_no)) AS lookup_matric
+       FROM users
+       WHERE school = {$schoolId} AND dept = {$deptId} AND status = '{$statusSafe}'
+         AND LOWER(TRIM(matric_no)) IN ({$in})"
+    );
+    if (!$query) {
+      return;
+    }
+
+    $ids = [];
+    while ($row = mysqli_fetch_assoc($query)) {
+      $ids[(string) $row['lookup_matric']][] = (int) $row['id'];
+    }
+    foreach (array_keys($wanted) as $m) {
+      $cache['placeholders'][$key][$m] = $ids[$m] ?? [];
+    }
+  }
+}
+
 if (!function_exists('bulk_material_payment_find_matching_user')) {
   function bulk_material_payment_find_matching_user(mysqli $conn, int $schoolId, int $deptId, string $normalizedMatricNo, string $normalizedFirstName, string $normalizedLastName): ?array
   {
@@ -460,26 +570,31 @@ if (!function_exists('bulk_material_payment_find_matching_user')) {
       return null;
     }
 
-    $matricSafe = mysqli_real_escape_string($conn, $normalizedMatricNo);
-    $placeholderStatusSafe = mysqli_real_escape_string($conn, bulk_material_payment_placeholder_status());
+    $primed = bulk_material_payment_lookup_cache()['users'][$schoolId] ?? [];
+    $row = null;
+    if (array_key_exists($normalizedMatricNo, $primed)) {
+      $row = $primed[$normalizedMatricNo];
+    } else {
+      $matricSafe = mysqli_real_escape_string($conn, $normalizedMatricNo);
+      $placeholderStatusSafe = mysqli_real_escape_string($conn, bulk_material_payment_placeholder_status());
 
-    $query = mysqli_query(
-      $conn,
-      "SELECT u.*, d.name AS dept_name
-       FROM users AS u
-       LEFT JOIN depts AS d ON d.id = u.dept AND d.school_id = {$schoolId}
-       WHERE u.school = {$schoolId}
-         AND LOWER(TRIM(u.matric_no)) = '{$matricSafe}'
-         AND u.status <> '{$placeholderStatusSafe}'
-       ORDER BY CASE WHEN u.status = 'verified' THEN 0 ELSE 1 END, u.id DESC
-       LIMIT 1"
-    );
-
-    if ($query && mysqli_num_rows($query) > 0) {
-      $row = mysqli_fetch_assoc($query) ?: null;
-      if (!is_array($row)) {
-        return null;
+      $query = mysqli_query(
+        $conn,
+        "SELECT u.*, d.name AS dept_name
+         FROM users AS u
+         LEFT JOIN depts AS d ON d.id = u.dept AND d.school_id = {$schoolId}
+         WHERE u.school = {$schoolId}
+           AND LOWER(TRIM(u.matric_no)) = '{$matricSafe}'
+           AND u.status <> '{$placeholderStatusSafe}'
+         ORDER BY CASE WHEN u.status = 'verified' THEN 0 ELSE 1 END, u.id DESC
+         LIMIT 1"
+      );
+      if ($query && mysqli_num_rows($query) > 0) {
+        $row = mysqli_fetch_assoc($query) ?: null;
       }
+    }
+
+    if (is_array($row)) {
 
       $row['match_status'] = 'matched';
       $matchedDeptId = (int) ($row['dept'] ?? 0);
@@ -521,19 +636,38 @@ if (!function_exists('bulk_material_payment_find_or_create_placeholder_user')) {
     $lastSafe = mysqli_real_escape_string($conn, $normalizedLastName);
     $statusSafe = mysqli_real_escape_string($conn, bulk_material_payment_placeholder_status());
 
-    $existingQuery = mysqli_query(
-      $conn,
-      "SELECT id
-       FROM users
-       WHERE school = {$schoolId}
-         AND dept = {$deptId}
-         AND status = '{$statusSafe}'
-         AND LOWER(TRIM(matric_no)) = '{$pendingMatricSafe}'
-         AND LOWER(TRIM(first_name)) = '{$firstSafe}'
-         AND LOWER(TRIM(last_name)) = '{$lastSafe}'
-       ORDER BY id DESC
-       LIMIT 1"
-    );
+    $placeholderCache = &bulk_material_payment_lookup_cache();
+    $placeholderKey = $schoolId . ':' . $deptId;
+    $pendingKey = bulk_material_payment_normalize_text($pendingLookupMatric);
+    $candidates = $placeholderCache['placeholders'][$placeholderKey][$pendingKey] ?? null;
+    $existingQuery = null;
+    if ($candidates === null) {
+      $existingQuery = mysqli_query(
+        $conn,
+        "SELECT id
+         FROM users
+         WHERE school = {$schoolId}
+           AND dept = {$deptId}
+           AND status = '{$statusSafe}'
+           AND LOWER(TRIM(matric_no)) = '{$pendingMatricSafe}'
+           AND LOWER(TRIM(first_name)) = '{$firstSafe}'
+           AND LOWER(TRIM(last_name)) = '{$lastSafe}'
+         ORDER BY id DESC
+         LIMIT 1"
+      );
+    } elseif ($candidates) {
+      $candidateIds = implode(',', array_map('intval', $candidates));
+      $existingQuery = mysqli_query(
+        $conn,
+        "SELECT id
+         FROM users
+         WHERE id IN ({$candidateIds})
+           AND LOWER(TRIM(first_name)) = '{$firstSafe}'
+           AND LOWER(TRIM(last_name)) = '{$lastSafe}'
+         ORDER BY id DESC
+         LIMIT 1"
+      );
+    }
     if ($existingQuery && mysqli_num_rows($existingQuery) > 0) {
       $existingRow = mysqli_fetch_assoc($existingQuery) ?: [];
       return (int) ($existingRow['id'] ?? 0);
@@ -552,7 +686,12 @@ if (!function_exists('bulk_material_payment_find_or_create_placeholder_user')) {
       throw new Exception('Unable to create a pending placeholder student: ' . mysqli_error($conn));
     }
 
-    return (int) mysqli_insert_id($conn);
+    $createdId = (int) mysqli_insert_id($conn);
+    if ($candidates !== null && $createdId > 0) {
+      $placeholderCache['placeholders'][$placeholderKey][$pendingKey][] = $createdId;
+    }
+
+    return $createdId;
   }
 }
 
@@ -595,6 +734,18 @@ if (!function_exists('bulk_material_payment_process_wallet_batch')) {
     $pendingStudentStatus = bulk_material_payment_claim_status_awaiting_student_confirmation();
     $transactionContext = bulk_material_payment_transaction_context();
     $studentTransactionContext = bulk_material_payment_student_transaction_context();
+
+    $batchMatrics = [];
+    $batchPendingMatrics = [];
+    foreach ($rows as $primeRow) {
+      $primeMatric = bulk_material_payment_normalize_text((string) ($primeRow['normalized_matric_no'] ?? ($primeRow['matric_no'] ?? '')));
+      if ($primeMatric !== '') {
+        $batchMatrics[] = $primeMatric;
+        $batchPendingMatrics[] = bulk_material_payment_pending_lookup_matric($primeMatric);
+      }
+    }
+    bulk_material_payment_prime_matching_users($conn, $schoolId, $batchMatrics);
+    bulk_material_payment_prime_placeholders($conn, $schoolId, $payerDeptId, $batchPendingMatrics);
 
     mysqli_begin_transaction($conn);
     try {

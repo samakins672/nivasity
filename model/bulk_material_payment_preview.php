@@ -243,6 +243,46 @@ if (!function_exists('bulk_material_payment_preview_analyze_rows')) {
     $seenIdentities = [];
     $seenMatricNames = [];
 
+    // One query each for the whole batch instead of one per student (see
+    // bulk_material_payment_prime_matching_users).
+    $batchMatrics = [];
+    foreach ($rows as $primeRow) {
+      $primeMatric = (string) ($primeRow['normalized_matric_no'] ?? '');
+      if ($primeMatric !== '') {
+        $batchMatrics[$primeMatric] = true;
+      }
+    }
+    $batchMatrics = array_keys($batchMatrics);
+    $activeCopyMatrics = null;
+    if ($validationWarning === '' && $batchMatrics) {
+      try {
+        bulk_material_payment_prime_matching_users($conn, $schoolId, $batchMatrics);
+        $inList = implode(',', array_map(function ($m) use ($conn) {
+          return "'" . mysqli_real_escape_string($conn, (string) $m) . "'";
+        }, $batchMatrics));
+        $activeRs = mysqli_query(
+          $conn,
+          "SELECT DISTINCT LOWER(TRIM(u.matric_no)) AS lookup_matric
+           FROM manuals_bought AS mb
+           INNER JOIN users AS u ON u.id = mb.buyer
+           WHERE mb.manual_id = {$manualId}
+             AND mb.school_id = {$schoolId}
+             AND {$nonLostCondition}
+             AND u.school = {$schoolId}
+             AND u.dept = {$payerDeptId}
+             AND LOWER(TRIM(u.matric_no)) IN ({$inList})"
+        );
+        if ($activeRs) {
+          $activeCopyMatrics = [];
+          while ($activeRow = mysqli_fetch_assoc($activeRs)) {
+            $activeCopyMatrics[(string) $activeRow['lookup_matric']] = true;
+          }
+        }
+      } catch (Throwable $e) {
+        $activeCopyMatrics = null; // fall back to the per-student checks below
+      }
+    }
+
     foreach ($rows as $row) {
       $lineNumber = (int) ($row['line_number'] ?? 0);
       $firstName = (string) ($row['first_name'] ?? '');
@@ -302,7 +342,12 @@ if (!function_exists('bulk_material_payment_preview_analyze_rows')) {
             }
           }
 
-          if ($status === 'valid') {
+          if ($status === 'valid' && $activeCopyMatrics !== null) {
+            if (isset($activeCopyMatrics[$normalizedMatricNo])) {
+              $status = 'error';
+              $message = 'Active copy exists.';
+            }
+          } elseif ($status === 'valid') {
             $matricSafe = mysqli_real_escape_string($conn, $normalizedMatricNo);
             $activeCopyQuery = mysqli_query(
               $conn,
