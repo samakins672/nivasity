@@ -50,20 +50,18 @@ if (empty($cart_ids)) {
 
 $ids_string = implode(',', $cart_ids);
 
-// Auto-prune items already paid or already confirmed in DB cart.
+// Auto-prune items already paid for (delivered to manuals_bought). A cart row can be marked
+// 'confirmed' by payment verification without the material ever reaching manuals_bought (a
+// failed/partial delivery, or a stale row from an abandoned checkout attempt); pruning on that
+// status alone silently and permanently hid such an item from the student's cart and session,
+// with add_to_cart reporting "added" every time while view_cart showed it as never there. Only
+// manuals_bought - the actual record of what the student received - is the source of truth here.
 $resolved_ids = [];
 
 $purchased_query = mysqli_query($conn, "SELECT DISTINCT manual_id FROM manuals_bought WHERE buyer = $user_id AND manual_id IN ($ids_string)");
 if ($purchased_query) {
     while ($purchased_row = mysqli_fetch_assoc($purchased_query)) {
         $resolved_ids[] = (int)$purchased_row['manual_id'];
-    }
-}
-
-$confirmed_query = mysqli_query($conn, "SELECT DISTINCT item_id FROM cart WHERE user_id = $user_id AND type = 'manual' AND status = 'confirmed' AND item_id IN ($ids_string)");
-if ($confirmed_query) {
-    while ($confirmed_row = mysqli_fetch_assoc($confirmed_query)) {
-        $resolved_ids[] = (int)$confirmed_row['item_id'];
     }
 }
 
