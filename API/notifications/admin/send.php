@@ -25,20 +25,22 @@ if (empty($email) || empty($password) || empty($title) || empty($body)) {
     sendApiError('Email, password, title, and body are required', 400);
 }
 
-// Validate admin credentials from admins table
-// Password must be MD5 hash (32 character hexadecimal)
-if (strlen($password) !== 32 || !ctype_xdigit($password)) {
-    sendApiError('Password must be MD5 hash (32 character hexadecimal string)', 400);
-}
+// cc forwards the admin's own admins.password column as-is (same DB, same row) rather than a
+// plaintext password, so this just has to match it exactly - but cc's login upgrades a legacy
+// MD5 hash to bcrypt the first time an admin signs in (model/auth_service.php), so the stored
+// value is no longer reliably a 32-char MD5 hex string for admins who have logged in since. A
+// fixed "must look like MD5" check locked every one of them out of sending notifications.
+$stmt = mysqli_prepare($conn, "SELECT * FROM admins WHERE email = ? AND status = 'active' LIMIT 1");
+mysqli_stmt_bind_param($stmt, 's', $email);
+mysqli_stmt_execute($stmt);
+$admin_result = mysqli_stmt_get_result($stmt);
+$admin = $admin_result ? mysqli_fetch_assoc($admin_result) : null;
+mysqli_stmt_close($stmt);
 
-$admin_query = mysqli_query($conn, "SELECT * FROM admins WHERE email = '$email' AND password = '$password' AND status = 'active' LIMIT 1");
-
-if (mysqli_num_rows($admin_query) === 0) {
+if (!$admin || !hash_equals((string) $admin['password'], (string) $password)) {
     error_log("Admin Send Notification: Failed login attempt for email: $email");
     sendApiError('Invalid credentials', 401);
 }
-
-$admin = mysqli_fetch_assoc($admin_query);
 
 // Enforce role restriction: all cc admin roles (1-5, plus 6: material grants, who notify
 // students when a grant is approved)
