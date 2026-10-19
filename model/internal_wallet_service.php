@@ -3958,13 +3958,26 @@ if (!function_exists('nivasityProcessWalletCheckout')) {
 
             mysqli_begin_transaction($conn);
             try {
-                $walletLockSql = "SELECT id, school_id, balance, status FROM user_wallets WHERE user_id = $userId LIMIT 1 FOR UPDATE";
+                $walletLockSql = "SELECT w.id, w.school_id, w.balance, w.status, u.school AS user_school
+                                  FROM user_wallets w
+                                  INNER JOIN users u ON u.id = w.user_id
+                                  WHERE w.user_id = $userId LIMIT 1 FOR UPDATE";
                 $walletLockRs = mysqli_query($conn, $walletLockSql);
                 if (!$walletLockRs || mysqli_num_rows($walletLockRs) < 1) {
                     throw new Exception('Wallet not found for checkout');
                 }
 
                 $walletRow = mysqli_fetch_assoc($walletLockRs);
+
+                // The wallet copies the school once at creation; follow the student if they moved school.
+                $userSchool = (int)($walletRow['user_school'] ?? 0);
+                if ($userSchool > 0 && $userSchool !== (int)$walletRow['school_id']) {
+                    error_log("Wallet checkout: wallet {$walletRow['id']} school {$walletRow['school_id']} -> $userSchool for user $userId");
+                    if (!mysqli_query($conn, "UPDATE user_wallets SET school_id = $userSchool WHERE id = " . (int)$walletRow['id'])) {
+                        throw new Exception('Failed to update wallet school: ' . mysqli_error($conn));
+                    }
+                    $walletRow['school_id'] = $userSchool;
+                }
                 if ((string)($walletRow['status'] ?? 'active') !== 'active') {
                     throw new Exception('Your Nivasity Wallet is not active');
                 }
