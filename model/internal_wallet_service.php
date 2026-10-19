@@ -929,7 +929,7 @@ if (!function_exists('nivasityResolveStudentWalletTransferRecipient')) {
                 INNER JOIN user_wallets w ON w.user_id = u.id
                 WHERE u.school = $schoolId
                   AND w.school_id = $schoolId
-                  AND u.role = 'student'
+                  AND u.role IN ('student', 'hoc')
                   AND u.status = 'verified'
                   AND w.status = 'active'
                   $excludeSql
