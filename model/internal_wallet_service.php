@@ -1356,6 +1356,10 @@ if (!function_exists('nivasitySendWalletAlert')) {
         // For 'debit', we only send an email if it's a student transfer (P2P),
         // suppressing emails for material/order checkout purchases to eliminate duplicate emails.
         $shouldSendEmail = true;
+        // Credit and refund emails are paused; the push notification above still goes out.
+        if ($eventType === 'credit') {
+            $shouldSendEmail = false;
+        }
         if ($eventType === 'debit') {
             $isTransfer = !empty($payload['is_transfer']) ||
                           (isset($payload['action']) && $payload['action'] === 'transfer') ||
