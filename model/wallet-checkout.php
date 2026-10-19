@@ -94,6 +94,7 @@ try {
         'data' => $result,
     ]);
 } catch (Throwable $e) {
+    error_log('[NIVASITY_WALLET_WEB_CHECKOUT] user=' . (int)$userId . ' ref=' . $refId . ' ' . $e->getMessage());
     http_response_code(422);
     echo json_encode([
         'status' => 'error',
