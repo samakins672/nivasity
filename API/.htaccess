@@ -8,6 +8,7 @@
     RewriteRule ^setup\.html$ setup_redirect.php [QSA,L]
     RewriteRule ^setup_org\.html$ setup_redirect.php?type=org [QSA,L]
     RewriteRule ^verify\.html$ setup_redirect.php?type=visitor [QSA,L]
+    RewriteRule ^manual-export-verify(?:\.php)?$ export_verify_redirect.php [QSA,L]
 </IfModule>
 
 # Security Headers

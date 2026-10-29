@@ -169,7 +169,7 @@ function createBulkReceiptExportAudit(mysqli $conn, $payerUserId, $batchRefId) {
     $safeRef = mysqli_real_escape_string($conn, $batchRefId);
     $batchRs = mysqli_query(
         $conn,
-        "SELECT id, manual_id, student_count
+        "SELECT id, manual_id, school_id, student_count
          FROM manual_bulk_payment_batches
          WHERE ref_id = '$safeRef'
            AND payer_user_id = $payerUserId
@@ -183,6 +183,13 @@ function createBulkReceiptExportAudit(mysqli $conn, $payerUserId, $batchRefId) {
     $batchRow = mysqli_fetch_assoc($batchRs) ?: [];
     $batchId = (int)($batchRow['id'] ?? 0);
     $manualId = (int)($batchRow['manual_id'] ?? 0);
+    $schoolId = (int)($batchRow['school_id'] ?? 0);
+    if ($schoolId <= 0) {
+        $uSchoolRs = mysqli_query($conn, "SELECT school FROM users WHERE id = $payerUserId LIMIT 1");
+        if ($uSchoolRs && ($uSchoolRow = mysqli_fetch_assoc($uSchoolRs))) {
+            $schoolId = (int)($uSchoolRow['school'] ?? 0);
+        }
+    }
     if ($batchId <= 0 || $manualId <= 0) {
         return null;
     }
@@ -295,7 +302,10 @@ function createBulkReceiptExportAudit(mysqli $conn, $payerUserId, $batchRefId) {
         throw new RuntimeException('Failed to create bulk export audit row: ' . mysqli_error($conn));
     }
 
-    $verificationUrl = nivasity_app_url('manual-export-verify.php?code=' . urlencode($verificationCode));
+    $verifyPath = 'manual-export-verify.php?code=' . urlencode($verificationCode);
+    $verificationUrl = ($schoolId > 0 && function_exists('nivasity_get_school_url'))
+        ? nivasity_get_school_url($conn, $schoolId, $verifyPath)
+        : nivasity_app_url($verifyPath);
     return [
         'code' => $verificationCode,
         'verification_url' => $verificationUrl,
@@ -337,6 +347,9 @@ function getReceiptDataFromRef($conn, $user_id, $tx_ref, $filterType = null, $fi
 
     // Collect items from persisted purchases (manuals_bought, event_tickets)
     $items = [];
+    $isBulkPayment = false;
+    $bulkMaterial = '';
+    $bulkStudentsCount = 0;
 
     // Manuals purchased under this reference
     // Manuals
@@ -436,12 +449,11 @@ function getReceiptDataFromRef($conn, $user_id, $tx_ref, $filterType = null, $fi
                 $studentCount = max(1, (int) ($batchRow['student_count'] ?? 1));
                 $unitPrice = (int) round(((float) ($batchRow['subtotal'] ?? 0)) / $studentCount);
                 $bulkItems = [];
+                $isBulkPayment = true;
+                $bulkMaterial = trim((string) ($batchRow['title'] ?? '') . (!empty($batchRow['course_code']) ? ' (' . (string) $batchRow['course_code'] . ')' : ''));
 
                 if ($receiptDate === '' && !empty($batchRow['paid_at'])) {
                     $receiptDateFormatted = date('jS F, Y', strtotime((string) $batchRow['paid_at']));
-                }
-                if ($total_amount <= 0 && isset($batchRow['total_amount'])) {
-                    $total_amount = (float) $batchRow['total_amount'];
                 }
 
                 if ($batchId > 0) {
@@ -464,26 +476,23 @@ function getReceiptDataFromRef($conn, $user_id, $tx_ref, $filterType = null, $fi
                             }
 
                             $bulkItems[] = [
-                                'name' => trim((string) ($batchRow['title'] ?? '') . (!empty($batchRow['course_code']) ? ' (' . (string) $batchRow['course_code'] . ')' : '')),
+                                'name' => $studentName . ($studentMatric !== '' ? ' (' . $studentMatric . ')' : ''),
                                 'type' => 'Bulk Payment',
                                 'price' => (float) $unitPrice,
-                                'meta' => 'Paid for: ' . $studentName . ($studentMatric !== '' ? ' (Matric No.: ' . $studentMatric . ')' : ''),
+                                'meta' => '',
                             ];
                         }
                     }
                 }
 
+                $bulkStudentsCount = max((int) ($batchRow['student_count'] ?? 0), count($bulkItems));
+                $subtotalAmount = isset($batchRow['subtotal']) && (float) $batchRow['subtotal'] > 0
+                    ? (float) $batchRow['subtotal']
+                    : (float) ($unitPrice * max(1, $bulkStudentsCount));
+                $total_amount = $subtotalAmount;
+
                 if ($shouldCreateBulkExportAudit) {
                     $exportAudit = createBulkReceiptExportAudit($conn, (int)$user_id, (string)$tx_ref);
-                }
-
-                if (!empty($batchRow['fee_amount']) && (float) $batchRow['fee_amount'] > 0) {
-                    $bulkItems[] = [
-                        'name' => 'Bulk payment fee',
-                        'type' => 'Charge',
-                        'price' => (float) $batchRow['fee_amount'],
-                        'meta' => 'Handling fee applied to this bulk payment',
-                    ];
                 }
 
                 if (!empty($bulkItems)) {
@@ -519,6 +528,9 @@ function getReceiptDataFromRef($conn, $user_id, $tx_ref, $filterType = null, $fi
         'reference' => $tx_ref,
         'receipt_date' => $receiptDateFormatted,
         'total_amount' => (float) $total_amount,
+        'is_bulk_payment' => $isBulkPayment,
+        'bulk_material' => $bulkMaterial,
+        'bulk_students_count' => $bulkStudentsCount,
         'export_audit' => $exportAudit,
         'items' => $items,
     ];
@@ -532,6 +544,9 @@ function buildReceiptHtmlFromData(array $receiptData) {
     $verificationUrl = trim((string)($exportAudit['verification_url'] ?? ''));
     $exportStudentsCount = (int)($exportAudit['students_count'] ?? 0);
     $exportTotalStudentsCount = (int)($exportAudit['total_students_count'] ?? 0);
+    $isBulkPayment = !empty($receiptData['is_bulk_payment']);
+    $bulkMaterial = trim((string)($receiptData['bulk_material'] ?? ''));
+    $bulkStudentsCount = (int)($receiptData['bulk_students_count'] ?? 0);
     $message = '';
     $message .= '<h2 style="margin:0;color:#7a3b73">Payment Receipt</h2>';
     if ($exportCode !== '') {
@@ -553,18 +568,26 @@ function buildReceiptHtmlFromData(array $receiptData) {
 
     $message .= '<div style="background:#f9f4ff;border:1px solid #e8d7f0;border-radius:6px;padding:12px;margin-bottom:16px">'
               . '<div style="margin:4px 0"><strong>Payer Name:</strong> ' . htmlspecialchars((string) $receiptData['payer_name']) . '</div>'
-              . '<div style="margin:4px 0"><strong>Matric No.:</strong> ' . htmlspecialchars((string) $receiptData['matric_no']) . '</div>'
-              . '<div style="margin:4px 0"><strong>Reference:</strong> #' . htmlspecialchars((string) $receiptData['reference']) . '</div>'
+              . '<div style="margin:4px 0"><strong>Matric No.:</strong> ' . htmlspecialchars((string) $receiptData['matric_no']) . '</div>';
+    if ($bulkMaterial !== '') {
+        $message .= '<div style="margin:4px 0"><strong>Material:</strong> ' . htmlspecialchars($bulkMaterial) . '</div>';
+    }
+    if ($bulkStudentsCount > 0) {
+        $message .= '<div style="margin:4px 0"><strong>Total Students:</strong> ' . number_format($bulkStudentsCount) . '</div>';
+    }
+    $message .= '<div style="margin:4px 0"><strong>Reference:</strong> #' . htmlspecialchars((string) $receiptData['reference']) . '</div>'
               . '<div style="margin:4px 0"><strong>Date:</strong> ' . htmlspecialchars((string) $receiptData['receipt_date']) . '</div>'
               . '<div style="margin:4px 0"><strong>Total Amount:</strong> ' . $currency . ' ' . number_format((float)$receiptData['total_amount'], 2) . '</div>'
               . '</div>';
 
     if (!empty($receiptData['items'])) {
-        $message .= '<h3 style="margin:12px 0 8px;color:#7a3b73">Items Purchased</h3>';
+        $sectionTitle = $isBulkPayment ? 'Students Paid For' : 'Items Purchased';
+        $itemColumnLabel = $isBulkPayment ? 'Student (Matric No.)' : 'Item';
+        $message .= '<h3 style="margin:12px 0 8px;color:#7a3b73">' . $sectionTitle . '</h3>';
         $message .= '<table width="100%" cellpadding="6" cellspacing="0" style="border-collapse:collapse">';
         $message .= '<thead>'
                   . '<tr>'
-                  . '<th align="left" style="border-bottom:1px solid #eee;color:#555">Item</th>'
+                  . '<th align="left" style="border-bottom:1px solid #eee;color:#555">' . $itemColumnLabel . '</th>'
                   . '<th align="left" style="border-bottom:1px solid #eee;color:#555">Type</th>'
                   . '<th align="right" style="border-bottom:1px solid #eee;color:#555">Price</th>'
                   . '</tr>'

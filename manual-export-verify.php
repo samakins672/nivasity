@@ -58,6 +58,7 @@ if ($code !== '') {
       u.first_name,
       u.last_name,
       u.email,
+      COALESCE(NULLIF(m.school_id, 0), u.school, 0) AS school_id,
       d.name AS dept_name,
       s.name AS school_name
     FROM manual_export_audits AS a
@@ -76,6 +77,14 @@ if ($code !== '') {
   } else {
     $error = 'No export record found for this code.';
   }
+}
+
+$reqHost = function_exists('nivasity_detect_request_host') ? nivasity_detect_request_host() : strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
+if (strpos($reqHost, 'api.') === 0) {
+  $redirectSchoolId = ($record && !empty($record['school_id'])) ? (int)$record['school_id'] : 1;
+  $redirectPath = 'manual-export-verify' . ($code !== '' ? '?code=' . urlencode($code) : '');
+  header('Location: ' . nivasity_get_school_url($conn, $redirectSchoolId, $redirectPath), true, 302);
+  exit();
 }
 
 function h($v) {

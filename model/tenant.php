@@ -215,6 +215,10 @@ if (!function_exists('nivasity_get_school_domain')) {
       }
     }
 
+    if ($schoolId === 1) {
+      return 'https://funaab.nivasity.com';
+    }
+
     return nivasity_default_domain();
   }
 }

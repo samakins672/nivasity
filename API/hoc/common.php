@@ -73,12 +73,19 @@ function hocPurchasesSinceSql($conn, int $schoolId, string $alias = 'mb'): strin
     return $since ? "$alias.created_at >= '" . mysqli_real_escape_string($conn, $since) . "'" : '1 = 1';
 }
 
-// Where verification links point: the school's portal (schools.domain, else FUNAAB's portal).
+// Where verification links point: the school's portal (schools.domain or {code}.nivasity.com, else FUNAAB's portal).
 function hocVerifyBaseUrl($conn, int $schoolId): string {
-    $q = mysqli_query($conn, "SELECT domain FROM schools WHERE id = $schoolId LIMIT 1");
-    $domain = ($q && ($r = mysqli_fetch_assoc($q))) ? trim((string) ($r['domain'] ?? '')) : '';
+    $hasDomain = hocColumnExists($conn, 'schools', 'domain');
+    $cols = $hasDomain ? 'domain, code' : 'code';
+    $q = mysqli_query($conn, "SELECT $cols FROM schools WHERE id = $schoolId LIMIT 1");
+    $r = $q ? mysqli_fetch_assoc($q) : null;
+    $domain = trim((string) ($r['domain'] ?? ''));
     if ($domain !== '') {
         return 'https://' . preg_replace('#^https?://#i', '', rtrim($domain, '/'));
+    }
+    $code = strtolower(trim((string) ($r['code'] ?? '')));
+    if ($code !== '') {
+        return 'https://' . $code . '.nivasity.com';
     }
     return $schoolId === 1 ? 'https://funaab.nivasity.com' : 'https://www.nivasity.com';
 }

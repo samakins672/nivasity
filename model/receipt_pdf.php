@@ -185,24 +185,52 @@ if (!class_exists('NivasityReceiptPdfComposer')) {
         $this->cursorY += $exportHeight + 16;
       }
 
-      $infoHeight = 94;
+      $isBulkPayment = !empty($receiptData['is_bulk_payment']);
+      $bulkMaterial = trim((string) ($receiptData['bulk_material'] ?? ''));
+      $bulkStudentsCount = (int) ($receiptData['bulk_students_count'] ?? 0);
+
+      $infoRows = [
+        ['Payer Name', (string) ($receiptData['payer_name'] ?? 'Customer')],
+        ['Matric No.', (string) ($receiptData['matric_no'] ?? 'N/A')],
+      ];
+      if ($bulkMaterial !== '') {
+        $infoRows[] = ['Material', $bulkMaterial];
+      }
+      if ($bulkStudentsCount > 0) {
+        $infoRows[] = ['Total Students', number_format($bulkStudentsCount)];
+      }
+      $infoRows[] = ['Reference', '#' . (string) ($receiptData['reference'] ?? '')];
+      $infoRows[] = ['Date', (string) ($receiptData['receipt_date'] ?? '')];
+      $infoRows[] = ['Total Amount', $this->formatCurrency((float) ($receiptData['total_amount'] ?? 0))];
+
+      $wrappedInfoRows = [];
+      $infoHeight = 22;
+      foreach ($infoRows as $idx => $pair) {
+        $valLines = $this->wrapText($pair[1], 385, 10);
+        $rowH = 18 + (max(0, count($valLines) - 1) * 13);
+        $wrappedInfoRows[] = [$pair[0], $valLines, $rowH];
+        $infoHeight += ($idx === count($infoRows) - 1) ? ($rowH - 18) : $rowH;
+      }
+
       $this->ensureSpace($infoHeight + 10);
       $this->fillRect(42, $this->cursorY, 511.28, $infoHeight, $soft);
       $this->strokeRect(42, $this->cursorY, 511.28, $infoHeight, [0.910, 0.843, 0.941], 1.0);
       $infoY = $this->cursorY + 18;
-      $this->labelValueLine(58, $infoY, 'Payer Name', (string) ($receiptData['payer_name'] ?? 'Customer'));
-      $this->labelValueLine(58, $infoY + 18, 'Matric No.', (string) ($receiptData['matric_no'] ?? 'N/A'));
-      $this->labelValueLine(58, $infoY + 36, 'Reference', '#' . (string) ($receiptData['reference'] ?? ''));
-      $this->labelValueLine(58, $infoY + 54, 'Date', (string) ($receiptData['receipt_date'] ?? ''));
-      $this->labelValueLine(58, $infoY + 72, 'Total Amount', $this->formatCurrency((float) ($receiptData['total_amount'] ?? 0)));
+      foreach ($wrappedInfoRows as [$label, $valLines, $rowH]) {
+        $this->text(58, $infoY, $label . ':', 'F2', 10, [0.220, 0.220, 0.220]);
+        foreach ($valLines as $lineIdx => $valLine) {
+          $this->text(148, $infoY + ($lineIdx * 13), $valLine, 'F1', 10, [0.220, 0.220, 0.220]);
+        }
+        $infoY += $rowH;
+      }
       $this->cursorY += $infoHeight + 20;
 
       $items = $receiptData['items'] ?? [];
       if (!empty($items)) {
         $this->ensureSpace(58);
-        $this->text(42, $this->cursorY, 'Items Purchased', 'F2', 14, $purple);
+        $this->text(42, $this->cursorY, $isBulkPayment ? 'Students Paid For' : 'Items Purchased', 'F2', 14, $purple);
         $this->cursorY += 22;
-        $this->drawTableHeader();
+        $this->drawTableHeader($isBulkPayment ? 'Student (Matric No.)' : 'Item');
         foreach ($items as $item) {
           $this->drawItemRow($item);
         }
@@ -255,11 +283,11 @@ if (!class_exists('NivasityReceiptPdfComposer')) {
       $this->text(42, 792, 'Copyright © Nivasity. 2025 All rights reserved.', 'F1', 8.5, [0.360, 0.360, 0.360]);
     }
 
-    private function drawTableHeader()
+    private function drawTableHeader($firstColumnLabel = 'Item')
     {
       $this->fillRect(42, $this->cursorY, 511.28, 24, [0.985, 0.985, 0.985]);
       $this->line(42, $this->cursorY + 24, 553, $this->cursorY + 24, [0.910, 0.910, 0.910], 1.0);
-      $this->text(48, $this->cursorY + 16, 'Item', 'F2', 10, [0.333, 0.333, 0.333]);
+      $this->text(48, $this->cursorY + 16, $firstColumnLabel, 'F2', 10, [0.333, 0.333, 0.333]);
       $this->text(372, $this->cursorY + 16, 'Type', 'F2', 10, [0.333, 0.333, 0.333]);
       $this->textRight(544, $this->cursorY + 16, 'Price', 'F2', 10, [0.333, 0.333, 0.333]);
       $this->cursorY += 28;
