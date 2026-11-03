@@ -30,6 +30,13 @@ define('PAYSTACK_PUBLIC_KEY', 'pk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 define('PAYSTACK_SECRET_KEY', 'sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
 
 // ============================================================================
+// BULK MATERIAL PAYMENT SETTINGS
+// ============================================================================
+// Set to false to discontinue issuing new bulk material payments across the
+// website, mobile app, and API. Past bulk payments and receipts can still be viewed.
+define('BULK_PAYMENT_ENABLED', false);
+
+// ============================================================================
 // WHATSAPP CLOUD API (Meta) — Phone OTP Verification
 // ============================================================================
 // Used by: API/auth/verify-phone.php

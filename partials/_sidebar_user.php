@@ -1,4 +1,4 @@
-<?php $profileImageUrl = nivasity_asset_url('assets/images/users/' . $user_image); ?>
+<?php require_once __DIR__ . "/../model/bulk_material_payment_service.php"; $profileImageUrl = nivasity_asset_url('assets/images/users/' . $user_image); ?>
 <nav class="sidebar sidebar-offcanvas border-start border-2 border-secondary" id="sidebar">
   <ul class="nav">
     <li class="nav-item d-md-none d-block">
@@ -24,7 +24,7 @@
         <span class="menu-title <?php echo ($url == 'index.php') ? 'text-white fw-bold' : ''; ?>">Store</span>
       </a>
     </li>
-    <?php if (in_array((string) ($_SESSION['nivas_userRole'] ?? ''), ['student', 'hoc'], true)): ?>
+    <?php if (in_array((string) ($_SESSION['nivas_userRole'] ?? ''), ['student', 'hoc'], true) && bulk_material_payment_is_enabled()): ?>
     <li class="nav-item">
       <a class="nav-link" href="javascript:;" data-bs-toggle="modal" data-bs-target="#bulkPaymentManualPickerModal">
         <i class="mdi mdi-cash-multiple menu-icon"></i>

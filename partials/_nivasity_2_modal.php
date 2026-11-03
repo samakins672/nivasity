@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . "/../model/bulk_material_payment_service.php";
 $nivasity_intro_seen = isset($nivasity_2_intro_seen) ? (bool) $nivasity_2_intro_seen : false;
 $nivasity_intro_mark_seen_url = isset($nivasity_intro_mark_seen_url) ? (string) $nivasity_intro_mark_seen_url : 'model/user.php';
 $nivasity_intro_cta_label = isset($nivasity_intro_cta_label) ? (string) $nivasity_intro_cta_label : 'Continue';
@@ -221,7 +222,7 @@ $nivasity_intro_is_student_type = in_array($nivasity_intro_role, ['student', 'ho
       <div class="modal-body">
         <div class="nivasity-2-modal__content">
           <div class="nivasity-2-modal__grid">
-            <?php if ($nivasity_intro_is_student_type): ?>
+            <?php if ($nivasity_intro_is_student_type && bulk_material_payment_is_enabled()): ?>
             <article class="nivasity-2-modal__card">
               <div class="nivasity-2-modal__icon"><i class="mdi mdi-cash-multiple"></i></div>
               <h5>Bulk payments</h5>

@@ -53,3 +53,12 @@ define('PAYMENT_FREEZE_SCOPE', 'all');
 // define('PAYMENT_FREEZE_MESSAGE', 'We are performing system maintenance. Payment services will resume shortly.');
 // define('PAYMENT_FREEZE_MESSAGE', 'Payments are temporarily unavailable while we upgrade our systems.');
 // define('PAYMENT_FREEZE_NO_EXPIRY', true);
+
+/**
+ * Bulk material payment toggle
+ * Set to false to discontinue new bulk payments across mobile app, website, and API.
+ * Existing bulk payments and receipts can still be viewed and downloaded.
+ */
+if (!defined('BULK_PAYMENT_ENABLED')) {
+    define('BULK_PAYMENT_ENABLED', false);
+}

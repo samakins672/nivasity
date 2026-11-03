@@ -37,6 +37,29 @@ if (!function_exists('bulk_material_payment_has_table')) {
   }
 }
 
+if (!function_exists('bulk_material_payment_is_enabled')) {
+  function bulk_material_payment_is_enabled(): bool
+  {
+    if (!defined('BULK_PAYMENT_ENABLED') && !defined('BULK_PAYMENTS_ENABLED')) {
+      if (file_exists(__DIR__ . '/../config/fw.php')) {
+        require_once __DIR__ . '/../config/fw.php';
+      }
+      if (!defined('BULK_PAYMENT_ENABLED') && file_exists(__DIR__ . '/../config/payment_freeze.php')) {
+        require_once __DIR__ . '/../config/payment_freeze.php';
+      }
+    }
+
+    if (defined('BULK_PAYMENT_ENABLED')) {
+      return (bool) BULK_PAYMENT_ENABLED;
+    }
+    if (defined('BULK_PAYMENTS_ENABLED')) {
+      return (bool) BULK_PAYMENTS_ENABLED;
+    }
+
+    return false;
+  }
+}
+
 if (!function_exists('bulk_material_payment_ensure_schema')) {
   function bulk_material_payment_ensure_schema(mysqli $conn): bool
   {
@@ -698,6 +721,9 @@ if (!function_exists('bulk_material_payment_find_or_create_placeholder_user')) {
 if (!function_exists('bulk_material_payment_process_wallet_batch')) {
   function bulk_material_payment_process_wallet_batch(mysqli $conn, array $payer, array $manual, array $rows, string $walletPin, string $sourceChannel = 'web'): array
   {
+    if (!bulk_material_payment_is_enabled()) {
+      throw new Exception('Bulk payment is currently discontinued.');
+    }
     if (!bulk_material_payment_ensure_schema($conn)) {
       throw new Exception('Bulk payment tables are not ready yet.');
     }

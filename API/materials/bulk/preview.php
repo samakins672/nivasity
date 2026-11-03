@@ -14,6 +14,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $user = authenticateApiRequest($conn);
 requireStudentRole($user);
 
+if (!bulk_material_payment_is_enabled()) {
+    sendApiError('Bulk payment has been discontinued. Please update the Nivasity app to the latest version.', 403);
+}
+
 $input = json_decode(file_get_contents('php://input'), true);
 if (!$input) {
     $input = $_POST;

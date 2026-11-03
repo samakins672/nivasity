@@ -514,6 +514,10 @@ if (!function_exists('bulk_material_payment_list_payable_manuals')) {
     require_once __DIR__ . '/material_semester.php';
     require_once __DIR__ . '/material_request_service.php';
 
+    if (!bulk_material_payment_is_enabled()) {
+      return [];
+    }
+
     if ($schoolId <= 0 || $deptId <= 0) {
       return [];
     }

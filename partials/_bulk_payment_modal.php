@@ -1,4 +1,8 @@
 <?php
+require_once __DIR__ . '/../model/bulk_material_payment_service.php';
+if (!bulk_material_payment_is_enabled()) {
+  return;
+}
 if (!isset($bulk_payment_manual_options) || !is_array($bulk_payment_manual_options)) {
   $bulk_payment_manual_options = [];
   $bulkPaymentRole = (string) ($_SESSION['nivas_userRole'] ?? '');

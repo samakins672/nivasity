@@ -33,9 +33,11 @@ $status = $manual['status'];
 $material_scope_label = ((int)$manual['dept'] === 0 && (int)$manual['faculty'] > 0) ? 'Faculty' : 'Department';
 $is_overdue = (date('Y-m-d') > $due_date2) || ($status !== 'open')
   || !material_semester_is_visible($conn, $manual);
+require_once __DIR__ . '/bulk_material_payment_service.php';
 $can_bulk_pay = isset($_SESSION['nivas_userId'])
   && in_array((string) ($_SESSION['nivas_userRole'] ?? ''), ['student', 'hoc'], true)
-  && !$is_overdue;
+  && !$is_overdue
+  && bulk_material_payment_is_enabled();
 
 // Determine cart status
 $in_cart = false;

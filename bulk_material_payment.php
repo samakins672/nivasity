@@ -55,6 +55,7 @@ if (!function_exists('bulk_material_payment_build_preview_payload')) {
 
 $currentUserRole = (string) ($_SESSION['nivas_userRole'] ?? '');
 $isStudentType = in_array($currentUserRole, ['student', 'hoc'], true);
+$bulkPaymentEnabled = bulk_material_payment_is_enabled();
 $schemaReady = bulk_material_payment_ensure_schema($conn);
 $wallet = nivasityGetUserWallet($conn, (int) $user_id);
 $hasWalletPin = nivasityUserHasWalletPin($conn, (int) $user_id);
@@ -75,7 +76,9 @@ if (isset($_SESSION['bulk_material_payment_flash']) && is_array($_SESSION['bulk_
   }
 }
 
-if (!$isStudentType) {
+if (!$bulkPaymentEnabled) {
+  $pageError = 'Bulk payment is currently discontinued.';
+} elseif (!$isStudentType) {
   $pageError = 'Only student and HOC accounts can start a bulk material payment.';
 }
 
@@ -119,6 +122,9 @@ $walletBalance = (int) ($wallet['balance'] ?? 0);
 $walletReady = $wallet !== null && $hasWalletPin && (int) $user_dept > 0 && (string) $user_status === 'verified';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_preview_bulk_payment'])) {
+  if (!$bulkPaymentEnabled) {
+    bulk_material_payment_json_response('error', 'Bulk payment is currently discontinued.', [], 403);
+  }
   if ($pageError !== '') {
     bulk_material_payment_json_response('error', $pageError, [], 422);
   }
@@ -152,8 +158,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_preview_bulk_pay
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_bulk_payment']) && $pageError === '') {
-  $previewRows = bulk_material_payment_decode_preview_rows((string) ($_POST['preview_payload'] ?? ''));
-  if (empty($previewRows)) {
+  if (!$bulkPaymentEnabled) {
+    $pageError = 'Bulk payment is currently discontinued.';
+  }
+  $previewRows = $bulkPaymentEnabled ? bulk_material_payment_decode_preview_rows((string) ($_POST['preview_payload'] ?? '')) : [];
+  if (!$bulkPaymentEnabled) {
+    // pageError already set: discontinued
+  } elseif (empty($previewRows)) {
     $pageError = 'Preview the CSV again before paying from your wallet.';
   } else {
     $previewResult = bulk_material_payment_preview_analyze_rows($conn, $previewRows, $manual ?: [], [
