@@ -118,8 +118,15 @@ $dept_name_cache = [];
 while ($row = mysqli_fetch_assoc($result)) {
     // Check if user already bought this material
     $non_lost_condition = material_copy_non_lost_condition($conn, 'mb');
-    $bought_query = mysqli_query($conn, "SELECT 1 FROM manuals_bought AS mb WHERE mb.manual_id = {$row['id']} AND mb.buyer = $user_id AND {$non_lost_condition} LIMIT 1");
-    $is_purchased = mysqli_num_rows($bought_query) > 0;
+    $bought_query = mysqli_query($conn, "SELECT mb.id, mb.status FROM manuals_bought AS mb WHERE mb.manual_id = {$row['id']} AND mb.buyer = $user_id AND {$non_lost_condition} ORDER BY mb.id DESC LIMIT 1");
+    $bought_row = $bought_query ? mysqli_fetch_assoc($bought_query) : null;
+    $is_purchased = (bool) $bought_row;
+
+    // Rebuy: the current copy can be marked lost (once per material) and bought again at today's price.
+    $bought_id = $bought_row ? (int)$bought_row['id'] : 0;
+    $can_rebuy = $is_purchased
+        && strtolower((string)$bought_row['status']) === 'successful'
+        && material_copy_lost_count($conn, (int)$user_id, (int)$row['id']) < 1;
     
     // Check if due date has passed (within 24 hours)
     $due_date = strtotime($row['due_date']);
@@ -181,6 +188,8 @@ while ($row = mysqli_fetch_assoc($result)) {
         'semester_label' => material_semester_label($row['semester'] ?? null, $row['session'] ?? null),
         'seller_name' => $row['first_name'] . ' ' . $row['last_name'],
         'is_purchased' => $is_purchased,
+        'bought_id' => $bought_id,
+        'can_rebuy' => $can_rebuy,
         'created_at' => $row['created_at']
     ];
 }

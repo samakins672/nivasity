@@ -79,9 +79,32 @@ if (!function_exists('material_copy_non_lost_condition')) {
   }
 }
 
-if (!function_exists('material_copy_mark_lost')) {
-  function material_copy_mark_lost(mysqli $conn, int $buyerId, int $schoolId, int $boughtId): array
+if (!function_exists('material_copy_lost_count')) {
+  /** How many copies of this material the student has already marked as lost. */
+  function material_copy_lost_count(mysqli $conn, int $buyerId, int $manualId): int
   {
+    if (!material_copy_has_column($conn, 'manuals_bought', 'copy_status')) {
+      return 0;
+    }
+
+    $result = mysqli_query(
+      $conn,
+      "SELECT COUNT(*) AS c FROM manuals_bought
+       WHERE buyer = " . (int) $buyerId . " AND manual_id = " . (int) $manualId . "
+         AND LOWER(TRIM(CAST(copy_status AS CHAR))) IN ('lost', 'missing')"
+    );
+    $row = $result ? mysqli_fetch_assoc($result) : null;
+
+    return (int) ($row['c'] ?? 0);
+  }
+}
+
+if (!function_exists('material_copy_mark_lost')) {
+  // $options (command center only, never from student requests):
+  //   team_override => true   skip the 48-hour wait and the one-time limit
+  function material_copy_mark_lost(mysqli $conn, int $buyerId, int $schoolId, int $boughtId, array $options = []): array
+  {
+    $teamOverride = !empty($options['team_override']);
     if (!material_copy_has_column($conn, 'manuals_bought', 'id') || !material_copy_has_column($conn, 'manuals_bought', 'copy_status')) {
       return [
         'ok' => false,
@@ -164,11 +187,21 @@ if (!function_exists('material_copy_mark_lost')) {
       ];
     }
 
-    if (!material_copy_is_after_lost_wait_period((string) ($order['created_at'] ?? ''), 48)) {
+    if (!$teamOverride && !material_copy_is_after_lost_wait_period((string) ($order['created_at'] ?? ''), 48)) {
       return [
         'ok' => false,
         'status_code' => 409,
         'message' => 'Material copies can only be marked as lost after 48 hours of purchase.',
+      ];
+    }
+
+    // A student can replace a material once. Another loss has to go through the team.
+    if (!$teamOverride && material_copy_lost_count($conn, $buyerId, (int) ($order['manual_id'] ?? 0)) >= 1) {
+      return [
+        'ok' => false,
+        'status_code' => 409,
+        'message' => 'You have already replaced this material once. Please contact the Nivasity team to mark it as lost again.',
+        'data' => ['requires_team' => true],
       ];
     }
 
@@ -192,7 +225,7 @@ if (!function_exists('material_copy_mark_lost')) {
     return [
       'ok' => true,
       'status_code' => 200,
-      'message' => 'Material marked as lost. You can now buy another copy of it.',
+      'message' => 'Material marked as lost. You can now buy another copy of it. This can only be done once per material.',
       'data' => [
         'bought_id' => (int) ($order['id'] ?? 0),
         'manual_id' => (int) ($order['manual_id'] ?? 0),
