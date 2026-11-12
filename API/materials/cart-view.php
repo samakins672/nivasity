@@ -5,6 +5,7 @@ require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/../../model/functions.php';
 require_once __DIR__ . '/../../model/PaymentGatewayFactory.php';
 require_once __DIR__ . '/../../model/internal_wallet_service.php';
+require_once __DIR__ . '/../../model/material_copy_status.php';
 
 // Only accept GET requests
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
@@ -58,7 +59,9 @@ $ids_string = implode(',', $cart_ids);
 // manuals_bought - the actual record of what the student received - is the source of truth here.
 $resolved_ids = [];
 
-$purchased_query = mysqli_query($conn, "SELECT DISTINCT manual_id FROM manuals_bought WHERE buyer = $user_id AND manual_id IN ($ids_string)");
+// Copies the student marked as lost don't count: they're allowed to buy the material again.
+$non_lost_condition = material_copy_non_lost_condition($conn, 'mb');
+$purchased_query = mysqli_query($conn, "SELECT DISTINCT mb.manual_id FROM manuals_bought AS mb WHERE mb.buyer = $user_id AND mb.manual_id IN ($ids_string) AND {$non_lost_condition}");
 if ($purchased_query) {
     while ($purchased_row = mysqli_fetch_assoc($purchased_query)) {
         $resolved_ids[] = (int)$purchased_row['manual_id'];
